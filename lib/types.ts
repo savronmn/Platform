@@ -34,6 +34,8 @@ export interface Barber {
     phone: string | null;
     email: string | null;
     instagram_url: string | null;
+    license_number: string | null;
+    services_offered: string[] | null;
     google_calendar_id: string | null;
     google_calendar_tokens: Record<string, unknown> | null;
     google_sync_token: string | null;
@@ -98,6 +100,7 @@ export interface Booking {
     status: 'confirmed' | 'completed' | 'cancelled' | 'no_show';
     payment_status?: string;
     notes: string | null;
+    client_photo_url: string | null;
     google_event_id: string | null;
     stripe_session_id?: string;
     created_at: string;

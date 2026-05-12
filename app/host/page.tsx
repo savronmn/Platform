@@ -8,7 +8,7 @@ import {
     startOfWeek, endOfWeek, eachDayOfInterval,
     startOfMonth, endOfMonth, addWeeks, subWeeks, addMonths, subMonths,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, RefreshCw, Wifi, X, UserCheck, UserX, RotateCcw, Phone, Scissors, Menu, LayoutDashboard, Users, CreditCard, Mail, MonitorPlay, Ban } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw, Wifi, X, UserCheck, UserX, RotateCcw, Phone, Scissors, Menu, LayoutDashboard, Users, CreditCard, Mail, MonitorPlay, Ban, Camera, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -38,6 +38,7 @@ export default function HostDashboard() {
     // Appointment detail modal
     const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
     const [updating, setUpdating] = useState(false);
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
     // Burger nav
     const [showNav, setShowNav] = useState(false);
@@ -97,6 +98,26 @@ export default function HostDashboard() {
         setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, status } : b));
         setActiveBooking(prev => prev?.id === booking.id ? { ...prev, status } : prev);
         setUpdating(false);
+    };
+
+    const uploadClientPhoto = async (booking: Booking, file: File) => {
+        setUploadingPhoto(true);
+        try {
+            const ext = file.name.split('.').pop();
+            const path = `client-photos/${booking.id}.${ext}`;
+            const { error: upErr } = await supabase.storage
+                .from('barbers')
+                .upload(path, file, { upsert: true, contentType: file.type });
+            if (upErr) throw upErr;
+            const { data: { publicUrl } } = supabase.storage.from('barbers').getPublicUrl(path);
+            await supabase.from('bookings').update({ client_photo_url: publicUrl }).eq('id', booking.id);
+            const updated = { ...booking, client_photo_url: publicUrl };
+            setBookings(prev => prev.map(b => b.id === booking.id ? updated : b));
+            setActiveBooking(updated);
+        } catch (err) {
+            console.error('Photo upload failed:', err);
+        }
+        setUploadingPhoto(false);
     };
 
     // Navigation
@@ -503,6 +524,39 @@ export default function HostDashboard() {
                                         {activeBooking.notes}
                                     </p>
                                 )}
+
+                                {/* Client photo */}
+                                <div className="border-t border-white/5 pt-3">
+                                    <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-2">Client Photo</p>
+                                    <label className="group relative cursor-pointer block">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                            onChange={e => {
+                                                const f = e.target.files?.[0];
+                                                if (f) uploadClientPhoto(activeBooking, f);
+                                                e.target.value = '';
+                                            }}
+                                        />
+                                        {activeBooking.client_photo_url ? (
+                                            <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white/10 group-hover:border-savron-green/40 transition-all">
+                                                <Image src={activeBooking.client_photo_url} alt="Client" fill className="object-cover" />
+                                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                    {uploadingPhoto
+                                                        ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                        : <Camera className="w-4 h-4 text-white" />}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="w-16 h-16 rounded-full border-2 border-dashed border-white/10 group-hover:border-savron-green/40 transition-all flex items-center justify-center bg-savron-charcoal">
+                                                {uploadingPhoto
+                                                    ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                    : <Upload className="w-4 h-4 text-white/30 group-hover:text-savron-green transition-colors" />}
+                                            </div>
+                                        )}
+                                    </label>
+                                </div>
 
                                 {/* Action buttons */}
                                 <div className="pt-2 space-y-2">

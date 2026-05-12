@@ -102,6 +102,16 @@ export default function BarberBookingPage() {
         setStep(4);
     };
 
+    const resetBooking = () => {
+        setStep(1);
+        setSelectedService(null);
+        setSelectedDate(new Date());
+        setSelectedTime(null);
+        setClientName('');
+        setClientEmail('');
+        setClientPhone('');
+    };
+
     if (loading) {
         return (
             <main className="min-h-screen bg-savron-black flex items-center justify-center pt-20">
@@ -292,6 +302,12 @@ export default function BarberBookingPage() {
                                         <span className="text-white font-bold">{barber.name}</span>.
                                     </p>
                                     <p className="text-xs text-savron-silver/50 uppercase tracking-widest">Check your email for details</p>
+                                    <button
+                                        onClick={resetBooking}
+                                        className="mx-auto mt-2 flex items-center gap-2 px-6 py-3 border border-white/10 text-xs uppercase tracking-widest text-savron-silver hover:text-white hover:border-white/25 transition-all rounded-savron"
+                                    >
+                                        Book Another Appointment
+                                    </button>
                                 </motion.div>
                             )}
                         </AnimatePresence>

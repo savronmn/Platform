@@ -5,15 +5,16 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
-import { Users, Scissors, LayoutDashboard, LogOut, MonitorPlay, CreditCard, Mail } from 'lucide-react';
+import { Users, Scissors, LayoutDashboard, LogOut, MonitorPlay, CreditCard, Mail, ClipboardList } from 'lucide-react';
 
 const navItems = [
-    { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-    { label: 'Host View', href: '/host', icon: MonitorPlay },
-    { label: 'Barbers', href: '/admin/barbers', icon: Scissors },
-    { label: 'Clients', href: '/admin/clients', icon: Users },
-    { label: 'Membership', href: '/admin/membership', icon: CreditCard },
+    { label: 'Dashboard',      href: '/admin',                icon: LayoutDashboard },
+    { label: 'Host View',      href: '/host',                 icon: MonitorPlay },
+    { label: 'Barbers',        href: '/admin/barbers',        icon: Scissors },
+    { label: 'Clients',        href: '/admin/clients',        icon: Users },
+    { label: 'Membership',     href: '/admin/membership',     icon: CreditCard },
     { label: 'Communications', href: '/admin/communications', icon: Mail },
+    { label: 'Hiring',         href: '/admin/applicants',     icon: ClipboardList },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

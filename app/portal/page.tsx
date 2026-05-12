@@ -80,9 +80,22 @@ export default function PortalPage() {
                 }
             }
 
+            // Reject duplicate email
+            const { data: existing } = await supabase
+                .from('applicants')
+                .select('id')
+                .eq('email', form.email.toLowerCase().trim())
+                .maybeSingle();
+            if (existing) {
+                setError('An application with this email already exists.');
+                setStatus('error');
+                return;
+            }
+
             // Insert applicant
             const { error: insertError } = await supabase.from('applicants').insert({
                 ...form,
+                email: form.email.toLowerCase().trim(),
                 video_url,
                 status: 'pending',
             });
