@@ -234,7 +234,7 @@ export default function AdminApplicantsPage() {
                                 </button>
                             </div>
                             <p className="text-savron-silver text-sm mb-6">
-                                Permanently delete <span className="text-white font-medium">{confirmDelete.name}</span>'s application? This cannot be undone.
+                                Permanently delete <span className="text-white font-medium">{confirmDelete.name}</span>&apos;s application? This cannot be undone.
                             </p>
                             <div className="flex gap-3">
                                 <button

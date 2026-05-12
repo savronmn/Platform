@@ -283,7 +283,7 @@ export default function AdminBarbersPage() {
                                 <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-1">
                                     Services Offered
                                 </label>
-                                <p className="text-savron-silver/40 text-xs mb-4">Only toggled services appear on this barber's booking page.</p>
+                                <p className="text-savron-silver/40 text-xs mb-4">Only toggled services appear on this barber&apos;s booking page.</p>
                                 <div className="space-y-2">
                                     {SERVICES.map(svc => {
                                         const on = servicesOffered.includes(svc.name);
