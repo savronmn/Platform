@@ -196,7 +196,9 @@ export default function BarberBookingPage() {
                             {step === 1 && (
                                 <motion.div key="service" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-3">
                                     <h2 className="text-xl font-heading text-white uppercase tracking-widest mb-6">Select Service</h2>
-                                    {SERVICES.map(service => (
+                                    {SERVICES.filter(s =>
+                                        !barber.services_offered || barber.services_offered.includes(s.name)
+                                    ).map(service => (
                                         <div
                                             key={service.id}
                                             onClick={() => setSelectedService(service.id)}

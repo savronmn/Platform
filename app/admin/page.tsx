@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import StatCard from '@/components/crm/StatCard';
-import { Users, Calendar, DollarSign, Clock, ArrowRight, TrendingUp, Scissors, UserCheck } from 'lucide-react';
+import { Users, Calendar, DollarSign, Clock, ArrowRight, TrendingUp, Scissors, UserCheck, ClipboardList } from 'lucide-react';
 import type { Booking, Client } from '@/lib/types';
 import { format, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,7 @@ export default function AdminDashboard() {
         dueClients: 0,
         todayRevenue: 0,
         todayCompleted: 0,
+        pendingApplicants: 0,
     });
     const [todaySchedule, setTodaySchedule] = useState<Booking[]>([]);
     const [upcomingSchedule, setUpcomingSchedule] = useState<Booking[]>([]);
@@ -33,10 +34,11 @@ export default function AdminDashboard() {
                 sixWeeksAgo.setDate(sixWeeksAgo.getDate() - 42);
                 const cutoff = format(sixWeeksAgo, 'yyyy-MM-dd');
 
-                const [clientsRes, todayBookingsRes, upcomingRes] = await Promise.all([
+                const [clientsRes, todayBookingsRes, upcomingRes, applicantsRes] = await Promise.all([
                     supabase.from('clients').select('*'),
                     supabase.from('bookings').select('*').eq('date', todayStr).order('time', { ascending: true }),
                     supabase.from('bookings').select('*').gt('date', todayStr).lte('date', nextWeekStr).in('status', ['confirmed']).order('date', { ascending: true }).order('time', { ascending: true }).limit(20),
+                    supabase.from('applicants').select('id').eq('status', 'pending'),
                 ]);
 
                 if (clientsRes.error) throw new Error(`Clients: ${clientsRes.error.message}`);
@@ -68,6 +70,7 @@ export default function AdminDashboard() {
                     dueClients,
                     todayRevenue,
                     todayCompleted: todayCompleted.length,
+                    pendingApplicants: applicantsRes.data?.length ?? 0,
                 });
 
                 setTodaySchedule(todayActive);
@@ -160,6 +163,13 @@ export default function AdminDashboard() {
                     icon={<Scissors className="w-4 h-4" />}
                     sub={<Link href="/admin/barbers" className="text-savron-green hover:underline">Manage team</Link>}
                 />
+                <StatCard
+                    label="Pending Applications"
+                    value={stats.pendingApplicants}
+                    icon={<ClipboardList className="w-4 h-4" />}
+                    sub={<Link href="/admin/applicants" className="text-savron-green hover:underline">View pipeline</Link>}
+                    alert={stats.pendingApplicants > 0}
+                />
             </div>
 
             {/* Today's Schedule */}
@@ -243,7 +253,8 @@ export default function AdminDashboard() {
                     { label: 'Clients', href: '/admin/clients', icon: Users, desc: 'CRM & campaigns' },
                     { label: 'Membership', href: '/admin/membership', icon: UserCheck, desc: 'E-pass & visits' },
                     { label: 'Barbers', href: '/admin/barbers', icon: Scissors, desc: 'Team management' },
-                    { label: 'Host View', href: '/host', icon: TrendingUp, desc: 'Display screen' },
+                    { label: 'Host View', href: '/host',             icon: TrendingUp,   desc: 'Display screen' },
+                    { label: 'Hiring',    href: '/admin/applicants', icon: ClipboardList, desc: 'Recruiting pipeline' },
                 ].map(item => (
                     <Link
                         key={item.href}

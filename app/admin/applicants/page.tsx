@@ -23,6 +23,14 @@ export default function AdminApplicantsPage() {
     const [loading, setLoading] = useState(true);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [confirmDelete, setConfirmDelete] = useState<Applicant | null>(null);
+    const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!openDropdown) return;
+        const close = () => setOpenDropdown(null);
+        document.addEventListener('click', close);
+        return () => document.removeEventListener('click', close);
+    }, [openDropdown]);
 
     useEffect(() => {
         async function load() {
@@ -152,26 +160,37 @@ export default function AdminApplicantsPage() {
                                     )}
 
                                     {/* Status dropdown */}
-                                    <div className="relative group">
-                                        <button className={cn(
-                                            "flex items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-widest border rounded-savron transition-all",
-                                            STATUS_STYLES[a.status]
-                                        )}>
+                                    <div className="relative">
+                                        <button
+                                            onClick={e => { e.stopPropagation(); setOpenDropdown(openDropdown === a.id ? null : a.id); }}
+                                            className={cn(
+                                                "flex items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-widest border rounded-savron transition-all",
+                                                STATUS_STYLES[a.status]
+                                            )}
+                                        >
                                             <UserCheck className="w-3.5 h-3.5" />
                                             {a.status}
-                                            <ChevronDown className="w-3 h-3" />
+                                            <ChevronDown className={cn("w-3 h-3 transition-transform", openDropdown === a.id && "rotate-180")} />
                                         </button>
-                                        <div className="absolute right-0 top-full mt-1 w-36 bg-savron-charcoal border border-white/10 rounded-savron overflow-hidden z-20 hidden group-hover:block shadow-xl">
-                                            {STATUS_OPTIONS.filter(s => s !== a.status).map(s => (
-                                                <button
-                                                    key={s}
-                                                    onClick={() => updateStatus(a.id, s)}
-                                                    className="w-full text-left px-4 py-2.5 text-[10px] uppercase tracking-widest text-savron-silver hover:text-white hover:bg-white/5 transition-colors"
+                                        <AnimatePresence>
+                                            {openDropdown === a.id && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                                                    transition={{ duration: 0.1 }}
+                                                    className="absolute right-0 top-full mt-1 w-36 bg-savron-charcoal border border-white/10 rounded-savron overflow-hidden z-20 shadow-xl"
                                                 >
-                                                    {s}
-                                                </button>
-                                            ))}
-                                        </div>
+                                                    {STATUS_OPTIONS.filter(s => s !== a.status).map(s => (
+                                                        <button
+                                                            key={s}
+                                                            onClick={() => { updateStatus(a.id, s); setOpenDropdown(null); }}
+                                                            className="w-full text-left px-4 py-2.5 text-[10px] uppercase tracking-widest text-savron-silver hover:text-white hover:bg-white/5 transition-colors"
+                                                        >
+                                                            {s}
+                                                        </button>
+                                                    ))}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
 
                                     <button

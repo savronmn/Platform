@@ -171,7 +171,9 @@ const BookingFlow = () => {
                 <p className="text-savron-silver/60 text-xs uppercase tracking-widest mt-1">Select one or more</p>
             </div>
             <div className="grid grid-cols-1 gap-2">
-                {SERVICES.map((service) => {
+                {SERVICES.filter(s =>
+                    !selectedPro?.services_offered || selectedPro.services_offered.includes(s.name)
+                ).map((service) => {
                     const isSelected = selectedServices.includes(service.id);
                     return (
                         <div

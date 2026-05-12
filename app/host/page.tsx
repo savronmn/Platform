@@ -8,7 +8,7 @@ import {
     startOfWeek, endOfWeek, eachDayOfInterval,
     startOfMonth, endOfMonth, addWeeks, subWeeks, addMonths, subMonths,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, RefreshCw, Wifi, X, UserCheck, UserX, RotateCcw, Phone, Scissors, Menu, LayoutDashboard, Users, CreditCard, Mail, MonitorPlay, Ban, Camera, Upload } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw, Wifi, X, UserCheck, UserX, RotateCcw, Phone, Scissors, Menu, LayoutDashboard, Users, CreditCard, Mail, MonitorPlay, Ban, Camera, Upload, ClipboardList } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -22,6 +22,7 @@ const NAV_ITEMS = [
     { label: 'Clients',        href: '/admin/clients',        icon: Users },
     { label: 'Membership',     href: '/admin/membership',     icon: CreditCard },
     { label: 'Communications', href: '/admin/communications', icon: Mail },
+    { label: 'Hiring',         href: '/admin/applicants',     icon: ClipboardList },
 ];
 
 type CalView = 'day' | 'week' | 'month';
