@@ -13,17 +13,19 @@ import { TIME_SLOTS } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
+import { isSlotInPast, nextBookableDate } from '@/lib/time-helpers';
 
 export default function AsapBookingFlow() {
     const supabase = createClient();
     const services = useServices();
     const [step, setStep] = useState(1);
-    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const [selectedDate, setSelectedDate] = useState<Date>(() => nextBookableDate());
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
     const [selectedService, setSelectedService] = useState<number | null>(null);
     const [clientName, setClientName] = useState('');
     const [clientEmail, setClientEmail] = useState('');
     const [clientPhone, setClientPhone] = useState('');
+    const [clientMessage, setClientMessage] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [assignedBarber, setAssignedBarber] = useState<Barber | null>(null);
     const [busySlots, setBusySlots] = useState<{ start: string; end: string }[]>([]);
@@ -37,6 +39,7 @@ export default function AsapBookingFlow() {
     }, [selectedDate]);
 
     const isSlotBusy = (timeStr: string) => {
+        if (isSlotInPast(selectedDate, timeStr, 5)) return true;
         if (loadingBusy) return true;
         if (busySlots.length === 0) return false;
         const service = services.find(s => s.id === selectedService);
@@ -137,6 +140,7 @@ export default function AsapBookingFlow() {
             duration: service ? `${service.durationMin} min` : '45 min',
             price: service?.price || '',
             status: 'confirmed',
+            notes: clientMessage.trim() || null,
         }).select('id').single();
 
         if (inserted?.id) triggerPostBooking(inserted.id);
@@ -179,20 +183,26 @@ export default function AsapBookingFlow() {
                         <div>
                             <p className="text-xs uppercase tracking-widest text-savron-silver/50 mb-3">Time</p>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                {TIME_SLOTS.map((time, idx) => (
-                                    <div
-                                        key={idx}
-                                        onClick={() => setSelectedTime(time)}
-                                        className={cn(
-                                            "p-3 border rounded-savron cursor-pointer transition-all text-center text-sm font-mono",
-                                            selectedTime === time
-                                                ? "border-savron-green bg-savron-green text-white"
-                                                : "border-white/10 hover:border-white/30 text-savron-silver hover:text-white"
-                                        )}
-                                    >
-                                        {time}
-                                    </div>
-                                ))}
+                                {TIME_SLOTS.map((time, idx) => {
+                                    const past = isSlotInPast(selectedDate, time, 5);
+                                    return (
+                                        <button
+                                            key={idx}
+                                            disabled={past}
+                                            onClick={() => !past && setSelectedTime(time)}
+                                            className={cn(
+                                                "p-3 border rounded-savron transition-all text-center text-sm font-mono",
+                                                past
+                                                    ? "opacity-30 cursor-not-allowed border-white/[0.02] line-through text-savron-silver/30"
+                                                    : selectedTime === time
+                                                        ? "border-savron-green bg-savron-green text-white cursor-pointer"
+                                                        : "border-white/10 hover:border-white/30 text-savron-silver hover:text-white cursor-pointer"
+                                            )}
+                                        >
+                                            {time}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     </motion.div>
@@ -256,6 +266,14 @@ export default function AsapBookingFlow() {
                         <input placeholder="YOUR NAME" value={clientName} onChange={e => setClientName(e.target.value)} className="input-savron" />
                         <input type="email" placeholder="YOUR EMAIL" value={clientEmail} onChange={e => setClientEmail(e.target.value)} className="input-savron" />
                         <input type="tel" placeholder="YOUR PHONE" value={clientPhone} onChange={e => setClientPhone(e.target.value)} className="input-savron" />
+                        <textarea
+                            placeholder="MESSAGE FOR YOUR BARBER (OPTIONAL)"
+                            value={clientMessage}
+                            onChange={e => setClientMessage(e.target.value)}
+                            rows={3}
+                            maxLength={500}
+                            className="input-savron resize-none"
+                        />
                     </motion.div>
                 )}
 
@@ -284,7 +302,7 @@ export default function AsapBookingFlow() {
                         <p className="text-xs text-savron-silver/50 uppercase tracking-widest">Check your email for details</p>
                         <Button variant="outline" onClick={() => {
                             setStep(1); setSelectedTime(null); setSelectedService(null);
-                            setSelectedDate(new Date()); setClientName(''); setClientEmail(''); setClientPhone('');
+                            setSelectedDate(nextBookableDate()); setClientName(''); setClientEmail(''); setClientPhone(''); setClientMessage('');
                             setAssignedBarber(null);
                         }}>
                             Book Another

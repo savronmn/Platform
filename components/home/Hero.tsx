@@ -33,15 +33,26 @@ const Hero = () => {
                         priority
                     />
                 </div>
-                <Link href="/booking" style={{
-                    fontFamily: "var(--font-montserrat), sans-serif",
-                    fontWeight: 500, fontSize: 9,
-                    letterSpacing: "0.28em", textTransform: "uppercase",
-                    color: "rgba(232,228,220,0.45)", textDecoration: "none",
-                    transition: "color 0.3s",
-                }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "#e8e4dc")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(232,228,220,0.45)")}
+                <Link
+                    href="/booking"
+                    className="glass-panel"
+                    style={{
+                        display: "inline-flex", alignItems: "center",
+                        fontFamily: "var(--font-montserrat), sans-serif",
+                        fontWeight: 500, fontSize: 10,
+                        letterSpacing: "0.32em", textTransform: "uppercase",
+                        color: "rgba(232,228,220,0.85)", textDecoration: "none",
+                        padding: "14px 26px",
+                        transition: "all 0.4s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.color = "#fff";
+                        e.currentTarget.style.transform = "translateY(-1px)";
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.color = "rgba(232,228,220,0.85)";
+                        e.currentTarget.style.transform = "translateY(0)";
+                    }}
                 >
                     Book Now →
                 </Link>

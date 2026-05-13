@@ -59,7 +59,7 @@ const About = () => {
                         color: "rgba(232,228,220,0.45)",
                         maxWidth: 400,
                     }}>
-                        Located in the North Loop, Minneapolis. SAVRON is a private space where traditional craftsmanship meets modern restraint. Every appointment is deliberate. Every detail, precise.
+                        Located in the North Loop, Minneapolis. SAVRON is a space where traditional craftsmanship meets modern restraint. Every appointment is deliberate. Every walk-in, welcome.
                     </p>
                 </motion.div>
 
@@ -99,11 +99,11 @@ const About = () => {
                     ))}
 
                     {/* Stats */}
-                    <div style={{ display: "flex", gap: 36, paddingTop: 8, borderTop: "1px solid rgba(232,228,220,0.06)" }}>
+                    <div style={{ display: "flex", gap: 36, paddingTop: 8, borderTop: "1px solid rgba(232,228,220,0.06)", flexWrap: "wrap" }}>
                         {[
-                            { value: "15+", label: "Years experience" },
-                            { value: "4", label: "Master barbers" },
-                            { value: "100%", label: "By appointment" },
+                            { value: "7,000+", label: "Services performed" },
+                            { value: "1,000+", label: "Professional cuts" },
+                            { value: "Walk-ins", label: "Welcome" },
                         ].map(({ value, label }) => (
                             <div key={label}>
                                 <p style={{ fontFamily: "var(--font-playfair), Georgia, serif", fontSize: 26, fontWeight: 400, color: "#e8e4dc", marginBottom: 4 }}>

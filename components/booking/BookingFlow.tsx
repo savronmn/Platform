@@ -13,6 +13,7 @@ import { TIME_SLOTS } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
+import { isSlotInPast, nextBookableDate } from '@/lib/time-helpers';
 
 const nullBarber = { auth_id: null, bio: null, phone: null, email: null, instagram_url: null, license_number: null, services_offered: null, google_calendar_id: null, google_calendar_tokens: null, google_sync_token: null, google_channel_id: null, google_resource_id: null, working_hours: null, created_at: '' };
 const PLACEHOLDER_BARBERS: Barber[] = [
@@ -28,11 +29,12 @@ const BookingFlow = () => {
     const [step, setStep] = useState(1);
     const [selectedServices, setSelectedServices] = useState<number[]>([]);
     const [selectedPro, setSelectedPro] = useState<Barber | null>(null);
-    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const [selectedDate, setSelectedDate] = useState<Date>(() => nextBookableDate());
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
     const [clientEmail, setClientEmail] = useState('');
     const [clientName, setClientName] = useState('');
     const [clientPhone, setClientPhone] = useState('');
+    const [clientMessage, setClientMessage] = useState('');
     const [barbers, setBarbers] = useState<Barber[]>([]);
     const [loadingBarbers, setLoadingBarbers] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -103,6 +105,9 @@ const BookingFlow = () => {
     }, [selectedPro, selectedDate]);
 
     const isSlotBusy = (timeStr: string) => {
+        // Past times are always disabled (with 5-min buffer for the current slot)
+        if (isSlotInPast(selectedDate, timeStr, 5)) return true;
+
         if (loadingBusy) return true; // Disable until loaded
         if (busySlots.length === 0) return false;
 
@@ -146,6 +151,7 @@ const BookingFlow = () => {
             duration: `${selectedServices.reduce((sum, id) => sum + (services.find(s => s.id === id)?.durationMin ?? 0), 0)} min`,
             price: `$${totalPrice}`,
             status: 'confirmed',
+            notes: clientMessage.trim() || null,
         }).select('id').single();
 
         if (insertError) {
@@ -417,6 +423,14 @@ const BookingFlow = () => {
                 <input placeholder="YOUR NAME" value={clientName} onChange={(e) => setClientName(e.target.value)} className="input-savron" />
                 <input type="email" placeholder="YOUR EMAIL" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} className="input-savron" />
                 <input type="tel" placeholder="YOUR PHONE" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} className="input-savron" />
+                <textarea
+                    placeholder="MESSAGE FOR YOUR BARBER (OPTIONAL)"
+                    value={clientMessage}
+                    onChange={(e) => setClientMessage(e.target.value)}
+                    rows={3}
+                    maxLength={500}
+                    className="input-savron resize-none"
+                />
             </div>
         </motion.div>
     );
@@ -437,8 +451,8 @@ const BookingFlow = () => {
             <p className="text-[10px] text-savron-silver/30 uppercase tracking-[0.3em]">Confirmation sent to your email</p>
             <Button variant="outline" onClick={() => {
                 setStep(1); setSelectedServices([]); setSelectedPro(null);
-                setSelectedDate(new Date()); setSelectedTime(null);
-                setClientName(''); setClientEmail(''); setClientPhone('');
+                setSelectedDate(nextBookableDate()); setSelectedTime(null);
+                setClientName(''); setClientEmail(''); setClientPhone(''); setClientMessage('');
             }}>
                 Book Another
             </Button>

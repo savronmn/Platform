@@ -3,6 +3,8 @@
 import { usePathname } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import SmoothScroll from '@/components/layout/SmoothScroll';
+import FloatingBookButton from '@/components/layout/FloatingBookButton';
 
 export default function LayoutShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -19,10 +21,11 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     }
 
     return (
-        <>
+        <SmoothScroll>
             <Header />
             {children}
             <Footer />
-        </>
+            <FloatingBookButton />
+        </SmoothScroll>
     );
 }

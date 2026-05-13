@@ -8,54 +8,111 @@ import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
 
 const BARBERSHOP_EMAIL = 'info@savronmn.com';
+const SHOP_ADDRESS = '250 N Third Avenue, Minneapolis, MN 55401';
+const SHOP_NAME = 'SAVRON Barbershop & Lounge';
 
-function getIcsString(booking: any, barberName: string, barberEmail: string | null): string {
+// Escape ICS text per RFC 5545 (commas, semicolons, newlines)
+function icsEscape(s: string): string {
+    return String(s || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/,/g, '\\,')
+        .replace(/;/g, '\\;')
+        .replace(/\r?\n/g, '\\n');
+}
+
+// Fold long lines per RFC 5545 (75 octet limit)
+function icsFold(line: string): string {
+    if (line.length <= 73) return line;
+    const out: string[] = [];
+    let i = 0;
+    while (i < line.length) {
+        const chunk = line.slice(i, i + (i === 0 ? 73 : 72));
+        out.push((i === 0 ? '' : ' ') + chunk);
+        i += chunk.length;
+    }
+    return out.join('\r\n');
+}
+
+function getIcsString(
+    booking: any,
+    barberName: string,
+    barberEmail: string | null,
+    method: 'REQUEST' | 'CANCEL' = 'REQUEST'
+): string {
     const [timePart, meridiem] = (booking.time || '12:00 PM').split(' ');
     let [hours, minutes] = timePart.split(':').map(Number);
     if (meridiem === 'PM' && hours !== 12) hours += 12;
     if (meridiem === 'AM' && hours === 12) hours = 0;
-    
-    // Fallback if Date is missing
+
     const dateStr = booking.date || new Date().toISOString().split('T')[0];
-    
     const durationMatch = booking.duration ? booking.duration.match(/\d+/) : null;
     const durationMin = durationMatch ? parseInt(durationMatch[0]) : 45;
-    
+
     const startMs = new Date(`${dateStr}T${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00-05:00`).getTime();
     const endMs = startMs + durationMin * 60000;
-    
-    const startUtc = new Date(startMs).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-    const endUtc = new Date(endMs).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-    const nowUtc = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
-    // Build attendee lines
+    const fmt = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const startUtc = fmt(startMs);
+    const endUtc = fmt(endMs);
+    const nowUtc = fmt(Date.now());
+
+    // Stable UID — same across REQUEST + CANCEL so calendar clients track this single appointment
+    const uid = `booking-${booking.id}@savronmn.com`;
+    const sequence = method === 'CANCEL' ? 1 : 0;
+    const status = method === 'CANCEL' ? 'CANCELLED' : 'CONFIRMED';
+
+    // Attendees — proper PARTSTAT so calendar clients render RSVP/Cancel buttons
     const attendees: string[] = [];
     if (booking.client_email) {
-        attendees.push(`ATTENDEE;CN=${booking.client_name || 'Client'};ROLE=REQ-PARTICIPANT;RSVP=TRUE:mailto:${booking.client_email}`);
+        attendees.push(
+            `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE;CN=${icsEscape(booking.client_name || 'Guest')}:mailto:${booking.client_email}`
+        );
     }
     if (barberEmail) {
-        attendees.push(`ATTENDEE;CN=${barberName};ROLE=REQ-PARTICIPANT;RSVP=TRUE:mailto:${barberEmail}`);
+        attendees.push(
+            `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE;CN=${icsEscape(barberName)}:mailto:${barberEmail}`
+        );
     }
-    attendees.push(`ATTENDEE;CN=SAVRON Barbershop;ROLE=REQ-PARTICIPANT;RSVP=TRUE:mailto:${BARBERSHOP_EMAIL}`);
+    attendees.push(
+        `ATTENDEE;CUTYPE=ROOM;ROLE=NON-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE;CN=${icsEscape(SHOP_NAME)}:mailto:${BARBERSHOP_EMAIL}`
+    );
 
-    return [
+    const notes = booking.notes ? `\\n\\nNote from guest: ${icsEscape(booking.notes)}` : '';
+    const description = `Your appointment for ${icsEscape(booking.service)} with ${icsEscape(barberName)} at ${icsEscape(SHOP_NAME)}.\\n${icsEscape(SHOP_ADDRESS)}${notes}`;
+
+    const lines = [
         'BEGIN:VCALENDAR',
         'VERSION:2.0',
-        'PRODID:-//SAVRON Barbershop & Lounge//EN',
+        'PRODID:-//SAVRON Barbershop & Lounge//Booking System//EN',
         'CALSCALE:GREGORIAN',
-        'METHOD:REQUEST',
+        `METHOD:${method}`,
         'BEGIN:VEVENT',
+        `UID:${uid}`,
+        `SEQUENCE:${sequence}`,
         `DTSTAMP:${nowUtc}`,
         `DTSTART:${startUtc}`,
         `DTEND:${endUtc}`,
-        `SUMMARY:${booking.service} with ${barberName}`,
-        `LOCATION:SAVRON Barbershop & Lounge, Minneapolis MN`,
-        `DESCRIPTION:Your appointment for ${booking.service} with ${barberName}.`,
-        `ORGANIZER;CN=SAVRON Barbershop:mailto:${BARBERSHOP_EMAIL}`,
+        `SUMMARY:${icsEscape(`${booking.service} — ${SHOP_NAME}`)}`,
+        `LOCATION:${icsEscape(`${SHOP_NAME}, ${SHOP_ADDRESS}`)}`,
+        `DESCRIPTION:${description}`,
+        `ORGANIZER;CN=${icsEscape(SHOP_NAME)}:mailto:${BARBERSHOP_EMAIL}`,
         ...attendees,
+        `STATUS:${status}`,
+        'TRANSP:OPAQUE',
+        'CLASS:PUBLIC',
+        'X-MICROSOFT-CDO-BUSYSTATUS:BUSY',
+        'X-MICROSOFT-CDO-IMPORTANCE:1',
+        'X-APPLE-CALENDAR-COLOR:#0D3B4F',
+        'BEGIN:VALARM',
+        'ACTION:DISPLAY',
+        'DESCRIPTION:Appointment reminder',
+        'TRIGGER:-PT60M',
+        'END:VALARM',
         'END:VEVENT',
         'END:VCALENDAR'
-    ].join('\r\n');
+    ];
+
+    return lines.map(icsFold).join('\r\n');
 }
 
 export async function POST(request: NextRequest) {
@@ -109,7 +166,7 @@ export async function POST(request: NextRequest) {
             <p style="margin:0 0 8px;color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:3px;text-transform:uppercase;">Booking Confirmed</p>
             <h1 style="margin:0 0 28px;color:#fff;font-size:26px;letter-spacing:2px;text-transform:uppercase;">You're all set, ${booking.client_name?.split(' ')[0] ?? 'friend'}.</h1>
 
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#050505;border:1px solid rgba(255,255,255,0.08);margin-bottom:28px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#050505;border:1px solid rgba(255,255,255,0.08);margin-bottom:20px;">
               <tr>
                 <td style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.05);">
                   <span style="color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:2px;text-transform:uppercase;">Service</span><br>
@@ -136,18 +193,38 @@ export async function POST(request: NextRequest) {
               </tr>
               ${booking.price ? `
               <tr>
-                <td style="padding:14px 20px;">
+                <td style="padding:14px 20px;${booking.notes ? 'border-bottom:1px solid rgba(255,255,255,0.05);' : ''}">
                   <span style="color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:2px;text-transform:uppercase;">Total</span><br>
                   <span style="color:#1A6A8A;font-size:18px;font-weight:700;">${booking.price}</span>
                 </td>
               </tr>` : ''}
+              ${booking.notes ? `
+              <tr>
+                <td style="padding:14px 20px;">
+                  <span style="color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:2px;text-transform:uppercase;">Note for your barber</span><br>
+                  <span style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;font-style:italic;">"${String(booking.notes).replace(/</g, '&lt;')}"</span>
+                </td>
+              </tr>` : ''}
+            </table>
+
+            <!-- Location block -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#0D3B4F;margin-bottom:28px;">
+              <tr>
+                <td style="padding:18px 20px;">
+                  <p style="margin:0 0 4px;color:rgba(255,255,255,0.5);font-size:10px;letter-spacing:3px;text-transform:uppercase;">Location</p>
+                  <p style="margin:0;color:#fff;font-size:14px;font-weight:600;letter-spacing:0.5px;">SAVRON Barbershop &amp; Lounge</p>
+                  <p style="margin:4px 0 0;color:rgba(255,255,255,0.75);font-size:13px;">
+                    <a href="https://maps.google.com/?q=250+N+Third+Avenue,+Minneapolis,+MN+55401" style="color:rgba(255,255,255,0.75);text-decoration:none;">250 N Third Avenue, Minneapolis, MN 55401</a>
+                  </p>
+                </td>
+              </tr>
             </table>
 
             <p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
-              Need to cancel or reschedule? Reply to this email or call us at <a href="tel:+16125550100" style="color:#1A6A8A;">612-555-0100</a>.
+              Need to cancel or reschedule? Reply to this email — your calendar invite includes a cancel option.
             </p>
             <p style="margin:0;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
-              We'll see you soon. 💈
+              We&rsquo;ll see you soon.
             </p>
           </td>
         </tr>
@@ -155,7 +232,7 @@ export async function POST(request: NextRequest) {
         <tr>
           <td style="padding:20px 32px;border-top:1px solid rgba(255,255,255,0.05);">
             <p style="margin:0;color:rgba(255,255,255,0.2);font-size:11px;letter-spacing:1px;">
-              SAVRON Barbershop &amp; Lounge · Minneapolis, MN · <a href="https://savronmn.com" style="color:rgba(255,255,255,0.3);">savronmn.com</a>
+              SAVRON Barbershop &amp; Lounge · 250 N Third Ave, Minneapolis MN · <a href="https://savronmn.com" style="color:rgba(255,255,255,0.3);">savronmn.com</a>
             </p>
           </td>
         </tr>
@@ -165,12 +242,13 @@ export async function POST(request: NextRequest) {
 </body>
 </html>`;
 
-  // Generate ICS attachment
-  const icsString = getIcsString(booking, barberName, barberEmail);
-  
+  // Generate ICS attachment — content-type with method=REQUEST makes Gmail/Outlook show inline RSVP / Cancel buttons
+  const icsString = getIcsString(booking, barberName, barberEmail, 'REQUEST');
+
   const icsAttachment = {
       filename: 'appointment.ics',
       content: Buffer.from(icsString).toString('base64'),
+      contentType: 'text/calendar; charset=utf-8; method=REQUEST',
   };
 
   // Build all email recipients: client, barber (if email exists), and barbershop

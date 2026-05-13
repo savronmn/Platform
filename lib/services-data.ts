@@ -1,22 +1,35 @@
 // Shared service definitions — mirrors the `services` DB table
 // These hardcoded values are used as fallback / until the DB is seeded
-export const SERVICES = [
-    { id: 1, name: "The Signature Cut", duration: "45 min", durationMin: 45, price: "$55", priceCents: 5500, color: "emerald" },
-    { id: 2, name: "The Executive",     duration: "60 min", durationMin: 60, price: "$90", priceCents: 9000, color: "blue" },
-    { id: 3, name: "Beard Sculpting",   duration: "30 min", durationMin: 30, price: "$40", priceCents: 4000, color: "amber" },
-    { id: 4, name: "Hot Towel Shave",   duration: "45 min", durationMin: 45, price: "$50", priceCents: 5000, color: "purple" },
-    { id: 5, name: "Kids Cut",          duration: "30 min", durationMin: 30, price: "$35", priceCents: 3500, color: "teal" },
-] as const;
+export type ServiceItem = {
+    id: number;
+    name: string;
+    duration: string;
+    durationMin: number;
+    price: string;
+    priceCents: number;
+    color: string;
+    description?: string;
+};
 
-export type ServiceItem = typeof SERVICES[number];
+export const SERVICES: ServiceItem[] = [
+    { id: 1, name: "Kids Cut",                          duration: "30 min", durationMin: 30, price: "$50", priceCents: 5000, color: "teal",    description: "Classic precision cut for the next generation." },
+    { id: 2, name: "Signature Cut",                     duration: "45 min", durationMin: 45, price: "$50", priceCents: 5000, color: "emerald", description: "Tailored fade or scissor cut, finished with a clean neckline." },
+    { id: 3, name: "Long Styles Haircut",               duration: "60 min", durationMin: 60, price: "$60", priceCents: 6000, color: "indigo",  description: "Sculpted cut for longer hair — texture, shape, and movement." },
+    { id: 4, name: "Beard Sculpting + Hot Towel Shave", duration: "45 min", durationMin: 45, price: "$50", priceCents: 5000, color: "amber",   description: "Straight-razor line up, hot towel ritual, conditioning finish." },
+    { id: 5, name: "The Executive",                     duration: "75 min", durationMin: 75, price: "$90", priceCents: 9000, color: "blue",    description: "The full SAVRON experience — signature cut paired with hot towel shave." },
+];
 
 // Color map for host dashboard booking blocks
 export const SERVICE_COLORS: Record<string, string> = {
+    'Kids Cut':                          'bg-teal-500/20 border-teal-500/40 text-teal-300',
+    'Signature Cut':                     'bg-emerald-500/20 border-emerald-500/40 text-emerald-300',
+    'Long Styles Haircut':               'bg-indigo-500/20 border-indigo-500/40 text-indigo-300',
+    'Beard Sculpting + Hot Towel Shave': 'bg-amber-500/20 border-amber-500/40 text-amber-300',
+    'The Executive':                     'bg-blue-500/20 border-blue-500/40 text-blue-300',
+    // Legacy aliases — keep until DB is wiped
     'The Signature Cut': 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300',
-    'The Executive':     'bg-blue-500/20 border-blue-500/40 text-blue-300',
     'Beard Sculpting':   'bg-amber-500/20 border-amber-500/40 text-amber-300',
     'Hot Towel Shave':   'bg-purple-500/20 border-purple-500/40 text-purple-300',
-    'Kids Cut':          'bg-teal-500/20 border-teal-500/40 text-teal-300',
 };
 
 // Color key → Tailwind class (used with dynamic services from DB)

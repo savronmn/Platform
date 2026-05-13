@@ -5,11 +5,13 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
-import { Calendar, LayoutDashboard, LogOut, Link2 } from 'lucide-react';
+import { Calendar, LayoutDashboard, LogOut, Link2, UserCircle, Send } from 'lucide-react';
 
 const navItems = [
     { label: 'My Schedule', href: '/barber', icon: LayoutDashboard },
     { label: 'Calendar', href: '/barber/calendar', icon: Calendar },
+    { label: 'My Profile', href: '/barber/profile', icon: UserCircle },
+    { label: 'Request Change', href: '/barber/requests', icon: Send },
     { label: 'My Page', href: '/barber/share', icon: Link2 },
 ];
 

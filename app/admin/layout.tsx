@@ -5,11 +5,12 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
-import { Users, Scissors, LayoutDashboard, LogOut, MonitorPlay, CreditCard, Mail, ClipboardList, Layers } from 'lucide-react';
+import { Users, Scissors, LayoutDashboard, LogOut, MonitorPlay, CreditCard, Mail, ClipboardList, Layers, Inbox } from 'lucide-react';
 
 const navItems = [
     { label: 'Dashboard',      href: '/admin',                icon: LayoutDashboard },
     { label: 'Host View',      href: '/host',                 icon: MonitorPlay },
+    { label: 'Requests',       href: '/admin/requests',       icon: Inbox },
     { label: 'Barbers',        href: '/admin/barbers',        icon: Scissors },
     { label: 'Clients',        href: '/admin/clients',        icon: Users },
     { label: 'Membership',     href: '/admin/membership',     icon: CreditCard },

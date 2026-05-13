@@ -39,26 +39,26 @@ const LeadGen = () => {
                     SAVRON exists for those who have already arrived —
                     and understand that the finest spaces reflect that.
                 </p>
-                <Link href="/booking" style={{
-                    display: "inline-block",
-                    fontFamily: "var(--font-montserrat), sans-serif",
-                    fontWeight: 500, fontSize: 9,
-                    letterSpacing: "0.32em", textTransform: "uppercase",
-                    color: "rgba(232,228,220,0.55)",
-                    textDecoration: "none",
-                    border: "1px solid rgba(232,228,220,0.14)",
-                    padding: "16px 36px",
-                    transition: "all 0.35s ease",
-                }}
+                <Link
+                    href="/booking"
+                    className="glass-panel"
+                    style={{
+                        display: "inline-block",
+                        fontFamily: "var(--font-montserrat), sans-serif",
+                        fontWeight: 500, fontSize: 12,
+                        letterSpacing: "0.34em", textTransform: "uppercase",
+                        color: "rgba(232,228,220,0.9)",
+                        textDecoration: "none",
+                        padding: "26px 56px",
+                        transition: "all 0.45s ease",
+                    }}
                     onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "rgba(232,228,220,0.05)";
-                        e.currentTarget.style.borderColor = "rgba(232,228,220,0.28)";
-                        e.currentTarget.style.color = "#e8e4dc";
+                        e.currentTarget.style.color = "#fff";
+                        e.currentTarget.style.transform = "translateY(-2px)";
                     }}
                     onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent";
-                        e.currentTarget.style.borderColor = "rgba(232,228,220,0.14)";
-                        e.currentTarget.style.color = "rgba(232,228,220,0.55)";
+                        e.currentTarget.style.color = "rgba(232,228,220,0.9)";
+                        e.currentTarget.style.transform = "translateY(0)";
                     }}
                 >
                     Book an Appointment →
