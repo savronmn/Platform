@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
-import { Users, Scissors, LayoutDashboard, LogOut, MonitorPlay, CreditCard, Mail, ClipboardList } from 'lucide-react';
+import { Users, Scissors, LayoutDashboard, LogOut, MonitorPlay, CreditCard, Mail, ClipboardList, Layers } from 'lucide-react';
 
 const navItems = [
     { label: 'Dashboard',      href: '/admin',                icon: LayoutDashboard },
@@ -14,6 +14,7 @@ const navItems = [
     { label: 'Clients',        href: '/admin/clients',        icon: Users },
     { label: 'Membership',     href: '/admin/membership',     icon: CreditCard },
     { label: 'Communications', href: '/admin/communications', icon: Mail },
+    { label: 'Services',       href: '/admin/services',        icon: Layers },
     { label: 'Hiring',         href: '/admin/applicants',     icon: ClipboardList },
 ];
 

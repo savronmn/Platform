@@ -10,7 +10,8 @@ import { format } from 'date-fns';
 import { Button } from '@/components/ui/Button';
 import Image from 'next/image';
 import type { Barber } from '@/lib/types';
-import { SERVICES, TIME_SLOTS } from '@/lib/services-data';
+import { TIME_SLOTS } from '@/lib/services-data';
+import { useServices } from '@/lib/use-services';
 import { DatePicker } from '@/components/booking/DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 
@@ -18,6 +19,7 @@ export default function BarberBookingPage() {
     const params = useParams();
     const slug = params.slug as string;
     const supabase = createClient();
+    const services = useServices();
 
     const [barber, setBarber] = useState<Barber | null>(null);
     const [loading, setLoading] = useState(true);
@@ -56,7 +58,7 @@ export default function BarberBookingPage() {
     const isSlotBusy = (timeStr: string) => {
         if (loadingBusy) return true;
         if (busySlots.length === 0) return false;
-        const service = SERVICES.find(s => s.id === selectedService);
+        const service = services.find(s => s.id === selectedService);
         const durationMin = service?.durationMin ?? 45;
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         const [timePart, meridiem] = timeStr.split(' ');
@@ -79,7 +81,7 @@ export default function BarberBookingPage() {
 
     const handleConfirm = async () => {
         setSubmitting(true);
-        const service = SERVICES.find(s => s.id === selectedService);
+        const service = services.find(s => s.id === selectedService);
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
         const { data: inserted } = await supabase.from('bookings').insert({
@@ -196,7 +198,7 @@ export default function BarberBookingPage() {
                             {step === 1 && (
                                 <motion.div key="service" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-3">
                                     <h2 className="text-xl font-heading text-white uppercase tracking-widest mb-6">Select Service</h2>
-                                    {SERVICES.filter(s =>
+                                    {services.filter(s =>
                                         !barber.services_offered || barber.services_offered.includes(s.name)
                                     ).map(service => (
                                         <div
@@ -270,7 +272,7 @@ export default function BarberBookingPage() {
                                         <p className="text-savron-silver text-xs uppercase tracking-widest mb-3">Summary</p>
                                         <div className="flex justify-between">
                                             <span className="text-savron-silver">Service</span>
-                                            <span className="text-white">{SERVICES.find(s => s.id === selectedService)?.name}</span>
+                                            <span className="text-white">{services.find(s => s.id === selectedService)?.name}</span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-savron-silver">Date</span>
@@ -282,7 +284,7 @@ export default function BarberBookingPage() {
                                         </div>
                                         <div className="flex justify-between pt-2 border-t border-white/10">
                                             <span className="text-savron-silver">Total</span>
-                                            <span className="text-savron-green font-mono font-bold">{SERVICES.find(s => s.id === selectedService)?.price}</span>
+                                            <span className="text-savron-green font-mono font-bold">{services.find(s => s.id === selectedService)?.price}</span>
                                         </div>
                                     </div>
                                     <input required placeholder="FULL NAME" value={clientName} onChange={e => setClientName(e.target.value)} className="input-savron" />

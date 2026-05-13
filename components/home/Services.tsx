@@ -2,15 +2,10 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-
-const services = [
-    { name: "The Signature Cut", description: "Precision fade or classic scissor cut, finished with a straight-razor neck shave and styling.", price: "$55", duration: "45 min" },
-    { name: "The Executive", description: "Signature cut combined with a beard trim or hot towel shave. The full SAVRON experience.", price: "$90", duration: "60 min" },
-    { name: "Beard Sculpting", description: "Expert shaping with straight-razor line up and conditioning treatment.", price: "$40", duration: "30 min" },
-    { name: "Hot Towel Shave", description: "Traditional straight-razor shave with hot towels and essential oils.", price: "$50", duration: "45 min" },
-];
+import { useServices } from '@/lib/use-services';
 
 const Services = () => {
+    const services = useServices();
     return (
         <section
             id="services"
@@ -50,7 +45,11 @@ const Services = () => {
 
             {/* Service rows */}
             <div style={{ borderTop: "1px solid rgba(232,228,220,0.06)" }}>
-                {services.map((service, index) => (
+                {services.map((service, index) => {
+                    const desc = service.description ?? '';
+                    const price = service.price;
+                    const duration = service.duration;
+                    return (
                     <motion.div
                         key={index}
                         initial={{ opacity: 0, y: 16 }}
@@ -95,7 +94,7 @@ const Services = () => {
                                     color: "rgba(232,228,220,0.38)",
                                     maxWidth: 440,
                                 }}>
-                                    {service.description}
+                                    {desc}
                                 </p>
                             </div>
                         </div>
@@ -107,7 +106,7 @@ const Services = () => {
                                     fontSize: 22, fontWeight: 400,
                                     color: "#e8e4dc",
                                 }}>
-                                    {service.price}
+                                    {price}
                                 </p>
                                 <p style={{
                                     fontFamily: "var(--font-montserrat), sans-serif",
@@ -116,7 +115,7 @@ const Services = () => {
                                     color: "rgba(232,228,220,0.28)",
                                     marginTop: 4,
                                 }}>
-                                    {service.duration}
+                                    {duration}
                                 </p>
                             </div>
                             <Link href="/booking" style={{
@@ -135,7 +134,8 @@ const Services = () => {
                             </Link>
                         </div>
                     </motion.div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* CTA */}

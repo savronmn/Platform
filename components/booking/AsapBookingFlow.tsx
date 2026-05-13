@@ -9,12 +9,14 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import type { Barber } from '@/lib/types';
-import { SERVICES, TIME_SLOTS } from '@/lib/services-data';
+import { TIME_SLOTS } from '@/lib/services-data';
+import { useServices } from '@/lib/use-services';
 import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 
 export default function AsapBookingFlow() {
     const supabase = createClient();
+    const services = useServices();
     const [step, setStep] = useState(1);
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -37,7 +39,7 @@ export default function AsapBookingFlow() {
     const isSlotBusy = (timeStr: string) => {
         if (loadingBusy) return true;
         if (busySlots.length === 0) return false;
-        const service = SERVICES.find(s => s.id === selectedService);
+        const service = services.find(s => s.id === selectedService);
         const durationMin = service?.durationMin ?? 45;
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         const [timePart, meridiem] = timeStr.split(' ');
@@ -75,7 +77,7 @@ export default function AsapBookingFlow() {
         if (dbAvailable.length === 0) return null;
 
         // 2. Also filter out barbers with Google Calendar conflicts
-        const service = SERVICES.find(s => s.id === selectedService);
+        const service = services.find(s => s.id === selectedService);
         const durationMin = service?.durationMin ?? 45;
         const [timePart, meridiem] = (selectedTime || '').split(' ');
         let [hours, minutes] = timePart?.split(':').map(Number) ?? [0, 0];
@@ -120,7 +122,7 @@ export default function AsapBookingFlow() {
 
         setAssignedBarber(barber);
 
-        const service = SERVICES.find((s) => s.id === selectedService);
+        const service = services.find((s) => s.id === selectedService);
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
         const { data: inserted } = await supabase.from('bookings').insert({
@@ -201,7 +203,7 @@ export default function AsapBookingFlow() {
                     <motion.div key="service" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
                         <h2 className="text-2xl font-heading text-white uppercase tracking-wider mb-6">What do you need?</h2>
                         <div className="grid grid-cols-1 gap-3">
-                            {SERVICES.map((service) => (
+                            {services.map((service) => (
                                 <div
                                     key={service.id}
                                     onClick={() => setSelectedService(service.id)}
@@ -244,7 +246,7 @@ export default function AsapBookingFlow() {
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-savron-silver">Service</span>
-                                <span className="text-white">{SERVICES.find(s => s.id === selectedService)?.name}</span>
+                                <span className="text-white">{services.find(s => s.id === selectedService)?.name}</span>
                             </div>
                             <div className="flex justify-between pt-2 border-t border-white/10">
                                 <span className="text-savron-silver">Barber</span>

@@ -10,10 +10,11 @@ import {
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import type { Barber } from '@/lib/types';
-import { SERVICES } from '@/lib/services-data';
+import { useServices } from '@/lib/use-services';
 
 export default function AdminBarbersPage() {
     const supabase = createClient();
+    const services = useServices();
     const [barbers, setBarbers] = useState<Barber[]>([]);
     const [loading, setLoading] = useState(true);
     const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
@@ -39,7 +40,7 @@ export default function AdminBarbersPage() {
         setSettingsBarber(barber);
         setLicenseInput(barber.license_number ?? '');
         // Default: all services if none configured yet
-        setServicesOffered(barber.services_offered ?? SERVICES.map(s => s.name));
+        setServicesOffered(barber.services_offered ?? services.map(s => s.name));
         setSaved(false);
     };
 
@@ -285,7 +286,7 @@ export default function AdminBarbersPage() {
                                 </label>
                                 <p className="text-savron-silver/40 text-xs mb-4">Only toggled services appear on this barber&apos;s booking page.</p>
                                 <div className="space-y-2">
-                                    {SERVICES.map(svc => {
+                                    {services.map(svc => {
                                         const on = servicesOffered.includes(svc.name);
                                         return (
                                             <button

@@ -9,7 +9,8 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import type { Barber } from '@/lib/types';
-import { SERVICES, TIME_SLOTS } from '@/lib/services-data';
+import { TIME_SLOTS } from '@/lib/services-data';
+import { useServices } from '@/lib/use-services';
 import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 
@@ -23,6 +24,7 @@ const PLACEHOLDER_BARBERS: Barber[] = [
 
 const BookingFlow = () => {
     const supabase = createClient();
+    const services = useServices();
     const [step, setStep] = useState(1);
     const [selectedServices, setSelectedServices] = useState<number[]>([]);
     const [selectedPro, setSelectedPro] = useState<Barber | null>(null);
@@ -66,12 +68,12 @@ const BookingFlow = () => {
     };
 
     const totalPrice = selectedServices.reduce((sum, id) => {
-        const s = SERVICES.find(s => s.id === id);
+        const s = services.find(s => s.id === id);
         return sum + (s ? s.priceCents / 100 : 0);
     }, 0);
 
     const totalDurationMin = selectedServices.reduce((sum, id) => {
-        const s = SERVICES.find(s => s.id === id);
+        const s = services.find(s => s.id === id);
         return sum + (s?.durationMin ?? 0);
     }, 0);
 
@@ -126,7 +128,7 @@ const BookingFlow = () => {
         await new Promise(resolve => setTimeout(resolve, 800));
 
         const serviceNames = selectedServices
-            .map(id => SERVICES.find(s => s.id === id)?.name)
+            .map(id => services.find(s => s.id === id)?.name)
             .filter(Boolean)
             .join(', ');
 
@@ -141,7 +143,7 @@ const BookingFlow = () => {
             barber_name: selectedPro?.name || '',
             date: dateStr,
             time: selectedTime,
-            duration: `${selectedServices.reduce((sum, id) => sum + (SERVICES.find(s => s.id === id)?.durationMin ?? 0), 0)} min`,
+            duration: `${selectedServices.reduce((sum, id) => sum + (services.find(s => s.id === id)?.durationMin ?? 0), 0)} min`,
             price: `$${totalPrice}`,
             status: 'confirmed',
         }).select('id').single();
@@ -171,7 +173,7 @@ const BookingFlow = () => {
                 <p className="text-savron-silver/60 text-xs uppercase tracking-widest mt-1">Select one or more</p>
             </div>
             <div className="grid grid-cols-1 gap-2">
-                {SERVICES.filter(s =>
+                {services.filter(s =>
                     !selectedPro?.services_offered || selectedPro.services_offered.includes(s.name)
                 ).map((service) => {
                     const isSelected = selectedServices.includes(service.id);
@@ -391,7 +393,7 @@ const BookingFlow = () => {
                 <p className="text-savron-silver/40 uppercase tracking-widest text-[10px] mb-2">Booking Summary</p>
                 <div className="flex justify-between">
                     <span className="text-savron-silver/60">Services</span>
-                    <span className="text-white text-right max-w-[55%]">{selectedServices.map(id => SERVICES.find(s => s.id === id)?.name).join(', ')}</span>
+                    <span className="text-white text-right max-w-[55%]">{selectedServices.map(id => services.find(s => s.id === id)?.name).join(', ')}</span>
                 </div>
                 <div className="flex justify-between">
                     <span className="text-savron-silver/60">Barber</span>
