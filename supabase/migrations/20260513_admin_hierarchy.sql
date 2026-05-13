@@ -34,11 +34,11 @@ ALTER TABLE public.services ADD COLUMN IF NOT EXISTS description text;
 DELETE FROM public.services;
 
 INSERT INTO public.services (name, duration_minutes, price_cents, color, description, active) VALUES
-  ('Kids Cut',                          30, 5000, 'teal',    'Classic precision cut for the next generation.',                             true),
+  ('The Executive',                     75, 9000, 'blue',    'The full SAVRON experience — signature cut paired with hot towel shave.',   true),
   ('Signature Cut',                     45, 5000, 'emerald', 'Tailored fade or scissor cut, finished with a clean neckline.',             true),
   ('Long Styles Haircut',               60, 6000, 'indigo',  'Sculpted cut for longer hair — texture, shape, and movement.',             true),
-  ('Beard Sculpting + Hot Towel Shave', 45, 5000, 'amber',   'Straight-razor line up, hot towel ritual, conditioning finish.',           true),
-  ('The Executive',                     75, 9000, 'blue',    'The full SAVRON experience — signature cut paired with hot towel shave.',   true);
+  ('Kids Cut',                          30, 5000, 'teal',    'Classic precision cut for the next generation.',                             true),
+  ('Beard Sculpting + Hot Towel Shave', 45, 5000, 'amber',   'Straight-razor line up, hot towel ritual, conditioning finish.',           true);
 
 -- 5) Storage bucket for portfolio images
 -- Create manually in Supabase Storage UI: bucket name = "barber-portfolios", public = true

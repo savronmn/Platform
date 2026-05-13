@@ -12,11 +12,11 @@ export type ServiceItem = {
 };
 
 export const SERVICES: ServiceItem[] = [
-    { id: 1, name: "Kids Cut",                          duration: "30 min", durationMin: 30, price: "$50", priceCents: 5000, color: "teal",    description: "Classic precision cut for the next generation." },
+    { id: 1, name: "The Executive",                     duration: "75 min", durationMin: 75, price: "$90", priceCents: 9000, color: "blue",    description: "The full SAVRON experience — signature cut paired with hot towel shave." },
     { id: 2, name: "Signature Cut",                     duration: "45 min", durationMin: 45, price: "$50", priceCents: 5000, color: "emerald", description: "Tailored fade or scissor cut, finished with a clean neckline." },
     { id: 3, name: "Long Styles Haircut",               duration: "60 min", durationMin: 60, price: "$60", priceCents: 6000, color: "indigo",  description: "Sculpted cut for longer hair — texture, shape, and movement." },
-    { id: 4, name: "Beard Sculpting + Hot Towel Shave", duration: "45 min", durationMin: 45, price: "$50", priceCents: 5000, color: "amber",   description: "Straight-razor line up, hot towel ritual, conditioning finish." },
-    { id: 5, name: "The Executive",                     duration: "75 min", durationMin: 75, price: "$90", priceCents: 9000, color: "blue",    description: "The full SAVRON experience — signature cut paired with hot towel shave." },
+    { id: 4, name: "Kids Cut",                          duration: "30 min", durationMin: 30, price: "$50", priceCents: 5000, color: "teal",    description: "Classic precision cut for the next generation." },
+    { id: 5, name: "Beard Sculpting + Hot Towel Shave", duration: "45 min", durationMin: 45, price: "$50", priceCents: 5000, color: "amber",   description: "Straight-razor line up, hot towel ritual, conditioning finish." },
 ];
 
 // Color map for host dashboard booking blocks
