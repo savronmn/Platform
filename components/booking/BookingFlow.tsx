@@ -14,8 +14,9 @@ import { useServices } from '@/lib/use-services';
 import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 import { isSlotInPast, nextBookableDate } from '@/lib/time-helpers';
+import BarberPortfolioGallery from './BarberPortfolioGallery';
 
-const nullBarber = { auth_id: null, bio: null, phone: null, email: null, instagram_url: null, license_number: null, services_offered: null, google_calendar_id: null, google_calendar_tokens: null, google_sync_token: null, google_channel_id: null, google_resource_id: null, working_hours: null, created_at: '' };
+const nullBarber = { auth_id: null, bio: null, phone: null, email: null, instagram_url: null, license_number: null, services_offered: null, google_calendar_id: null, google_calendar_tokens: null, google_sync_token: null, google_channel_id: null, google_resource_id: null, working_hours: null, portfolio_images: null, created_at: '' };
 const PLACEHOLDER_BARBERS: Barber[] = [
     { ...nullBarber, id: 'ph-1', name: 'Albi A.',   slug: 'albi-a',   role: 'Master Barber & Owner', specialties: ['Skin Fades', 'Beard Design'],         image_url: null, active: true },
     { ...nullBarber, id: 'ph-2', name: 'Marcus V.', slug: 'marcus-v', role: 'Master Barber',          specialties: ['Signature Fades', 'Hot Towel Shaves'], image_url: null, active: true },
@@ -43,6 +44,8 @@ const BookingFlow = () => {
     const [busySlots, setBusySlots] = useState<{ start: string; end: string }[]>([]);
     const [loadingBusy, setLoadingBusy] = useState(false);
     const [barbersError, setBarbersError] = useState(false);
+    const [portfolioGallery, setPortfolioGallery] = useState<Barber | null>(null);
+    const [hoveredBarber, setHoveredBarber] = useState<string | null>(null);
 
     useEffect(() => {
         async function fetchBarbers() {
@@ -246,40 +249,80 @@ const BookingFlow = () => {
                 </div>
             ) : (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {displayBarbers.map((pro) => (
-                        <div key={pro.id} className="relative">
-                            <div
-                                onClick={() => setSelectedPro(pro)}
-                                className={cn(
-                                    "p-4 border cursor-pointer transition-all duration-200 flex flex-col items-center text-center gap-2",
-                                    selectedPro?.id === pro.id
-                                        ? "border-savron-green/50 bg-savron-green/5"
-                                        : "border-white/[0.06] hover:border-white/15 bg-savron-black"
-                                )}
-                            >
-                                <div className="w-12 h-12 rounded-full overflow-hidden bg-savron-charcoal relative border border-white/10 flex-shrink-0">
-                                    {pro.image_url ? (
-                                        <Image src={pro.image_url} alt={pro.name} fill className="object-cover grayscale" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-savron-silver/40 text-sm font-heading">
-                                            {pro.name.charAt(0)}
-                                        </div>
+                    {displayBarbers.map((pro) => {
+                        const hasPortfolio = (pro.portfolio_images?.length ?? 0) > 0;
+                        const isHovered = hoveredBarber === pro.id;
+                        return (
+                            <div key={pro.id} className="relative">
+                                <div
+                                    onClick={() => {
+                                        // Mobile: tap with portfolio → open gallery; without → select
+                                        if (hasPortfolio && window.innerWidth < 768) {
+                                            setPortfolioGallery(pro);
+                                        } else {
+                                            setSelectedPro(pro);
+                                        }
+                                    }}
+                                    onMouseEnter={() => setHoveredBarber(pro.id)}
+                                    onMouseLeave={() => setHoveredBarber(null)}
+                                    className={cn(
+                                        "relative overflow-hidden p-4 border cursor-pointer transition-all duration-200 flex flex-col items-center text-center gap-2",
+                                        selectedPro?.id === pro.id
+                                            ? "border-savron-green/50 bg-savron-green/5"
+                                            : "border-white/[0.06] hover:border-white/15 bg-savron-black"
+                                    )}
+                                    style={{ minHeight: 120 }}
+                                >
+                                    {/* Desktop hover portfolio overlay */}
+                                    {hasPortfolio && isHovered && (
+                                        <BarberPortfolioGallery
+                                            images={pro.portfolio_images!}
+                                            name={pro.name}
+                                            mode="hover"
+                                        />
+                                    )}
+
+                                    <div className="relative z-10 w-12 h-12 rounded-full overflow-hidden bg-savron-charcoal border border-white/10 flex-shrink-0">
+                                        {pro.image_url ? (
+                                            <Image src={pro.image_url} alt={pro.name} fill className="object-cover grayscale" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-savron-silver/40 text-sm font-heading">
+                                                {pro.name.charAt(0)}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="relative z-10">
+                                        <h3 className="text-white text-xs font-medium uppercase tracking-widest leading-tight">{pro.name}</h3>
+                                        <p className="text-savron-silver/40 text-[10px] mt-0.5 leading-tight">{pro.role}</p>
+                                    </div>
+                                    {selectedPro?.id === pro.id && <Check className="relative z-10 w-3 h-3 text-savron-green-light" />}
+                                    {hasPortfolio && !isHovered && (
+                                        <p className="relative z-10 text-[8px] uppercase tracking-widest text-savron-silver/30 mt-0.5">
+                                            {window.innerWidth < 768 ? 'Tap for work' : 'Hover for work'}
+                                        </p>
                                     )}
                                 </div>
-                                <div>
-                                    <h3 className="text-white text-xs font-medium uppercase tracking-widest leading-tight">{pro.name}</h3>
-                                    <p className="text-savron-silver/40 text-[10px] mt-0.5 leading-tight">{pro.role}</p>
-                                </div>
-                                {selectedPro?.id === pro.id && <Check className="w-3 h-3 text-savron-green-light" />}
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setProfileOpen(pro); }}
+                                    className="absolute top-1.5 right-1.5 text-savron-silver/30 hover:text-savron-silver transition-colors text-[9px] uppercase tracking-widest z-20"
+                                >
+                                    Bio
+                                </button>
+                                {/* Mobile select button when card tap goes to gallery */}
+                                {hasPortfolio && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setSelectedPro(pro); }}
+                                        className={cn(
+                                            "absolute bottom-1.5 left-1.5 text-[9px] uppercase tracking-widest transition-colors z-20",
+                                            selectedPro?.id === pro.id ? "text-savron-green" : "text-savron-silver/30 hover:text-savron-silver"
+                                        )}
+                                    >
+                                        {selectedPro?.id === pro.id ? '✓' : 'Select'}
+                                    </button>
+                                )}
                             </div>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setProfileOpen(pro); }}
-                                className="absolute top-1.5 right-1.5 text-savron-silver/30 hover:text-savron-silver transition-colors text-[9px] uppercase tracking-widest"
-                            >
-                                Bio
-                            </button>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 
@@ -343,6 +386,17 @@ const BookingFlow = () => {
                     </>
                 )}
             </AnimatePresence>
+
+            {/* Mobile portfolio gallery modal */}
+            {portfolioGallery && portfolioGallery.portfolio_images && (
+                <BarberPortfolioGallery
+                    images={portfolioGallery.portfolio_images}
+                    name={portfolioGallery.name}
+                    mode="modal"
+                    open
+                    onClose={() => setPortfolioGallery(null)}
+                />
+            )}
         </motion.div>
     );
 

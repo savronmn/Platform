@@ -14,6 +14,8 @@ import { TIME_SLOTS } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { DatePicker } from '@/components/booking/DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
+import { isSlotInPast, nextBookableDate } from '@/lib/time-helpers';
+import BarberPortfolioGallery from '@/components/booking/BarberPortfolioGallery';
 
 export default function BarberBookingPage() {
     const params = useParams();
@@ -25,12 +27,14 @@ export default function BarberBookingPage() {
     const [loading, setLoading] = useState(true);
     const [step, setStep] = useState(1);
     const [selectedService, setSelectedService] = useState<number | null>(null);
-    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const [selectedDate, setSelectedDate] = useState<Date>(() => nextBookableDate());
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
     const [clientName, setClientName] = useState('');
     const [clientEmail, setClientEmail] = useState('');
     const [clientPhone, setClientPhone] = useState('');
+    const [clientMessage, setClientMessage] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [portfolioOpen, setPortfolioOpen] = useState(false);
     const [busySlots, setBusySlots] = useState<{ start: string; end: string }[]>([]);
     const [loadingBusy, setLoadingBusy] = useState(false);
 
@@ -56,6 +60,7 @@ export default function BarberBookingPage() {
     }, [barber, selectedDate]);
 
     const isSlotBusy = (timeStr: string) => {
+        if (isSlotInPast(selectedDate, timeStr, 5)) return true;
         if (loadingBusy) return true;
         if (busySlots.length === 0) return false;
         const service = services.find(s => s.id === selectedService);
@@ -96,6 +101,7 @@ export default function BarberBookingPage() {
             duration: service ? `${service.durationMin} min` : '45 min',
             price: service?.price || '',
             status: 'confirmed',
+            notes: clientMessage.trim() || null,
         }).select('id').single();
 
         if (inserted?.id) triggerPostBooking(inserted.id);
@@ -107,11 +113,12 @@ export default function BarberBookingPage() {
     const resetBooking = () => {
         setStep(1);
         setSelectedService(null);
-        setSelectedDate(new Date());
+        setSelectedDate(nextBookableDate());
         setSelectedTime(null);
         setClientName('');
         setClientEmail('');
         setClientPhone('');
+        setClientMessage('');
     };
 
     if (loading) {
@@ -176,10 +183,33 @@ export default function BarberBookingPage() {
                                     @{barber.instagram_url.split('/').pop()}
                                 </a>
                             )}
+                            {/* Portfolio gallery trigger */}
+                            {(barber.portfolio_images?.length ?? 0) > 0 && (
+                                <button
+                                    onClick={() => setPortfolioOpen(true)}
+                                    className="glass-panel inline-flex items-center gap-2 px-4 py-2.5 text-[11px] uppercase tracking-widest text-white/80 hover:text-white transition-all"
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path d="M4 6h16M4 10h16M4 14h16M4 18h16" strokeWidth="2" strokeLinecap="round"/>
+                                    </svg>
+                                    View Work ({barber.portfolio_images!.length})
+                                </button>
+                            )}
                         </div>
                     </motion.div>
                 </div>
             </section>
+
+            {/* Portfolio gallery modal */}
+            {barber.portfolio_images && (
+                <BarberPortfolioGallery
+                    images={barber.portfolio_images}
+                    name={barber.name}
+                    mode="modal"
+                    open={portfolioOpen}
+                    onClose={() => setPortfolioOpen(false)}
+                />
+            )}
 
             {/* Booking flow */}
             <section className="px-6 md:px-12 lg:px-24">
@@ -290,6 +320,14 @@ export default function BarberBookingPage() {
                                     <input required placeholder="FULL NAME" value={clientName} onChange={e => setClientName(e.target.value)} className="input-savron" />
                                     <input required type="email" placeholder="EMAIL" value={clientEmail} onChange={e => setClientEmail(e.target.value)} className="input-savron" />
                                     <input required type="tel" placeholder="PHONE" value={clientPhone} onChange={e => setClientPhone(e.target.value)} className="input-savron" />
+                                    <textarea
+                                        placeholder="MESSAGE FOR YOUR BARBER (OPTIONAL)"
+                                        value={clientMessage}
+                                        onChange={e => setClientMessage(e.target.value)}
+                                        rows={3}
+                                        maxLength={500}
+                                        className="input-savron resize-none"
+                                    />
                                 </motion.div>
                             )}
 

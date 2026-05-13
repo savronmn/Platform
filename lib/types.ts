@@ -42,6 +42,7 @@ export interface Barber {
     google_channel_id: string | null;
     google_resource_id: string | null;
     working_hours: Record<string, [string, string] | null> | null;
+    portfolio_images: string[] | null;
     active: boolean;
     created_at: string;
 }

@@ -8,12 +8,13 @@ import {
     startOfWeek, endOfWeek, eachDayOfInterval,
     startOfMonth, endOfMonth, addWeeks, subWeeks, addMonths, subMonths,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, RefreshCw, Wifi, X, UserCheck, UserX, RotateCcw, Phone, Scissors, Menu, LayoutDashboard, Users, CreditCard, Mail, MonitorPlay, Ban, Camera, Upload, ClipboardList } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw, Wifi, X, UserCheck, UserX, RotateCcw, Phone, Scissors, Menu, LayoutDashboard, Users, CreditCard, Mail, MonitorPlay, Ban, Camera, Upload, ClipboardList, Plus, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Barber, Booking } from '@/lib/types';
 import { SERVICE_COLORS, TIME_SLOTS } from '@/lib/services-data';
+import { useServices } from '@/lib/use-services';
 
 const NAV_ITEMS = [
     { label: 'Dashboard',      href: '/admin',                icon: LayoutDashboard },
@@ -29,6 +30,7 @@ type CalView = 'day' | 'week' | 'month';
 
 export default function HostDashboard() {
     const supabase = createClient();
+    const services = useServices();
     const [view, setView] = useState<CalView>('day');
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [barbers, setBarbers] = useState<Barber[]>([]);
@@ -43,6 +45,29 @@ export default function HostDashboard() {
 
     // Burger nav
     const [showNav, setShowNav] = useState(false);
+
+    // Quick-Add walk-in
+    const [showQuickAdd, setShowQuickAdd] = useState(false);
+    const [quickForm, setQuickForm] = useState({
+        clientName: '', clientPhone: '', service: '', barberId: '', time: TIME_SLOTS[0],
+    });
+    const [quickSubmitting, setQuickSubmitting] = useState(false);
+    const [quickError, setQuickError] = useState<string | null>(null);
+
+    // Barber filter (empty set = show all)
+    const [filteredBarberIds, setFilteredBarberIds] = useState<Set<string>>(new Set());
+    const toggleBarberFilter = (id: string) => {
+        setFilteredBarberIds(prev => {
+            const next = new Set(prev);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+    };
+    const visibleBarbers = filteredBarberIds.size > 0
+        ? barbers.filter(b => filteredBarberIds.has(b.id))
+        : barbers;
+    const isBookingVisible = (b: Booking) =>
+        filteredBarberIds.size === 0 || (b.barber_id != null && filteredBarberIds.has(b.barber_id));
 
     const [rangeStart, rangeEnd] = useMemo(() => {
         if (view === 'day') {
@@ -93,12 +118,49 @@ export default function HostDashboard() {
     }, [rangeStart, rangeEnd, fetchBookings]);
 
     // Update a booking's status — optimistic local update + DB write
+    // Sending cancellation ICS when status flips to 'cancelled'
     const updateStatus = async (booking: Booking, status: Booking['status']) => {
         setUpdating(true);
         await supabase.from('bookings').update({ status }).eq('id', booking.id);
         setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, status } : b));
         setActiveBooking(prev => prev?.id === booking.id ? { ...prev, status } : prev);
+        if (status === 'cancelled') {
+            fetch('/api/email/cancel', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bookingId: booking.id }),
+            }).catch(() => {/* silent — cancellation is already applied in DB */});
+        }
         setUpdating(false);
+    };
+
+    // Quick-Add walk-in — creates a booking directly from the host view
+    const submitQuickAdd = async () => {
+        if (!quickForm.service || !quickForm.barberId || !quickForm.time) {
+            setQuickError('Please select a service, barber, and time slot.');
+            return;
+        }
+        setQuickSubmitting(true);
+        setQuickError(null);
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const barber = barbers.find(b => b.id === quickForm.barberId);
+        const { error } = await supabase.from('bookings').insert({
+            client_name: quickForm.clientName.trim() || 'Walk-in',
+            client_phone: quickForm.clientPhone.trim() || null,
+            service: quickForm.service,
+            barber_id: quickForm.barberId,
+            barber_name: barber?.name ?? '',
+            date: dateStr,
+            time: quickForm.time,
+            duration: '45 min',
+            price: '',
+            status: 'confirmed',
+        }).select('id').single();
+        setQuickSubmitting(false);
+        if (error) { setQuickError(error.message); return; }
+        setShowQuickAdd(false);
+        setQuickForm({ clientName: '', clientPhone: '', service: '', barberId: '', time: TIME_SLOTS[0] });
+        await fetchBookings();
     };
 
     const uploadClientPhoto = async (booking: Booking, file: File) => {
@@ -156,16 +218,16 @@ export default function HostDashboard() {
         return `${bookings.length} booking${bookings.length !== 1 ? 's' : ''}`;
     })();
 
-    // Data helpers
+    // Data helpers — respect the active barber filter
     const bookingsForBarberTime = (barberId: string, time: string) =>
         bookings.filter(b => b.barber_id === barberId && b.time === time);
     const bookingsForDayTime = (day: Date, time: string) => {
         const d = format(day, 'yyyy-MM-dd');
-        return bookings.filter(b => b.date === d && b.time === time);
+        return bookings.filter(b => b.date === d && b.time === time && isBookingVisible(b));
     };
     const bookingsForDay = (day: Date) => {
         const d = format(day, 'yyyy-MM-dd');
-        return bookings.filter(b => b.date === d);
+        return bookings.filter(b => b.date === d && isBookingVisible(b));
     };
 
     const svcColor = (s: string, cancelled = false) =>
@@ -233,11 +295,18 @@ export default function HostDashboard() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-6">
-                    <div className="text-center"><p className="text-white font-mono text-lg">{confirmed}</p><p className="text-savron-silver text-[10px] uppercase tracking-widest">Confirmed</p></div>
-                    <div className="text-center"><p className="text-blue-400 font-mono text-lg">{completed}</p><p className="text-savron-silver text-[10px] uppercase tracking-widest">Done</p></div>
-                    <div className="text-center"><p className="text-red-400 font-mono text-lg">{noShow}</p><p className="text-savron-silver text-[10px] uppercase tracking-widest">No-show</p></div>
+                <div className="flex items-center gap-4">
+                    <div className="text-center hidden sm:block"><p className="text-white font-mono text-lg">{confirmed}</p><p className="text-savron-silver text-[10px] uppercase tracking-widest">Confirmed</p></div>
+                    <div className="text-center hidden sm:block"><p className="text-blue-400 font-mono text-lg">{completed}</p><p className="text-savron-silver text-[10px] uppercase tracking-widest">Done</p></div>
+                    <div className="text-center hidden sm:block"><p className="text-red-400 font-mono text-lg">{noShow}</p><p className="text-savron-silver text-[10px] uppercase tracking-widest">No-show</p></div>
                     <button onClick={fetchBookings} className="p-2 text-savron-silver hover:text-white transition-colors"><RefreshCw className="w-4 h-4" /></button>
+                    {/* Quick-Add walk-in */}
+                    <button
+                        onClick={() => setShowQuickAdd(true)}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-savron-green/15 border border-savron-green/30 text-savron-green text-[10px] uppercase tracking-widest rounded-savron hover:bg-savron-green/25 transition-all"
+                    >
+                        <Plus className="w-3.5 h-3.5" /> Walk-in
+                    </button>
                 </div>
             </header>
 
@@ -269,6 +338,44 @@ export default function HostDashboard() {
                     ))}
                 </div>
             </div>
+
+            {/* ── Row 3: barber filter ── */}
+            {barbers.length > 1 && (
+                <div className="bg-savron-black border-b border-white/[0.04] px-6 py-2 flex items-center gap-3 shrink-0 overflow-x-auto">
+                    <Filter className="w-3.5 h-3.5 text-savron-silver/40 shrink-0" />
+                    <span className="text-[10px] uppercase tracking-widest text-savron-silver/40 shrink-0">Filter:</span>
+                    <button
+                        onClick={() => setFilteredBarberIds(new Set())}
+                        className={cn(
+                            "px-3 py-1 text-[10px] uppercase tracking-widest border rounded-savron transition-all shrink-0",
+                            filteredBarberIds.size === 0
+                                ? "border-savron-green/40 bg-savron-green/10 text-savron-green"
+                                : "border-white/10 text-savron-silver/60 hover:text-white"
+                        )}
+                    >
+                        All
+                    </button>
+                    {barbers.map(b => (
+                        <button
+                            key={b.id}
+                            onClick={() => toggleBarberFilter(b.id)}
+                            className={cn(
+                                "flex items-center gap-1.5 px-3 py-1 text-[10px] uppercase tracking-widest border rounded-savron transition-all shrink-0",
+                                filteredBarberIds.has(b.id)
+                                    ? "border-savron-green/40 bg-savron-green/10 text-savron-green"
+                                    : "border-white/10 text-savron-silver/60 hover:text-white"
+                            )}
+                        >
+                            {b.image_url && (
+                                <div className="w-4 h-4 rounded-full overflow-hidden relative">
+                                    <Image src={b.image_url} alt={b.name} fill className="object-cover" />
+                                </div>
+                            )}
+                            {b.name.split(' ')[0]}
+                        </button>
+                    ))}
+                </div>
+            )}
 
             {/* ── Burger nav drawer ── */}
             <AnimatePresence>
@@ -331,7 +438,7 @@ export default function HostDashboard() {
                                     <div className="w-24 shrink-0 p-4 border-r border-white/5">
                                         <span className="text-[10px] uppercase tracking-widest text-savron-silver/40">Time</span>
                                     </div>
-                                    {barbers.map(barber => (
+                                    {visibleBarbers.map(barber => (
                                         <div key={barber.id} className="w-52 shrink-0 p-4 border-r border-white/5 flex items-center gap-3">
                                             <div className="w-8 h-8 rounded-full overflow-hidden bg-savron-black relative shrink-0">
                                                 {barber.image_url && <Image src={barber.image_url} alt={barber.name} fill className="object-cover grayscale" />}
@@ -349,7 +456,7 @@ export default function HostDashboard() {
                                         <div className="w-24 shrink-0 p-4 border-r border-white/5 flex items-start">
                                             <span className="text-savron-silver/50 text-xs font-mono">{time}</span>
                                         </div>
-                                        {barbers.map(barber => (
+                                        {visibleBarbers.map(barber => (
                                             <div key={barber.id} className="w-52 shrink-0 p-2 border-r border-white/5 min-h-[80px]">
                                                 {bookingsForBarberTime(barber.id, time).map(b => <Pill key={b.id} b={b} />)}
                                             </div>
@@ -633,6 +740,118 @@ export default function HostDashboard() {
                                             </button>
                                         </div>
                                     )}
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* ══════════════════════════════════════
+                QUICK-ADD WALK-IN MODAL
+            ══════════════════════════════════════ */}
+            <AnimatePresence>
+                {showQuickAdd && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+                        onClick={() => setShowQuickAdd(false)}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 8 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-savron-grey border border-white/10 rounded-savron w-full max-w-sm shadow-2xl"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between p-5 border-b border-white/5">
+                                <div>
+                                    <h3 className="font-heading text-white uppercase tracking-wider">Quick-Add Walk-in</h3>
+                                    <p className="text-savron-silver/50 text-[10px] uppercase tracking-widest mt-0.5">{format(selectedDate, 'EEEE, MMM d')}</p>
+                                </div>
+                                <button onClick={() => setShowQuickAdd(false)} className="text-savron-silver hover:text-white transition-colors">
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            <div className="p-5 space-y-4">
+                                {/* Barber */}
+                                <div>
+                                    <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">Barber *</label>
+                                    <select
+                                        value={quickForm.barberId}
+                                        onChange={e => setQuickForm(f => ({ ...f, barberId: e.target.value }))}
+                                        className="input-savron"
+                                    >
+                                        <option value="">Select barber…</option>
+                                        {barbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                    </select>
+                                </div>
+
+                                {/* Service */}
+                                <div>
+                                    <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">Service *</label>
+                                    <select
+                                        value={quickForm.service}
+                                        onChange={e => setQuickForm(f => ({ ...f, service: e.target.value }))}
+                                        className="input-savron"
+                                    >
+                                        <option value="">Select service…</option>
+                                        {services.map(s => (
+                                            <option key={s.id} value={s.name}>{s.name} — {s.price}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Time */}
+                                <div>
+                                    <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">Time *</label>
+                                    <select
+                                        value={quickForm.time}
+                                        onChange={e => setQuickForm(f => ({ ...f, time: e.target.value }))}
+                                        className="input-savron"
+                                    >
+                                        {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                </div>
+
+                                {/* Client name (optional) */}
+                                <input
+                                    type="text"
+                                    placeholder="CLIENT NAME (OPTIONAL)"
+                                    value={quickForm.clientName}
+                                    onChange={e => setQuickForm(f => ({ ...f, clientName: e.target.value }))}
+                                    className="input-savron"
+                                />
+
+                                {/* Client phone (optional) */}
+                                <input
+                                    type="tel"
+                                    placeholder="PHONE (OPTIONAL)"
+                                    value={quickForm.clientPhone}
+                                    onChange={e => setQuickForm(f => ({ ...f, clientPhone: e.target.value }))}
+                                    className="input-savron"
+                                />
+
+                                {quickError && <p className="text-red-400 text-xs">{quickError}</p>}
+
+                                <div className="flex gap-3 pt-1">
+                                    <button
+                                        onClick={() => setShowQuickAdd(false)}
+                                        className="flex-1 py-3 text-[11px] uppercase tracking-widest border border-white/10 text-savron-silver hover:text-white rounded-savron transition-all"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={submitQuickAdd}
+                                        disabled={quickSubmitting}
+                                        className="flex-1 py-3 text-[11px] uppercase tracking-widest bg-savron-green/90 text-white rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                    >
+                                        {quickSubmitting
+                                            ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            : <><Plus className="w-3.5 h-3.5" /> Add</>
+                                        }
+                                    </button>
                                 </div>
                             </div>
                         </motion.div>
