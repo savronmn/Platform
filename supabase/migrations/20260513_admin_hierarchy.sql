@@ -1,13 +1,13 @@
 -- ============================================================
--- Admin Hierarchy + Barber Portfolio Migration
--- Run this in the Supabase SQL editor.
+-- SAVRON — Full DB setup for launch
+-- Run this in Supabase SQL editor.
 -- ============================================================
 
--- 1) Portfolio images on barbers (array of public URLs from `barber-portfolios` Storage bucket)
+-- 1) Portfolio images on barbers
 ALTER TABLE public.barbers
   ADD COLUMN IF NOT EXISTS portfolio_images text[] DEFAULT ARRAY[]::text[];
 
--- 2) Change-request table — barbers submit; admins approve
+-- 2) Change-request table
 CREATE TABLE IF NOT EXISTS public.barber_change_requests (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   barber_id   uuid NOT NULL REFERENCES public.barbers(id) ON DELETE CASCADE,
@@ -23,31 +23,35 @@ CREATE TABLE IF NOT EXISTS public.barber_change_requests (
 CREATE INDEX IF NOT EXISTS idx_change_requests_status ON public.barber_change_requests(status);
 CREATE INDEX IF NOT EXISTS idx_change_requests_barber ON public.barber_change_requests(barber_id);
 
--- 3) Storage bucket for portfolio images (run in Storage UI or via this if pgs allows)
--- INSERT INTO storage.buckets (id, name, public) VALUES ('barber-portfolios', 'barber-portfolios', true)
--- ON CONFLICT DO NOTHING;
+-- 3) Add missing columns to services table if not present
+ALTER TABLE public.services ADD COLUMN IF NOT EXISTS color       text DEFAULT 'emerald';
+ALTER TABLE public.services ADD COLUMN IF NOT EXISTS description text;
 
--- 4) RLS — locks down barbers from editing protected columns directly.
--- The booking flow uses anon key to READ. Writes happen via SECURITY DEFINER server routes
--- or via the admin service key, so client-side updates are not the threat surface today.
--- Enable when you wire barber-side Supabase auth:
---
--- ALTER TABLE public.barbers ENABLE ROW LEVEL SECURITY;
--- CREATE POLICY barber_self_read ON public.barbers FOR SELECT USING (true);
--- CREATE POLICY barber_self_update_profile ON public.barbers FOR UPDATE
---   USING (auth_id = auth.uid())
---   WITH CHECK (
---     auth_id = auth.uid()
---     -- Barbers can only touch these columns; admin uses service key to bypass RLS
---     -- (NB: column-level locks need a trigger; see comment below)
---   );
---
--- ALTER TABLE public.barber_change_requests ENABLE ROW LEVEL SECURITY;
--- CREATE POLICY barber_read_own_requests ON public.barber_change_requests FOR SELECT
---   USING (barber_id IN (SELECT id FROM public.barbers WHERE auth_id = auth.uid()));
--- CREATE POLICY barber_create_own_requests ON public.barber_change_requests FOR INSERT
---   WITH CHECK (barber_id IN (SELECT id FROM public.barbers WHERE auth_id = auth.uid()));
+-- ============================================================
+-- 4) REPLACE ALL SERVICES with the correct menu
+--    Run this EVERY TIME you need to reset to canonical state.
+-- ============================================================
+DELETE FROM public.services;
 
--- 5) Clean test data for launch (UNCOMMENT after backing up):
--- DELETE FROM public.bookings WHERE created_at < now();
+INSERT INTO public.services (name, duration_minutes, price_cents, color, description, active) VALUES
+  ('Kids Cut',                          30, 5000, 'teal',    'Classic precision cut for the next generation.',                             true),
+  ('Signature Cut',                     45, 5000, 'emerald', 'Tailored fade or scissor cut, finished with a clean neckline.',             true),
+  ('Long Styles Haircut',               60, 6000, 'indigo',  'Sculpted cut for longer hair — texture, shape, and movement.',             true),
+  ('Beard Sculpting + Hot Towel Shave', 45, 5000, 'amber',   'Straight-razor line up, hot towel ritual, conditioning finish.',           true),
+  ('The Executive',                     75, 9000, 'blue',    'The full SAVRON experience — signature cut paired with hot towel shave.',   true);
+
+-- 5) Storage bucket for portfolio images
+-- Create manually in Supabase Storage UI: bucket name = "barber-portfolios", public = true
+-- Or uncomment if your project has storage admin access:
+-- INSERT INTO storage.buckets (id, name, public)
+--   VALUES ('barber-portfolios', 'barber-portfolios', true)
+--   ON CONFLICT DO NOTHING;
+
+-- 6) Clean test data for launch (UNCOMMENT after backing up)
+-- DELETE FROM public.bookings;
 -- DELETE FROM public.barbers WHERE name NOT ILIKE 'Albe%';
+
+-- ============================================================
+-- DONE. Verify with:
+--   SELECT name, price_cents, color FROM services ORDER BY created_at;
+-- ============================================================
