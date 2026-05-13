@@ -92,9 +92,9 @@ const Hero = () => {
                 </p>
                 <p style={{
                     fontFamily: "var(--font-playfair), Georgia, serif",
-                    fontStyle: "italic", fontSize: "clamp(17px, 2vw, 26px)",
-                    fontWeight: 400, color: "rgba(232,228,220,0.6)",
-                    lineHeight: 1.55, maxWidth: 420, margin: "0 auto",
+                    fontStyle: "italic", fontSize: "clamp(18px, 2.1vw, 28px)",
+                    fontWeight: 400, color: "rgba(232,228,220,0.82)",
+                    lineHeight: 1.6, maxWidth: 440, margin: "0 auto",
                 }}>
                     &ldquo;Some things are not announced.<br />They are simply experienced.&rdquo;
                 </p>

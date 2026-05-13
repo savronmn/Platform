@@ -26,21 +26,21 @@ export default function StatCard({ label, value, change, icon, sub, alert, class
             )}
         >
             <div className="flex items-center justify-between">
-                <span className="text-savron-silver text-xs uppercase tracking-widest">{label}</span>
-                {icon && <span className={cn("text-savron-silver/50", alert && "text-red-400/60")}>{icon}</span>}
+                <span className="text-savron-silver text-[11px] uppercase tracking-widest font-medium">{label}</span>
+                {icon && <span className={cn("text-savron-silver/70", alert && "text-red-400/80")}>{icon}</span>}
             </div>
             <div className="flex items-end gap-3">
-                <span className={cn("text-3xl font-heading tracking-wider", alert && value !== 0 ? "text-red-400" : "text-white")}>{value}</span>
+                <span className={cn("text-4xl font-heading tracking-wider", alert && value !== 0 ? "text-red-400" : "text-white")}>{value}</span>
                 {change && (
                     <span className={cn(
-                        "text-xs uppercase tracking-wider mb-1",
+                        "text-xs uppercase tracking-wider mb-1.5",
                         change.startsWith('+') ? "text-green-400" : "text-red-400"
                     )}>
                         {change}
                     </span>
                 )}
             </div>
-            {sub && <p className="text-savron-silver/50 text-[10px] uppercase tracking-widest -mt-1">{sub}</p>}
+            {sub && <p className="text-savron-silver/70 text-[11px] uppercase tracking-wider -mt-1">{sub}</p>}
         </motion.div>
     );
 }

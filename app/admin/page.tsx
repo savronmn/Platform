@@ -177,7 +177,7 @@ export default function AdminDashboard() {
                 <div className="flex items-center justify-between mb-5">
                     <div>
                         <h2 className="font-heading text-lg uppercase tracking-widest text-white">Today&apos;s Schedule</h2>
-                        <p className="text-savron-silver/50 text-[10px] uppercase tracking-widest mt-0.5">{stats.todayBookings} appointment{stats.todayBookings !== 1 ? 's' : ''}</p>
+                        <p className="text-savron-silver/75 text-[11px] uppercase tracking-widest mt-0.5">{stats.todayBookings} appointment{stats.todayBookings !== 1 ? 's' : ''}</p>
                     </div>
                     <Link href="/admin/bookings" className="text-xs uppercase tracking-widest text-savron-green hover:text-white flex items-center gap-1 transition-colors">
                         Full View <ArrowRight className="w-3 h-3" />
@@ -231,7 +231,7 @@ export default function AdminDashboard() {
                                     <div className="flex items-center gap-4">
                                         <div className="w-28 shrink-0">
                                             <span className="font-mono text-sm text-white block">{b.time}</span>
-                                            <span className="text-[10px] uppercase tracking-widest text-savron-silver/50 block">{dateLabel}</span>
+                                            <span className="text-[11px] uppercase tracking-widest text-savron-silver/75 block">{dateLabel}</span>
                                         </div>
                                         <div>
                                             <p className="text-white text-sm font-medium">{b.client_name || 'Walk-in'}</p>
@@ -264,7 +264,7 @@ export default function AdminDashboard() {
                     >
                         <item.icon className="w-5 h-5 text-savron-silver group-hover:text-savron-green transition-colors mx-auto" />
                         <p className="text-white text-xs uppercase tracking-widest font-heading">{item.label}</p>
-                        <p className="text-savron-silver/50 text-[10px] uppercase tracking-widest">{item.desc}</p>
+                        <p className="text-savron-silver/75 text-[11px] uppercase tracking-widest">{item.desc}</p>
                     </Link>
                 ))}
             </div>

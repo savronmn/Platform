@@ -144,7 +144,7 @@ export default function BarberProfilePage() {
                         {barber.image_url ? (
                             <Image src={barber.image_url} alt={barber.name} fill className="object-cover" />
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center text-savron-silver/40 text-3xl font-heading">
+                            <div className="w-full h-full flex items-center justify-center text-savron-silver/70 text-3xl font-heading">
                                 {barber.name.charAt(0)}
                             </div>
                         )}
@@ -152,7 +152,7 @@ export default function BarberProfilePage() {
                     <label className={cn(
                         "cursor-pointer px-5 py-3 text-[11px] uppercase tracking-widest border rounded-savron transition-all flex items-center gap-2",
                         uploadingProfile
-                            ? "border-savron-silver/20 text-savron-silver/40 cursor-wait"
+                            ? "border-savron-silver/20 text-savron-silver/70 cursor-wait"
                             : "border-savron-green/30 text-savron-green hover:bg-savron-green/10"
                     )}>
                         {uploadingProfile ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
@@ -180,7 +180,7 @@ export default function BarberProfilePage() {
                     <label className={cn(
                         "cursor-pointer px-5 py-3 text-[11px] uppercase tracking-widest border rounded-savron transition-all flex items-center gap-2",
                         uploadingPortfolio
-                            ? "border-savron-silver/20 text-savron-silver/40 cursor-wait"
+                            ? "border-savron-silver/20 text-savron-silver/70 cursor-wait"
                             : "border-savron-green/30 text-savron-green hover:bg-savron-green/10"
                     )}>
                         {uploadingPortfolio ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
@@ -199,7 +199,7 @@ export default function BarberProfilePage() {
                 {(barber.portfolio_images?.length ?? 0) === 0 ? (
                     <div className="py-12 text-center border border-dashed border-white/10 rounded-savron">
                         <ImageIcon className="w-8 h-8 text-savron-silver/20 mx-auto mb-3" />
-                        <p className="text-savron-silver/40 text-xs uppercase tracking-widest">No portfolio images yet</p>
+                        <p className="text-savron-silver/70 text-xs uppercase tracking-widest">No portfolio images yet</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">

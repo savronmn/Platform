@@ -138,7 +138,7 @@ export default function AdminBarbersPage() {
                                     <div className="flex-1 min-w-0">
                                         <h3 className="text-white font-heading uppercase tracking-wider text-sm">{barber.name}</h3>
                                         {barber.email && <p className="text-savron-silver/50 text-xs truncate">{barber.email}</p>}
-                                        {barber.phone && <p className="text-savron-silver/40 text-xs">{barber.phone}</p>}
+                                        {barber.phone && <p className="text-savron-silver/70 text-xs">{barber.phone}</p>}
                                     </div>
                                 </div>
                                 {barber.bio && (
@@ -174,7 +174,7 @@ export default function AdminBarbersPage() {
             {/* Active barbers */}
             <div>
                 {pending.length > 0 && (
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-savron-silver/40 mb-4">Active Team</p>
+                    <p className="text-[10px] uppercase tracking-[0.3em] text-savron-silver/70 mb-4">Active Team</p>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {active.map(barber => (
@@ -191,7 +191,7 @@ export default function AdminBarbersPage() {
                                     <p className="text-savron-green text-xs uppercase tracking-widest">{barber.role}</p>
                                     {barber.email && <p className="text-savron-silver/50 text-xs mt-1 truncate">{barber.email}</p>}
                                     {barber.license_number && (
-                                        <p className="text-savron-silver/40 text-[10px] mt-0.5 flex items-center gap-1">
+                                        <p className="text-savron-silver/70 text-[10px] mt-0.5 flex items-center gap-1">
                                             <ShieldCheck className="w-3 h-3" /> {barber.license_number}
                                         </p>
                                     )}
@@ -233,7 +233,7 @@ export default function AdminBarbersPage() {
                     ))}
 
                     {active.length === 0 && (
-                        <p className="text-savron-silver/30 text-sm col-span-3">No active barbers yet.</p>
+                        <p className="text-savron-silver/60 text-sm col-span-3">No active barbers yet.</p>
                     )}
                 </div>
             </div>
@@ -284,7 +284,7 @@ export default function AdminBarbersPage() {
                                 <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-1">
                                     Services Offered
                                 </label>
-                                <p className="text-savron-silver/40 text-xs mb-4">Only toggled services appear on this barber&apos;s booking page.</p>
+                                <p className="text-savron-silver/70 text-xs mb-4">Only toggled services appear on this barber&apos;s booking page.</p>
                                 <div className="space-y-2">
                                     {services.map(svc => {
                                         const on = servicesOffered.includes(svc.name);

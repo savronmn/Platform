@@ -96,17 +96,17 @@ export default function ClientsPage() {
     }, [clients, visitFilter]);
 
     function getLastVisitInfo(client: Client) {
-        if (!client.last_booking_date) return { text: 'Never', color: 'text-savron-silver/40' };
+        if (!client.last_booking_date) return { text: 'Never', color: 'text-savron-silver/70' };
         try {
             const date = new Date(client.last_booking_date);
-            if (isNaN(date.getTime())) return { text: 'Invalid Date', color: 'text-savron-silver/40' };
+            if (isNaN(date.getTime())) return { text: 'Invalid Date', color: 'text-savron-silver/70' };
             const weeks = differenceInWeeks(new Date(), date);
             const text = formatDistanceToNow(date, { addSuffix: true });
             if (weeks < 4) return { text, color: 'text-savron-green' };
             if (weeks < 6) return { text, color: 'text-yellow-400' };
             return { text, color: 'text-red-400' };
         } catch {
-            return { text: 'Unknown', color: 'text-savron-silver/40' };
+            return { text: 'Unknown', color: 'text-savron-silver/70' };
         }
     }
 

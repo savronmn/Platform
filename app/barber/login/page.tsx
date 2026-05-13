@@ -81,7 +81,7 @@ export default function BarberLoginPage() {
                     </button>
                 </form>
 
-                <p className="text-center text-savron-silver/40 text-[10px] uppercase tracking-widest">
+                <p className="text-center text-savron-silver/70 text-[10px] uppercase tracking-widest">
                     SAVRON Barber Dashboard
                 </p>
             </motion.div>

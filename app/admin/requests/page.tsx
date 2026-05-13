@@ -123,7 +123,7 @@ export default function AdminRequestsPage() {
             {requests.length === 0 ? (
                 <div className="text-center py-20">
                     <Inbox className="w-8 h-8 text-savron-silver/20 mx-auto mb-3" />
-                    <p className="text-savron-silver/30 text-sm uppercase tracking-widest">No {filter === 'pending' ? 'pending' : ''} requests</p>
+                    <p className="text-savron-silver/60 text-sm uppercase tracking-widest">No {filter === 'pending' ? 'pending' : ''} requests</p>
                 </div>
             ) : (
                 <div className="space-y-3">
@@ -142,7 +142,7 @@ export default function AdminRequestsPage() {
                                     className="w-full px-5 py-4 flex items-center justify-between gap-4 text-left hover:bg-white/[0.02] transition-colors"
                                 >
                                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                                        <Clock className="w-4 h-4 text-savron-silver/40 shrink-0" />
+                                        <Clock className="w-4 h-4 text-savron-silver/70 shrink-0" />
                                         <div className="flex-1 min-w-0">
                                             <p className="text-white text-sm font-medium">
                                                 {r.barbers?.name ?? 'Unknown barber'} · {TYPE_LABELS[r.type]} change
@@ -166,7 +166,7 @@ export default function AdminRequestsPage() {
                                         >
                                             <div className="p-5 space-y-4">
                                                 <div>
-                                                    <p className="text-[10px] uppercase tracking-widest text-savron-silver/40 mb-2">Proposed Change</p>
+                                                    <p className="text-[10px] uppercase tracking-widest text-savron-silver/70 mb-2">Proposed Change</p>
                                                     <pre className="bg-savron-black border border-white/5 rounded-savron p-3 text-xs text-savron-silver overflow-x-auto">
 {JSON.stringify(r.payload, null, 2)}
                                                     </pre>
@@ -174,7 +174,7 @@ export default function AdminRequestsPage() {
 
                                                 {r.reason && (
                                                     <div>
-                                                        <p className="text-[10px] uppercase tracking-widest text-savron-silver/40 mb-2 flex items-center gap-1">
+                                                        <p className="text-[10px] uppercase tracking-widest text-savron-silver/70 mb-2 flex items-center gap-1">
                                                             <MessageSquare className="w-3 h-3" /> Reason
                                                         </p>
                                                         <p className="text-savron-silver text-sm">{r.reason}</p>
@@ -209,7 +209,7 @@ export default function AdminRequestsPage() {
                                                     </>
                                                 ) : r.admin_note && (
                                                     <div className="bg-savron-black border border-white/5 rounded-savron p-3">
-                                                        <p className="text-[10px] uppercase tracking-widest text-savron-silver/40 mb-1">Admin Note</p>
+                                                        <p className="text-[10px] uppercase tracking-widest text-savron-silver/70 mb-1">Admin Note</p>
                                                         <p className="text-savron-silver text-sm">{r.admin_note}</p>
                                                     </div>
                                                 )}

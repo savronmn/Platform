@@ -26,6 +26,7 @@ CREATE INDEX IF NOT EXISTS idx_change_requests_barber ON public.barber_change_re
 -- 3) Add missing columns to services table if not present
 ALTER TABLE public.services ADD COLUMN IF NOT EXISTS color       text DEFAULT 'emerald';
 ALTER TABLE public.services ADD COLUMN IF NOT EXISTS description text;
+ALTER TABLE public.services ADD COLUMN IF NOT EXISTS sort_order  integer;
 
 -- ============================================================
 -- 4) REPLACE ALL SERVICES with the correct menu

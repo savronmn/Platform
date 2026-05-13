@@ -99,7 +99,7 @@ export default function AdminApplicantsPage() {
 
             {/* Applicant list */}
             {applicants.length === 0 ? (
-                <p className="text-savron-silver/30 text-sm">No applications yet.</p>
+                <p className="text-savron-silver/60 text-sm">No applications yet.</p>
             ) : (
                 <div className="space-y-3">
                     {applicants.map(a => (
@@ -133,7 +133,7 @@ export default function AdminApplicantsPage() {
                                             </span>
                                         )}
                                     </div>
-                                    <div className="flex flex-wrap gap-3 text-[10px] text-savron-silver/40 uppercase tracking-wider">
+                                    <div className="flex flex-wrap gap-3 text-[10px] text-savron-silver/70 uppercase tracking-wider">
                                         <span>{a.license_status}</span>
                                         <span>·</span>
                                         <span>{a.experience}</span>
@@ -195,7 +195,7 @@ export default function AdminApplicantsPage() {
 
                                     <button
                                         onClick={() => setConfirmDelete(a)}
-                                        className="p-2 text-savron-silver/40 hover:text-red-400 hover:bg-red-500/5 border border-white/5 hover:border-red-500/20 rounded-savron transition-all"
+                                        className="p-2 text-savron-silver/70 hover:text-red-400 hover:bg-red-500/5 border border-white/5 hover:border-red-500/20 rounded-savron transition-all"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </button>

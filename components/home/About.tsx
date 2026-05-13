@@ -54,9 +54,9 @@ const About = () => {
                     </h2>
                     <p style={{
                         fontFamily: "var(--font-montserrat), sans-serif",
-                        fontWeight: 300, fontSize: 14,
+                        fontWeight: 300, fontSize: 15,
                         lineHeight: 1.9,
-                        color: "rgba(232,228,220,0.45)",
+                        color: "rgba(232,228,220,0.68)",
                         maxWidth: 400,
                     }}>
                         Located in the North Loop, Minneapolis. SAVRON is a space where traditional craftsmanship meets modern restraint. Every appointment is deliberate. Every walk-in, welcome.
@@ -89,9 +89,9 @@ const About = () => {
                             </p>
                             <p style={{
                                 fontFamily: "var(--font-montserrat), sans-serif",
-                                fontWeight: 300, fontSize: 13,
-                                lineHeight: 1.75,
-                                color: "rgba(232,228,220,0.35)",
+                                fontWeight: 300, fontSize: 14,
+                                lineHeight: 1.8,
+                                color: "rgba(232,228,220,0.62)",
                             }}>
                                 {body}
                             </p>
@@ -99,17 +99,17 @@ const About = () => {
                     ))}
 
                     {/* Stats */}
-                    <div style={{ display: "flex", gap: 36, paddingTop: 8, borderTop: "1px solid rgba(232,228,220,0.06)", flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: 36, paddingTop: 12, borderTop: "1px solid rgba(232,228,220,0.1)", flexWrap: "wrap" }}>
                         {[
                             { value: "7,000+", label: "Services performed" },
                             { value: "1,000+", label: "Professional cuts" },
                             { value: "Walk-ins", label: "Welcome" },
                         ].map(({ value, label }) => (
                             <div key={label}>
-                                <p style={{ fontFamily: "var(--font-playfair), Georgia, serif", fontSize: 26, fontWeight: 400, color: "#e8e4dc", marginBottom: 4 }}>
+                                <p style={{ fontFamily: "var(--font-playfair), Georgia, serif", fontSize: 28, fontWeight: 400, color: "#e8e4dc", marginBottom: 6 }}>
                                     {value}
                                 </p>
-                                <p style={{ fontFamily: "var(--font-montserrat), sans-serif", fontSize: 9, letterSpacing: "0.25em", textTransform: "uppercase", color: "rgba(232,228,220,0.28)" }}>
+                                <p style={{ fontFamily: "var(--font-montserrat), sans-serif", fontSize: 11, letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(232,228,220,0.55)" }}>
                                     {label}
                                 </p>
                             </div>

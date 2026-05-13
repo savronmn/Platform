@@ -27,11 +27,11 @@ const LeadGen = () => {
                 <p style={{
                     fontFamily: "var(--font-playfair), Georgia, serif",
                     fontWeight: 500,
-                    fontSize: "clamp(24px, 3.6vw, 50px)",
-                    lineHeight: 1.25,
-                    color: "#e8e4dc",
+                    fontSize: "clamp(26px, 3.8vw, 54px)",
+                    lineHeight: 1.28,
+                    color: "#f0ede8",
                     maxWidth: "80%",
-                    letterSpacing: "-0.01em",
+                    letterSpacing: "-0.015em",
                     marginBottom: 52,
                 }}>
                     Exclusivity is not a privilege you are given.

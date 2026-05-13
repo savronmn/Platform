@@ -207,7 +207,7 @@ export default function BarberRequestsPage() {
             {requests.length === 0 ? (
                 <div className="text-center py-16 border border-white/5 rounded-savron">
                     <Send className="w-7 h-7 text-savron-silver/20 mx-auto mb-3" />
-                    <p className="text-savron-silver/40 text-xs uppercase tracking-widest">No requests submitted yet</p>
+                    <p className="text-savron-silver/70 text-xs uppercase tracking-widest">No requests submitted yet</p>
                 </div>
             ) : (
                 <div className="space-y-3">
@@ -215,7 +215,7 @@ export default function BarberRequestsPage() {
                         <details key={r.id} className="bg-savron-grey border border-white/5 rounded-savron group">
                             <summary className="px-5 py-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-white/[0.02] transition-colors list-none">
                                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                                    <ChevronDown className="w-4 h-4 text-savron-silver/40 transition-transform group-open:rotate-180" />
+                                    <ChevronDown className="w-4 h-4 text-savron-silver/70 transition-transform group-open:rotate-180" />
                                     <div className="flex-1 min-w-0">
                                         <p className="text-white text-sm">
                                             {TYPE_OPTIONS.find(o => o.value === r.type)?.label} change
@@ -227,20 +227,20 @@ export default function BarberRequestsPage() {
                             </summary>
                             <div className="px-5 pb-5 space-y-3 border-t border-white/5">
                                 <div>
-                                    <p className="text-[10px] uppercase tracking-widest text-savron-silver/40 mt-3 mb-2">Proposed</p>
+                                    <p className="text-[10px] uppercase tracking-widest text-savron-silver/70 mt-3 mb-2">Proposed</p>
                                     <pre className="bg-savron-black border border-white/5 rounded-savron p-3 text-xs text-savron-silver overflow-x-auto">
 {JSON.stringify(r.payload, null, 2)}
                                     </pre>
                                 </div>
                                 {r.reason && (
                                     <div>
-                                        <p className="text-[10px] uppercase tracking-widest text-savron-silver/40 mb-1">Reason</p>
+                                        <p className="text-[10px] uppercase tracking-widest text-savron-silver/70 mb-1">Reason</p>
                                         <p className="text-savron-silver text-sm">{r.reason}</p>
                                     </div>
                                 )}
                                 {r.admin_note && (
                                     <div>
-                                        <p className="text-[10px] uppercase tracking-widest text-savron-silver/40 mb-1">Admin Response</p>
+                                        <p className="text-[10px] uppercase tracking-widest text-savron-silver/70 mb-1">Admin Response</p>
                                         <p className="text-savron-silver text-sm">{r.admin_note}</p>
                                     </div>
                                 )}

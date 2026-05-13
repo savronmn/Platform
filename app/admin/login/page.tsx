@@ -110,7 +110,7 @@ export default function AdminLoginPage() {
                     </form>
                 </div>
 
-                <p className="text-savron-silver/30 text-xs text-center mt-8 uppercase tracking-widest">
+                <p className="text-savron-silver/60 text-xs text-center mt-8 uppercase tracking-widest">
                     SAVRON Business OS
                 </p>
             </motion.div>

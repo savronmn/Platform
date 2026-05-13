@@ -89,9 +89,9 @@ const Services = () => {
                                 </h3>
                                 <p style={{
                                     fontFamily: "var(--font-montserrat), sans-serif",
-                                    fontWeight: 300, fontSize: 13,
-                                    lineHeight: 1.75,
-                                    color: "rgba(232,228,220,0.38)",
+                                    fontWeight: 300, fontSize: 14,
+                                    lineHeight: 1.8,
+                                    color: "rgba(232,228,220,0.62)",
                                     maxWidth: 440,
                                 }}>
                                     {desc}
@@ -110,9 +110,9 @@ const Services = () => {
                                 </p>
                                 <p style={{
                                     fontFamily: "var(--font-montserrat), sans-serif",
-                                    fontSize: 9, letterSpacing: "0.2em",
+                                    fontSize: 11, letterSpacing: "0.18em",
                                     textTransform: "uppercase",
-                                    color: "rgba(232,228,220,0.28)",
+                                    color: "rgba(232,228,220,0.52)",
                                     marginTop: 4,
                                 }}>
                                     {duration}
@@ -120,9 +120,9 @@ const Services = () => {
                             </div>
                             <Link href="/booking" style={{
                                 fontFamily: "var(--font-montserrat), sans-serif",
-                                fontWeight: 300, fontSize: 10,
+                                fontWeight: 400, fontSize: 11,
                                 letterSpacing: "0.22em", textTransform: "uppercase",
-                                color: "rgba(232,228,220,0.28)",
+                                color: "rgba(232,228,220,0.52)",
                                 textDecoration: "none",
                                 whiteSpace: "nowrap",
                                 transition: "color 0.3s",
