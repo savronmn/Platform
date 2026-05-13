@@ -20,17 +20,18 @@ export function useServices(): ServiceItem[] {
         createClient()
             .from('services')
             .select('*')
-            .order('id')
+            .eq('active', true)
+            .order('created_at')
             .then(({ data }) => {
                 if (data && data.length > 0) {
-                    setServices(data.map(s => ({
-                        id: s.id,
+                    setServices(data.map((s, i) => ({
+                        id: i + 1,
                         name: s.name,
-                        duration: `${s.duration_min} min`,
-                        durationMin: s.duration_min,
+                        duration: `${s.duration_minutes} min`,
+                        durationMin: s.duration_minutes,
                         price: `$${Math.round(s.price_cents / 100)}`,
                         priceCents: s.price_cents,
-                        color: s.color,
+                        color: s.color ?? 'emerald',
                         description: s.description ?? undefined,
                     })));
                 }

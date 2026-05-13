@@ -8,12 +8,14 @@ import { cn } from '@/lib/utils';
 import { COLOR_DOTS, AVAILABLE_COLORS } from '@/lib/services-data';
 
 type DBService = {
-    id: number;
+    id: string;
     name: string;
-    duration_min: number;
+    duration_minutes: number;
     price_cents: number;
-    color: string;
+    color: string | null;
+    color_code: string | null;
     description: string | null;
+    active: boolean;
     created_at: string;
 };
 
@@ -27,7 +29,7 @@ export default function AdminServicesPage() {
     const [adding, setAdding] = useState(false);
     const [showAdd, setShowAdd] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState<DBService | null>(null);
-    const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
     const [addError, setAddError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -49,7 +51,7 @@ export default function AdminServicesPage() {
             .from('services')
             .insert({
                 name: form.name.trim(),
-                duration_min,
+                duration_minutes: duration_min,
                 price_cents,
                 color: form.color,
                 description: form.description.trim() || null,
@@ -221,7 +223,7 @@ export default function AdminServicesPage() {
                             className="bg-savron-grey border border-white/5 rounded-savron px-5 py-4 flex items-center justify-between gap-4"
                         >
                             <div className="flex items-center gap-4 flex-1 min-w-0">
-                                <div className={cn("w-3 h-3 rounded-full shrink-0", COLOR_DOTS[svc.color] ?? 'bg-white/30')} />
+                                <div className={cn("w-3 h-3 rounded-full shrink-0", COLOR_DOTS[svc.color ?? ''] ?? 'bg-white/30')} />
                                 <div className="flex-1 min-w-0">
                                     <p className="text-white font-medium text-sm uppercase tracking-widest">{svc.name}</p>
                                     {svc.description && (
@@ -237,7 +239,7 @@ export default function AdminServicesPage() {
                                     </p>
                                     <p className="text-savron-silver/40 text-[10px] flex items-center gap-1 justify-end">
                                         <Clock className="w-2.5 h-2.5" />
-                                        {svc.duration_min} min
+                                        {svc.duration_minutes} min
                                     </p>
                                 </div>
                                 <button
