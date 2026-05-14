@@ -124,14 +124,14 @@ export async function POST(req: NextRequest) {
         }
 
         // 5. Assign barber role
-        await supabase.from('user_roles').insert({
+        const { error: roleError } = await supabase.from('user_roles').insert({
             auth_id,
             role: 'barber'
         });
 
-        if (insertError) {
-            console.error('Insert error:', insertError);
-            return NextResponse.json({ error: 'Failed to save profile', detail: insertError.message }, { status: 500 });
+        if (roleError) {
+            console.error('Role insert error:', roleError);
+            return NextResponse.json({ error: 'Failed to assign role', detail: roleError.message }, { status: 500 });
         }
 
         return NextResponse.json({ success: true, barber: newBarber });
