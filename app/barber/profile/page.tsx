@@ -14,6 +14,7 @@ type Barber = {
     role: string | null;
     image_url: string | null;
     portfolio_images: string[] | null;
+    google_calendar_tokens?: any;
 };
 
 const PORTFOLIO_BUCKET = 'barber-portfolios';
