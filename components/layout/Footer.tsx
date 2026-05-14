@@ -155,6 +155,20 @@ const Footer = () => {
                 </div>
             </div>
 
+            {/* Google OAuth Transparency Copy */}
+            <div style={{
+                padding: "0 clamp(24px, 8vw, 120px) 20px",
+            }}>
+                <p style={{
+                    fontSize: "10px",
+                    lineHeight: 1.6,
+                    color: "rgba(232,228,220,0.2)",
+                    maxWidth: "800px",
+                }}>
+                    Savron is a professional scheduling platform and digital infrastructure designed to streamline client management. Our platform integrates with Google OAuth services to synchronize calendar data and automate booking availability. We prioritize data integrity and only utilize permissions necessary for core scheduling functionality.
+                </p>
+            </div>
+
             {/* Copyright */}
             <div style={{
                 padding: "20px clamp(24px, 8vw, 120px)",
