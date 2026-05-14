@@ -165,9 +165,13 @@ const Footer = () => {
                 <p style={{ fontSize: 9, letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(232,228,220,0.14)" }}>
                     © {new Date().getFullYear()} SAVRON. All rights reserved.
                 </p>
-                <p style={{ fontSize: 9, letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(232,228,220,0.14)" }}>
-                    savronmn.com
-                </p>
+                <div style={{ display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    <Link href="/privacy" style={{ fontSize: 9, letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(232,228,220,0.14)", textDecoration: "none", transition: "color 0.3s" }} onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(232,228,220,0.4)")} onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(232,228,220,0.14)")}>Privacy</Link>
+                    <Link href="/terms" style={{ fontSize: 9, letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(232,228,220,0.14)", textDecoration: "none", transition: "color 0.3s" }} onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(232,228,220,0.4)")} onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(232,228,220,0.14)")}>Terms</Link>
+                    <p style={{ fontSize: 9, letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(232,228,220,0.14)" }}>
+                        savronmn.com
+                    </p>
+                </div>
             </div>
 
             <style>{`
