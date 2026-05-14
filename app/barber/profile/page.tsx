@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase';
 import { motion } from 'framer-motion';
-import { Upload, X, ImageIcon, Loader2 } from 'lucide-react';
+import { Upload, X, ImageIcon, Loader2, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Barber = {
@@ -25,19 +25,32 @@ export default function BarberProfilePage() {
     const [loading, setLoading] = useState(true);
     const [uploadingProfile, setUploadingProfile] = useState(false);
     const [uploadingPortfolio, setUploadingPortfolio] = useState(false);
+    const [linkingGoogle, setLinkingGoogle] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         async function load() {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.user) {
                 router.push('/barber/login');
                 return;
             }
+
+            // If returning from Google OAuth, save the tokens
+            if (session.provider_token || session.provider_refresh_token) {
+                await supabase.from('barbers').update({
+                    google_calendar_tokens: {
+                        access_token: session.provider_token,
+                        refresh_token: session.provider_refresh_token,
+                        expires_at: session.expires_at,
+                    }
+                }).eq('auth_id', session.user.id);
+            }
+
             const { data } = await supabase
                 .from('barbers')
-                .select('id, name, role, image_url, portfolio_images')
-                .eq('auth_id', user.id)
+                .select('id, name, role, image_url, portfolio_images, google_calendar_tokens')
+                .eq('auth_id', session.user.id)
                 .single();
             if (data) setBarber(data as Barber);
             setLoading(false);
@@ -109,6 +122,28 @@ export default function BarberProfilePage() {
             .update({ portfolio_images: next })
             .eq('id', barber.id);
         if (!error) setBarber({ ...barber, portfolio_images: next });
+    }
+
+    async function handleConnectGoogle() {
+        setLinkingGoogle(true);
+        setError(null);
+        
+        const { error } = await supabase.auth.linkIdentity({
+            provider: 'google',
+            options: {
+                scopes: 'https://www.googleapis.com/auth/calendar.readonly',
+                queryParams: {
+                    access_type: 'offline',
+                    prompt: 'consent',
+                },
+                redirectTo: `${window.location.origin}/barber/profile`
+            }
+        });
+
+        if (error) {
+            setError(error.message);
+            setLinkingGoogle(false);
+        }
     }
 
     if (loading) {
@@ -217,6 +252,43 @@ export default function BarberProfilePage() {
                         ))}
                     </div>
                 )}
+            </section>
+
+            {/* Google Calendar Sync */}
+            <section className="card-savron space-y-5">
+                <div>
+                    <h2 className="font-heading uppercase tracking-widest text-white text-sm">Calendar Sync</h2>
+                    <p className="text-savron-silver/50 text-xs mt-1">
+                        Connect your Google Calendar so we can automatically block out times when you are busy.
+                    </p>
+                </div>
+                
+                <div className="flex items-center gap-4 p-4 border border-white/5 bg-white/[0.02] rounded-savron">
+                    <div className="w-10 h-10 rounded-full bg-savron-green/10 flex items-center justify-center shrink-0">
+                        <Calendar className="w-4 h-4 text-savron-green" />
+                    </div>
+                    <div className="flex-1">
+                        <p className="text-sm text-white font-medium">Google Calendar</p>
+                        <p className="text-xs text-savron-silver/70">
+                            {/* @ts-ignore - Dynamic field check */}
+                            {barber.google_calendar_tokens ? 'Connected securely' : 'Not connected'}
+                        </p>
+                    </div>
+                    <button
+                        onClick={handleConnectGoogle}
+                        disabled={linkingGoogle}
+                        className={cn(
+                            "px-4 py-2 text-[10px] uppercase tracking-widest border rounded-savron transition-all font-bold",
+                            /* @ts-ignore */
+                            barber.google_calendar_tokens
+                                ? "border-white/10 text-white/50 hover:bg-white/5"
+                                : "bg-savron-green border-savron-green text-black hover:bg-opacity-90",
+                            linkingGoogle && "opacity-50 cursor-wait"
+                        )}
+                    >
+                        {linkingGoogle ? 'Connecting...' : /* @ts-ignore */ barber.google_calendar_tokens ? 'Reconnect' : 'Connect'}
+                    </button>
+                </div>
             </section>
         </motion.div>
     );
