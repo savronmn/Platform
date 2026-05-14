@@ -17,10 +17,8 @@ export default function BarberRegistration() {
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
     const [imagePreview, setImagePreview] = useState<string | null>(null);
-    const [portfolioPreviews, setPortfolioPreviews] = useState<string[]>([]);
     const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const portfolioInputRef = useRef<HTMLInputElement>(null);
 
     const toggleSpecialty = (s: string) =>
         setSelectedSpecialties(prev =>
@@ -55,12 +53,6 @@ export default function BarberRegistration() {
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) setImagePreview(URL.createObjectURL(file));
-    };
-
-    const handlePortfolioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files ?? []);
-        const previews = files.map(file => URL.createObjectURL(file));
-        setPortfolioPreviews(prev => [...prev, ...previews]);
     };
 
     const inputCls = "w-full bg-white/[0.03] border border-white/[0.08] text-white placeholder-white/25 px-4 py-3.5 text-sm font-light tracking-wide focus:outline-none focus:border-savron-green/50 focus:bg-white/[0.05] transition-all rounded-savron";
@@ -231,44 +223,6 @@ export default function BarberRegistration() {
                                                 )}
                                             </div>
                                         </div>
-
-                                    {/* Portfolio Upload */}
-                                    <div>
-                                        <label className={labelCls}>Portfolio Photos (Showcase your work!)</label>
-                                        <div className="relative group cursor-pointer mt-1">
-                                            <input
-                                                ref={portfolioInputRef}
-                                                type="file"
-                                                name="portfolio"
-                                                accept="image/*"
-                                                multiple
-                                                onChange={handlePortfolioChange}
-                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                            />
-                                            <div className="border-2 border-dashed border-white/10 rounded-savron p-6 flex flex-col items-center justify-center text-center group-hover:border-savron-green/40 group-hover:bg-white/[0.02] transition-all relative overflow-hidden min-h-[100px]">
-                                                {portfolioPreviews.length > 0 ? (
-                                                    <div className="grid grid-cols-4 gap-2 w-full">
-                                                        {portfolioPreviews.map((src, idx) => (
-                                                            <div key={idx} className="relative aspect-square rounded-savron overflow-hidden">
-                                                                <Image src={src} alt="Portfolio preview" fill className="object-cover" />
-                                                            </div>
-                                                        ))}
-                                                        <div className="aspect-square flex items-center justify-center bg-white/5 rounded-savron text-white/50 hover:bg-white/10 transition-colors">
-                                                            <Upload size={16} />
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                                                            <Upload size={18} className="text-white/50 group-hover:text-savron-green" />
-                                                        </div>
-                                                        <span className="text-xs text-white/50 uppercase tracking-widest group-hover:text-white transition-colors">Add Portfolio Images</span>
-                                                        <span className="text-[10px] text-white/30 mt-1">Multiple files allowed</span>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
                                     </div>
 
                                     {/* Submit */}

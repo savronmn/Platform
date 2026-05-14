@@ -33,7 +33,6 @@ export async function POST(req: NextRequest) {
         const instagram_url = (formData.get('instagram_url') as string | null)?.trim() || null;
         const specialties   = (formData.get('specialties')   as string | null)?.trim() || null;
         const image         = formData.get('image') as File | null;
-        const portfolioFiles = formData.getAll('portfolio') as File[];
 
         if (!name || !email || !password) {
             return NextResponse.json({ error: 'Name, email, and password are required' }, { status: 400 });
@@ -74,25 +73,6 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // 3. Upload portfolio images
-        const portfolio_images: string[] = [];
-        for (const file of portfolioFiles) {
-            if (file.size > 0) {
-                const buffer = Buffer.from(await file.arrayBuffer());
-                const ext = file.name.split('.').pop() || 'jpg';
-                const fileName = `${auth_id}/portfolio/port_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
-                
-                const { data: uploadData, error: uploadError } = await supabase.storage
-                    .from('barber-portfolios')
-                    .upload(fileName, buffer, { contentType: file.type, upsert: false });
-
-                if (!uploadError && uploadData) {
-                    const { data: { publicUrl } } = supabase.storage.from('barber-portfolios').getPublicUrl(fileName);
-                    portfolio_images.push(publicUrl);
-                }
-            }
-        }
-
         const specialtiesArray = specialties
             ? specialties.split(',').map(s => s.trim()).filter(Boolean)
             : null;
@@ -108,7 +88,6 @@ export async function POST(req: NextRequest) {
                 bio,
                 instagram_url,
                 image_url,
-                portfolio_images,
                 specialties: specialtiesArray,
                 active: false,   // admin must approve before barber goes live
                 role: 'Barber',
