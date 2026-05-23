@@ -68,6 +68,7 @@ export interface Applicant {
     video_url: string | null;
     status: 'pending' | 'approved' | 'rejected' | 'interview';
     notes: string | null;
+    experience_summary: string | null;
     created_at: string;
 }
 

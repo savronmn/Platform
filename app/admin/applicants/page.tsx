@@ -24,6 +24,7 @@ export default function AdminApplicantsPage() {
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [confirmDelete, setConfirmDelete] = useState<Applicant | null>(null);
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+    const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
 
     useEffect(() => {
         if (!openDropdown) return;
@@ -47,6 +48,7 @@ export default function AdminApplicantsPage() {
     const updateStatus = async (id: string, status: Applicant['status']) => {
         await supabase.from('applicants').update({ status }).eq('id', id);
         setApplicants(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+        setSelectedApplicant(prev => prev && prev.id === id ? { ...prev, status } : prev);
     };
 
     const deleteApplicant = async (applicant: Applicant) => {
@@ -109,7 +111,8 @@ export default function AdminApplicantsPage() {
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.96 }}
-                            className="bg-savron-grey border border-white/5 rounded-savron p-5"
+                            onClick={() => setSelectedApplicant(a)}
+                            className="bg-savron-grey border border-white/5 rounded-savron p-5 cursor-pointer hover:border-white/10 hover:bg-white/[0.01] transition-all"
                         >
                             <div className="flex items-start justify-between gap-4 flex-wrap">
                                 {/* Left: identity */}
@@ -128,9 +131,15 @@ export default function AdminApplicantsPage() {
                                             </span>
                                         )}
                                         {a.ig_handle && (
-                                            <span className="flex items-center gap-1">
+                                            <a
+                                                href={`https://instagram.com/${a.ig_handle.replace(/^@/, '')}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                onClick={e => e.stopPropagation()}
+                                                className="flex items-center gap-1 hover:text-white text-savron-silver/60 transition-colors"
+                                            >
                                                 <Instagram className="w-3 h-3" /> {a.ig_handle}
-                                            </span>
+                                            </a>
                                         )}
                                     </div>
                                     <div className="flex flex-wrap gap-3 text-[10px] text-savron-silver/70 uppercase tracking-wider">
@@ -152,6 +161,7 @@ export default function AdminApplicantsPage() {
                                             href={a.video_url}
                                             target="_blank"
                                             rel="noopener noreferrer"
+                                            onClick={e => e.stopPropagation()}
                                             className="flex items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-widest border border-white/10 text-savron-silver hover:text-white hover:border-white/25 transition-all rounded-savron"
                                         >
                                             <FileVideo className="w-3.5 h-3.5" /> Video
@@ -182,7 +192,7 @@ export default function AdminApplicantsPage() {
                                                     {STATUS_OPTIONS.filter(s => s !== a.status).map(s => (
                                                         <button
                                                             key={s}
-                                                            onClick={() => { updateStatus(a.id, s); setOpenDropdown(null); }}
+                                                            onClick={e => { e.stopPropagation(); updateStatus(a.id, s); setOpenDropdown(null); }}
                                                             className="w-full text-left px-4 py-2.5 text-[10px] uppercase tracking-widest text-savron-silver hover:text-white hover:bg-white/5 transition-colors"
                                                         >
                                                             {s}
@@ -194,7 +204,7 @@ export default function AdminApplicantsPage() {
                                     </div>
 
                                     <button
-                                        onClick={() => setConfirmDelete(a)}
+                                        onClick={e => { e.stopPropagation(); setConfirmDelete(a); }}
                                         className="p-2 text-savron-silver/70 hover:text-red-400 hover:bg-red-500/5 border border-white/5 hover:border-red-500/20 rounded-savron transition-all"
                                     >
                                         <Trash2 className="w-4 h-4" />
@@ -202,10 +212,19 @@ export default function AdminApplicantsPage() {
                                 </div>
                             </div>
 
-                            {a.notes && (
-                                <p className="mt-3 pt-3 border-t border-white/5 text-savron-silver/50 text-xs leading-relaxed">
-                                    {a.notes}
-                                </p>
+                            {(a.experience_summary || a.notes) && (
+                                <div className="mt-3 pt-3 border-t border-white/5 space-y-1.5">
+                                    {a.experience_summary && (
+                                        <p className="text-savron-silver/60 text-xs leading-relaxed line-clamp-1 italic">
+                                            &ldquo;{a.experience_summary}&rdquo;
+                                        </p>
+                                    )}
+                                    {a.notes && (
+                                        <p className="text-savron-silver/40 text-[11px] leading-relaxed line-clamp-1">
+                                            <strong className="text-savron-silver/50">Notes:</strong> {a.notes}
+                                        </p>
+                                    )}
+                                </div>
                             )}
                         </motion.div>
                     ))}
@@ -249,6 +268,182 @@ export default function AdminApplicantsPage() {
                                     className="flex-1 py-2.5 text-[11px] uppercase tracking-widest bg-red-500/15 text-red-400 border border-red-500/25 hover:bg-red-500/25 rounded-savron transition-all disabled:opacity-50"
                                 >
                                     {deletingId === confirmDelete.id ? 'Deleting…' : 'Delete'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Applicant details modal */}
+            <AnimatePresence>
+                {selectedApplicant && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/75 z-40 flex items-center justify-center p-4 backdrop-blur-sm"
+                        onClick={() => setSelectedApplicant(null)}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 12 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 12 }}
+                            className="bg-savron-grey border border-white/10 rounded-savron p-6 md:p-8 w-full max-w-2xl shadow-2xl overflow-y-auto max-h-[90vh] space-y-6 scrollbar-thin"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            {/* Header */}
+                            <div className="flex items-start justify-between">
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                        <h2 className="font-heading text-2xl text-white uppercase tracking-wider">{selectedApplicant.name}</h2>
+                                        <span className={cn("px-2 py-0.5 rounded text-[10px] uppercase tracking-wider border", STATUS_STYLES[selectedApplicant.status])}>
+                                            {selectedApplicant.status}
+                                        </span>
+                                    </div>
+                                    <p className="text-[10px] text-savron-silver/50 uppercase tracking-widest flex items-center gap-1 font-mono">
+                                        <Clock className="w-3 h-3" /> Applied {format(new Date(selectedApplicant.created_at), 'MMMM d, yyyy · h:mm a')}
+                                    </p>
+                                </div>
+                                <button onClick={() => setSelectedApplicant(null)} className="text-savron-silver hover:text-white p-1 rounded hover:bg-white/5 transition-all">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            {/* Content grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Left column: Contact info and Professional stats */}
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <span className="text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 block">Contact Information</span>
+                                        <div className="space-y-1.5 text-sm text-white">
+                                            <div className="flex items-center">
+                                                <span className="text-savron-silver/60 text-xs inline-block w-20 shrink-0">Email:</span>
+                                                <a href={`mailto:${selectedApplicant.email}`} className="text-savron-green hover:underline truncate">
+                                                    {selectedApplicant.email}
+                                                </a>
+                                            </div>
+                                            <div className="flex items-center">
+                                                <span className="text-savron-silver/60 text-xs inline-block w-20 shrink-0">Phone:</span>
+                                                <a href={`tel:${selectedApplicant.phone}`} className="text-savron-green hover:underline">
+                                                    {selectedApplicant.phone}
+                                                </a>
+                                            </div>
+                                            {selectedApplicant.ig_handle && (
+                                                <div className="flex items-center">
+                                                    <span className="text-savron-silver/60 text-xs inline-block w-20 shrink-0">Instagram:</span>
+                                                    <a
+                                                        href={`https://instagram.com/${selectedApplicant.ig_handle.replace(/^@/, '')}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-savron-green hover:underline inline-flex items-center gap-1"
+                                                    >
+                                                        {selectedApplicant.ig_handle} <ExternalLink className="w-3 h-3" />
+                                                    </a>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <span className="text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 block">Professional Details</span>
+                                        <div className="space-y-1.5 text-sm text-white">
+                                            <div className="flex items-center">
+                                                <span className="text-savron-silver/60 text-xs inline-block w-28 shrink-0">Experience:</span>
+                                                <span className="font-medium text-white">{selectedApplicant.experience}</span>
+                                            </div>
+                                            <div className="flex items-center">
+                                                <span className="text-savron-silver/60 text-xs inline-block w-28 shrink-0">License Status:</span>
+                                                <span className="font-medium text-white">{selectedApplicant.license_status}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Status selector directly on modal */}
+                                    <div className="space-y-2 pt-2">
+                                        <span className="text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 block">Set Pipeline Status</span>
+                                        <div className="flex flex-wrap gap-2">
+                                            {STATUS_OPTIONS.map(s => (
+                                                <button
+                                                    key={s}
+                                                    onClick={() => updateStatus(selectedApplicant.id, s)}
+                                                    className={cn(
+                                                        "px-2.5 py-1.5 rounded text-[10px] uppercase tracking-widest border transition-all font-medium",
+                                                        selectedApplicant.status === s
+                                                            ? STATUS_STYLES[s]
+                                                            : "border-white/5 bg-white/[0.02] text-savron-silver/60 hover:text-white hover:border-white/20"
+                                                    )}
+                                                >
+                                                    {s}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Right column: Video introduction */}
+                                <div className="space-y-2">
+                                    <span className="text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 block">Video Introduction</span>
+                                    {selectedApplicant.video_url ? (
+                                        <div className="space-y-2">
+                                            <video
+                                                controls
+                                                playsInline
+                                                className="w-full aspect-video rounded-savron border border-white/10 bg-black object-cover shadow-inner"
+                                                src={selectedApplicant.video_url}
+                                            />
+                                            <a
+                                                href={selectedApplicant.video_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-[10px] text-savron-green hover:underline flex items-center justify-end gap-1 uppercase tracking-widest font-mono"
+                                            >
+                                                Open video in tab <ExternalLink className="w-3 h-3" />
+                                            </a>
+                                        </div>
+                                    ) : (
+                                        <div className="w-full aspect-video rounded-savron border border-white/5 bg-white/[0.01] flex flex-col items-center justify-center text-center p-4">
+                                            <FileVideo className="w-8 h-8 text-savron-silver/20 mb-2" />
+                                            <span className="text-xs text-savron-silver/40 uppercase tracking-widest">No video submitted</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Experience Summary */}
+                            <div className="space-y-2 pt-4 border-t border-white/5">
+                                <span className="text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 block">Brief Summary of Experience</span>
+                                <div className="text-savron-silver text-sm bg-white/[0.02] border border-white/5 rounded-savron p-4 leading-relaxed whitespace-pre-wrap font-light">
+                                    {selectedApplicant.experience_summary || "No experience summary was provided for this application."}
+                                </div>
+                            </div>
+
+                            {/* Notes */}
+                            {selectedApplicant.notes && (
+                                <div className="space-y-2 pt-2">
+                                    <span className="text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 block">Internal Notes</span>
+                                    <div className="text-savron-silver/70 text-sm bg-amber-500/[0.02] border border-amber-500/10 rounded-savron p-4 leading-relaxed whitespace-pre-wrap font-light">
+                                        {selectedApplicant.notes}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Actions */}
+                            <div className="flex gap-3 pt-4 border-t border-white/5 justify-end">
+                                <button
+                                    onClick={() => setSelectedApplicant(null)}
+                                    className="px-5 py-2 text-[10px] uppercase tracking-widest border border-white/10 text-savron-silver hover:text-white rounded-savron transition-all"
+                                >
+                                    Close Details
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setConfirmDelete(selectedApplicant);
+                                        setSelectedApplicant(null);
+                                    }}
+                                    className="px-5 py-2 text-[10px] uppercase tracking-widest bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 rounded-savron transition-all"
+                                >
+                                    Delete Application
                                 </button>
                             </div>
                         </motion.div>

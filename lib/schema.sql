@@ -76,6 +76,7 @@ CREATE TABLE applicants (
     license_status TEXT NOT NULL,
     video_url TEXT,
     status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'interview')),
+    experience_summary TEXT,
     notes TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );

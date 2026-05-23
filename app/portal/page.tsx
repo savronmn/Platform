@@ -21,6 +21,7 @@ export default function PortalPage() {
         ig_handle: '',
         experience: '',
         license_status: 'Active Master Barber',
+        experience_summary: '',
     });
 
     function handleVideoSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -184,6 +185,13 @@ export default function PortalPage() {
                                     <option>10+ Years</option>
                                 </select>
                             </div>
+                            <textarea
+                                required
+                                placeholder="BRIEF SUMMARY OF YOUR EXPERIENCE"
+                                value={form.experience_summary}
+                                onChange={(e) => setForm(p => ({ ...p, experience_summary: e.target.value }))}
+                                className="input-savron w-full h-28 resize-none py-3"
+                            />
                         </div>
 
                         {/* Social Proof */}

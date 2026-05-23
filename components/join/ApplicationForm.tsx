@@ -75,6 +75,10 @@ const ApplicationForm = () => {
                         </select>
                     </div>
                 </div>
+                <div className="space-y-2">
+                    <label className="text-xs uppercase tracking-wider text-savron-silver">Brief Summary of Experience</label>
+                    <textarea required className="w-full bg-savron-black border border-white/20 text-white p-3 outline-none focus:border-savron-green transition-colors h-28 resize-none" placeholder="Tell us about your experience..." />
+                </div>
             </div>
 
             {/* Social Proof */}
