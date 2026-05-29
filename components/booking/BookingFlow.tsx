@@ -45,7 +45,6 @@ const BookingFlow = () => {
     const [loadingBusy, setLoadingBusy] = useState(false);
     const [barbersError, setBarbersError] = useState(false);
     const [portfolioGallery, setPortfolioGallery] = useState<Barber | null>(null);
-    const [hoveredBarber, setHoveredBarber] = useState<string | null>(null);
 
     useEffect(() => {
         async function fetchBarbers() {
@@ -251,75 +250,75 @@ const BookingFlow = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {displayBarbers.map((pro) => {
                         const hasPortfolio = (pro.portfolio_images?.length ?? 0) > 0;
-                        const isHovered = hoveredBarber === pro.id;
+                        const isSelected = selectedPro?.id === pro.id;
                         return (
-                            <div key={pro.id} className="relative">
-                                <div
-                                    onClick={() => {
-                                        // Mobile: tap with portfolio → open gallery; without → select
-                                        if (hasPortfolio && window.innerWidth < 768) {
-                                            setPortfolioGallery(pro);
-                                        } else {
-                                            setSelectedPro(pro);
-                                        }
-                                    }}
-                                    onMouseEnter={() => setHoveredBarber(pro.id)}
-                                    onMouseLeave={() => setHoveredBarber(null)}
-                                    className={cn(
-                                        "relative overflow-hidden p-4 border cursor-pointer transition-all duration-200 flex flex-col items-center text-center gap-2",
-                                        selectedPro?.id === pro.id
-                                            ? "border-savron-green/50 bg-savron-green/5"
-                                            : "border-white/[0.06] hover:border-white/15 bg-savron-black"
-                                    )}
-                                    style={{ minHeight: 120 }}
-                                >
-                                    {/* Desktop hover portfolio overlay */}
-                                    {hasPortfolio && isHovered && (
-                                        <BarberPortfolioGallery
-                                            images={pro.portfolio_images!}
-                                            name={pro.name}
-                                            mode="hover"
-                                        />
-                                    )}
+                            <div
+                                key={pro.id}
+                                onClick={() => setSelectedPro(pro)}
+                                className={cn(
+                                    "relative overflow-hidden p-4 border cursor-pointer transition-all duration-300 flex flex-col items-center justify-between text-center gap-3 group rounded-savron min-h-[160px]",
+                                    isSelected
+                                        ? "border-savron-green bg-savron-green/10"
+                                        : "border-white/[0.06] hover:border-white/20 bg-savron-black"
+                                )}
+                            >
+                                {/* Selection Indicator */}
+                                <div className="absolute top-2.5 left-2.5">
+                                    <div className={cn(
+                                        "w-4 h-4 rounded-full border flex items-center justify-center transition-all",
+                                        isSelected
+                                            ? "border-savron-green-light bg-savron-green-light text-white"
+                                            : "border-white/25 bg-transparent"
+                                    )}>
+                                        {isSelected && <Check className="w-2.5 h-2.5 text-savron-black stroke-[3px]" />}
+                                    </div>
+                                </div>
 
-                                    <div className="relative z-10 w-12 h-12 rounded-full overflow-hidden bg-savron-charcoal border border-white/10 flex-shrink-0">
-                                        {pro.image_url ? (
-                                            <Image src={pro.image_url} alt={pro.name} fill className="object-cover grayscale" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-savron-silver/40 text-sm font-heading">
-                                                {pro.name.charAt(0)}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="relative z-10">
-                                        <h3 className="text-white text-xs font-medium uppercase tracking-widest leading-tight">{pro.name}</h3>
-                                        <p className="text-savron-silver/40 text-[10px] mt-0.5 leading-tight">{pro.role}</p>
-                                    </div>
-                                    {selectedPro?.id === pro.id && <Check className="relative z-10 w-3 h-3 text-savron-green-light" />}
-                                    {hasPortfolio && !isHovered && (
-                                        <p className="relative z-10 text-[8px] uppercase tracking-widest text-savron-silver/30 mt-0.5">
-                                            {window.innerWidth < 768 ? 'Tap for work' : 'Hover for work'}
-                                        </p>
+                                {/* Avatar */}
+                                <div className="w-14 h-14 rounded-full overflow-hidden bg-savron-charcoal border border-white/10 flex-shrink-0 relative transition-transform duration-300 group-hover:scale-105 mt-2">
+                                    {pro.image_url ? (
+                                        <Image
+                                            src={pro.image_url}
+                                            alt={pro.name}
+                                            fill
+                                            className={cn("object-cover transition-all duration-300", isSelected ? "grayscale-0" : "grayscale group-hover:grayscale-0")}
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-savron-silver/40 text-sm font-heading">
+                                            {pro.name.charAt(0)}
+                                        </div>
                                     )}
                                 </div>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setProfileOpen(pro); }}
-                                    className="absolute top-1.5 right-1.5 text-savron-silver/30 hover:text-savron-silver transition-colors text-[9px] uppercase tracking-widest z-20"
-                                >
-                                    Bio
-                                </button>
-                                {/* Mobile select button when card tap goes to gallery */}
-                                {hasPortfolio && (
+
+                                {/* Barber Info */}
+                                <div className="space-y-1">
+                                    <h3 className="text-white text-xs font-heading uppercase tracking-widest leading-tight">{pro.name}</h3>
+                                    <p className="text-savron-silver/40 text-[9px] uppercase tracking-wider leading-tight">{pro.role}</p>
+                                </div>
+
+                                {/* Card Actions Footer */}
+                                <div className="flex gap-2 w-full justify-center pt-2 border-t border-white/[0.04] mt-auto">
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); setSelectedPro(pro); }}
-                                        className={cn(
-                                            "absolute bottom-1.5 left-1.5 text-[9px] uppercase tracking-widest transition-colors z-20",
-                                            selectedPro?.id === pro.id ? "text-savron-green" : "text-savron-silver/30 hover:text-savron-silver"
-                                        )}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setProfileOpen(pro);
+                                        }}
+                                        className="text-[9px] uppercase tracking-widest text-savron-silver/40 hover:text-white transition-colors px-2.5 py-1 bg-white/5 hover:bg-white/10 rounded-sm"
                                     >
-                                        {selectedPro?.id === pro.id ? '✓' : 'Select'}
+                                        Bio
                                     </button>
-                                )}
+                                    {hasPortfolio && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setPortfolioGallery(pro);
+                                            }}
+                                            className="text-[9px] uppercase tracking-widest text-savron-silver/40 hover:text-white transition-colors px-2.5 py-1 bg-white/5 hover:bg-white/10 rounded-sm"
+                                        >
+                                            Work
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         );
                     })}
