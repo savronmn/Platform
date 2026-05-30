@@ -6,6 +6,7 @@ import { Mail, Shield, QrCode, LogOut, Scissors } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
+import { createClient } from '@/lib/supabase';
 
 type PageState = 'email' | 'otp' | 'profile' | 'not_found';
 
@@ -40,6 +41,7 @@ export default function EPassPage() {
     const [subscriber, setSubscriber] = useState<Subscriber | null>(null);
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
     const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+    const supabase = createClient();
 
     // Restore session from localStorage
     useEffect(() => {
@@ -49,6 +51,30 @@ export default function EPassPage() {
             loadProfile(saved);
         }
     }, []);
+
+    // Realtime: listen for visit_count updates on the subscriber row
+    useEffect(() => {
+        if (!subscriber?.email) return;
+
+        const channel = supabase
+            .channel(`epass:${subscriber.email}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'email_subscribers',
+                    filter: `email=eq.${subscriber.email}`,
+                },
+                (payload) => {
+                    const updated = payload.new as Subscriber;
+                    setSubscriber(prev => prev ? { ...prev, visit_count: updated.visit_count, last_visit_at: updated.last_visit_at } : prev);
+                }
+            )
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }, [subscriber?.email]);
 
     async function loadProfile(userEmail: string) {
         setLoading(true);

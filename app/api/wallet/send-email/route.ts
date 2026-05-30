@@ -396,88 +396,105 @@ function buildEmailHtml(name: string, downloadUrl: string, hasInlineLogo: boolea
     const qrSrc = hasQrCode ? 'cid:savron_qrcode' : '';
 
     return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background:#050505;font-family:Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#050505;padding:40px 20px;">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="supported-color-schemes" content="dark">
+  <style>
+    :root { color-scheme: dark; }
+    body { margin:0 !important; padding:0 !important; background-color:#050505 !important; }
+    /* Prevent Outlook/Gmail from overriding dark backgrounds */
+    [data-ogsc] .email-body { background-color:#050505 !important; }
+    [data-ogsc] .email-wrapper { background-color:#121212 !important; }
+    [data-ogsc] .email-header { background-color:#125470 !important; }
+    [data-ogsc] .email-section { background-color:#0a0a0a !important; }
+    [data-ogsc] .qr-wrapper { background-color:#0e0e0e !important; }
+  </style>
+</head>
+<body class="email-body" style="margin:0;padding:0;background-color:#050505 !important;font-family:Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" class="email-body" style="background-color:#050505 !important;padding:40px 20px;">
     <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="background:#121212;border:1px solid rgba(255,255,255,0.08);">
+      <table width="560" cellpadding="0" cellspacing="0" border="0" role="presentation" class="email-wrapper" style="background-color:#121212 !important;border:1px solid rgba(255,255,255,0.1);">
 
         <!-- Header -->
         <tr>
-          <td style="background:#0D3B4F;padding:28px 32px;text-align:center;">
+          <td class="email-header" style="background-color:#125470 !important;padding:28px 32px;text-align:center;">
             <img src="${logoSrc}" alt="SAVRON" width="160" style="display:block;margin:0 auto 8px;max-width:160px;height:auto;" />
-            <p style="margin:0;color:rgba(255,255,255,0.5);font-size:10px;letter-spacing:3px;text-transform:uppercase;">Barbershop &amp; Lounge · Minneapolis</p>
+            <p style="margin:0;color:rgba(255,255,255,0.6);font-size:10px;letter-spacing:3px;text-transform:uppercase;">Barbershop &amp; Lounge &middot; Minneapolis</p>
           </td>
         </tr>
 
         <!-- Body -->
         <tr>
-          <td style="padding:36px 32px;">
-            <p style="margin:0 0 8px;color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:3px;text-transform:uppercase;">Access Confirmed</p>
-            <h1 style="margin:0 0 28px;color:#fff;font-size:26px;letter-spacing:2px;text-transform:uppercase;">Your pass is ready, ${firstName}.</h1>
+          <td style="padding:36px 32px;background-color:#121212 !important;">
+            <p style="margin:0 0 8px;color:rgba(255,255,255,0.45);font-size:11px;letter-spacing:3px;text-transform:uppercase;">Access Confirmed</p>
+            <h1 style="margin:0 0 24px;color:#ffffff;font-size:24px;letter-spacing:2px;text-transform:uppercase;font-weight:700;">Your pass is ready, ${firstName}.</h1>
 
             <p style="margin:0 0 28px;color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7;">
-              Your SAVRON membership pass has been issued. Save it to your wallet — it tracks your visits automatically and stays with you, quiet and precise.
+              Your SAVRON membership pass has been issued. Save it to your wallet &mdash; it tracks your visits automatically and stays with you, quiet and precise.
             </p>
 
             <!-- Member info card -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#050505;border:1px solid rgba(255,255,255,0.08);margin-bottom:28px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" class="email-section" style="background-color:#0a0a0a !important;border:1px solid rgba(255,255,255,0.1);margin-bottom:24px;border-radius:4px;">
               <tr>
-                <td style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.05);">
-                  <span style="color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:2px;text-transform:uppercase;">Member</span><br>
-                  <span style="color:#fff;font-size:15px;">${name}</span>
+                <td style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.07);background-color:#0a0a0a !important;">
+                  <span style="color:rgba(255,255,255,0.4);font-size:10px;letter-spacing:2px;text-transform:uppercase;">Member</span><br>
+                  <span style="color:#ffffff;font-size:16px;font-weight:600;">${name}</span>
                 </td>
               </tr>
               <tr>
-                <td style="padding:14px 20px;">
-                  <span style="color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:2px;text-transform:uppercase;">Status</span><br>
-                  <span style="color:#1A6A8A;font-size:18px;font-weight:700;">ACTIVE MEMBER</span>
+                <td style="padding:16px 20px;background-color:#0a0a0a !important;">
+                  <span style="color:rgba(255,255,255,0.4);font-size:10px;letter-spacing:2px;text-transform:uppercase;">Status</span><br>
+                  <span style="color:#4aafd0;font-size:16px;font-weight:700;letter-spacing:1px;">&#10003; ACTIVE MEMBER</span>
                 </td>
               </tr>
             </table>
 
             ${hasQrCode ? `
             <!-- QR Code -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#050505;border:1px solid rgba(255,255,255,0.08);margin-bottom:28px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" class="email-section" style="background-color:#0a0a0a !important;border:1px solid rgba(255,255,255,0.1);margin-bottom:24px;border-radius:4px;">
               <tr>
-                <td style="padding:24px;text-align:center;">
-                  <p style="margin:0 0 16px;color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:2px;text-transform:uppercase;">Your Check-in QR Code</p>
-                  <img src="${qrSrc}" alt="QR Code" width="200" height="200" style="display:block;margin:0 auto;max-width:200px;border:1px solid rgba(255,255,255,0.1);" />
-                  <p style="margin:12px 0 0;color:rgba(255,255,255,0.3);font-size:10px;letter-spacing:1px;">Show this at the shop counter to record your visit.</p>
+                <td style="padding:28px 24px;text-align:center;background-color:#0a0a0a !important;">
+                  <p style="margin:0 0 18px;color:rgba(255,255,255,0.45);font-size:10px;letter-spacing:3px;text-transform:uppercase;">Your Check-in QR Code</p>
+                  <div class="qr-wrapper" style="display:inline-block;background-color:#0e0e0e !important;padding:12px;border:1px solid rgba(255,255,255,0.08);border-radius:4px;">
+                    <img src="${qrSrc}" alt="ePass QR Code" width="200" height="200" style="display:block;width:200px;height:200px;" />
+                  </div>
+                  <p style="margin:16px 0 0;color:rgba(255,255,255,0.3);font-size:10px;letter-spacing:1px;line-height:1.5;">Show this QR at the counter to record your visit.<br>Works even without internet.</p>
                 </td>
               </tr>
             </table>
             ` : ''}
 
             <!-- Add to Wallet -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#050505;border:1px solid rgba(255,255,255,0.08);margin-bottom:28px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" class="email-section" style="background-color:#0a0a0a !important;border:1px solid rgba(255,255,255,0.1);margin-bottom:24px;border-radius:4px;">
               <tr>
-                <td style="padding:28px 24px;text-align:center;">
-                  <p style="margin:0 0 20px;color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:2px;text-transform:uppercase;">Digital Wallet Pass</p>
+                <td style="padding:28px 24px;text-align:center;background-color:#0a0a0a !important;">
+                  <p style="margin:0 0 20px;color:rgba(255,255,255,0.45);font-size:10px;letter-spacing:3px;text-transform:uppercase;">Save Digital Pass</p>
                   <a href="${downloadUrl}"
-                     style="display:inline-block;background:#1A6A8A;color:#ffffff;padding:16px 36px;text-decoration:none;font-family:Arial,sans-serif;font-size:13px;letter-spacing:3px;text-transform:uppercase;font-weight:700;border-radius:2px;">
+                     style="display:inline-block;background-color:#1A6A8A;color:#ffffff;padding:16px 40px;text-decoration:none;font-family:Arial,sans-serif;font-size:12px;letter-spacing:3px;text-transform:uppercase;font-weight:700;border-radius:3px;">
                     Add to Wallet
                   </a>
                   <p style="margin:16px 0 0;color:rgba(255,255,255,0.25);font-size:11px;line-height:1.6;">
-                    Opens Apple Wallet on iPhone &middot; compatible with Android wallet apps<br>
-                    <a href="${downloadUrl}" style="color:rgba(255,255,255,0.35);text-decoration:underline;">Download pass file (.pkpass)</a>
+                    iPhone: opens Apple Wallet &middot; Android: compatible wallet apps<br>
+                    <a href="${downloadUrl}" style="color:rgba(255,255,255,0.4);text-decoration:underline;">Download .pkpass file</a>
                   </p>
                 </td>
               </tr>
             </table>
 
-            <p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
-              Your pass updates automatically each time you visit. Welcome to SAVRON.
+            <p style="margin:0;color:rgba(255,255,255,0.35);font-size:12px;line-height:1.6;">
+              Your visit count updates automatically every time you check in. Welcome to SAVRON.
             </p>
           </td>
         </tr>
 
         <!-- Footer -->
         <tr>
-          <td style="padding:20px 32px;border-top:1px solid rgba(255,255,255,0.05);">
+          <td style="padding:20px 32px;border-top:1px solid rgba(255,255,255,0.06);background-color:#121212 !important;">
             <p style="margin:0;color:rgba(255,255,255,0.2);font-size:11px;letter-spacing:1px;">
-              SAVRON Barbershop &amp; Lounge · Minneapolis, MN · <a href="https://savronmn.com" style="color:rgba(255,255,255,0.3);">savronmn.com</a>
+              SAVRON Barbershop &amp; Lounge &middot; Minneapolis, MN &middot; <a href="https://savronmn.com" style="color:rgba(255,255,255,0.35);text-decoration:none;">savronmn.com</a>
             </p>
           </td>
         </tr>
