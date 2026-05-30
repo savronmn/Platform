@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     const { data: barber } = await supabaseAdmin
         .from('barbers')
-        .select('google_calendar_id, google_calendar_tokens')
+        .select('google_calendar_id, google_calendar_tokens, working_hours')
         .eq('id', barberId)
         .single();
 
@@ -28,27 +28,29 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Barber not found' }, { status: 404 });
     }
 
+    // Always return working_hours so the booking page can filter slots
+    const workingHours = barber.working_hours ?? null;
+
     const tokens = barber.google_calendar_tokens as CalendarToken | null;
     const calendarId = barber.google_calendar_id;
 
     if (!tokens || !calendarId) {
-        // Barber hasn't connected Google Calendar. Treat as fully available (0 busy slots returns).
-        return NextResponse.json({ busy: [] });
+        // Barber hasn't connected Google Calendar — return working hours only
+        return NextResponse.json({ busy: [], workingHours });
     }
 
     try {
         const accessToken = await getValidAccessToken(tokens);
-        
-        // Define day boundaries in Central Time (CST)
-        // Hardcoding standard 9 AM to 7 PM bounding for efficiency, or just full 24 hrs
+
         const timeMin = `${date}T00:00:00-05:00`;
         const timeMax = `${date}T23:59:59-05:00`;
 
         const busySlots = await getBusySlots(accessToken, calendarId, timeMin, timeMax);
-        
-        return NextResponse.json({ busy: busySlots });
+
+        return NextResponse.json({ busy: busySlots, workingHours });
     } catch (err) {
         console.error('Error fetching calendar busy slots:', err);
-        return NextResponse.json({ error: 'Failed to fetch busy slots' }, { status: 500 });
+        // Don't fail the booking page — return working hours without Google Calendar data
+        return NextResponse.json({ busy: [], workingHours });
     }
 }

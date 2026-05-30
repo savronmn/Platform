@@ -8,12 +8,36 @@ import {
     startOfWeek, endOfWeek, eachDayOfInterval,
     isToday, isSunday,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, Clock, User } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Barber, Booking } from '@/lib/types';
 import { TIME_SLOTS, SERVICE_COLORS } from '@/lib/services-data';
 
 type CalView = 'day' | 'week';
+
+const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+type DayKey = typeof DAY_KEYS[number];
+type WorkingHours = Partial<Record<DayKey, { open: string; close: string } | null>>;
+
+function slotToMinutes(timeStr: string): number {
+    const [timePart, meridiem] = timeStr.split(' ');
+    let [hours, minutes] = timePart.split(':').map(Number);
+    if (meridiem === 'PM' && hours !== 12) hours += 12;
+    if (meridiem === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+}
+
+function timeStrToMinutes(t: string): number {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+}
+
+function isSlotInHours(timeStr: string, schedule: { open: string; close: string }): boolean {
+    const slotMin = slotToMinutes(timeStr);
+    const openMin = timeStrToMinutes(schedule.open);
+    const closeMin = timeStrToMinutes(schedule.close);
+    return slotMin >= openMin && slotMin < closeMin;
+}
 
 export default function BarberCalendarPage() {
     const supabase = createClient();
@@ -21,7 +45,10 @@ export default function BarberCalendarPage() {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [barber, setBarber] = useState<Barber | null>(null);
     const [bookings, setBookings] = useState<Booking[]>([]);
+    const [googleBusy, setGoogleBusy] = useState<{ start: string; end: string }[]>([]);
+    const [workingHours, setWorkingHours] = useState<WorkingHours | null>(null);
     const [loading, setLoading] = useState(true);
+    const [syncing, setSyncing] = useState(false);
 
     useEffect(() => {
         async function load() {
@@ -34,6 +61,7 @@ export default function BarberCalendarPage() {
                 .single();
             if (barberData) {
                 setBarber(barberData);
+                setWorkingHours((barberData.working_hours as WorkingHours) ?? null);
                 const { data: bookingsData } = await supabase
                     .from('bookings')
                     .select('*')
@@ -48,6 +76,28 @@ export default function BarberCalendarPage() {
         load();
     }, []);
 
+    // Fetch Google Calendar busy blocks whenever date or barber changes
+    useEffect(() => {
+        if (!barber) return;
+        fetchGoogleBusy();
+    }, [barber, selectedDate]);
+
+    const fetchGoogleBusy = async () => {
+        if (!barber) return;
+        setSyncing(true);
+        try {
+            const dateStr = format(selectedDate, 'yyyy-MM-dd');
+            const res = await fetch(`/api/calendar/busy?barberId=${barber.id}&date=${dateStr}`);
+            if (res.ok) {
+                const data = await res.json();
+                setGoogleBusy(data.busy || []);
+            }
+        } catch {
+            setGoogleBusy([]);
+        }
+        setSyncing(false);
+    };
+
     const weekDays = useMemo(() => {
         const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
         const end = endOfWeek(selectedDate, { weekStartsOn: 1 });
@@ -57,7 +107,6 @@ export default function BarberCalendarPage() {
     const navigate = (dir: -1 | 1) => {
         if (view === 'day') {
             let next = dir === 1 ? addDays(selectedDate, 1) : subDays(selectedDate, 1);
-            // Skip Sundays
             if (isSunday(next)) next = dir === 1 ? addDays(next, 1) : subDays(next, 1);
             setSelectedDate(next);
         } else {
@@ -67,6 +116,23 @@ export default function BarberCalendarPage() {
 
     const bookingsForDate = (dateStr: string) =>
         bookings.filter(b => b.date === dateStr);
+
+    // Check if a time slot is blocked by Google Calendar
+    const isGoogleBusy = (timeStr: string, dateStr: string): boolean => {
+        const slotMin = slotToMinutes(timeStr);
+        const slotStart = new Date(`${dateStr}T${String(Math.floor(slotMin / 60)).padStart(2, '0')}:${String(slotMin % 60).padStart(2, '0')}:00-05:00`).getTime();
+        const slotEnd = slotStart + 45 * 60000;
+        return googleBusy.some(b =>
+            slotStart < new Date(b.end).getTime() && slotEnd > new Date(b.start).getTime()
+        );
+    };
+
+    // Get the working hours schedule for a given date
+    const getScheduleForDate = (date: Date): { open: string; close: string } | null => {
+        if (!workingHours) return null;
+        const dayKey = DAY_KEYS[date.getDay()];
+        return workingHours[dayKey] ?? null;
+    };
 
     if (loading) {
         return (
@@ -85,12 +151,39 @@ export default function BarberCalendarPage() {
         );
     }
 
+    const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+    const daySchedule = getScheduleForDate(selectedDate);
+    const isDayOff = workingHours !== null && daySchedule === null;
+
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <h1 className="font-heading text-2xl uppercase tracking-widest text-white">My Calendar</h1>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
+                    {/* Sync button */}
+                    <button
+                        onClick={fetchGoogleBusy}
+                        disabled={syncing}
+                        className="p-2 border border-white/10 text-savron-silver hover:text-white hover:border-white/25 transition-all rounded-savron disabled:opacity-40"
+                        title="Sync Google Calendar"
+                    >
+                        <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin")} />
+                    </button>
+                    {/* Google Calendar connect status */}
+                    {barber.google_calendar_id ? (
+                        <span className="text-[10px] uppercase tracking-widest text-savron-green/70 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-savron-green/70 inline-block" />
+                            Google Calendar connected
+                        </span>
+                    ) : (
+                        <a
+                            href="/barber/calendar/connect"
+                            className="text-[10px] uppercase tracking-widest text-savron-silver/50 hover:text-white flex items-center gap-1 transition-colors"
+                        >
+                            <ExternalLink className="w-3 h-3" /> Connect Google Calendar
+                        </a>
+                    )}
                     {(['day', 'week'] as const).map(v => (
                         <button
                             key={v}
@@ -107,6 +200,28 @@ export default function BarberCalendarPage() {
                     ))}
                 </div>
             </div>
+
+            {/* Working hours banner */}
+            {workingHours && view === 'day' && (
+                <div className={cn(
+                    "flex items-center justify-between px-4 py-3 border rounded-savron text-xs",
+                    isDayOff
+                        ? "border-amber-500/20 bg-amber-500/5 text-amber-400/70"
+                        : "border-savron-green/15 bg-savron-green/5 text-savron-green/70"
+                )}>
+                    <span className="uppercase tracking-widest">
+                        {isDayOff
+                            ? `Day off — ${selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}`
+                            : `Schedule: ${daySchedule ? `${daySchedule.open} – ${daySchedule.close}` : 'All day'}`
+                        }
+                    </span>
+                    {syncing && (
+                        <span className="text-savron-silver/30 flex items-center gap-1">
+                            <RefreshCw className="w-3 h-3 animate-spin" /> Syncing…
+                        </span>
+                    )}
+                </div>
+            )}
 
             {/* Date Navigation */}
             <div className="flex items-center justify-between bg-savron-grey border border-white/5 rounded-savron p-4">
@@ -138,21 +253,38 @@ export default function BarberCalendarPage() {
                 </button>
             )}
 
+            {/* Legend */}
+            {view === 'day' && (
+                <div className="flex flex-wrap gap-4 text-[10px] uppercase tracking-widest text-savron-silver/40">
+                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-savron-green/20 border border-savron-green/30 inline-block" />SAVRON booking</span>
+                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-blue-500/20 border border-blue-500/30 inline-block" />Google Calendar</span>
+                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-white/[0.03] border border-white/[0.04] inline-block opacity-40" />Outside hours</span>
+                </div>
+            )}
+
             {/* Day View */}
             {view === 'day' && (
                 <div className="space-y-2">
                     {TIME_SLOTS.map((slot) => {
-                        const dateStr = format(selectedDate, 'yyyy-MM-dd');
-                        const booking = bookingsForDate(dateStr).find(b => b.time === slot);
-                        const colorClass = booking ? SERVICE_COLORS[booking.service] || 'bg-white/10 border-white/20 text-white' : '';
+                        const booking = bookingsForDate(selectedDateStr).find(b => b.time === slot);
+                        const gBusy = !booking && isGoogleBusy(slot, selectedDateStr);
+                        const inHours = !daySchedule ? true : isSlotInHours(slot, daySchedule);
+                        const colorClass = booking
+                            ? SERVICE_COLORS[booking.service] || 'bg-white/10 border-white/20 text-white'
+                            : '';
+
                         return (
                             <div
                                 key={slot}
                                 className={cn(
                                     "flex items-center gap-4 p-4 border rounded-savron transition-all",
                                     booking
-                                        ? `${colorClass}`
-                                        : "border-white/[0.04] bg-savron-grey/50"
+                                        ? colorClass
+                                        : gBusy
+                                            ? "border-blue-500/25 bg-blue-500/10"
+                                            : !inHours
+                                                ? "border-white/[0.03] bg-savron-grey/20 opacity-40"
+                                                : "border-white/[0.04] bg-savron-grey/50"
                                 )}
                             >
                                 <span className="text-savron-silver/50 font-mono text-xs w-20 flex-shrink-0">{slot}</span>
@@ -166,6 +298,10 @@ export default function BarberCalendarPage() {
                                             <span className="text-xs opacity-50">{booking.client_phone}</span>
                                         )}
                                     </div>
+                                ) : gBusy ? (
+                                    <span className="text-blue-300/60 text-xs uppercase tracking-widest">External booking</span>
+                                ) : !inHours ? (
+                                    <span className="text-savron-silver/20 text-xs uppercase tracking-widest">Outside hours</span>
                                 ) : (
                                     <span className="text-savron-silver/20 text-xs uppercase tracking-widest">Available</span>
                                 )}
@@ -181,13 +317,19 @@ export default function BarberCalendarPage() {
                     {weekDays.filter(d => !isSunday(d)).map(day => {
                         const dateStr = format(day, 'yyyy-MM-dd');
                         const dayBookings = bookingsForDate(dateStr);
+                        const sched = getScheduleForDate(day);
+                        const dayOff = workingHours !== null && sched === null;
                         return (
                             <div
                                 key={dateStr}
                                 onClick={() => { setSelectedDate(day); setView('day'); }}
                                 className={cn(
                                     "bg-savron-grey border rounded-savron p-4 cursor-pointer transition-all hover:border-white/20",
-                                    isToday(day) ? "border-savron-green/30" : "border-white/5"
+                                    dayOff
+                                        ? "border-white/[0.03] opacity-50"
+                                        : isToday(day)
+                                            ? "border-savron-green/30"
+                                            : "border-white/5"
                                 )}
                             >
                                 <div className="flex items-center justify-between mb-3">
@@ -204,6 +346,11 @@ export default function BarberCalendarPage() {
                                         {format(day, 'd')}
                                     </p>
                                 </div>
+                                {dayOff ? (
+                                    <p className="text-savron-silver/20 text-[10px] uppercase tracking-widest">Day off</p>
+                                ) : sched ? (
+                                    <p className="text-savron-silver/30 text-[9px] mb-2">{sched.open} – {sched.close}</p>
+                                ) : null}
                                 {dayBookings.length === 0 ? (
                                     <p className="text-savron-silver/20 text-[10px] uppercase tracking-widest">No bookings</p>
                                 ) : (

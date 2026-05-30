@@ -36,6 +36,7 @@ export default function BarberBookingPage() {
     const [submitting, setSubmitting] = useState(false);
     const [portfolioOpen, setPortfolioOpen] = useState(false);
     const [busySlots, setBusySlots] = useState<{ start: string; end: string }[]>([]);
+    const [workingHours, setWorkingHours] = useState<Record<string, { open: string; close: string } | null> | null>(null);
     const [loadingBusy, setLoadingBusy] = useState(false);
 
     useEffect(() => {
@@ -48,6 +49,7 @@ export default function BarberBookingPage() {
                 if (res.ok) {
                     const data = await res.json();
                     setBusySlots(data.busy || []);
+                    setWorkingHours(data.workingHours ?? null);
                 } else {
                     setBusySlots([]);
                 }
@@ -58,6 +60,37 @@ export default function BarberBookingPage() {
         }
         fetchBusy();
     }, [barber, selectedDate]);
+
+    // Day-of-week key from selected date (Mon, Tue, ... Sun)
+    const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+    const selectedDayKey = DAY_KEYS[selectedDate.getDay()];
+
+    // Is this entire day off for the barber?
+    const isDayOff = workingHours !== null && (workingHours[selectedDayKey] === null || workingHours[selectedDayKey] === undefined);
+
+    // Convert "10:00 AM" style slot to 24h minutes-from-midnight for comparison
+    function slotToMinutes(timeStr: string): number {
+        const [timePart, meridiem] = timeStr.split(' ');
+        let [hours, minutes] = timePart.split(':').map(Number);
+        if (meridiem === 'PM' && hours !== 12) hours += 12;
+        if (meridiem === 'AM' && hours === 12) hours = 0;
+        return hours * 60 + minutes;
+    }
+
+    function timeStrToMinutes(t: string): number {
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+    }
+
+    const isSlotInWorkingHours = (timeStr: string): boolean => {
+        if (!workingHours) return true; // No schedule set = all hours open
+        const daySchedule = workingHours[selectedDayKey];
+        if (!daySchedule) return false; // Day is off
+        const slotMin = slotToMinutes(timeStr);
+        const openMin = timeStrToMinutes(daySchedule.open);
+        const closeMin = timeStrToMinutes(daySchedule.close);
+        return slotMin >= openMin && slotMin < closeMin;
+    };
 
     const isSlotBusy = (timeStr: string) => {
         if (isSlotInPast(selectedDate, timeStr, 5)) return true;
@@ -264,32 +297,47 @@ export default function BarberBookingPage() {
                                     </div>
                                     <div>
                                         <p className="text-xs uppercase tracking-widest text-savron-silver/50 mb-3">Time</p>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                            {loadingBusy ? (
-                                                <div className="col-span-full py-4 text-center text-savron-silver/40 text-xs uppercase">Checking availability…</div>
-                                            ) : (
-                                                TIME_SLOTS.map((time, idx) => {
-                                                    const busy = isSlotBusy(time);
-                                                    return (
-                                                        <button
-                                                            key={idx}
-                                                            disabled={busy}
-                                                            onClick={() => !busy && setSelectedTime(time)}
-                                                            className={cn(
-                                                                "p-3 border rounded-savron transition-all text-center text-sm font-mono w-full",
-                                                                busy
-                                                                    ? "opacity-30 cursor-not-allowed border-white/5 text-savron-silver/30 line-through"
-                                                                    : selectedTime === time
-                                                                        ? "border-savron-green bg-savron-green text-white cursor-pointer"
-                                                                        : "border-white/10 hover:border-white/30 text-savron-silver cursor-pointer"
-                                                            )}
-                                                        >
-                                                            {time}
-                                                        </button>
-                                                    );
-                                                })
-                                            )}
-                                        </div>
+                                        {loadingBusy ? (
+                                            <div className="py-6 text-center text-savron-silver/40 text-xs uppercase">Checking availability…</div>
+                                        ) : isDayOff ? (
+                                            <div className="py-8 text-center space-y-2">
+                                                <p className="text-savron-silver/40 text-sm uppercase tracking-widest">Not available</p>
+                                                <p className="text-savron-silver/25 text-xs">This barber is off on {selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}s.</p>
+                                            </div>
+                                        ) : (() => {
+                                            const availableSlots = TIME_SLOTS.filter(t => isSlotInWorkingHours(t));
+                                            if (availableSlots.length === 0) {
+                                                return (
+                                                    <div className="py-8 text-center">
+                                                        <p className="text-savron-silver/40 text-sm uppercase tracking-widest">No slots available</p>
+                                                    </div>
+                                                );
+                                            }
+                                            return (
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                    {availableSlots.map((time, idx) => {
+                                                        const busy = isSlotBusy(time);
+                                                        return (
+                                                            <button
+                                                                key={idx}
+                                                                disabled={busy}
+                                                                onClick={() => !busy && setSelectedTime(time)}
+                                                                className={cn(
+                                                                    "p-3 border rounded-savron transition-all text-center text-sm font-mono w-full",
+                                                                    busy
+                                                                        ? "opacity-30 cursor-not-allowed border-white/5 text-savron-silver/30 line-through"
+                                                                        : selectedTime === time
+                                                                            ? "border-savron-green bg-savron-green text-white cursor-pointer"
+                                                                            : "border-white/10 hover:border-white/30 text-savron-silver cursor-pointer"
+                                                                )}
+                                                            >
+                                                                {time}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 </motion.div>
                             )}
