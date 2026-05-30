@@ -133,6 +133,13 @@ export default function AdminBarbersPage() {
         setBarbers(prev => prev.map(b => b.id === barber.id ? { ...b, active: newActive } : b));
     };
 
+    const [confirmDelete, setConfirmDelete] = useState<Barber | null>(null);
+    const deleteBarber = async (barber: Barber) => {
+        await supabase.from('barbers').delete().eq('id', barber.id);
+        setBarbers(prev => prev.filter(b => b.id !== barber.id));
+        setConfirmDelete(null);
+    };
+
     const approveBarber = async (barber: Barber) => {
         await supabase.from('barbers').update({ active: true }).eq('id', barber.id);
         setBarbers(prev => prev.map(b => b.id === barber.id ? { ...b, active: true } : b));
@@ -222,14 +229,14 @@ export default function AdminBarbersPage() {
                                 )}
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={() => approveBarber(barber)}
-                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 text-[10px] uppercase tracking-widest bg-savron-green/10 border border-savron-green/20 text-savron-green hover:bg-savron-green/20 transition-all"
-                                    >
+                                         onClick={() => approveBarber(barber)}
+                                         className="flex-1 flex items-center justify-center gap-2 py-2.5 text-[10px] uppercase tracking-widest bg-savron-green hover:bg-savron-green-light text-white border border-savron-green/50 hover:border-savron-green-light transition-all font-medium rounded-savron"
+                                     >
                                         <UserCheck className="w-3.5 h-3.5" /> Approve
                                     </button>
                                     <button
                                         onClick={() => openSettings(barber)}
-                                        className="px-3 py-2.5 border border-white/10 text-savron-silver hover:text-white hover:border-white/25 transition-all"
+                                        className="px-3 py-2.5 border border-white/20 text-white hover:bg-white/10 hover:border-white/40 rounded-savron transition-all"
                                     >
                                         <Settings className="w-3.5 h-3.5" />
                                     </button>
@@ -257,7 +264,7 @@ export default function AdminBarbersPage() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h3 className="text-white font-heading uppercase tracking-wider">{barber.name}</h3>
-                                    <p className="text-savron-green text-xs uppercase tracking-widest">{barber.role}</p>
+                                    <p className="text-emerald-400 text-xs uppercase tracking-widest">{barber.role}</p>
                                     {barber.email && <p className="text-savron-silver/50 text-xs mt-1 truncate">{barber.email}</p>}
                                     {barber.license_number && (
                                         <p className="text-savron-silver/70 text-[10px] mt-0.5 flex items-center gap-1">
@@ -281,26 +288,32 @@ export default function AdminBarbersPage() {
                                 </div>
                             )}
 
-                            <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                            <div className="flex items-center justify-between pt-2 border-t border-white/5 gap-2">
                                 <button
                                     onClick={() => toggleActive(barber)}
-                                    className="flex items-center gap-2 text-xs uppercase tracking-wider transition-all text-green-400 hover:text-red-400"
+                                    className="flex items-center gap-2 text-xs uppercase tracking-wider transition-all text-emerald-400 hover:text-emerald-300 font-medium"
                                 >
                                     <ToggleRight className="w-4 h-4" /> Active
                                 </button>
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2 ml-auto">
                                     <button
                                         onClick={() => copyBookingLink(barber.slug)}
-                                        className="flex items-center gap-1 text-xs uppercase tracking-wider text-savron-silver hover:text-white transition-all"
+                                        className="flex items-center gap-1 px-2 py-1.5 text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
                                     >
                                         {copiedSlug === barber.slug ? <Check className="w-3 h-3 text-savron-green" /> : <Copy className="w-3 h-3" />}
                                         {copiedSlug === barber.slug ? 'Copied' : 'Link'}
                                     </button>
                                     <button
                                         onClick={() => openSettings(barber)}
-                                        className="flex items-center gap-1 text-xs uppercase tracking-wider text-savron-silver hover:text-white transition-all"
+                                        className="flex items-center gap-1 px-2 py-1.5 text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
                                     >
                                         <Settings className="w-3.5 h-3.5" /> Settings
+                                    </button>
+                                    <button
+                                        onClick={() => setConfirmDelete(barber)}
+                                        className="flex items-center gap-1 px-2 py-1.5 text-xs uppercase tracking-wider text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 rounded-savron transition-all"
+                                    >
+                                        🗑 Archive
                                     </button>
                                 </div>
                             </div>
@@ -313,6 +326,42 @@ export default function AdminBarbersPage() {
                 </div>
             </div>
         </motion.div>
+
+        {/* Delete confirmation modal */}
+        <AnimatePresence>
+            {confirmDelete && (
+                <motion.div
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+                    onClick={() => setConfirmDelete(null)}
+                >
+                    <motion.div
+                        initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95 }}
+                        className="bg-savron-grey border border-red-500/20 rounded-savron p-6 max-w-sm w-full shadow-2xl"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <h3 className="font-heading text-lg text-white uppercase tracking-wider mb-2">Archive Barber?</h3>
+                        <p className="text-savron-silver/70 text-sm mb-6">
+                            Remove <span className="text-white font-medium">{confirmDelete.name}</span> from your team. This cannot be undone.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setConfirmDelete(null)}
+                                className="flex-1 py-2.5 text-[11px] uppercase tracking-widest border border-white/10 text-savron-silver hover:text-white rounded-savron transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => deleteBarber(confirmDelete)}
+                                className="flex-1 py-2.5 text-[11px] uppercase tracking-widest bg-red-600 hover:bg-red-700 text-white rounded-savron transition-all font-medium"
+                            >
+                                Archive
+                            </button>
+                        </div>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
 
         {/* Settings slide-out panel */}
         <AnimatePresence>
@@ -348,7 +397,7 @@ export default function AdminBarbersPage() {
                                     className={cn(
                                         "flex-1 py-3 text-[10px] uppercase tracking-widest transition-colors",
                                         activeTab === tab
-                                            ? "text-savron-green border-b-2 border-savron-green"
+                                            ? "text-white border-b-2 border-savron-green-light"
                                             : "text-savron-silver/50 hover:text-savron-silver"
                                     )}
                                 >
@@ -374,6 +423,47 @@ export default function AdminBarbersPage() {
                                             placeholder="License number (e.g. MN-12345)"
                                             className="w-full bg-savron-charcoal border border-white/10 text-white placeholder-white/25 px-4 py-3 text-sm focus:outline-none focus:border-savron-green/50 transition-all rounded-savron"
                                         />
+                                    </div>
+
+                                    {/* Profile Photo */}
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-3">
+                                            Profile Photo
+                                        </label>
+                                        <div className="flex items-center gap-3">
+                                            {settingsBarber.image_url && (
+                                                <div className="w-12 h-12 rounded-full overflow-hidden border border-white/10 relative shrink-0">
+                                                    <Image src={settingsBarber.image_url} alt={settingsBarber.name} fill className="object-cover" />
+                                                </div>
+                                            )}
+                                            <input
+                                                type="file"
+                                                id="photo-upload"
+                                                accept="image/*"
+                                                className="hidden"
+                                                onChange={async (e) => {
+                                                    const file = e.currentTarget.files?.[0];
+                                                    if (!file) return;
+                                                    try {
+                                                        const ext = file.name.split('.').pop();
+                                                        const path = `barber-photos/${settingsBarber.id}.${ext}`;
+                                                        const { error: upErr } = await supabase.storage
+                                                            .from('barbers')
+                                                            .upload(path, file, { upsert: true, contentType: file.type });
+                                                        if (upErr) throw upErr;
+                                                        const { data: { publicUrl } } = supabase.storage.from('barbers').getPublicUrl(path);
+                                                        await supabase.from('barbers').update({ image_url: publicUrl }).eq('id', settingsBarber.id);
+                                                        setSettingsBarber(prev => prev ? { ...prev, image_url: publicUrl } : prev);
+                                                        setSaved(true);
+                                                    } catch (err) {
+                                                        console.error('Photo upload failed:', err);
+                                                    }
+                                                }}
+                                            />
+                                            <label htmlFor="photo-upload" className="flex-1 py-2.5 text-[11px] uppercase tracking-widest bg-savron-green/10 text-savron-green border border-savron-green/30 hover:bg-savron-green/20 rounded-savron cursor-pointer transition-all text-center font-medium">
+                                                📸 Upload Photo
+                                            </label>
+                                        </div>
                                     </div>
 
                                     {/* Services offered */}
@@ -439,7 +529,7 @@ export default function AdminBarbersPage() {
                                                             className="flex items-center gap-1.5 text-xs transition-colors"
                                                         >
                                                             {isOn
-                                                                ? <><ToggleRight className="w-5 h-5 text-savron-green" /><span className="text-savron-green uppercase tracking-widest text-[10px]">Open</span></>
+                                                                ? <><ToggleRight className="w-5 h-5 text-emerald-400" /><span className="text-emerald-400 uppercase tracking-widest text-[10px]">Open</span></>
                                                                 : <><ToggleLeft className="w-5 h-5 text-savron-silver/30" /><span className="text-savron-silver/30 uppercase tracking-widest text-[10px]">Off</span></>
                                                             }
                                                         </button>
@@ -490,12 +580,12 @@ export default function AdminBarbersPage() {
                                 className={cn(
                                     "w-full flex items-center justify-center gap-2 py-3 text-[11px] uppercase tracking-widest font-medium rounded-savron transition-all disabled:opacity-50",
                                     saved
-                                        ? "bg-savron-green/10 text-savron-green border border-savron-green/20"
-                                        : "bg-savron-green text-black hover:bg-opacity-90"
+                                        ? "bg-savron-green/20 text-emerald-400 border border-savron-green/35"
+                                        : "bg-savron-green text-white border border-savron-green-light/20 hover:bg-savron-green-light"
                                 )}
                             >
                                 {saving ? (
-                                    <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                 ) : saved ? (
                                     <><Check className="w-4 h-4" /> Saved</>
                                 ) : (

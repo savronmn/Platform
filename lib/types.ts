@@ -52,7 +52,9 @@ export interface Service {
     name: string;
     duration_minutes: number;
     price_cents: number;
-    color_code: string;
+    color: string;
+    description?: string;
+    sort_order?: number;
     active: boolean;
     created_at: string;
 }

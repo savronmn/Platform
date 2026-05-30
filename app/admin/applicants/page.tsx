@@ -11,7 +11,7 @@ import type { Applicant } from '@/lib/types';
 const STATUS_STYLES: Record<Applicant['status'], string> = {
     pending:   'bg-amber-500/10 text-amber-400 border-amber-500/20',
     interview: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    approved:  'bg-savron-green/10 text-savron-green border-savron-green/20',
+    approved:  'bg-savron-green/10 text-emerald-400 border-savron-green/20',
     rejected:  'bg-red-500/10 text-red-400 border-red-500/20',
 };
 
@@ -96,10 +96,10 @@ export default function AdminApplicantsPage() {
                     <button
                         onClick={() => setShowArchived(v => !v)}
                         className={cn(
-                            "px-4 py-2 text-xs uppercase tracking-widest border rounded-savron transition-all",
+                            "px-4 py-2 text-xs uppercase tracking-widest border rounded-savron transition-all font-medium",
                             showArchived
-                                ? "bg-white/10 text-white border-white/20"
-                                : "text-savron-silver border-white/10 hover:text-white hover:border-white/20"
+                                ? "bg-white/15 text-white border-white/30 hover:bg-white/20"
+                                : "text-white border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30"
                         )}
                     >
                         {showArchived ? `Hide Archived (${archivedCount})` : `Show Archived (${archivedCount})`}
@@ -115,7 +115,7 @@ export default function AdminApplicantsPage() {
                         <p className={cn("text-2xl font-mono font-bold",
                             s === 'pending'   ? 'text-amber-400' :
                             s === 'interview' ? 'text-blue-400' :
-                            s === 'approved'  ? 'text-savron-green' : 'text-red-400'
+                            s === 'approved'  ? 'text-emerald-400' : 'text-red-400'
                         )}>{counts[s]}</p>
                     </div>
                 ))}
@@ -186,10 +186,10 @@ export default function AdminApplicantsPage() {
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             onClick={e => e.stopPropagation()}
-                                            className="flex items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-widest border border-white/10 text-savron-silver hover:text-white hover:border-white/25 transition-all rounded-savron"
+                                            className="flex items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-widest border border-white/20 text-white bg-white/5 hover:bg-white/10 hover:border-white/40 transition-all rounded-savron font-medium"
                                         >
                                             <FileVideo className="w-3.5 h-3.5" /> Video
-                                            <ExternalLink className="w-2.5 h-2.5 opacity-50" />
+                                            <ExternalLink className="w-2.5 h-2.5 opacity-70" />
                                         </a>
                                     )}
 
@@ -229,7 +229,7 @@ export default function AdminApplicantsPage() {
 
                                     <button
                                         onClick={e => { e.stopPropagation(); setConfirmDelete(a); }}
-                                        className="p-2 text-savron-silver/70 hover:text-red-400 hover:bg-red-500/5 border border-white/5 hover:border-red-500/20 rounded-savron transition-all"
+                                        className="p-2 text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 rounded-savron transition-all"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </button>
@@ -282,14 +282,14 @@ export default function AdminApplicantsPage() {
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => setConfirmDelete(null)}
-                                    className="flex-1 py-2.5 text-[11px] uppercase tracking-widest border border-white/10 text-savron-silver hover:text-white rounded-savron transition-all"
+                                    className="flex-1 py-2.5 text-[11px] uppercase tracking-widest border border-white/20 text-white bg-white/5 hover:bg-white/10 rounded-savron transition-all font-medium"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={() => deleteApplicant(confirmDelete)}
                                     disabled={deletingId === confirmDelete.id}
-                                    className="flex-1 py-2.5 text-[11px] uppercase tracking-widest bg-red-500/15 text-red-400 border border-red-500/25 hover:bg-red-500/25 rounded-savron transition-all disabled:opacity-50"
+                                    className="flex-1 py-2.5 text-[11px] uppercase tracking-widest bg-red-600 hover:bg-red-700 text-white border border-red-600/50 hover:border-red-700/50 rounded-savron transition-all disabled:opacity-50 font-medium"
                                 >
                                     {deletingId === confirmDelete.id ? 'Deleting…' : 'Delete'}
                                 </button>
@@ -343,13 +343,13 @@ export default function AdminApplicantsPage() {
                                         <div className="space-y-1.5 text-sm text-white">
                                             <div className="flex items-center">
                                                 <span className="text-savron-silver/60 text-xs inline-block w-20 shrink-0">Email:</span>
-                                                <a href={`mailto:${selectedApplicant.email}`} className="text-savron-green hover:underline truncate">
+                                                <a href={`mailto:${selectedApplicant.email}`} className="text-emerald-400 hover:text-emerald-300 hover:underline truncate">
                                                     {selectedApplicant.email}
                                                 </a>
                                             </div>
                                             <div className="flex items-center">
                                                 <span className="text-savron-silver/60 text-xs inline-block w-20 shrink-0">Phone:</span>
-                                                <a href={`tel:${selectedApplicant.phone}`} className="text-savron-green hover:underline">
+                                                <a href={`tel:${selectedApplicant.phone}`} className="text-emerald-400 hover:text-emerald-300 hover:underline">
                                                     {selectedApplicant.phone}
                                                 </a>
                                             </div>
@@ -360,7 +360,7 @@ export default function AdminApplicantsPage() {
                                                         href={`https://instagram.com/${selectedApplicant.ig_handle.replace(/^@/, '')}`}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="text-savron-green hover:underline inline-flex items-center gap-1"
+                                                        className="text-emerald-400 hover:text-emerald-300 hover:underline inline-flex items-center gap-1"
                                                     >
                                                         {selectedApplicant.ig_handle} <ExternalLink className="w-3 h-3" />
                                                     </a>
@@ -420,7 +420,7 @@ export default function AdminApplicantsPage() {
                                                 href={selectedApplicant.video_url}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="text-[10px] text-savron-green hover:underline flex items-center justify-end gap-1 uppercase tracking-widest font-mono"
+                                                className="text-[10px] text-emerald-400 hover:text-emerald-300 hover:underline flex items-center justify-end gap-1 uppercase tracking-widest font-mono"
                                             >
                                                 Open video in tab <ExternalLink className="w-3 h-3" />
                                             </a>

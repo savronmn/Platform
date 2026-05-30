@@ -48,6 +48,7 @@ export default function HostDashboard() {
 
     // Quick-Add walk-in
     const [showQuickAdd, setShowQuickAdd] = useState(false);
+    const [quickFormDate, setQuickFormDate] = useState(new Date());
     const [quickForm, setQuickForm] = useState({
         clientName: '', clientPhone: '', clientEmail: '', service: '', barberId: '', time: '',
     });
@@ -136,7 +137,7 @@ export default function HostDashboard() {
 
     // Available time slots — excludes past slots (when viewing today) and already-booked slots for selected barber
     const availableTimeSlots = useMemo(() => {
-        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const dateStr = format(quickFormDate, 'yyyy-MM-dd');
         const todayStr = format(new Date(), 'yyyy-MM-dd');
         const isViewingToday = dateStr === todayStr;
         const now = new Date();
@@ -161,7 +162,7 @@ export default function HostDashboard() {
             }
             return true;
         });
-    }, [selectedDate, quickForm.barberId, bookings]);
+    }, [quickFormDate, quickForm.barberId, bookings]);
 
     // Quick-Add walk-in — creates a booking directly from the host view
     const submitQuickAdd = async () => {
@@ -171,7 +172,7 @@ export default function HostDashboard() {
         }
         setQuickSubmitting(true);
         setQuickError(null);
-        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const dateStr = format(quickFormDate, 'yyyy-MM-dd');
         const barber = barbers.find(b => b.id === quickForm.barberId);
         const { data: inserted, error } = await supabase.from('bookings').insert({
             client_name: quickForm.clientName.trim() || 'Walk-in',
@@ -340,7 +341,7 @@ export default function HostDashboard() {
                     <button onClick={fetchBookings} className="p-2 text-savron-silver hover:text-white transition-colors"><RefreshCw className="w-4 h-4" /></button>
                     {/* Quick-Add walk-in */}
                     <button
-                        onClick={() => setShowQuickAdd(true)}
+                        onClick={() => { setQuickFormDate(new Date()); setShowQuickAdd(true); }}
                         className="flex items-center gap-1.5 px-3 py-2 bg-savron-green text-white border border-savron-green-light/20 text-[10px] uppercase tracking-widest rounded-savron hover:bg-savron-green-light transition-all"
                     >
                         <Plus className="w-3.5 h-3.5" /> Walk-in
@@ -359,7 +360,7 @@ export default function HostDashboard() {
                     <button onClick={next} className="p-1.5 text-savron-silver hover:text-white transition-colors"><ChevronRight className="w-4 h-4" /></button>
                     {!isToday(selectedDate) && (
                         <button onClick={() => setSelectedDate(new Date())}
-                            className="ml-1 text-[10px] uppercase tracking-widest text-savron-green hover:text-white transition-colors px-2.5 py-1 border border-savron-green/30 rounded-savron">
+                            className="ml-1 text-[10px] uppercase tracking-widest text-emerald-400 border border-savron-green-light/20 hover:bg-savron-green/10 transition-colors px-2.5 py-1 rounded-savron">
                             Today
                         </button>
                     )}
@@ -805,7 +806,6 @@ export default function HostDashboard() {
                             <div className="flex items-center justify-between p-5 border-b border-white/5">
                                 <div>
                                     <h3 className="font-heading text-white uppercase tracking-wider">Quick-Add Walk-in</h3>
-                                    <p className="text-savron-silver/50 text-[10px] uppercase tracking-widest mt-0.5">{format(selectedDate, 'EEEE, MMM d')}</p>
                                 </div>
                                 <button onClick={() => setShowQuickAdd(false)} className="text-savron-silver hover:text-white transition-colors">
                                     <X className="w-4 h-4" />
@@ -813,6 +813,17 @@ export default function HostDashboard() {
                             </div>
 
                             <div className="p-5 space-y-4">
+                                {/* Date */}
+                                <div>
+                                    <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">Date *</label>
+                                    <input
+                                        type="date"
+                                        value={format(quickFormDate, 'yyyy-MM-dd')}
+                                        onChange={e => setQuickFormDate(new Date(e.target.value + 'T00:00:00'))}
+                                        className="input-savron"
+                                    />
+                                </div>
+
                                 {/* Barber */}
                                 <div>
                                     <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">Barber *</label>
@@ -897,14 +908,14 @@ export default function HostDashboard() {
                                 <div className="flex gap-3 pt-1">
                                     <button
                                         onClick={() => setShowQuickAdd(false)}
-                                        className="flex-1 py-3 text-[11px] uppercase tracking-widest border border-white/10 text-savron-silver hover:text-white rounded-savron transition-all"
+                                        className="flex-1 py-3 text-[11px] uppercase tracking-widest border border-white/20 text-white bg-white/5 hover:bg-white/10 rounded-savron transition-all font-medium"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         onClick={submitQuickAdd}
                                         disabled={quickSubmitting}
-                                        className="flex-1 py-3 text-[11px] uppercase tracking-widest bg-savron-green/90 text-white rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                        className="flex-1 py-3 text-[11px] uppercase tracking-widest bg-savron-green hover:bg-savron-green-light text-white rounded-savron transition-all disabled:opacity-50 flex items-center justify-center gap-2 font-medium border border-savron-green/50 hover:border-savron-green-light"
                                     >
                                         {quickSubmitting
                                             ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
