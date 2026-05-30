@@ -6,6 +6,7 @@ import { Resend } from 'resend';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import path from 'path';
+import forge from 'node-forge';
 
 const ISSUER_ID = process.env.GOOGLE_WALLET_ISSUER_ID;
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL;
@@ -27,7 +28,7 @@ function buildGoogleSaveUrl(objectId: string): string | null {
             aud: 'google',
             typ: 'savetowallet',
             iat: Math.floor(Date.now() / 1000),
-            payload: { genericObjects: [{ id: objectId }] },
+            payload: { loyaltyObjects: [{ id: objectId }] },
         };
         const token = jwt.sign(jwtPayload, GOOGLE_PRIVATE_KEY, { algorithm: 'RS256' });
         return `https://pay.google.com/gp/v/save/${token}`;
@@ -52,30 +53,22 @@ async function updateGoogleWalletPass(
         scopes: ['https://www.googleapis.com/auth/wallet_object.issuer'],
     });
 
-    const logoUrl = process.env.GOOGLE_WALLET_LOGO_URL || 'https://savronmn.com/logo.png';
     const client = await auth.getClient();
     const passObject = {
         id: objectId,
         classId: CLASS_ID,
         state: 'ACTIVE',
-        genericType: 'GENERIC_TYPE_UNSPECIFIED',
-        hexBackgroundColor: '#0D3B4F',
-        logo: {
-            sourceUri: { uri: logoUrl },
-            contentDescription: { defaultValue: { language: 'en-US', value: 'SAVRON Logo' } },
-        },
-        cardTitle: { defaultValue: { language: 'en-US', value: 'SAVRON' } },
-        header: { defaultValue: { language: 'en-US', value: name } },
-        subheader: { defaultValue: { language: 'en-US', value: 'MEMBER' } },
-        textModulesData: [
-            { id: 'visits', header: 'VISITS', body: visitCount.toString() },
-            { id: 'email', header: 'EMAIL', body: email },
-        ],
         barcode: { type: 'QR_CODE', value: email },
+        accountName: name,
+        accountId: email,
+        loyaltyPoints: {
+            label: 'Visits',
+            balance: { string: visitCount.toString() }
+        }
     };
 
     await client.request({
-        url: `https://walletobjects.googleapis.com/walletobjects/v1/genericObject/${encodeURIComponent(objectId)}`,
+        url: `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${encodeURIComponent(objectId)}`,
         method: 'PUT',
         data: passObject,
     });
@@ -104,8 +97,36 @@ async function resendFullPass(
         const TEAM_ID            = process.env.TEAM_ID;
 
         if (WALLET_PRIVATE_KEY && WALLET_WWDR_CERT && PASS_TYPE_ID && TEAM_ID) {
-            const signerKey = Buffer.from(WALLET_PRIVATE_KEY, 'base64');
-            const wwdrCert  = Buffer.from(WALLET_WWDR_CERT,   'base64');
+            // Decode and parse P12 private key & certificate
+            const p12Buffer = Buffer.from(WALLET_PRIVATE_KEY, 'base64');
+            const p12Der = p12Buffer.toString('binary');
+            const p12Asn1 = forge.asn1.fromDer(p12Der);
+            const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, false, PASSPHRASE);
+
+            const certBags = p12.getBags({ bagType: forge.pki.oids.certBag });
+            const keyBags = p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
+
+            const certBag = certBags[forge.pki.oids.certBag]?.[0];
+            const keyBag = keyBags[forge.pki.oids.pkcs8ShroudedKeyBag]?.[0];
+
+            if (!certBag || !keyBag) {
+                throw new Error('Certificates or private key missing in P12 container');
+            }
+
+            const certPem = forge.pki.certificateToPem(certBag.cert!);
+            const keyPem = forge.pki.privateKeyToPem(keyBag.key!);
+
+            // Decode and parse WWDR certificate from DER to PEM
+            const wwdrCert = Buffer.from(WALLET_WWDR_CERT, 'base64');
+            let wwdrPem = '';
+            if (wwdrCert.toString('utf-8').includes('-----BEGIN CERTIFICATE-----')) {
+                wwdrPem = wwdrCert.toString('utf-8');
+            } else {
+                const wwdrAsn1 = forge.asn1.fromDer(wwdrCert.toString('binary'));
+                const wwdrObj = forge.pki.certificateFromAsn1(wwdrAsn1);
+                wwdrPem = forge.pki.certificateToPem(wwdrObj);
+            }
+
             const logoPath  = path.join(process.cwd(), 'public', 'logo.png');
             const buffers: Record<string, Buffer> = {};
             if (fs.existsSync(logoPath)) {
@@ -114,10 +135,10 @@ async function resendFullPass(
                 buffers['icon.png'] = logoBuffer;
             }
             const pass = new PKPass(buffers, {
-                wwdr: wwdrCert,
-                signerCert: signerKey,
-                signerKey: signerKey,
-                signerKeyPassphrase: PASSPHRASE,
+                wwdr: wwdrPem,
+                signerCert: certPem,
+                signerKey: keyPem,
+                signerKeyPassphrase: PASSPHRASE || 'dummy',
             }, {
                 description: 'SAVRON Membership',
                 organizationName: 'SAVRON',

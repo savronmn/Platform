@@ -11,6 +11,7 @@ import Link from 'next/link';
 
 export default function AdminDashboard() {
     const supabase = createClient();
+    const [seeding, setSeeding] = useState(false);
     const [stats, setStats] = useState({
         clients: 0,
         weeklyBookings: 0,
@@ -19,73 +20,133 @@ export default function AdminDashboard() {
         todayRevenue: 0,
         todayCompleted: 0,
         pendingApplicants: 0,
+        activeBarbers: 0,
+        totalRevenue: 0,
+        avgTicket: 0,
+        topService: '—',
+        totalBookings: 0,
     });
     const [todaySchedule, setTodaySchedule] = useState<Booking[]>([]);
     const [upcomingSchedule, setUpcomingSchedule] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(true);
     const [debugError, setDebugError] = useState<string | null>(null);
 
-    useEffect(() => {
-        async function fetchData() {
-            try {
-                const todayStr = format(new Date(), 'yyyy-MM-dd');
-                const nextWeekStr = format(addDays(new Date(), 7), 'yyyy-MM-dd');
-                const sixWeeksAgo = new Date();
-                sixWeeksAgo.setDate(sixWeeksAgo.getDate() - 42);
-                const cutoff = format(sixWeeksAgo, 'yyyy-MM-dd');
+    async function fetchData() {
+        try {
+            const todayStr = format(new Date(), 'yyyy-MM-dd');
+            const nextWeekStr = format(addDays(new Date(), 7), 'yyyy-MM-dd');
+            const sixWeeksAgo = new Date();
+            sixWeeksAgo.setDate(sixWeeksAgo.getDate() - 42);
+            const cutoff = format(sixWeeksAgo, 'yyyy-MM-dd');
 
-                const [clientsRes, todayBookingsRes, upcomingRes, applicantsRes] = await Promise.all([
-                    supabase.from('clients').select('*'),
-                    supabase.from('bookings').select('*').eq('date', todayStr).order('time', { ascending: true }),
-                    supabase.from('bookings').select('*').gt('date', todayStr).lte('date', nextWeekStr).in('status', ['confirmed']).order('date', { ascending: true }).order('time', { ascending: true }).limit(20),
-                    supabase.from('applicants').select('id').eq('status', 'pending'),
-                ]);
+            const [clientsRes, todayBookingsRes, upcomingRes, applicantsRes, barbersRes, allBookingsRes] = await Promise.all([
+                supabase.from('clients').select('*'),
+                supabase.from('bookings').select('*').eq('date', todayStr).order('time', { ascending: true }),
+                supabase.from('bookings').select('*').gt('date', todayStr).lte('date', nextWeekStr).in('status', ['confirmed']).order('date', { ascending: true }).order('time', { ascending: true }).limit(20),
+                supabase.from('applicants').select('id').eq('status', 'pending'),
+                supabase.from('barbers').select('*'),
+                supabase.from('bookings').select('price, status, service'),
+            ]);
 
-                if (clientsRes.error) throw new Error(`Clients: ${clientsRes.error.message}`);
-                if (todayBookingsRes.error) throw new Error(`Today Bookings: ${todayBookingsRes.error.message}`);
+            if (clientsRes.error) throw new Error(`Clients: ${clientsRes.error.message}`);
+            if (todayBookingsRes.error) throw new Error(`Today Bookings: ${todayBookingsRes.error.message}`);
+            if (barbersRes.error) throw new Error(`Barbers: ${barbersRes.error.message}`);
+            if (allBookingsRes.error) throw new Error(`All Bookings: ${allBookingsRes.error.message}`);
 
-                const allClients: Client[] = clientsRes.data ?? [];
-                const todayAll: Booking[] = todayBookingsRes.data ?? [];
-                const upcoming: Booking[] = upcomingRes.data ?? [];
+            const allClients: Client[] = clientsRes.data ?? [];
+            const todayAll: Booking[] = todayBookingsRes.data ?? [];
+            const upcoming: Booking[] = upcomingRes.data ?? [];
+            const allBarbers = barbersRes.data ?? [];
+            const allBookings = allBookingsRes.data ?? [];
 
-                const todayActive = todayAll.filter(b => ['confirmed', 'completed'].includes(b.status));
-                const todayCompleted = todayAll.filter(b => b.status === 'completed');
+            const todayActive = todayAll.filter(b => ['confirmed', 'completed'].includes(b.status));
+            const todayCompleted = todayAll.filter(b => b.status === 'completed');
 
-                const todayRevenue = todayCompleted.reduce((sum, b) => {
-                    const priceStr = String(b.price || '$0');
-                    const price = parseFloat(priceStr.replace(/[^0-9.]/g, ''));
-                    return sum + (isNaN(price) ? 0 : price);
-                }, 0);
+            const todayRevenue = todayCompleted.reduce((sum, b) => {
+                const priceStr = String(b.price || '$0');
+                const price = parseFloat(priceStr.replace(/[^0-9.]/g, ''));
+                return sum + (isNaN(price) ? 0 : price);
+            }, 0);
 
-                const weeklyBookings = upcoming.length;
+            const weeklyBookings = upcoming.length;
 
-                const dueClients = allClients.filter(c =>
-                    !c.last_booking_date || c.last_booking_date < cutoff
-                ).length;
+            const dueClients = allClients.filter(c =>
+                !c.last_booking_date || c.last_booking_date < cutoff
+            ).length;
 
-                setStats({
-                    clients: allClients.length,
-                    weeklyBookings,
-                    todayBookings: todayActive.length,
-                    dueClients,
-                    todayRevenue,
-                    todayCompleted: todayCompleted.length,
-                    pendingApplicants: applicantsRes.data?.length ?? 0,
-                });
+            const activeBarbers = allBarbers.filter(b => b.active).length;
 
-                setTodaySchedule(todayActive);
-                setUpcomingSchedule(upcoming.slice(0, 8));
-                setDebugError(null);
-            } catch (err: unknown) {
-                const message = err instanceof Error ? err.message : 'Failed to fetch data';
-                console.error("Dashboard Fetch Error:", err);
-                setDebugError(message);
-            } finally {
-                setLoading(false);
+            // Overall/Monthly metrics
+            const completedBookings = allBookings.filter(b => b.status === 'completed');
+            const totalRevenue = completedBookings.reduce((sum, b) => {
+                const priceStr = String(b.price || '$0');
+                const price = parseFloat(priceStr.replace(/[^0-9.]/g, ''));
+                return sum + (isNaN(price) ? 0 : price);
+            }, 0);
+
+            const avgTicket = completedBookings.length > 0 ? totalRevenue / completedBookings.length : 0;
+
+            // Popular service
+            const serviceCounts: Record<string, number> = {};
+            allBookings.forEach(b => {
+                serviceCounts[b.service] = (serviceCounts[b.service] || 0) + 1;
+            });
+            let topService = '—';
+            let maxCount = 0;
+            for (const [service, count] of Object.entries(serviceCounts)) {
+                if (count > maxCount) {
+                    maxCount = count;
+                    topService = service;
+                }
             }
+
+            setStats({
+                clients: allClients.length,
+                weeklyBookings,
+                todayBookings: todayActive.length,
+                dueClients,
+                todayRevenue,
+                todayCompleted: todayCompleted.length,
+                pendingApplicants: applicantsRes.data?.length ?? 0,
+                activeBarbers,
+                totalRevenue,
+                avgTicket,
+                topService,
+                totalBookings: allBookings.length,
+            });
+
+            setTodaySchedule(todayActive);
+            setUpcomingSchedule(upcoming.slice(0, 8));
+            setDebugError(null);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Failed to fetch data';
+            console.error("Dashboard Fetch Error:", err);
+            setDebugError(message);
+        } finally {
+            setLoading(false);
         }
+    }
+
+    useEffect(() => {
         fetchData();
     }, []);
+
+    const handleSeed = async () => {
+        setSeeding(true);
+        try {
+            const res = await fetch('/api/seed', { method: 'POST' });
+            if (res.ok) {
+                await fetchData();
+            } else {
+                alert('Seeding failed');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Seeding failed');
+        } finally {
+            setSeeding(false);
+        }
+    };
 
     const statusDot = (s: Booking['status']) =>
         s === 'confirmed' ? 'bg-savron-green animate-pulse' : s === 'completed' ? 'bg-blue-400' : 'bg-savron-silver/40';
@@ -124,6 +185,29 @@ export default function AdminDashboard() {
                 </Link>
             </div>
 
+            {/* Empty State / Demo Data Seeder Banner */}
+            {stats.clients === 0 && stats.totalBookings === 0 && (
+                <div className="bg-savron-green/10 border border-savron-green/30 rounded-savron p-6 mb-8 text-center space-y-4">
+                    <h3 className="font-heading text-lg text-savron-green uppercase tracking-widest">Database Empty</h3>
+                    <p className="text-savron-silver text-sm max-w-md mx-auto">
+                        Your SAVRON CRM is currently empty. Click the button below to automatically populate the database with mock barbers, clients, and appointments to preview the dashboard.
+                    </p>
+                    <button
+                        onClick={handleSeed}
+                        disabled={seeding}
+                        className="px-6 py-2.5 bg-savron-green text-white font-heading text-xs uppercase tracking-widest rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50 flex items-center justify-center gap-2 mx-auto"
+                    >
+                        {seeding ? (
+                            <>
+                                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Seeding...
+                            </>
+                        ) : (
+                            'Seed Database with Demo Data'
+                        )}
+                    </button>
+                </div>
+            )}
+
             {/* Stats Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 <StatCard
@@ -145,6 +229,25 @@ export default function AdminDashboard() {
                     sub="confirmed upcoming"
                 />
                 <StatCard
+                    label="Total Revenue"
+                    value={`$${stats.totalRevenue.toLocaleString()}`}
+                    icon={<DollarSign className="w-4 h-4" />}
+                    sub="completed all-time"
+                />
+                <StatCard
+                    label="Avg Ticket Value"
+                    value={`$${stats.avgTicket.toFixed(2)}`}
+                    icon={<TrendingUp className="w-4 h-4" />}
+                    sub="per completed service"
+                />
+                <StatCard
+                    label="Popular Service"
+                    value={stats.topService}
+                    icon={<Scissors className="w-4 h-4" />}
+                    sub="most booked all-time"
+                    className="truncate"
+                />
+                <StatCard
                     label="Total Clients"
                     value={stats.clients}
                     icon={<Users className="w-4 h-4" />}
@@ -159,7 +262,7 @@ export default function AdminDashboard() {
                 />
                 <StatCard
                     label="Barbers Active"
-                    value="—"
+                    value={stats.activeBarbers}
                     icon={<Scissors className="w-4 h-4" />}
                     sub={<Link href="/admin/barbers" className="text-savron-green hover:underline">Manage team</Link>}
                 />

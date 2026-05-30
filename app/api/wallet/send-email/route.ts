@@ -7,6 +7,7 @@ import { GoogleAuth } from 'google-auth-library';
 import fs from 'fs';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
+import forge from 'node-forge';
 
 const WALLET_PRIVATE_KEY = process.env.WALLET_PRIVATE_KEY;
 const WALLET_WWDR_CERT = process.env.WALLET_WWDR_CERT;
@@ -26,7 +27,7 @@ function getSupabaseAdmin() {
     );
 }
 
-// Ensure the GenericClass exists in Google Wallet (required before creating objects)
+// Ensure the LoyaltyClass exists in Google Wallet (required before creating objects)
 let classEnsured = false;
 async function ensureGooglePassClass(): Promise<boolean> {
     if (classEnsured) return true;
@@ -41,7 +42,7 @@ async function ensureGooglePassClass(): Promise<boolean> {
     // Check if class already exists
     try {
         await client.request({
-            url: `https://walletobjects.googleapis.com/walletobjects/v1/genericClass/${encodeURIComponent(CLASS_ID)}`,
+            url: `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass/${encodeURIComponent(CLASS_ID)}`,
             method: 'GET',
         });
         console.log('[GWallet] Class confirmed:', CLASS_ID);
@@ -58,12 +59,13 @@ async function ensureGooglePassClass(): Promise<boolean> {
     // Class doesn't exist (404) — create it
     try {
         await client.request({
-            url: `https://walletobjects.googleapis.com/walletobjects/v1/genericClass`,
+            url: `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass`,
             method: 'POST',
             data: {
                 id: CLASS_ID,
                 issuerName: 'SAVRON Barbershop & Lounge',
                 reviewStatus: 'DRAFT',
+                programName: 'SAVRON Members Club'
             },
         });
         console.log('[GWallet] Class created:', CLASS_ID);
@@ -102,7 +104,7 @@ async function createGooglePassObject(
 
     try {
         await client.request({
-            url: `https://walletobjects.googleapis.com/walletobjects/v1/genericObject`,
+            url: `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject`,
             method: 'POST',
             data: passObject,
         });
@@ -111,7 +113,7 @@ async function createGooglePassObject(
     } catch (err: any) {
         if (err?.response?.status === 409) {
             await client.request({
-                url: `https://walletobjects.googleapis.com/walletobjects/v1/genericObject/${encodeURIComponent(objectId)}`,
+                url: `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${encodeURIComponent(objectId)}`,
                 method: 'PATCH',
                 data: passObject,
             });
@@ -129,25 +131,17 @@ function buildGooglePassObject(
     email: string,
     visitCount: number
 ) {
-    const logoUrl = process.env.GOOGLE_WALLET_LOGO_URL || 'https://savronmn.com/logo.png';
     return {
         id: objectId,
         classId: CLASS_ID,
         state: 'ACTIVE',
-        genericType: 'GENERIC_TYPE_UNSPECIFIED',
-        hexBackgroundColor: '#0D3B4F',
-        logo: {
-            sourceUri: { uri: logoUrl },
-            contentDescription: { defaultValue: { language: 'en-US', value: 'SAVRON Logo' } },
-        },
-        cardTitle: { defaultValue: { language: 'en-US', value: 'SAVRON' } },
-        header: { defaultValue: { language: 'en-US', value: name } },
-        subheader: { defaultValue: { language: 'en-US', value: 'MEMBER' } },
-        textModulesData: [
-            { id: 'visits', header: 'VISITS', body: visitCount.toString() },
-            { id: 'email', header: 'EMAIL', body: email },
-        ],
         barcode: { type: 'QR_CODE', value: email },
+        accountName: name,
+        accountId: email,
+        loyaltyPoints: {
+            label: 'Visits',
+            balance: { string: visitCount.toString() }
+        }
     };
 }
 
@@ -159,7 +153,7 @@ function buildGoogleSaveUrl(objectId: string): string {
         aud: 'google',
         typ: 'savetowallet',
         iat: Math.floor(Date.now() / 1000),
-        payload: { genericObjects: [{ id: objectId }] },
+        payload: { loyaltyObjects: [{ id: objectId }] },
     };
     const token = jwt.sign(jwtPayload, GOOGLE_PRIVATE_KEY!, { algorithm: 'RS256' });
     return `https://pay.google.com/gp/v/save/${token}`;
@@ -173,8 +167,35 @@ async function generateApplePass(
 ): Promise<Buffer | null> {
     if (!WALLET_PRIVATE_KEY || !WALLET_WWDR_CERT || !PASS_TYPE_ID || !TEAM_ID) return null;
     try {
-        const signerKey = Buffer.from(WALLET_PRIVATE_KEY, 'base64');
+        // Decode and parse P12 private key & certificate
+        const p12Buffer = Buffer.from(WALLET_PRIVATE_KEY, 'base64');
+        const p12Der = p12Buffer.toString('binary');
+        const p12Asn1 = forge.asn1.fromDer(p12Der);
+        const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, false, PASSPHRASE);
+
+        const certBags = p12.getBags({ bagType: forge.pki.oids.certBag });
+        const keyBags = p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
+
+        const certBag = certBags[forge.pki.oids.certBag]?.[0];
+        const keyBag = keyBags[forge.pki.oids.pkcs8ShroudedKeyBag]?.[0];
+
+        if (!certBag || !keyBag) {
+            throw new Error('Certificates or private key missing in P12 container');
+        }
+
+        const certPem = forge.pki.certificateToPem(certBag.cert!);
+        const keyPem = forge.pki.privateKeyToPem(keyBag.key!);
+
+        // Decode and parse WWDR certificate from DER to PEM
         const wwdrCert = Buffer.from(WALLET_WWDR_CERT, 'base64');
+        let wwdrPem = '';
+        if (wwdrCert.toString('utf-8').includes('-----BEGIN CERTIFICATE-----')) {
+            wwdrPem = wwdrCert.toString('utf-8');
+        } else {
+            const wwdrAsn1 = forge.asn1.fromDer(wwdrCert.toString('binary'));
+            const wwdrObj = forge.pki.certificateFromAsn1(wwdrAsn1);
+            wwdrPem = forge.pki.certificateToPem(wwdrObj);
+        }
 
         const buffers: Record<string, Buffer> = {};
         const logoPath = path.join(process.cwd(), 'public', 'logo.png');
@@ -185,10 +206,10 @@ async function generateApplePass(
         }
 
         const pass = new PKPass(buffers, {
-            wwdr: wwdrCert,
-            signerCert: signerKey,
-            signerKey: signerKey,
-            signerKeyPassphrase: PASSPHRASE,
+            wwdr: wwdrPem,
+            signerCert: certPem,
+            signerKey: keyPem,
+            signerKeyPassphrase: PASSPHRASE || 'dummy',
         }, {
             description: 'SAVRON Membership',
             organizationName: 'SAVRON',
