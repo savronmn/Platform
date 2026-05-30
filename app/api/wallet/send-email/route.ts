@@ -230,6 +230,12 @@ async function generateApplePass(
             { key: 'visits', label: 'VISITS', value: visitCount.toString() },
             { key: 'email', label: 'EMAIL', value: email, textAlignment: 'PKTextAlignmentRight' }
         );
+        pass.setBarcodes({
+            message: email,
+            format: 'PKBarcodeFormatQR',
+            messageEncoding: 'iso-8859-1',
+            altText: email,
+        });
 
         return pass.getAsBuffer() as unknown as Buffer;
     } catch (err) {

@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase';
 import type { EmailSubscriber } from '@/lib/types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, UserCheck, Clock, Send, Plus, RefreshCw, UserPlus, X, Minus, Trash2 } from 'lucide-react';
+import { Search, UserCheck, Clock, Send, Plus, RefreshCw, UserPlus, X, Minus, Trash2, ScanLine } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+
+const QRScannerModal = dynamic(() => import('@/components/qr/QRScannerModal'), { ssr: false });
 
 export default function MembershipPage() {
     const supabase = createClient();
@@ -15,6 +18,7 @@ export default function MembershipPage() {
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
     const [showAddForm, setShowAddForm] = useState(false);
+    const [showScanner, setShowScanner] = useState(false);
     const [addForm, setAddForm] = useState({ name: '', email: '', phone: '' });
     const [addLoading, setAddLoading] = useState(false);
 
@@ -174,6 +178,7 @@ export default function MembershipPage() {
 
     return (
         <div className="min-h-screen bg-savron-black text-white">
+            <QRScannerModal open={showScanner} onClose={() => setShowScanner(false)} />
             {/* Toast */}
             <AnimatePresence>
                 {toast && (
@@ -212,6 +217,13 @@ export default function MembershipPage() {
                         </p>
                     </div>
                     <div className="flex gap-2">
+                        <button
+                            onClick={() => setShowScanner(true)}
+                            className="flex items-center gap-1.5 px-4 py-2.5 text-[10px] uppercase tracking-[0.2em] text-savron-green border border-savron-green/20 hover:bg-savron-green/10 transition-all"
+                        >
+                            <ScanLine size={12} />
+                            Scan ePass
+                        </button>
                         <button
                             onClick={() => setShowAddForm(!showAddForm)}
                             className="flex items-center gap-1.5 px-4 py-2.5 text-[10px] uppercase tracking-[0.2em] text-white/60 border border-white/[0.1] hover:border-savron-green/40 hover:text-white hover:bg-savron-green/5 transition-all"

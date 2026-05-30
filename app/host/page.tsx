@@ -326,8 +326,8 @@ export default function HostDashboard() {
                     </button>
                     <h1 className="font-heading text-xl uppercase tracking-widest text-white">Host View</h1>
                     <div className="flex items-center gap-1.5">
-                        <Wifi className={cn("w-3 h-3", realtimeConnected ? "text-savron-green" : "text-savron-silver/40")} />
-                        <span className={cn("text-[10px] uppercase tracking-widest", realtimeConnected ? "text-savron-green" : "text-savron-silver/40")}>
+                        <Wifi className={cn("w-3 h-3", realtimeConnected ? "text-emerald-400" : "text-savron-silver/40")} />
+                        <span className={cn("text-[10px] uppercase tracking-widest", realtimeConnected ? "text-emerald-400" : "text-savron-silver/40")}>
                             {realtimeConnected ? "Live" : "Connecting…"}
                         </span>
                     </div>
@@ -341,7 +341,7 @@ export default function HostDashboard() {
                     {/* Quick-Add walk-in */}
                     <button
                         onClick={() => setShowQuickAdd(true)}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-savron-green/15 border border-savron-green/30 text-savron-green text-[10px] uppercase tracking-widest rounded-savron hover:bg-savron-green/25 transition-all"
+                        className="flex items-center gap-1.5 px-3 py-2 bg-savron-green text-white border border-savron-green-light/20 text-[10px] uppercase tracking-widest rounded-savron hover:bg-savron-green-light transition-all"
                     >
                         <Plus className="w-3.5 h-3.5" /> Walk-in
                     </button>
@@ -369,7 +369,7 @@ export default function HostDashboard() {
                     {(['day', 'week', 'month'] as CalView[]).map(v => (
                         <button key={v} onClick={() => setView(v)}
                             className={cn("px-3 py-1.5 text-[10px] uppercase tracking-widest transition-all",
-                                view === v ? "bg-savron-green/15 text-savron-green" : "text-savron-silver hover:text-white hover:bg-white/5"
+                                view === v ? "bg-savron-green text-white border border-savron-green-light/20" : "text-savron-silver hover:text-white hover:bg-white/5"
                             )}>
                             {v}
                         </button>
@@ -387,7 +387,7 @@ export default function HostDashboard() {
                         className={cn(
                             "px-3 py-1 text-[10px] uppercase tracking-widest border rounded-savron transition-all shrink-0",
                             filteredBarberIds.size === 0
-                                ? "border-savron-green/40 bg-savron-green/10 text-savron-green"
+                                ? "bg-savron-green border-savron-green-light/20 text-white"
                                 : "border-white/10 text-savron-silver/60 hover:text-white"
                         )}
                     >
@@ -400,7 +400,7 @@ export default function HostDashboard() {
                             className={cn(
                                 "flex items-center gap-1.5 px-3 py-1 text-[10px] uppercase tracking-widest border rounded-savron transition-all shrink-0",
                                 filteredBarberIds.has(b.id)
-                                    ? "border-savron-green/40 bg-savron-green/10 text-savron-green"
+                                    ? "bg-savron-green border-savron-green-light/20 text-white"
                                     : "border-white/10 text-savron-silver/60 hover:text-white"
                             )}
                         >
@@ -446,7 +446,7 @@ export default function HostDashboard() {
                                         className={cn(
                                             "flex items-center gap-3 px-3 py-3 rounded-savron text-sm uppercase tracking-wider transition-all",
                                             item.href === '/host'
-                                                ? "bg-savron-green/15 text-savron-green border border-savron-green/20"
+                                                ? "bg-savron-green border border-savron-green-light/20 text-white"
                                                 : "text-savron-silver hover:text-white hover:bg-white/5 border border-transparent"
                                         )}
                                     >
@@ -568,7 +568,7 @@ export default function HostDashboard() {
                                             onClick={() => { setSelectedDate(day); setView('day'); }}
                                             className={cn("min-h-[120px] p-2 bg-savron-black cursor-pointer transition-colors hover:bg-savron-grey/80", !inMonth && "opacity-25")}>
                                             <div className={cn("w-7 h-7 flex items-center justify-center rounded-full text-xs font-mono mb-1.5",
-                                                today ? "bg-savron-green text-black font-semibold" : "text-savron-silver")}>
+                                                today ? "bg-savron-green text-white border border-savron-green-light/20 font-semibold" : "text-savron-silver")}>
                                                 {format(day, 'd')}
                                             </div>
                                             <div className="space-y-0.5">
@@ -712,9 +712,9 @@ export default function HostDashboard() {
                                                 <button
                                                     onClick={() => updateStatus(activeBooking, 'completed')}
                                                     disabled={updating}
-                                                    className="flex items-center justify-center gap-2 py-3 text-[11px] uppercase tracking-widest font-medium bg-savron-green text-black rounded-savron hover:bg-opacity-90 transition-all disabled:opacity-50"
+                                                    className="flex items-center justify-center gap-2 py-3 text-[11px] uppercase tracking-widest font-medium bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50"
                                                 >
-                                                    {updating ? <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" /> : <><UserCheck className="w-4 h-4" /> Check In</>}
+                                                    {updating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><UserCheck className="w-4 h-4" /> Check In</>}
                                                 </button>
                                                 <button
                                                     onClick={() => updateStatus(activeBooking, 'no_show')}

@@ -14,7 +14,8 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
         pathname.startsWith('/admin') ||
         pathname.startsWith('/barber') ||
         pathname.startsWith('/membership') ||
-        pathname.startsWith('/host');
+        pathname.startsWith('/host') ||
+        pathname.startsWith('/epass');
 
     if (isDashboard) {
         return <>{children}</>;

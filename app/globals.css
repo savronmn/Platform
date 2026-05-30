@@ -23,6 +23,20 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* === html5-qrcode overrides — hide default chrome, fill container === */
+#qr-reader-element video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+#qr-reader-element img { display: none !important; }
+#qr-reader-element__dashboard,
+#qr-reader-element__status_span,
+#qr-reader-element__dashboard_section_csr button,
+#qr-reader-element__header_message {
+  display: none !important;
+}
+
 /* === Keyframe Animations === */
 
 @keyframes fade-in {

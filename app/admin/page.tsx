@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase';
 import StatCard from '@/components/crm/StatCard';
-import { Users, Calendar, DollarSign, Clock, ArrowRight, TrendingUp, Scissors, UserCheck, ClipboardList, Layers } from 'lucide-react';
+import { Users, Calendar, DollarSign, Clock, ArrowRight, TrendingUp, Scissors, UserCheck, ClipboardList, Layers, ScanLine } from 'lucide-react';
 import type { Booking, Client } from '@/lib/types';
 import { format, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+
+const QRScannerModal = dynamic(() => import('@/components/qr/QRScannerModal'), { ssr: false });
 
 export default function AdminDashboard() {
     const supabase = createClient();
@@ -30,6 +33,7 @@ export default function AdminDashboard() {
     const [todaySchedule, setTodaySchedule] = useState<Booking[]>([]);
     const [upcomingSchedule, setUpcomingSchedule] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showScanner, setShowScanner] = useState(false);
     const [debugError, setDebugError] = useState<string | null>(null);
 
     async function fetchData() {
@@ -190,22 +194,32 @@ export default function AdminDashboard() {
                     <h1 className="font-heading text-3xl uppercase tracking-widest text-white">Dashboard</h1>
                     <p className="text-savron-silver text-sm uppercase tracking-wider mt-1">{todayStr}</p>
                 </div>
-                <Link href="/admin/bookings" className="flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-widest bg-savron-green/10 text-savron-green border border-savron-green/20 rounded-savron hover:bg-savron-green/20 transition-all">
-                    <Calendar className="w-3.5 h-3.5" /> View Calendar
-                </Link>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setShowScanner(true)}
+                        className="flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all"
+                    >
+                        <ScanLine className="w-3.5 h-3.5" /> Scan ePass
+                    </button>
+                    <Link href="/admin/bookings" className="flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-widest bg-white/5 text-savron-silver border border-white/10 rounded-savron hover:text-white hover:border-white/20 transition-all">
+                        <Calendar className="w-3.5 h-3.5" /> View Calendar
+                    </Link>
+                </div>
             </div>
+
+            <QRScannerModal open={showScanner} onClose={() => setShowScanner(false)} />
 
             {/* Empty State / Demo Data Seeder Banner */}
             {stats.clients === 0 && stats.totalBookings === 0 && (
-                <div className="bg-savron-green/10 border border-savron-green/30 rounded-savron p-6 mb-8 text-center space-y-4">
-                    <h3 className="font-heading text-lg text-savron-green uppercase tracking-widest">Database Empty</h3>
+                <div className="bg-savron-green/20 border border-savron-green-light/35 rounded-savron p-6 mb-8 text-center space-y-4">
+                    <h3 className="font-heading text-lg text-emerald-400 uppercase tracking-widest">Database Empty</h3>
                     <p className="text-savron-silver text-sm max-w-md mx-auto">
                         Your SAVRON CRM is currently empty. Click the button below to automatically populate the database with mock barbers, clients, and appointments to preview the dashboard.
                     </p>
                     <button
                         onClick={handleSeed}
                         disabled={seeding}
-                        className="px-6 py-2.5 bg-savron-green text-white font-heading text-xs uppercase tracking-widest rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50 flex items-center justify-center gap-2 mx-auto"
+                        className="px-6 py-2.5 bg-savron-green text-white border border-savron-green-light/20 font-heading text-xs uppercase tracking-widest rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50 flex items-center justify-center gap-2 mx-auto"
                     >
                         {seeding ? (
                             <>
@@ -280,13 +294,13 @@ export default function AdminDashboard() {
                     label="Barbers Active"
                     value={stats.activeBarbers}
                     icon={<Scissors className="w-4 h-4" />}
-                    sub={<Link href="/admin/barbers" className="text-savron-green hover:underline">Manage team</Link>}
+                    sub={<Link href="/admin/barbers" className="text-emerald-400 hover:text-emerald-300 hover:underline">Manage team</Link>}
                 />
                 <StatCard
                     label="Pending Applications"
                     value={stats.pendingApplicants}
                     icon={<ClipboardList className="w-4 h-4" />}
-                    sub={<Link href="/admin/applicants" className="text-savron-green hover:underline">View pipeline</Link>}
+                    sub={<Link href="/admin/applicants" className="text-emerald-400 hover:text-emerald-300 hover:underline">View pipeline</Link>}
                     alert={stats.pendingApplicants > 0}
                 />
             </div>
