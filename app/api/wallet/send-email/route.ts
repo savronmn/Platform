@@ -339,25 +339,6 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        // Inline QR Code for email body
-        let qrBuffer: Buffer | null = null;
-        try {
-            const QRCode = (await import('qrcode')).default;
-            qrBuffer = await QRCode.toBuffer(email.toLowerCase().trim(), {
-                width: 300,
-                margin: 2,
-                color: { dark: '#FFFFFF', light: '#0E0E0E' },
-            });
-            attachments.push({
-                filename: 'qrcode.png',
-                content: qrBuffer.toString('base64'),
-                content_type: 'image/png',
-                content_id: 'savron_qrcode',
-            });
-        } catch (err) {
-            console.error('QR code generation failed (non-fatal):', err);
-        }
-
         // Apple Wallet pass — MUST have content_type application/vnd.apple.pkpass
         if (applePassBuffer) {
             attachments.push({
@@ -374,7 +355,7 @@ export async function POST(req: NextRequest) {
             from: process.env.RESEND_FROM_EMAIL || 'noreply@savronmn.com',
             to: email.trim(),
             subject: 'SAVRON — Your Membership Pass',
-            html: buildEmailHtml(name.trim(), downloadUrl, !!logoBuffer, !!qrBuffer),
+            html: buildEmailHtml(name.trim(), downloadUrl, !!logoBuffer),
             attachments: attachments as any,
         });
         console.log('[wallet/send-email] Email sent, id:', (emailResult as any)?.data?.id);
@@ -390,10 +371,9 @@ export async function POST(req: NextRequest) {
     }
 }
 
-function buildEmailHtml(name: string, downloadUrl: string, hasInlineLogo: boolean = false, hasQrCode: boolean = false): string {
+function buildEmailHtml(name: string, downloadUrl: string, hasInlineLogo: boolean = false): string {
     const firstName = name.split(' ')[0];
     const logoSrc = hasInlineLogo ? 'cid:savron_logo' : 'https://savronmn.com/logo.png';
-    const qrSrc = hasQrCode ? 'cid:savron_qrcode' : '';
 
     return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
@@ -451,21 +431,6 @@ function buildEmailHtml(name: string, downloadUrl: string, hasInlineLogo: boolea
                 </td>
               </tr>
             </table>
-
-            ${hasQrCode ? `
-            <!-- QR Code -->
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" class="email-section" style="background-color:#0a0a0a !important;border:1px solid rgba(255,255,255,0.1);margin-bottom:24px;border-radius:4px;">
-              <tr>
-                <td style="padding:28px 24px;text-align:center;background-color:#0a0a0a !important;">
-                  <p style="margin:0 0 18px;color:rgba(255,255,255,0.45);font-size:10px;letter-spacing:3px;text-transform:uppercase;">Your Check-in QR Code</p>
-                  <div class="qr-wrapper" style="display:inline-block;background-color:#0e0e0e !important;padding:12px;border:1px solid rgba(255,255,255,0.08);border-radius:4px;">
-                    <img src="${qrSrc}" alt="ePass QR Code" width="200" height="200" style="display:block;width:200px;height:200px;" />
-                  </div>
-                  <p style="margin:16px 0 0;color:rgba(255,255,255,0.3);font-size:10px;letter-spacing:1px;line-height:1.5;">Show this QR at the counter to record your visit.<br>Works even without internet.</p>
-                </td>
-              </tr>
-            </table>
-            ` : ''}
 
             <!-- Add to Wallet -->
             <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" class="email-section" style="background-color:#0a0a0a !important;border:1px solid rgba(255,255,255,0.1);margin-bottom:24px;border-radius:4px;">
