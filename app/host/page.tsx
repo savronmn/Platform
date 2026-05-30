@@ -814,7 +814,7 @@ export default function HostDashboard() {
 
                             <div className="p-5 space-y-4">
                                 {/* Date */}
-                                <div>
+                                <div className="flex flex-col items-center">
                                     <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">Date *</label>
                                     <input
                                         type="date"
