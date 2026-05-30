@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { createClient } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Shield, QrCode, LogOut, Scissors } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -30,83 +29,108 @@ function getTier(visits: number) {
     return TIER_CONFIG.standard;
 }
 
+const SESSION_KEY = 'epass_email';
+
 export default function EPassPage() {
-    const supabase = createClient();
     const [pageState, setPageState] = useState<PageState>('email');
     const [email, setEmail] = useState('');
-    const [otp, setOtp] = useState('');
+    const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [subscriber, setSubscriber] = useState<Subscriber | null>(null);
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
     const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
-    const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
 
-    // Check for existing session on mount
+    // Restore session from localStorage
     useEffect(() => {
-        supabase.auth.getSession().then(async ({ data: { session } }) => {
-            if (session?.user?.email) {
-                await loadProfile(session.user.email);
-            }
-        });
+        const saved = localStorage.getItem(SESSION_KEY);
+        if (saved) {
+            setEmail(saved);
+            loadProfile(saved);
+        }
     }, []);
 
     async function loadProfile(userEmail: string) {
-        const { data } = await supabase
-            .from('email_subscribers')
-            .select('name, email, visit_count, last_visit_at, issued_at')
-            .eq('email', userEmail.toLowerCase())
-            .single();
-
-        if (!data) {
-            setPageState('not_found');
-            return;
+        setLoading(true);
+        try {
+            const QRCode = (await import('qrcode')).default;
+            const res = await fetch('/api/epass/verify-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: userEmail }),
+            });
+            const data = await res.json();
+            if (res.ok && data.subscriber) {
+                setSubscriber(data.subscriber);
+                const url = await QRCode.toDataURL(data.subscriber.email, {
+                    width: 240,
+                    margin: 2,
+                    color: { dark: '#FFFFFF', light: '#0e0e0e' },
+                });
+                setQrDataUrl(url);
+                setPageState('profile');
+            } else {
+                localStorage.removeItem(SESSION_KEY);
+                setPageState('email');
+            }
+        } catch {
+            localStorage.removeItem(SESSION_KEY);
+            setPageState('email');
+        } finally {
+            setLoading(false);
         }
-        setSubscriber(data);
-        setEmail(data.email);
-        const QRCode = (await import('qrcode')).default;
-        const url = await QRCode.toDataURL(data.email, {
-            width: 240,
-            margin: 2,
-            color: { dark: '#FFFFFF', light: '#0e0e0e' },
-        });
-        setQrDataUrl(url);
-        setPageState('profile');
     }
 
     async function sendOtp() {
         if (!email.trim()) return;
         setLoading(true);
         setError(null);
-        const { error: otpErr } = await supabase.auth.signInWithOtp({
-            email: email.trim().toLowerCase(),
-            options: { shouldCreateUser: true },
+        const res = await fetch('/api/epass/send-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email.trim() }),
         });
+        const data = await res.json();
         setLoading(false);
-        if (otpErr) {
-            setError('Failed to send code. Check your email and try again.');
-        } else {
-            setPageState('otp');
-            setTimeout(() => otpRefs.current[0]?.focus(), 100);
+        if (!res.ok) {
+            if (res.status === 404) {
+                setPageState('not_found');
+            } else {
+                setError(data.error || 'Failed to send code. Try again.');
+            }
+            return;
         }
+        setPageState('otp');
+        setTimeout(() => otpRefs.current[0]?.focus(), 100);
     }
 
     async function verifyOtp() {
-        const token = otpDigits.join('');
-        if (token.length !== 6) return;
+        const code = otpDigits.join('');
+        if (code.length !== 6) return;
         setLoading(true);
         setError(null);
-        const { error: verifyErr } = await supabase.auth.verifyOtp({
-            email: email.trim().toLowerCase(),
-            token,
-            type: 'email',
+        const res = await fetch('/api/epass/verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email.trim(), code }),
         });
-        if (verifyErr) {
+        const data = await res.json();
+        if (!res.ok) {
             setLoading(false);
-            setError('Invalid code. Check your email and try again.');
+            setError(data.error || 'Invalid code. Try again.');
             return;
         }
-        await loadProfile(email.trim().toLowerCase());
+
+        const QRCode = (await import('qrcode')).default;
+        const url = await QRCode.toDataURL(data.subscriber.email, {
+            width: 240,
+            margin: 2,
+            color: { dark: '#FFFFFF', light: '#0e0e0e' },
+        });
+        localStorage.setItem(SESSION_KEY, data.subscriber.email);
+        setSubscriber(data.subscriber);
+        setQrDataUrl(url);
+        setPageState('profile');
         setLoading(false);
     }
 
@@ -116,9 +140,6 @@ export default function EPassPage() {
         next[index] = value.slice(-1);
         setOtpDigits(next);
         if (value && index < 5) otpRefs.current[index + 1]?.focus();
-        if (next.every(d => d !== '')) {
-            setOtp(next.join(''));
-        }
     }
 
     function handleOtpKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
@@ -127,16 +148,25 @@ export default function EPassPage() {
         }
     }
 
-    async function signOut() {
-        await supabase.auth.signOut();
+    function signOut() {
+        localStorage.removeItem(SESSION_KEY);
         setPageState('email');
         setSubscriber(null);
         setQrDataUrl(null);
         setEmail('');
         setOtpDigits(['', '', '', '', '', '']);
+        setError(null);
     }
 
     const tier = subscriber ? getTier(subscriber.visit_count) : null;
+
+    if (loading && pageState === 'email') {
+        return (
+            <div className="w-full max-w-sm flex items-center justify-center py-20">
+                <div className="w-6 h-6 border-2 border-savron-green/30 border-t-savron-green rounded-full animate-spin" />
+            </div>
+        );
+    }
 
     return (
         <div className="w-full max-w-sm">
@@ -156,7 +186,7 @@ export default function EPassPage() {
                         className="bg-savron-grey border border-white/10 rounded-savron p-8 space-y-6">
                         <div className="text-center space-y-1">
                             <p className="text-white font-heading text-lg uppercase tracking-widest">Access Your Pass</p>
-                            <p className="text-savron-silver/50 text-xs">Enter your email to view your QR code</p>
+                            <p className="text-savron-silver/50 text-xs">Enter your email to receive a login code</p>
                         </div>
                         <div className="space-y-4">
                             <div className="relative">
@@ -184,7 +214,7 @@ export default function EPassPage() {
                             </button>
                         </div>
                         <p className="text-center text-savron-silver/30 text-[10px] uppercase tracking-widest">
-                            We&apos;ll email you a one-time code
+                            We&apos;ll email you a 6-digit code
                         </p>
                     </motion.div>
                 )}
@@ -197,7 +227,7 @@ export default function EPassPage() {
                             <Shield className="w-8 h-8 text-savron-green mx-auto mb-3" />
                             <p className="text-white font-heading text-lg uppercase tracking-widest">Check Your Email</p>
                             <p className="text-savron-silver/50 text-xs">
-                                Code sent to <span className="text-white">{email}</span>
+                                6-digit code sent to <span className="text-white">{email}</span>
                             </p>
                         </div>
 
@@ -315,7 +345,7 @@ export default function EPassPage() {
                             Ask a SAVRON staff member to add you.
                         </p>
                         <button
-                            onClick={signOut}
+                            onClick={() => { setPageState('email'); setError(null); }}
                             className="text-emerald-400 hover:text-emerald-300 text-xs uppercase tracking-widest hover:underline"
                         >
                             Try a different email →
