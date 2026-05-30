@@ -25,6 +25,7 @@ export default function AdminDashboard() {
         avgTicket: 0,
         topService: '—',
         totalBookings: 0,
+        totalAppointments: 0,
     });
     const [todaySchedule, setTodaySchedule] = useState<Booking[]>([]);
     const [upcomingSchedule, setUpcomingSchedule] = useState<Booking[]>([]);
@@ -42,10 +43,12 @@ export default function AdminDashboard() {
             const [clientsRes, todayBookingsRes, upcomingRes, applicantsRes, barbersRes, allBookingsRes] = await Promise.all([
                 supabase.from('clients').select('*'),
                 supabase.from('bookings').select('*').eq('date', todayStr).order('time', { ascending: true }),
-                supabase.from('bookings').select('*').gt('date', todayStr).lte('date', nextWeekStr).in('status', ['confirmed']).order('date', { ascending: true }).order('time', { ascending: true }).limit(20),
+                // Upcoming: all future confirmed (no date cap — full pipeline)
+                supabase.from('bookings').select('*').gt('date', todayStr).eq('status', 'confirmed').order('date', { ascending: true }).order('time', { ascending: true }).limit(50),
                 supabase.from('applicants').select('id').eq('status', 'pending'),
                 supabase.from('barbers').select('*'),
-                supabase.from('bookings').select('price, status, service'),
+                // All bookings with price/service — used for revenue + totals
+                supabase.from('bookings').select('price, status, service, date'),
             ]);
 
             if (clientsRes.error) throw new Error(`Clients: ${clientsRes.error.message}`);
@@ -59,10 +62,12 @@ export default function AdminDashboard() {
             const allBarbers = barbersRes.data ?? [];
             const allBookings = allBookingsRes.data ?? [];
 
+            // Today: confirmed + completed are both real appointments
             const todayActive = todayAll.filter(b => ['confirmed', 'completed'].includes(b.status));
             const todayCompleted = todayAll.filter(b => b.status === 'completed');
 
-            const todayRevenue = todayCompleted.reduce((sum, b) => {
+            // Today revenue: all non-cancelled today (confirmed bookings have a price too)
+            const todayRevenue = todayActive.reduce((sum, b) => {
                 const priceStr = String(b.price || '$0');
                 const price = parseFloat(priceStr.replace(/[^0-9.]/g, ''));
                 return sum + (isNaN(price) ? 0 : price);
@@ -76,20 +81,24 @@ export default function AdminDashboard() {
 
             const activeBarbers = allBarbers.filter(b => b.active).length;
 
-            // Overall/Monthly metrics
-            const completedBookings = allBookings.filter(b => b.status === 'completed');
-            const totalRevenue = completedBookings.reduce((sum, b) => {
+            // All-time: count confirmed + completed (real bookings made through the web)
+            // Exclude cancelled and no_show from revenue and appointment totals
+            const activeBookings = allBookings.filter(b =>
+                b.status === 'confirmed' || b.status === 'completed'
+            );
+
+            const totalRevenue = activeBookings.reduce((sum, b) => {
                 const priceStr = String(b.price || '$0');
                 const price = parseFloat(priceStr.replace(/[^0-9.]/g, ''));
                 return sum + (isNaN(price) ? 0 : price);
             }, 0);
 
-            const avgTicket = completedBookings.length > 0 ? totalRevenue / completedBookings.length : 0;
+            const avgTicket = activeBookings.length > 0 ? totalRevenue / activeBookings.length : 0;
 
-            // Popular service
+            // Popular service across all real bookings
             const serviceCounts: Record<string, number> = {};
-            allBookings.forEach(b => {
-                serviceCounts[b.service] = (serviceCounts[b.service] || 0) + 1;
+            activeBookings.forEach(b => {
+                if (b.service) serviceCounts[b.service] = (serviceCounts[b.service] || 0) + 1;
             });
             let topService = '—';
             let maxCount = 0;
@@ -113,6 +122,7 @@ export default function AdminDashboard() {
                 avgTicket,
                 topService,
                 totalBookings: allBookings.length,
+                totalAppointments: activeBookings.length,
             });
 
             setTodaySchedule(todayActive);
@@ -214,31 +224,37 @@ export default function AdminDashboard() {
                     label="Today's Appointments"
                     value={stats.todayBookings}
                     icon={<Calendar className="w-4 h-4" />}
-                    sub={`${stats.todayCompleted} completed`}
+                    sub={`${stats.todayCompleted} completed · ${stats.todayBookings - stats.todayCompleted} confirmed`}
                 />
                 <StatCard
                     label="Today's Revenue"
                     value={`$${stats.todayRevenue.toFixed(0)}`}
                     icon={<DollarSign className="w-4 h-4" />}
-                    sub="completed services"
+                    sub="confirmed + completed today"
                 />
                 <StatCard
-                    label="Pipeline (Next 7 Days)"
+                    label="Pipeline (Upcoming)"
                     value={stats.weeklyBookings}
                     icon={<TrendingUp className="w-4 h-4" />}
-                    sub="confirmed upcoming"
+                    sub="confirmed future bookings"
                 />
                 <StatCard
-                    label="Total Revenue"
+                    label="All-Time Revenue"
                     value={`$${stats.totalRevenue.toLocaleString()}`}
                     icon={<DollarSign className="w-4 h-4" />}
-                    sub="completed all-time"
+                    sub="confirmed + completed"
+                />
+                <StatCard
+                    label="Total Appointments"
+                    value={stats.totalAppointments}
+                    icon={<Calendar className="w-4 h-4" />}
+                    sub="all bookings made through web"
                 />
                 <StatCard
                     label="Avg Ticket Value"
                     value={`$${stats.avgTicket.toFixed(2)}`}
                     icon={<TrendingUp className="w-4 h-4" />}
-                    sub="per completed service"
+                    sub="per active booking"
                 />
                 <StatCard
                     label="Popular Service"

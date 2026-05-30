@@ -49,7 +49,7 @@ export default function HostDashboard() {
     // Quick-Add walk-in
     const [showQuickAdd, setShowQuickAdd] = useState(false);
     const [quickForm, setQuickForm] = useState({
-        clientName: '', clientPhone: '', service: '', barberId: '', time: TIME_SLOTS[0],
+        clientName: '', clientPhone: '', clientEmail: '', service: '', barberId: '', time: '',
     });
     const [quickSubmitting, setQuickSubmitting] = useState(false);
     const [quickError, setQuickError] = useState<string | null>(null);
@@ -134,6 +134,35 @@ export default function HostDashboard() {
         setUpdating(false);
     };
 
+    // Available time slots — excludes past slots (when viewing today) and already-booked slots for selected barber
+    const availableTimeSlots = useMemo(() => {
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const todayStr = format(new Date(), 'yyyy-MM-dd');
+        const isViewingToday = dateStr === todayStr;
+        const now = new Date();
+        const nowMins = now.getHours() * 60 + now.getMinutes();
+
+        return TIME_SLOTS.filter(slot => {
+            if (isViewingToday) {
+                const [timePart, meridiem] = slot.split(' ');
+                let [h, m] = timePart.split(':').map(Number);
+                if (meridiem === 'PM' && h !== 12) h += 12;
+                if (meridiem === 'AM' && h === 12) h = 0;
+                if (h * 60 + m <= nowMins) return false;
+            }
+            if (quickForm.barberId) {
+                const taken = bookings.some(b =>
+                    b.barber_id === quickForm.barberId &&
+                    b.date === dateStr &&
+                    b.time === slot &&
+                    b.status === 'confirmed'
+                );
+                if (taken) return false;
+            }
+            return true;
+        });
+    }, [selectedDate, quickForm.barberId, bookings]);
+
     // Quick-Add walk-in — creates a booking directly from the host view
     const submitQuickAdd = async () => {
         if (!quickForm.service || !quickForm.barberId || !quickForm.time) {
@@ -144,9 +173,10 @@ export default function HostDashboard() {
         setQuickError(null);
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         const barber = barbers.find(b => b.id === quickForm.barberId);
-        const { error } = await supabase.from('bookings').insert({
+        const { data: inserted, error } = await supabase.from('bookings').insert({
             client_name: quickForm.clientName.trim() || 'Walk-in',
             client_phone: quickForm.clientPhone.trim() || null,
+            client_email: quickForm.clientEmail.trim() || null,
             service: quickForm.service,
             barber_id: quickForm.barberId,
             barber_name: barber?.name ?? '',
@@ -156,10 +186,18 @@ export default function HostDashboard() {
             price: '',
             status: 'confirmed',
         }).select('id').single();
+        if (error) { setQuickSubmitting(false); setQuickError(error.message); return; }
+        // Send confirmation emails if client email provided
+        if (inserted?.id && quickForm.clientEmail.trim()) {
+            fetch('/api/email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bookingId: inserted.id }),
+            }).catch(() => {/* silent — booking is already saved */});
+        }
         setQuickSubmitting(false);
-        if (error) { setQuickError(error.message); return; }
         setShowQuickAdd(false);
-        setQuickForm({ clientName: '', clientPhone: '', service: '', barberId: '', time: TIME_SLOTS[0] });
+        setQuickForm({ clientName: '', clientPhone: '', clientEmail: '', service: '', barberId: '', time: '' });
         await fetchBookings();
     };
 

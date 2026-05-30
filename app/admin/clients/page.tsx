@@ -325,6 +325,7 @@ export default function ClientsPage() {
                                 <th className="p-3 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Last Visit</th>
                                 <th className="p-3 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal hidden md:table-cell">Visits</th>
                                 <th className="p-3 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Tier</th>
+                                <th className="p-3 w-10"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -333,7 +334,7 @@ export default function ClientsPage() {
                                 return (
                                     <tr
                                         key={c.id}
-                                        className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors cursor-pointer"
+                                        className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors cursor-pointer group"
                                         onClick={() => { setSelected(c); setEditData(c); setEditing(false); setChargeResult(null); }}
                                     >
                                         <td className="p-3" onClick={e => e.stopPropagation()}>
@@ -345,6 +346,14 @@ export default function ClientsPage() {
                                         <td className={cn("p-3 text-sm", visit.color)}>{visit.text}</td>
                                         <td className="p-3 text-white text-sm font-mono hidden md:table-cell">{c.visit_count}</td>
                                         <td className="p-3"><StatusBadge status={c.membership_status} /></td>
+                                        <td className="p-3" onClick={e => e.stopPropagation()}>
+                                            <button
+                                                onClick={() => setShowDelete(c.id)}
+                                                className="opacity-0 group-hover:opacity-100 p-1.5 text-savron-silver/50 hover:text-red-400 hover:bg-red-500/10 rounded transition-all"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </td>
                                     </tr>
                                 );
                             })}

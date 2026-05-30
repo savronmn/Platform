@@ -25,6 +25,7 @@ export default function AdminApplicantsPage() {
     const [confirmDelete, setConfirmDelete] = useState<Applicant | null>(null);
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
     const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
+    const [showArchived, setShowArchived] = useState(false);
 
     useEffect(() => {
         if (!openDropdown) return;
@@ -66,6 +67,12 @@ export default function AdminApplicantsPage() {
         rejected:  applicants.filter(a => a.status === 'rejected').length,
     };
 
+    const ARCHIVED_STATUSES: Applicant['status'][] = ['approved', 'rejected'];
+    const visibleApplicants = showArchived
+        ? applicants
+        : applicants.filter(a => !ARCHIVED_STATUSES.includes(a.status));
+    const archivedCount = applicants.filter(a => ARCHIVED_STATUSES.includes(a.status)).length;
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-[60vh]">
@@ -78,11 +85,26 @@ export default function AdminApplicantsPage() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10">
 
             {/* Header */}
-            <div>
-                <h1 className="font-heading text-3xl uppercase tracking-widest text-white">Hiring Pipeline</h1>
-                <p className="text-savron-silver text-sm mt-1">
-                    {applicants.length} application{applicants.length !== 1 ? 's' : ''} total
-                </p>
+            <div className="flex items-start justify-between flex-wrap gap-4">
+                <div>
+                    <h1 className="font-heading text-3xl uppercase tracking-widest text-white">Hiring Pipeline</h1>
+                    <p className="text-savron-silver text-sm mt-1">
+                        {visibleApplicants.length} application{visibleApplicants.length !== 1 ? 's' : ''} shown
+                    </p>
+                </div>
+                {archivedCount > 0 && (
+                    <button
+                        onClick={() => setShowArchived(v => !v)}
+                        className={cn(
+                            "px-4 py-2 text-xs uppercase tracking-widest border rounded-savron transition-all",
+                            showArchived
+                                ? "bg-white/10 text-white border-white/20"
+                                : "text-savron-silver border-white/10 hover:text-white hover:border-white/20"
+                        )}
+                    >
+                        {showArchived ? `Hide Archived (${archivedCount})` : `Show Archived (${archivedCount})`}
+                    </button>
+                )}
             </div>
 
             {/* Stats */}
@@ -100,11 +122,13 @@ export default function AdminApplicantsPage() {
             </div>
 
             {/* Applicant list */}
-            {applicants.length === 0 ? (
-                <p className="text-savron-silver/60 text-sm">No applications yet.</p>
+            {visibleApplicants.length === 0 ? (
+                <p className="text-savron-silver/60 text-sm">
+                    {applicants.length === 0 ? 'No applications yet.' : 'No active applications. Toggle "Show Archived" to view past ones.'}
+                </p>
             ) : (
                 <div className="space-y-3">
-                    {applicants.map(a => (
+                    {visibleApplicants.map(a => (
                         <motion.div
                             key={a.id}
                             layout
