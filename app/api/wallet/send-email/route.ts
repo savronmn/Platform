@@ -339,6 +339,25 @@ export async function POST(req: NextRequest) {
             });
         }
 
+        // Inline QR Code for email body
+        let qrBuffer: Buffer | null = null;
+        try {
+            const QRCode = (await import('qrcode')).default;
+            qrBuffer = await QRCode.toBuffer(email.toLowerCase().trim(), {
+                width: 300,
+                margin: 2,
+                color: { dark: '#FFFFFF', light: '#0E0E0E' },
+            });
+            attachments.push({
+                filename: 'qrcode.png',
+                content: qrBuffer.toString('base64'),
+                content_type: 'image/png',
+                content_id: 'savron_qrcode',
+            });
+        } catch (err) {
+            console.error('QR code generation failed (non-fatal):', err);
+        }
+
         // Apple Wallet pass — MUST have content_type application/vnd.apple.pkpass
         if (applePassBuffer) {
             attachments.push({
@@ -348,11 +367,14 @@ export async function POST(req: NextRequest) {
             });
         }
 
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://savronmn.com';
+        const downloadUrl = `${baseUrl}/api/wallet/download-pass?serial=${serialNumber}`;
+
         const emailResult = await resend.emails.send({
             from: process.env.RESEND_FROM_EMAIL || 'noreply@savronmn.com',
             to: email.trim(),
             subject: 'SAVRON — Your Membership Pass',
-            html: buildEmailHtml(name.trim(), googleSaveUrl, !!logoBuffer),
+            html: buildEmailHtml(name.trim(), downloadUrl, !!logoBuffer, !!qrBuffer),
             attachments: attachments as any,
         });
         console.log('[wallet/send-email] Email sent, id:', (emailResult as any)?.data?.id);
@@ -368,13 +390,10 @@ export async function POST(req: NextRequest) {
     }
 }
 
-function buildEmailHtml(name: string, googleSaveUrl: string | null, hasInlineLogo: boolean = false): string {
+function buildEmailHtml(name: string, downloadUrl: string, hasInlineLogo: boolean = false, hasQrCode: boolean = false): string {
     const firstName = name.split(' ')[0];
     const logoSrc = hasInlineLogo ? 'cid:savron_logo' : 'https://savronmn.com/logo.png';
-
-    const googleBtn = googleSaveUrl
-        ? `<a href="${googleSaveUrl}" style="display:block;text-align:center;background:#0D3B4F;color:#fff;padding:14px 28px;text-decoration:none;font-family:Arial,sans-serif;font-size:12px;letter-spacing:3px;text-transform:uppercase;font-weight:700;">Save to Google Wallet &rarr;</a>`
-        : '';
+    const qrSrc = hasQrCode ? 'cid:savron_qrcode' : '';
 
     return `<!DOCTYPE html>
 <html>
@@ -383,6 +402,7 @@ function buildEmailHtml(name: string, googleSaveUrl: string | null, hasInlineLog
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#050505;padding:40px 20px;">
     <tr><td align="center">
       <table width="560" cellpadding="0" cellspacing="0" style="background:#121212;border:1px solid rgba(255,255,255,0.08);">
+
         <!-- Header -->
         <tr>
           <td style="background:#0D3B4F;padding:28px 32px;text-align:center;">
@@ -390,6 +410,7 @@ function buildEmailHtml(name: string, googleSaveUrl: string | null, hasInlineLog
             <p style="margin:0;color:rgba(255,255,255,0.5);font-size:10px;letter-spacing:3px;text-transform:uppercase;">Barbershop &amp; Lounge · Minneapolis</p>
           </td>
         </tr>
+
         <!-- Body -->
         <tr>
           <td style="padding:36px 32px;">
@@ -416,35 +437,42 @@ function buildEmailHtml(name: string, googleSaveUrl: string | null, hasInlineLog
               </tr>
             </table>
 
-            <!-- Apple Wallet -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#050505;border:1px solid rgba(255,255,255,0.08);margin-bottom:8px;">
-              <tr>
-                <td style="padding:20px 24px;">
-                  <p style="margin:0 0 8px;color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:2px;text-transform:uppercase;">Apple Wallet</p>
-                  <p style="margin:0;color:rgba(255,255,255,0.5);font-size:13px;line-height:1.7;">
-                    Open this email on your iPhone and tap the <strong style="color:rgba(255,255,255,0.7);">.pkpass</strong> attachment below to add directly to Apple Wallet.
-                  </p>
-                </td>
-              </tr>
-            </table>
-
-            ${googleSaveUrl ? `
-            <!-- Google Wallet -->
+            ${hasQrCode ? `
+            <!-- QR Code -->
             <table width="100%" cellpadding="0" cellspacing="0" style="background:#050505;border:1px solid rgba(255,255,255,0.08);margin-bottom:28px;">
               <tr>
-                <td style="padding:20px 24px;">
-                  <p style="margin:0 0 12px;color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:2px;text-transform:uppercase;">Google Wallet</p>
-                  ${googleBtn}
+                <td style="padding:24px;text-align:center;">
+                  <p style="margin:0 0 16px;color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:2px;text-transform:uppercase;">Your Check-in QR Code</p>
+                  <img src="${qrSrc}" alt="QR Code" width="200" height="200" style="display:block;margin:0 auto;max-width:200px;border:1px solid rgba(255,255,255,0.1);" />
+                  <p style="margin:12px 0 0;color:rgba(255,255,255,0.3);font-size:10px;letter-spacing:1px;">Show this at the shop counter to record your visit.</p>
                 </td>
               </tr>
             </table>
             ` : ''}
 
+            <!-- Add to Wallet -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#050505;border:1px solid rgba(255,255,255,0.08);margin-bottom:28px;">
+              <tr>
+                <td style="padding:28px 24px;text-align:center;">
+                  <p style="margin:0 0 20px;color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:2px;text-transform:uppercase;">Digital Wallet Pass</p>
+                  <a href="${downloadUrl}"
+                     style="display:inline-block;background:#1A6A8A;color:#ffffff;padding:16px 36px;text-decoration:none;font-family:Arial,sans-serif;font-size:13px;letter-spacing:3px;text-transform:uppercase;font-weight:700;border-radius:2px;">
+                    Add to Wallet
+                  </a>
+                  <p style="margin:16px 0 0;color:rgba(255,255,255,0.25);font-size:11px;line-height:1.6;">
+                    Opens Apple Wallet on iPhone &middot; compatible with Android wallet apps<br>
+                    <a href="${downloadUrl}" style="color:rgba(255,255,255,0.35);text-decoration:underline;">Download pass file (.pkpass)</a>
+                  </p>
+                </td>
+              </tr>
+            </table>
+
             <p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
-              Your pass will update automatically each time you visit. Welcome to SAVRON.
+              Your pass updates automatically each time you visit. Welcome to SAVRON.
             </p>
           </td>
         </tr>
+
         <!-- Footer -->
         <tr>
           <td style="padding:20px 32px;border-top:1px solid rgba(255,255,255,0.05);">
@@ -453,6 +481,7 @@ function buildEmailHtml(name: string, googleSaveUrl: string | null, hasInlineLog
             </p>
           </td>
         </tr>
+
       </table>
     </td></tr>
   </table>
