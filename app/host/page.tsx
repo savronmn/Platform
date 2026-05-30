@@ -844,13 +844,18 @@ export default function HostDashboard() {
                                 {/* Time */}
                                 <div>
                                     <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">Time *</label>
-                                    <select
-                                        value={quickForm.time}
-                                        onChange={e => setQuickForm(f => ({ ...f, time: e.target.value }))}
-                                        className="input-savron"
-                                    >
-                                        {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
+                                    {availableTimeSlots.length === 0 ? (
+                                        <p className="text-yellow-400 text-xs uppercase tracking-widest py-3">No available slots for this barber today.</p>
+                                    ) : (
+                                        <select
+                                            value={quickForm.time || availableTimeSlots[0]}
+                                            onChange={e => setQuickForm(f => ({ ...f, time: e.target.value }))}
+                                            className="input-savron"
+                                        >
+                                            <option value="">Select time…</option>
+                                            {availableTimeSlots.map(t => <option key={t} value={t}>{t}</option>)}
+                                        </select>
+                                    )}
                                 </div>
 
                                 {/* Client name (optional) */}
@@ -870,6 +875,22 @@ export default function HostDashboard() {
                                     onChange={e => setQuickForm(f => ({ ...f, clientPhone: e.target.value }))}
                                     className="input-savron"
                                 />
+
+                                {/* Client email — triggers confirmation email if provided */}
+                                <div>
+                                    <input
+                                        type="email"
+                                        placeholder="EMAIL (SENDS CONFIRMATION)"
+                                        value={quickForm.clientEmail}
+                                        onChange={e => setQuickForm(f => ({ ...f, clientEmail: e.target.value }))}
+                                        className="input-savron"
+                                    />
+                                    {quickForm.clientEmail.trim() && (
+                                        <p className="text-savron-green text-[10px] uppercase tracking-widest mt-1.5">
+                                            Confirmation will be sent to client + barber
+                                        </p>
+                                    )}
+                                </div>
 
                                 {quickError && <p className="text-red-400 text-xs">{quickError}</p>}
 

@@ -10,7 +10,7 @@ const Footer = () => {
             <div style={{ height: 1, background: "rgba(232,228,220,0.06)" }} />
 
             {/* Membership signup section */}
-            <div style={{
+            <div id="request-access" style={{
                 padding: "clamp(72px, 10vw, 120px) clamp(24px, 8vw, 120px)",
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr",
