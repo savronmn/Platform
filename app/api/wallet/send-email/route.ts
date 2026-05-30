@@ -316,32 +316,40 @@ export async function POST(req: NextRequest) {
         const logoPath = path.join(process.cwd(), 'public', 'logo.png');
         const logoBuffer = fs.existsSync(logoPath) ? fs.readFileSync(logoPath) : null;
 
-        const attachments: Array<{ filename: string; content: Buffer; content_id?: string }> = [];
-        
+        console.log('[wallet/send-email] Apple pass generated:', !!applePassBuffer, applePassBuffer ? applePassBuffer.length + ' bytes' : 'null');
+        console.log('[wallet/send-email] Google save URL generated:', !!googleSaveUrl);
+
+        // Resend expects { filename, content (base64 string), content_type }
+        type ResendAttachment = { filename: string; content: string; content_type: string; content_id?: string };
+        const attachments: ResendAttachment[] = [];
+
         // Inline logo for email header
         if (logoBuffer) {
             attachments.push({
                 filename: 'logo.png',
-                content: logoBuffer,
+                content: logoBuffer.toString('base64'),
+                content_type: 'image/png',
                 content_id: 'savron_logo',
             });
         }
 
-        // Apple Wallet pass
+        // Apple Wallet pass — MUST have content_type application/vnd.apple.pkpass
         if (applePassBuffer) {
             attachments.push({
                 filename: `${name.trim().replace(/\s+/g, '_')}_savron_pass.pkpass`,
-                content: applePassBuffer,
+                content: applePassBuffer.toString('base64'),
+                content_type: 'application/vnd.apple.pkpass',
             });
         }
 
-        await resend.emails.send({
+        const emailResult = await resend.emails.send({
             from: process.env.RESEND_FROM_EMAIL || 'noreply@savronmn.com',
             to: email.trim(),
             subject: 'SAVRON — Your Membership Pass',
             html: buildEmailHtml(name.trim(), googleSaveUrl, !!logoBuffer),
-            attachments,
+            attachments: attachments as any,
         });
+        console.log('[wallet/send-email] Email sent, id:', (emailResult as any)?.data?.id);
 
         return NextResponse.json({ success: true, message: 'Membership pass sent!' });
 

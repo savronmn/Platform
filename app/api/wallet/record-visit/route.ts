@@ -164,12 +164,13 @@ async function resendFullPass(
         console.error('Apple pass generation failed (non-fatal):', err);
     }
 
-    // Build attachments
+    // Build attachments — Resend requires base64 string content with explicit content_type
     const logoPath = path.join(process.cwd(), 'public', 'logo.png');
     const logoBuffer = fs.existsSync(logoPath) ? fs.readFileSync(logoPath) : null;
-    const attachments: Array<{ filename: string; content: Buffer; content_id?: string }> = [];
-    if (logoBuffer) attachments.push({ filename: 'logo.png', content: logoBuffer, content_id: 'savron_logo' });
-    if (applePassBuffer) attachments.push({ filename: `${name.replace(/\s+/g, '_')}_savron_pass.pkpass`, content: applePassBuffer });
+    type ResendAttachment = { filename: string; content: string; content_type: string; content_id?: string };
+    const attachments: ResendAttachment[] = [];
+    if (logoBuffer) attachments.push({ filename: 'logo.png', content: logoBuffer.toString('base64'), content_type: 'image/png', content_id: 'savron_logo' });
+    if (applePassBuffer) attachments.push({ filename: `${name.replace(/\s+/g, '_')}_savron_pass.pkpass`, content: applePassBuffer.toString('base64'), content_type: 'application/vnd.apple.pkpass' });
 
     const logoSrc = logoBuffer ? 'cid:savron_logo' : 'https://savronmn.com/logo.png';
     const googleBtn = googleSaveUrl
@@ -180,7 +181,7 @@ async function resendFullPass(
         from: process.env.RESEND_FROM_EMAIL || 'noreply@savronmn.com',
         to: email,
         subject: `SAVRON — Your Updated Membership Pass (${visitCount} visit${visitCount === 1 ? '' : 's'})`,
-        attachments,
+        attachments: attachments as any,
         html: `<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#050505;font-family:Arial,sans-serif;">
