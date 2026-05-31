@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { buildMembershipEmail } from '@/lib/email-templates';
 import { PKPass } from 'passkit-generator';
 import { v4 as uuidv4 } from 'uuid';
 import { Resend } from 'resend';
@@ -318,28 +319,13 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // Build attachments: logo (inline) + Apple pass (if generated)
-        const logoPath = path.join(process.cwd(), 'public', 'logo.png');
-        const logoBuffer = fs.existsSync(logoPath) ? fs.readFileSync(logoPath) : null;
-
         console.log('[wallet/send-email] Apple pass generated:', !!applePassBuffer, applePassBuffer ? applePassBuffer.length + ' bytes' : 'null');
         console.log('[wallet/send-email] Google save URL generated:', !!googleSaveUrl);
 
-        // Resend expects { filename, content (base64 string), content_type }
-        type ResendAttachment = { filename: string; content: string; content_type: string; content_id?: string };
+        // Only attach the pkpass — no logo inline (use public URL instead, avoids CID rendering bugs)
+        type ResendAttachment = { filename: string; content: string; content_type: string };
         const attachments: ResendAttachment[] = [];
 
-        // Inline logo for email header
-        if (logoBuffer) {
-            attachments.push({
-                filename: 'logo.png',
-                content: logoBuffer.toString('base64'),
-                content_type: 'image/png',
-                content_id: 'savron_logo',
-            });
-        }
-
-        // Apple Wallet pass — MUST have content_type application/vnd.apple.pkpass
         if (applePassBuffer) {
             attachments.push({
                 filename: `${name.trim().replace(/\s+/g, '_')}_savron_pass.pkpass`,
@@ -355,7 +341,7 @@ export async function POST(req: NextRequest) {
             from: process.env.RESEND_FROM_EMAIL || 'noreply@savronmn.com',
             to: email.trim(),
             subject: 'SAVRON — Your Membership Pass',
-            html: buildEmailHtml(name.trim(), downloadUrl, !!logoBuffer),
+            html: buildMembershipEmail(name.trim(), downloadUrl),
             attachments: attachments as any,
         });
         console.log('[wallet/send-email] Email sent, id:', (emailResult as any)?.data?.id);
@@ -371,102 +357,3 @@ export async function POST(req: NextRequest) {
     }
 }
 
-function buildEmailHtml(name: string, downloadUrl: string, hasInlineLogo: boolean = false): string {
-    const firstName = name.split(' ')[0];
-    const logoSrc = hasInlineLogo ? 'cid:savron_logo' : 'https://savronmn.com/logo.png';
-
-    return `<!DOCTYPE html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
-  <meta name="supported-color-schemes" content="dark">
-  <style>
-    :root { color-scheme: dark; }
-    body { margin:0 !important; padding:0 !important; background-color:#050505 !important; }
-    /* Prevent Outlook/Gmail from overriding dark backgrounds */
-    [data-ogsc] .email-body { background-color:#050505 !important; }
-    [data-ogsc] .email-wrapper { background-color:#121212 !important; }
-    [data-ogsc] .email-header { background-color:#125470 !important; }
-    [data-ogsc] .email-section { background-color:#0a0a0a !important; }
-    [data-ogsc] .qr-wrapper { background-color:#0e0e0e !important; }
-  </style>
-</head>
-<body class="email-body" style="margin:0;padding:0;background-color:#050505 !important;font-family:Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" class="email-body" style="background-color:#050505 !important;padding:40px 20px;">
-    <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" border="0" role="presentation" class="email-wrapper" style="background-color:#121212 !important;border:1px solid rgba(255,255,255,0.1);">
-
-        <!-- Header -->
-        <tr>
-          <td class="email-header" style="background-color:#125470 !important;padding:28px 32px;text-align:center;">
-            <img src="${logoSrc}" alt="SAVRON" width="160" style="display:block;margin:0 auto 8px;max-width:160px;height:auto;" />
-            <p style="margin:0;color:rgba(255,255,255,0.6);font-size:10px;letter-spacing:3px;text-transform:uppercase;">Barbershop &amp; Lounge &middot; Minneapolis</p>
-          </td>
-        </tr>
-
-        <!-- Body -->
-        <tr>
-          <td style="padding:36px 32px;background-color:#121212 !important;">
-            <p style="margin:0 0 8px;color:rgba(255,255,255,0.45);font-size:11px;letter-spacing:3px;text-transform:uppercase;">Access Confirmed</p>
-            <h1 style="margin:0 0 24px;color:#ffffff;font-size:24px;letter-spacing:2px;text-transform:uppercase;font-weight:700;">Your pass is ready, ${firstName}.</h1>
-
-            <p style="margin:0 0 28px;color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7;">
-              Your SAVRON membership pass has been issued. Save it to your wallet &mdash; it tracks your visits automatically and stays with you, quiet and precise.
-            </p>
-
-            <!-- Member info card -->
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" class="email-section" style="background-color:#0a0a0a !important;border:1px solid rgba(255,255,255,0.1);margin-bottom:24px;border-radius:4px;">
-              <tr>
-                <td style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.07);background-color:#0a0a0a !important;">
-                  <span style="color:rgba(255,255,255,0.4);font-size:10px;letter-spacing:2px;text-transform:uppercase;">Member</span><br>
-                  <span style="color:#ffffff;font-size:16px;font-weight:600;">${name}</span>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:16px 20px;background-color:#0a0a0a !important;">
-                  <span style="color:rgba(255,255,255,0.4);font-size:10px;letter-spacing:2px;text-transform:uppercase;">Status</span><br>
-                  <span style="color:#4aafd0;font-size:16px;font-weight:700;letter-spacing:1px;">&#10003; ACTIVE MEMBER</span>
-                </td>
-              </tr>
-            </table>
-
-            <!-- Add to Wallet -->
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" class="email-section" style="background-color:#0a0a0a !important;border:1px solid rgba(255,255,255,0.1);margin-bottom:24px;border-radius:4px;">
-              <tr>
-                <td style="padding:28px 24px;text-align:center;background-color:#0a0a0a !important;">
-                  <p style="margin:0 0 20px;color:rgba(255,255,255,0.45);font-size:10px;letter-spacing:3px;text-transform:uppercase;">Save Digital Pass</p>
-                  <a href="${downloadUrl}"
-                     style="display:inline-block;background-color:#1A6A8A;color:#ffffff;padding:16px 40px;text-decoration:none;font-family:Arial,sans-serif;font-size:12px;letter-spacing:3px;text-transform:uppercase;font-weight:700;border-radius:3px;">
-                    Add to Wallet
-                  </a>
-                  <p style="margin:16px 0 0;color:rgba(255,255,255,0.25);font-size:11px;line-height:1.6;">
-                    iPhone: opens Apple Wallet &middot; Android: compatible wallet apps<br>
-                    <a href="${downloadUrl}" style="color:rgba(255,255,255,0.4);text-decoration:underline;">Download .pkpass file</a>
-                  </p>
-                </td>
-              </tr>
-            </table>
-
-            <p style="margin:0;color:rgba(255,255,255,0.35);font-size:12px;line-height:1.6;">
-              Your visit count updates automatically every time you check in. Welcome to SAVRON.
-            </p>
-          </td>
-        </tr>
-
-        <!-- Footer -->
-        <tr>
-          <td style="padding:20px 32px;border-top:1px solid rgba(255,255,255,0.06);background-color:#121212 !important;">
-            <p style="margin:0;color:rgba(255,255,255,0.2);font-size:11px;letter-spacing:1px;">
-              SAVRON Barbershop &amp; Lounge &middot; Minneapolis, MN &middot; <a href="https://savronmn.com" style="color:rgba(255,255,255,0.35);text-decoration:none;">savronmn.com</a>
-            </p>
-          </td>
-        </tr>
-
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
-}
