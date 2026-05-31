@@ -84,7 +84,7 @@ export default function MembershipLoginPage() {
                     <div className="relative w-32 h-8 mx-auto">
                         <Image src="/logo.png" alt="SAVRON" fill className="object-contain" priority />
                     </div>
-                    <div className="flex items-center justify-center gap-2 text-savron-green">
+                    <div className="flex items-center justify-center gap-2 text-emerald-400">
                         <CreditCard className="w-4 h-4" />
                         <p className="text-xs uppercase tracking-widest font-medium">Membership</p>
                     </div>

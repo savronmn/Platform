@@ -188,7 +188,7 @@ export default function MembershipPage() {
                         exit={{ opacity: 0, y: -16 }}
                         style={{
                             position: 'fixed', top: 24, right: 24, zIndex: 9999,
-                            background: toast.type === 'success' ? 'rgba(13,59,79,0.95)' : 'rgba(60,20,20,0.95)',
+                            background: toast.type === 'success' ? 'rgba(18,84,112,0.95)' : 'rgba(60,20,20,0.95)',
                             border: `1px solid ${toast.type === 'success' ? 'rgba(26,106,138,0.3)' : 'rgba(200,80,80,0.2)'}`,
                             color: toast.type === 'success' ? 'rgba(160,210,230,0.9)' : 'rgba(220,130,130,0.9)',
                             padding: '14px 20px', maxWidth: 380,
@@ -216,10 +216,10 @@ export default function MembershipPage() {
                             Manage digital passes, record visits, and track engagement.
                         </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                         <button
                             onClick={() => setShowScanner(true)}
-                            className="flex items-center gap-1.5 px-4 py-2.5 text-[10px] uppercase tracking-[0.2em] text-savron-green border border-savron-green/20 hover:bg-savron-green/10 transition-all"
+                            className="flex items-center gap-1.5 px-4 py-2.5 text-[10px] uppercase tracking-[0.2em] text-emerald-400 border border-savron-green-light/20 hover:bg-savron-green/10 transition-all"
                         >
                             <ScanLine size={12} />
                             Scan ePass
@@ -285,7 +285,7 @@ export default function MembershipPage() {
                                     <button
                                         onClick={handleAddMember}
                                         disabled={addLoading || !addForm.name.trim() || !addForm.email.trim()}
-                                        className="flex items-center justify-center gap-2 px-4 py-3 text-[10px] uppercase tracking-[0.2em] bg-savron-green/20 text-savron-green-light border border-savron-green/30 hover:bg-savron-green/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                        className="flex items-center justify-center gap-2 px-4 py-3 text-[10px] uppercase tracking-[0.2em] bg-savron-green text-white border border-savron-green-light/20 hover:bg-savron-green-light transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Send size={12} />
                                         {addLoading ? 'Sending…' : 'Add & Send Pass'}
@@ -297,7 +297,7 @@ export default function MembershipPage() {
                 </AnimatePresence>
 
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-4 mb-10">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
                     {[
                         { icon: UserCheck, label: "Total Subscribers", value: subscribers.length.toString() },
                         { icon: Plus, label: "Total Visits Recorded", value: totalVisits.toString() },
@@ -339,7 +339,7 @@ export default function MembershipPage() {
                 ) : (
                     <div className="border border-white/[0.07]">
                         {/* Header row */}
-                        <div className="grid gap-4 px-6 py-3 border-b border-white/[0.05]"
+                        <div className="hidden md:grid gap-4 px-6 py-3 border-b border-white/[0.05]"
                             style={{ gridTemplateColumns: "2fr 2fr 1fr 80px 80px 240px" }}
                         >
                             {['Name', 'Email', 'Phone', 'Visits', 'Joined', 'Actions'].map(h => (
@@ -354,71 +354,129 @@ export default function MembershipPage() {
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: i * 0.03 }}
-                                className="grid gap-4 px-6 py-5 border-b border-white/[0.04] hover:bg-white/[0.015] transition-colors items-center"
-                                style={{ gridTemplateColumns: "2fr 2fr 1fr 80px 80px 240px" }}
+                                className="border-b border-white/[0.04] hover:bg-white/[0.015] transition-colors"
                             >
-                                {/* Name */}
-                                <div>
-                                    <p className="text-sm text-white font-light">{subscriber.name}</p>
-                                    {subscriber.last_visit_at && (
-                                        <p className="text-[10px] text-white/30 mt-0.5">
-                                            Last visit {formatDistanceToNow(new Date(subscriber.last_visit_at), { addSuffix: true })}
-                                        </p>
-                                    )}
+                                {/* Desktop Row */}
+                                <div className="hidden md:grid gap-4 px-6 py-5 items-center"
+                                     style={{ gridTemplateColumns: "2fr 2fr 1fr 80px 80px 240px" }}
+                                >
+                                    {/* Name */}
+                                    <div>
+                                        <p className="text-sm text-white font-light">{subscriber.name}</p>
+                                        {subscriber.last_visit_at && (
+                                            <p className="text-[10px] text-white/30 mt-0.5">
+                                                Last visit {formatDistanceToNow(new Date(subscriber.last_visit_at), { addSuffix: true })}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* Email */}
+                                    <p className="text-xs text-white/50 font-light truncate">{subscriber.email}</p>
+
+                                    {/* Phone */}
+                                    <p className="text-xs text-white/40 font-light">{subscriber.phone || '—'}</p>
+
+                                    {/* Visits */}
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-lg font-light text-white">{subscriber.visit_count}</span>
+                                    </div>
+
+                                    {/* Joined */}
+                                    <p className="text-[10px] text-white/30">
+                                        {formatDistanceToNow(new Date(subscriber.issued_at), { addSuffix: true })}
+                                    </p>
+
+                                    {/* Actions */}
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <button
+                                            onClick={() => removeVisit(subscriber)}
+                                            disabled={actionLoading === `remove-visit-${subscriber.id}` || subscriber.visit_count <= 0}
+                                            title="Remove visit (-1 count)"
+                                            className="flex items-center justify-center w-7 h-7 text-white/50 border border-white/[0.1] rounded-full hover:border-yellow-500/40 hover:text-yellow-400 hover:bg-yellow-500/10 transition-all disabled:opacity-40"
+                                        >
+                                            <Minus size={10} />
+                                        </button>
+                                        <button
+                                            onClick={() => recordVisit(subscriber)}
+                                            disabled={actionLoading === `visit-${subscriber.id}`}
+                                            title="Record visit (+1 count, updates Google Wallet)"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] uppercase tracking-[0.2em] text-white/50 border border-white/[0.1] hover:border-savron-green/40 hover:text-emerald-400 hover:bg-savron-green/10 transition-all disabled:opacity-40"
+                                        >
+                                            <Plus size={10} />
+                                            {actionLoading === `visit-${subscriber.id}` ? '…' : 'Visit'}
+                                        </button>
+                                        <button
+                                            onClick={() => sendUpdatedPass(subscriber)}
+                                            disabled={actionLoading === `pass-${subscriber.id}`}
+                                            title="Re-send updated Apple Wallet pass via email"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] uppercase tracking-[0.2em] text-white/50 border border-white/[0.1] hover:border-white/25 hover:text-white transition-all disabled:opacity-40"
+                                        >
+                                            <Send size={10} />
+                                            {actionLoading === `pass-${subscriber.id}` ? '…' : 'Pass'}
+                                        </button>
+                                        <button
+                                            onClick={() => deleteMember(subscriber)}
+                                            disabled={actionLoading === `delete-${subscriber.id}`}
+                                            title="Delete Member"
+                                            className="flex items-center justify-center w-7 h-7 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all disabled:opacity-40 ml-1"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
+                                    </div>
                                 </div>
 
-                                {/* Email */}
-                                <p className="text-xs text-white/50 font-light truncate">{subscriber.email}</p>
-
-                                {/* Phone */}
-                                <p className="text-xs text-white/40 font-light">{subscriber.phone || '—'}</p>
-
-                                {/* Visits */}
-                                <div className="flex items-center gap-2">
-                                    <span className="text-lg font-light text-white">{subscriber.visit_count}</span>
-                                </div>
-
-                                {/* Joined */}
-                                <p className="text-[10px] text-white/30">
-                                    {formatDistanceToNow(new Date(subscriber.issued_at), { addSuffix: true })}
-                                </p>
-
-                                {/* Actions */}
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <button
-                                        onClick={() => removeVisit(subscriber)}
-                                        disabled={actionLoading === `remove-visit-${subscriber.id}` || subscriber.visit_count <= 0}
-                                        title="Remove visit (-1 count)"
-                                        className="flex items-center justify-center w-7 h-7 text-white/50 border border-white/[0.1] rounded-full hover:border-yellow-500/40 hover:text-yellow-400 hover:bg-yellow-500/10 transition-all disabled:opacity-40"
-                                    >
-                                        <Minus size={10} />
-                                    </button>
-                                    <button
-                                        onClick={() => recordVisit(subscriber)}
-                                        disabled={actionLoading === `visit-${subscriber.id}`}
-                                        title="Record visit (+1 count, updates Google Wallet)"
-                                        className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] uppercase tracking-[0.2em] text-white/50 border border-white/[0.1] hover:border-savron-green/40 hover:text-savron-green-light hover:bg-savron-green/5 transition-all disabled:opacity-40"
-                                    >
-                                        <Plus size={10} />
-                                        {actionLoading === `visit-${subscriber.id}` ? '…' : 'Visit'}
-                                    </button>
-                                    <button
-                                        onClick={() => sendUpdatedPass(subscriber)}
-                                        disabled={actionLoading === `pass-${subscriber.id}`}
-                                        title="Re-send updated Apple Wallet pass via email"
-                                        className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] uppercase tracking-[0.2em] text-white/50 border border-white/[0.1] hover:border-white/25 hover:text-white transition-all disabled:opacity-40"
-                                    >
-                                        <Send size={10} />
-                                        {actionLoading === `pass-${subscriber.id}` ? '…' : 'Pass'}
-                                    </button>
-                                    <button
-                                        onClick={() => deleteMember(subscriber)}
-                                        disabled={actionLoading === `delete-${subscriber.id}`}
-                                        title="Delete Member"
-                                        className="flex items-center justify-center w-7 h-7 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all disabled:opacity-40 ml-1"
-                                    >
-                                        <Trash2 size={12} />
-                                    </button>
+                                {/* Mobile Card */}
+                                <div className="block md:hidden p-5 space-y-4">
+                                    <div className="flex justify-between items-start gap-4">
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm text-white font-medium truncate">{subscriber.name}</p>
+                                            <p className="text-xs text-white/50 font-light truncate mt-0.5">{subscriber.email}</p>
+                                            {subscriber.phone && <p className="text-xs text-white/40 font-light mt-0.5">{subscriber.phone}</p>}
+                                            {subscriber.last_visit_at && (
+                                                <p className="text-[10px] text-white/30 mt-1">
+                                                    Last visit: {formatDistanceToNow(new Date(subscriber.last_visit_at), { addSuffix: true })}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="text-right shrink-0">
+                                            <span className="text-savron-silver text-[9px] uppercase tracking-widest font-medium block">Visits</span>
+                                            <span className="text-2xl font-light text-white font-heading block mt-0.5">{subscriber.visit_count}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2 pt-3.5 border-t border-white/5">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <button
+                                                onClick={() => removeVisit(subscriber)}
+                                                disabled={actionLoading === `remove-visit-${subscriber.id}` || subscriber.visit_count <= 0}
+                                                className="flex items-center justify-center w-8 h-8 text-white/50 border border-white/[0.1] rounded-full hover:border-yellow-500/40 hover:text-yellow-400 hover:bg-yellow-500/10 transition-all disabled:opacity-40"
+                                            >
+                                                <Minus size={11} />
+                                            </button>
+                                            <button
+                                                onClick={() => recordVisit(subscriber)}
+                                                disabled={actionLoading === `visit-${subscriber.id}`}
+                                                className="flex items-center gap-1.5 px-3 py-2 text-[9px] uppercase tracking-[0.2em] text-white/50 border border-white/[0.1] hover:border-savron-green/40 hover:text-emerald-400 hover:bg-savron-green/10 transition-all disabled:opacity-40"
+                                            >
+                                                <Plus size={10} />
+                                                {actionLoading === `visit-${subscriber.id}` ? '…' : 'Visit'}
+                                            </button>
+                                            <button
+                                                onClick={() => sendUpdatedPass(subscriber)}
+                                                disabled={actionLoading === `pass-${subscriber.id}`}
+                                                className="flex items-center gap-1.5 px-3 py-2 text-[9px] uppercase tracking-[0.2em] text-white/50 border border-white/[0.1] hover:border-white/25 hover:text-white transition-all disabled:opacity-40"
+                                            >
+                                                <Send size={10} />
+                                                {actionLoading === `pass-${subscriber.id}` ? '…' : 'Pass'}
+                                            </button>
+                                        </div>
+                                        <button
+                                            onClick={() => deleteMember(subscriber)}
+                                            disabled={actionLoading === `delete-${subscriber.id}`}
+                                            className="flex items-center justify-center w-8 h-8 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all disabled:opacity-40"
+                                        >
+                                            <Trash2 size={13} />
+                                        </button>
+                                    </div>
                                 </div>
                             </motion.div>
                         ))}

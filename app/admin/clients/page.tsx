@@ -259,7 +259,7 @@ export default function ClientsPage() {
                     )}
                     <button
                         onClick={() => setShowAdd(true)}
-                        className="flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-widest bg-savron-green text-white rounded-savron hover:bg-opacity-90 transition-all"
+                        className="flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all"
                     >
                         <Plus className="w-4 h-4" /> Add Client
                     </button>
@@ -290,7 +290,7 @@ export default function ClientsPage() {
                             className={cn(
                                 "px-3 py-2 text-[10px] uppercase tracking-widest border rounded-savron transition-all",
                                 visitFilter === key
-                                    ? "bg-savron-green/15 text-savron-green border-savron-green/20"
+                                    ? "bg-savron-green border border-savron-green-light/20 text-white"
                                     : "text-savron-silver border-white/10 hover:border-white/20 hover:text-white"
                             )}
                         >
@@ -320,7 +320,7 @@ export default function ClientsPage() {
                                     <input type="checkbox" checked={allSelected} onChange={selectAllFiltered} className="accent-savron-green w-3.5 h-3.5" />
                                 </th>
                                 <th className="p-3 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Name</th>
-                                <th className="p-3 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Email</th>
+                                <th className="p-3 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal hidden sm:table-cell">Email</th>
                                 <th className="p-3 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal hidden sm:table-cell">Phone</th>
                                 <th className="p-3 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Last Visit</th>
                                 <th className="p-3 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal hidden md:table-cell">Visits</th>
@@ -340,8 +340,15 @@ export default function ClientsPage() {
                                         <td className="p-3" onClick={e => e.stopPropagation()}>
                                             <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => toggleSelect(c.id)} className="accent-savron-green w-3.5 h-3.5" />
                                         </td>
-                                        <td className="p-3 text-white text-sm font-medium">{c.name}</td>
-                                        <td className="p-3 text-savron-silver text-sm">{c.email || '—'}</td>
+                                        <td className="p-3 text-white text-sm font-medium">
+                                            <div>{c.name}</div>
+                                            {c.email && (
+                                                <div className="text-[10px] text-savron-silver/50 sm:hidden mt-0.5 max-w-[140px] truncate">
+                                                    {c.email}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="p-3 text-savron-silver text-sm hidden sm:table-cell">{c.email || '—'}</td>
                                         <td className="p-3 text-savron-silver text-sm font-mono hidden sm:table-cell">{c.phone || '—'}</td>
                                         <td className={cn("p-3 text-sm", visit.color)}>{visit.text}</td>
                                         <td className="p-3 text-white text-sm font-mono hidden md:table-cell">{c.visit_count}</td>
@@ -414,7 +421,7 @@ export default function ClientsPage() {
                                         </div>
                                         <div className="flex justify-end gap-3 pt-2">
                                             <button onClick={() => setEditing(false)} className="px-4 py-2 text-xs uppercase tracking-widest text-savron-silver border border-white/10 rounded-savron hover:text-white transition-all">Cancel</button>
-                                            <button onClick={saveEdit} className="px-4 py-2 text-xs uppercase tracking-widest bg-savron-green text-white rounded-savron hover:bg-opacity-90 transition-all flex items-center gap-2">
+                                            <button onClick={saveEdit} className="px-4 py-2 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all flex items-center gap-2">
                                                 <Check className="w-3 h-3" /> Save
                                             </button>
                                         </div>
@@ -489,7 +496,7 @@ export default function ClientsPage() {
                                                         <button
                                                             onClick={() => setChargeData(p => ({ ...p, mode: 'redirect' }))}
                                                             className={cn("flex-1 py-2 text-[10px] uppercase tracking-widest border rounded-savron transition-all",
-                                                                chargeData.mode === 'redirect' ? "bg-savron-green/15 text-savron-green border-savron-green/20" : "text-savron-silver border-white/10 hover:border-white/20"
+                                                                chargeData.mode === 'redirect' ? "bg-savron-green border border-savron-green-light/20 text-white" : "text-savron-silver border-white/10 hover:border-white/20"
                                                             )}
                                                         >
                                                             <CreditCard className="w-3 h-3 inline mr-1" /> POS Checkout
@@ -497,7 +504,7 @@ export default function ClientsPage() {
                                                         <button
                                                             onClick={() => setChargeData(p => ({ ...p, mode: 'link' }))}
                                                             className={cn("flex-1 py-2 text-[10px] uppercase tracking-widest border rounded-savron transition-all",
-                                                                chargeData.mode === 'link' ? "bg-savron-green/15 text-savron-green border-savron-green/20" : "text-savron-silver border-white/10 hover:border-white/20"
+                                                                chargeData.mode === 'link' ? "bg-savron-green border border-savron-green-light/20 text-white" : "text-savron-silver border-white/10 hover:border-white/20"
                                                             )}
                                                         >
                                                             <Mail className="w-3 h-3 inline mr-1" /> Email Link
@@ -509,9 +516,9 @@ export default function ClientsPage() {
                                                     <button
                                                         onClick={chargeClient}
                                                         disabled={charging || !chargeData.amount}
-                                                        className="w-full py-2.5 text-xs uppercase tracking-widest bg-savron-green text-black rounded-savron hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-semibold"
+                                                        className="w-full py-2.5 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-semibold"
                                                     >
-                                                        {charging ? <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" /> : (
+                                                        {charging ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (
                                                             chargeData.mode === 'redirect' ? <><CreditCard className="w-3.5 h-3.5" /> Charge POS</> : <><DollarSign className="w-3.5 h-3.5" /> Send Pay Link</>
                                                         )}
                                                     </button>
@@ -533,7 +540,7 @@ export default function ClientsPage() {
                                                 className={cn(
                                                     "px-4 py-2 text-xs uppercase tracking-widest border rounded-savron transition-all flex items-center gap-2",
                                                     showCharge
-                                                        ? "bg-savron-green/15 text-savron-green border-savron-green/20"
+                                                        ? "bg-savron-green border border-savron-green-light/20 text-white"
                                                         : "text-savron-silver border-white/10 hover:text-white hover:border-white/20"
                                                 )}
                                             >
@@ -541,7 +548,7 @@ export default function ClientsPage() {
                                             </button>
                                             <button
                                                 onClick={() => setEditing(true)}
-                                                className="px-4 py-2 text-xs uppercase tracking-widest bg-savron-green text-white rounded-savron hover:bg-opacity-90 transition-all flex items-center gap-2"
+                                                className="px-4 py-2 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all flex items-center gap-2"
                                             >
                                                 <Edit3 className="w-3 h-3" /> Edit
                                             </button>
@@ -602,7 +609,7 @@ export default function ClientsPage() {
                                 <input type="tel" placeholder="PHONE" value={newClient.phone} onChange={e => setNewClient(p => ({ ...p, phone: e.target.value }))} className="input-savron" />
                                 <textarea placeholder="NOTES" value={newClient.notes} onChange={e => setNewClient(p => ({ ...p, notes: e.target.value }))} className="input-savron min-h-[80px] resize-none" />
                                 <div className="flex justify-end pt-2">
-                                    <button type="submit" className="px-6 py-3 text-xs uppercase tracking-widest bg-savron-green text-white rounded-savron hover:bg-opacity-90 transition-all">Add Client</button>
+                                    <button type="submit" className="px-6 py-3 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all">Add Client</button>
                                 </div>
                             </form>
                         </motion.div>
@@ -645,7 +652,7 @@ export default function ClientsPage() {
                                                 className={cn(
                                                     "px-3 py-2 text-[10px] uppercase tracking-widest border rounded-savron transition-all flex-1",
                                                     campaignTemplate === key
-                                                        ? "bg-savron-green/15 text-savron-green border-savron-green/20"
+                                                        ? "bg-savron-green border border-savron-green-light/20 text-white"
                                                         : "text-savron-silver border-white/10 hover:border-white/20"
                                                 )}
                                             >
@@ -676,7 +683,7 @@ export default function ClientsPage() {
                                 )}
 
                                 {campaignResult && (
-                                    <div className={cn("p-4 border rounded-savron text-sm", campaignResult.failed > 0 ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-300" : "border-savron-green/30 bg-savron-green/10 text-savron-green")}>
+                                    <div className={cn("p-4 border rounded-savron text-sm", campaignResult.failed > 0 ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-300" : "border-savron-green/30 bg-savron-green/10 text-emerald-400")}>
                                         ✅ {campaignResult.sent} sent{campaignResult.failed > 0 ? ` · ❌ ${campaignResult.failed} failed` : ''}
                                     </div>
                                 )}
@@ -684,7 +691,7 @@ export default function ClientsPage() {
                                 <button
                                     onClick={sendCampaign}
                                     disabled={sending || (campaignTemplate === 'custom' && !campaignSubject)}
-                                    className="w-full py-3 text-xs uppercase tracking-widest bg-savron-green text-white rounded-savron hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    className="w-full py-3 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     {sending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Mail className="w-4 h-4" /> Send to {selectedIds.size} Clients</>}
                                 </button>

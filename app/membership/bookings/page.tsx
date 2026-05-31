@@ -58,7 +58,7 @@ export default function MemberBookingsPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-[60vh]">
-                <div className="w-5 h-5 border-2 border-savron-green/30 border-t-savron-green rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
             </div>
         );
     }
@@ -76,7 +76,7 @@ export default function MemberBookingsPage() {
                         className={cn(
                             "px-4 py-2 rounded-savron text-xs uppercase tracking-widest transition-all border",
                             filter === f
-                                ? "bg-savron-green/15 text-savron-green border-savron-green/20"
+                                ? "bg-savron-green border border-savron-green-light/20 text-white"
                                 : "text-savron-silver border-white/5 hover:text-white"
                         )}
                     >
@@ -120,7 +120,7 @@ export default function MemberBookingsPage() {
                                     <div className="flex items-center gap-3">
                                         <span className={cn(
                                             "text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-sm border",
-                                            booking.status === 'confirmed' ? "text-savron-green border-savron-green/20 bg-savron-green/10" :
+                                            booking.status === 'confirmed' ? "text-emerald-300 border-savron-green/35 bg-savron-green/15" :
                                             booking.status === 'completed' ? "text-green-400 border-green-500/20 bg-green-500/10" :
                                             booking.status === 'cancelled' ? "text-red-400 border-red-500/20 bg-red-500/10" :
                                             "text-yellow-400 border-yellow-500/20 bg-yellow-500/10"

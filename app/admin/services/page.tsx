@@ -169,7 +169,7 @@ export default function AdminServicesPage() {
                 </div>
                 <button
                     onClick={() => { setShowAdd(v => !v); setAddError(null); setForm(defaultForm); }}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-savron-green/10 border border-savron-green/20 text-savron-green text-[10px] uppercase tracking-widest hover:bg-savron-green/20 transition-all rounded-savron"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-savron-green text-white border border-savron-green-light/20 text-[10px] uppercase tracking-widest hover:bg-savron-green-light transition-all rounded-savron"
                 >
                     <Plus className="w-3.5 h-3.5" /> Add Service
                 </button>
@@ -234,8 +234,8 @@ export default function AdminServicesPage() {
                         {addError && <p className="text-red-400 text-xs">{addError}</p>}
 
                         <button onClick={addService} disabled={adding || !form.name.trim() || !form.priceStr || !form.durationMin}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-savron-green text-black text-[11px] uppercase tracking-widest rounded-savron hover:bg-opacity-90 transition-all disabled:opacity-50">
-                            {adding ? <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-savron-green text-white border border-savron-green-light/20 text-[11px] uppercase tracking-widest rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50">
+                            {adding ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                             {adding ? 'Adding…' : 'Add Service'}
                         </button>
                     </motion.div>
@@ -325,6 +325,9 @@ export default function AdminServicesPage() {
                                             <div className={cn("w-3 h-3 rounded-full shrink-0", COLOR_DOTS[svc.color ?? ''] ?? 'bg-white/30')} />
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-white font-medium text-sm uppercase tracking-widest">{svc.name}</p>
+                                                <p className="text-savron-silver/70 text-[11px] mt-0.5 sm:hidden">
+                                                    ${Math.round(svc.price_cents / 100)} · {svc.duration_minutes} min
+                                                </p>
                                                 {svc.description && (
                                                     <p className="text-savron-silver/70 text-[11px] mt-0.5 truncate">{svc.description}</p>
                                                 )}
@@ -342,7 +345,7 @@ export default function AdminServicesPage() {
                                                 </p>
                                             </div>
                                             <button onClick={() => startEdit(svc)}
-                                                className="p-2 text-savron-silver/70 hover:text-savron-green hover:bg-savron-green/5 border border-white/5 hover:border-savron-green/20 rounded-savron transition-all">
+                                                className="p-2 text-savron-silver/70 hover:text-white hover:bg-white/5 border border-white/5 hover:border-white/20 rounded-savron transition-all">
                                                 <Pencil className="w-4 h-4" />
                                             </button>
                                             <button onClick={() => setConfirmDelete(svc)}

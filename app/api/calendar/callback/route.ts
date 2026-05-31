@@ -9,12 +9,15 @@ import { createClient } from '@supabase/supabase-js';
 export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl;
     const code = searchParams.get('code');
-    const barberId = searchParams.get('state');
+    const stateVal = searchParams.get('state') || '';
+    const [barberId, redirectPath] = stateVal.includes('|') ? stateVal.split('|') : [stateVal, '/barber'];
     const error = searchParams.get('error');
+
+    const targetRedirect = redirectPath || '/barber';
 
     if (error || !code || !barberId) {
         return NextResponse.redirect(
-            new URL(`/barber?cal_error=${error ?? 'missing_params'}`, request.url)
+            new URL(`${targetRedirect}?cal_error=${error ?? 'missing_params'}`, request.url)
         );
     }
 
@@ -59,12 +62,12 @@ export async function GET(request: NextRequest) {
             .eq('id', barberId);
 
         return NextResponse.redirect(
-            new URL('/barber?cal_connected=1', request.url)
+            new URL(`${targetRedirect}?cal_connected=1`, request.url)
         );
     } catch (err) {
         console.error('Calendar OAuth error:', err);
         return NextResponse.redirect(
-            new URL('/barber?cal_error=token_exchange_failed', request.url)
+            new URL(`${targetRedirect}?cal_error=token_exchange_failed`, request.url)
         );
     }
 }

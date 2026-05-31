@@ -132,6 +132,13 @@ export default function HostDashboard() {
                 body: JSON.stringify({ bookingId: booking.id }),
             }).catch(() => {/* silent — cancellation is already applied in DB */});
         }
+        if (status === 'cancelled' || status === 'no_show') {
+            fetch('/api/calendar/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bookingId: booking.id, action: 'delete' }),
+            }).catch(err => console.error('Failed to sync calendar deletion:', err));
+        }
         setUpdating(false);
     };
 

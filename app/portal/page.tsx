@@ -142,7 +142,7 @@ export default function PortalPage() {
                             <Image src="/logo.png" alt="SAVRON" fill className="object-contain" priority />
                         </div>
                         <h1 className="font-heading text-5xl md:text-7xl uppercase tracking-widest text-white">
-                            Join the <span className="text-savron-green">Craft</span>
+                            Join the <span className="text-emerald-400">Craft</span>
                         </h1>
                         <p className="text-savron-silver text-lg font-light max-w-xl mx-auto">
                             We seek elite barbers who are obsessed with detail and dedicated to the art of grooming.

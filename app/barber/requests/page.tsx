@@ -128,7 +128,7 @@ export default function BarberRequestsPage() {
                 </div>
                 <button
                     onClick={() => setShowForm(v => !v)}
-                    className="px-5 py-3 text-[11px] uppercase tracking-widest border border-savron-green/30 text-savron-green hover:bg-savron-green/10 rounded-savron transition-all flex items-center gap-2"
+                    className="px-5 py-3 text-[11px] uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 hover:bg-savron-green-light rounded-savron transition-all flex items-center gap-2"
                 >
                     <Send className="w-3.5 h-3.5" />
                     {showForm ? 'Cancel' : 'New Request'}

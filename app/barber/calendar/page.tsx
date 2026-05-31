@@ -137,7 +137,7 @@ export default function BarberCalendarPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-[60vh]">
-                <div className="w-5 h-5 border-2 border-savron-green/30 border-t-savron-green rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
             </div>
         );
     }
@@ -172,8 +172,8 @@ export default function BarberCalendarPage() {
                     </button>
                     {/* Google Calendar connect status */}
                     {barber.google_calendar_id ? (
-                        <span className="text-[10px] uppercase tracking-widest text-savron-green/70 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-savron-green/70 inline-block" />
+                        <span className="text-[10px] uppercase tracking-widest text-emerald-400 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
                             Google Calendar connected
                         </span>
                     ) : (
@@ -191,7 +191,7 @@ export default function BarberCalendarPage() {
                             className={cn(
                                 "px-4 py-2 text-xs uppercase tracking-widest border rounded-savron transition-all",
                                 view === v
-                                    ? "bg-savron-green/15 text-savron-green border-savron-green/20"
+                                    ? "bg-savron-green border border-savron-green-light/20 text-white"
                                     : "text-savron-silver border-white/5 hover:text-white"
                             )}
                         >
@@ -207,7 +207,7 @@ export default function BarberCalendarPage() {
                     "flex items-center justify-between px-4 py-3 border rounded-savron text-xs",
                     isDayOff
                         ? "border-amber-500/20 bg-amber-500/5 text-amber-400/70"
-                        : "border-savron-green/15 bg-savron-green/5 text-savron-green/70"
+                        : "border-savron-green-light/20 bg-savron-green/10 text-emerald-400"
                 )}>
                     <span className="uppercase tracking-widest">
                         {isDayOff
@@ -235,7 +235,7 @@ export default function BarberCalendarPage() {
                             : `${format(weekDays[0], 'MMM d')} — ${format(weekDays[6], 'MMM d, yyyy')}`}
                     </p>
                     {view === 'day' && isToday(selectedDate) && (
-                        <p className="text-savron-green text-[10px] uppercase tracking-widest mt-0.5">Today</p>
+                        <p className="text-emerald-400 text-[10px] uppercase tracking-widest mt-0.5">Today</p>
                     )}
                 </div>
                 <button onClick={() => navigate(1)} className="p-2 text-savron-silver hover:text-white transition-colors">
@@ -247,7 +247,7 @@ export default function BarberCalendarPage() {
             {!isToday(selectedDate) && (
                 <button
                     onClick={() => setSelectedDate(new Date())}
-                    className="text-xs uppercase tracking-widest text-savron-green hover:text-savron-green-light transition-colors"
+                    className="text-xs uppercase tracking-widest text-emerald-400 hover:text-emerald-300 transition-colors"
                 >
                     Jump to Today
                 </button>
@@ -335,7 +335,7 @@ export default function BarberCalendarPage() {
                                 <div className="flex items-center justify-between mb-3">
                                     <p className={cn(
                                         "text-xs uppercase tracking-widest font-heading",
-                                        isToday(day) ? "text-savron-green" : "text-savron-silver"
+                                        isToday(day) ? "text-emerald-400" : "text-savron-silver"
                                     )}>
                                         {format(day, 'EEE')}
                                     </p>

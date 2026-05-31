@@ -28,6 +28,18 @@ export default function BarberProfilePage() {
     const [uploadingPortfolio, setUploadingPortfolio] = useState(false);
     const [linkingGoogle, setLinkingGoogle] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('cal_connected') === '1') {
+            setSuccessMessage('Google Calendar connected successfully!');
+        }
+        const calError = params.get('cal_error');
+        if (calError) {
+            setError(`Google Calendar connection failed: ${calError}`);
+        }
+    }, []);
 
     useEffect(() => {
         async function load() {
@@ -35,17 +47,6 @@ export default function BarberProfilePage() {
             if (!session?.user) {
                 router.push('/barber/login');
                 return;
-            }
-
-            // If returning from Google OAuth, save the tokens
-            if (session.provider_token || session.provider_refresh_token) {
-                await supabase.from('barbers').update({
-                    google_calendar_tokens: {
-                        access_token: session.provider_token,
-                        refresh_token: session.provider_refresh_token,
-                        expires_at: session.expires_at,
-                    }
-                }).eq('auth_id', session.user.id);
             }
 
             const { data } = await supabase
@@ -126,25 +127,10 @@ export default function BarberProfilePage() {
     }
 
     async function handleConnectGoogle() {
+        if (!barber) return;
         setLinkingGoogle(true);
         setError(null);
-        
-        const { error } = await supabase.auth.linkIdentity({
-            provider: 'google',
-            options: {
-                scopes: 'https://www.googleapis.com/auth/calendar.readonly',
-                queryParams: {
-                    access_type: 'offline',
-                    prompt: 'consent',
-                },
-                redirectTo: `${window.location.origin}/barber/profile`
-            }
-        });
-
-        if (error) {
-            setError(error.message);
-            setLinkingGoogle(false);
-        }
+        window.location.href = `/api/calendar/connect?barberId=${barber.id}&redirect=/barber/profile`;
     }
 
     if (loading) {
@@ -172,6 +158,12 @@ export default function BarberProfilePage() {
                 </div>
             )}
 
+            {successMessage && (
+                <div className="bg-savron-green/20 border border-savron-green-light/35 rounded-savron p-4 text-emerald-300 text-sm">
+                    {successMessage}
+                </div>
+            )}
+
             {/* Profile photo */}
             <section className="card-savron space-y-5">
                 <h2 className="font-heading uppercase tracking-widest text-white text-sm">Profile Photo</h2>
@@ -189,7 +181,7 @@ export default function BarberProfilePage() {
                         "cursor-pointer px-5 py-3 text-[11px] uppercase tracking-widest border rounded-savron transition-all flex items-center gap-2",
                         uploadingProfile
                             ? "border-savron-silver/20 text-savron-silver/70 cursor-wait"
-                            : "border-savron-green/30 text-savron-green hover:bg-savron-green/10"
+                            : "border-white/10 text-savron-silver hover:text-white hover:bg-white/5"
                     )}>
                         {uploadingProfile ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                         {uploadingProfile ? 'Uploading...' : 'Change Photo'}
@@ -217,7 +209,7 @@ export default function BarberProfilePage() {
                         "cursor-pointer px-5 py-3 text-[11px] uppercase tracking-widest border rounded-savron transition-all flex items-center gap-2",
                         uploadingPortfolio
                             ? "border-savron-silver/20 text-savron-silver/70 cursor-wait"
-                            : "border-savron-green/30 text-savron-green hover:bg-savron-green/10"
+                            : "border-white/10 text-savron-silver hover:text-white hover:bg-white/5"
                     )}>
                         {uploadingPortfolio ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                         {uploadingPortfolio ? 'Uploading...' : 'Add Photos'}
@@ -283,7 +275,7 @@ export default function BarberProfilePage() {
                             /* @ts-ignore */
                             barber.google_calendar_tokens
                                 ? "border-white/10 text-white/50 hover:bg-white/5"
-                                : "bg-savron-green border-savron-green text-black hover:bg-opacity-90",
+                                : "bg-savron-green border border-savron-green-light/20 text-white hover:bg-savron-green-light",
                             linkingGoogle && "opacity-50 cursor-wait"
                         )}
                     >

@@ -102,7 +102,7 @@ function getIcsString(
         'CLASS:PUBLIC',
         'X-MICROSOFT-CDO-BUSYSTATUS:BUSY',
         'X-MICROSOFT-CDO-IMPORTANCE:1',
-        'X-APPLE-CALENDAR-COLOR:#0D3B4F',
+        'X-APPLE-CALENDAR-COLOR:#125470',
         'BEGIN:VALARM',
         'ACTION:DISPLAY',
         'DESCRIPTION:Appointment reminder',
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
       <table width="560" cellpadding="0" cellspacing="0" style="background:#121212;border:1px solid rgba(255,255,255,0.08);">
         <!-- Header -->
         <tr>
-          <td style="background:#0D3B4F;padding:28px 32px;text-align:center;">
+          <td style="background:#125470;padding:28px 32px;text-align:center;">
             <img src="https://savronmn.com/logo.png" alt="SAVRON" width="160" style="display:block;margin:0 auto 8px;max-width:160px;height:auto;" />
             <p style="margin:0;color:rgba(255,255,255,0.5);font-size:10px;letter-spacing:3px;text-transform:uppercase;">Barbershop &amp; Lounge · Minneapolis</p>
           </td>
@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
             </table>
 
             <!-- Location block -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#0D3B4F;margin-bottom:28px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#125470;margin-bottom:28px;">
               <tr>
                 <td style="padding:18px 20px;">
                   <p style="margin:0 0 4px;color:rgba(255,255,255,0.5);font-size:10px;letter-spacing:3px;text-transform:uppercase;">Location</p>

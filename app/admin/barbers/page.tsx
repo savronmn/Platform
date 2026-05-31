@@ -288,30 +288,30 @@ export default function AdminBarbersPage() {
                                 </div>
                             )}
 
-                            <div className="flex items-center justify-between pt-2 border-t border-white/5 gap-2">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-2 border-t border-white/5 gap-3">
                                 <button
                                     onClick={() => toggleActive(barber)}
                                     className="flex items-center gap-2 text-xs uppercase tracking-wider transition-all text-emerald-400 hover:text-emerald-300 font-medium"
                                 >
                                     <ToggleRight className="w-4 h-4" /> Active
                                 </button>
-                                <div className="flex items-center gap-2 ml-auto">
+                                <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
                                     <button
                                         onClick={() => copyBookingLink(barber.slug)}
-                                        className="flex items-center gap-1 px-2 py-1.5 text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
+                                        className="flex items-center gap-1 px-2.5 py-1.5 text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
                                     >
                                         {copiedSlug === barber.slug ? <Check className="w-3 h-3 text-savron-green" /> : <Copy className="w-3 h-3" />}
                                         {copiedSlug === barber.slug ? 'Copied' : 'Link'}
                                     </button>
                                     <button
                                         onClick={() => openSettings(barber)}
-                                        className="flex items-center gap-1 px-2 py-1.5 text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
+                                        className="flex items-center gap-1 px-2.5 py-1.5 text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
                                     >
                                         <Settings className="w-3.5 h-3.5" /> Settings
                                     </button>
                                     <button
                                         onClick={() => setConfirmDelete(barber)}
-                                        className="flex items-center gap-1 px-2 py-1.5 text-xs uppercase tracking-wider text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 rounded-savron transition-all"
+                                        className="flex items-center gap-1 px-2.5 py-1.5 text-xs uppercase tracking-wider text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 rounded-savron transition-all"
                                     >
                                         🗑 Archive
                                     </button>

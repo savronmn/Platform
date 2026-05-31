@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase';
 import StatCard from '@/components/crm/StatCard';
-import { Users, Calendar, DollarSign, Clock, ArrowRight, TrendingUp, Scissors, UserCheck, ClipboardList, Layers, ScanLine } from 'lucide-react';
+import { Users, Calendar, DollarSign, Clock, ArrowRight, TrendingUp, Scissors, UserCheck, ClipboardList, Layers, ScanLine, Inbox } from 'lucide-react';
 import type { Booking, Client } from '@/lib/types';
 import { format, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -233,7 +233,7 @@ export default function AdminDashboard() {
             )}
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <StatCard
                     label="Today's Appointments"
                     value={stats.todayBookings}
@@ -312,7 +312,7 @@ export default function AdminDashboard() {
                         <h2 className="font-heading text-lg uppercase tracking-widest text-white">Today&apos;s Schedule</h2>
                         <p className="text-savron-silver/75 text-[11px] uppercase tracking-widest mt-0.5">{stats.todayBookings} appointment{stats.todayBookings !== 1 ? 's' : ''}</p>
                     </div>
-                    <Link href="/admin/bookings" className="text-xs uppercase tracking-widest text-savron-green hover:text-white flex items-center gap-1 transition-colors">
+                    <Link href="/admin/bookings" className="text-xs uppercase tracking-widest text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors">
                         Full View <ArrowRight className="w-3 h-3" />
                     </Link>
                 </div>
@@ -321,7 +321,7 @@ export default function AdminDashboard() {
                     <div className="py-10 text-center">
                         <Calendar className="w-8 h-8 text-savron-silver/20 mx-auto mb-3" />
                         <p className="text-savron-silver/50 text-sm uppercase tracking-wider">No appointments scheduled today</p>
-                        <Link href="/admin/bookings" className="mt-3 inline-block text-xs text-savron-green uppercase tracking-widest hover:underline">Add walk-in →</Link>
+                        <Link href="/admin/bookings" className="mt-3 inline-block text-xs text-emerald-400 hover:text-emerald-300 uppercase tracking-widest hover:underline">Add walk-in →</Link>
                     </div>
                 ) : (
                     <div className="space-y-1">
@@ -329,7 +329,7 @@ export default function AdminDashboard() {
                             <div key={b.id} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors rounded-lg px-2 -mx-2">
                                 <div className="flex items-center gap-4">
                                     <div className="w-20 shrink-0 text-right">
-                                        <span className="font-mono text-sm text-savron-green block">{b.time}</span>
+                                        <span className="font-mono text-sm text-emerald-400 block">{b.time}</span>
                                     </div>
                                     <div>
                                         <p className="text-white text-sm font-medium">{b.client_name || 'Walk-in'}</p>
@@ -351,7 +351,7 @@ export default function AdminDashboard() {
                 <div className="card-savron relative overflow-hidden">
                     <div className="flex items-center justify-between mb-5">
                         <h2 className="font-heading text-lg uppercase tracking-widest text-white">Upcoming This Week</h2>
-                        <Link href="/admin/bookings" className="text-xs uppercase tracking-widest text-savron-green hover:text-white flex items-center gap-1 transition-colors">
+                        <Link href="/admin/bookings" className="text-xs uppercase tracking-widest text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors">
                             Calendar <ArrowRight className="w-3 h-3" />
                         </Link>
                     </div>
@@ -382,20 +382,21 @@ export default function AdminDashboard() {
             {/* Quick Actions */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                    { label: 'Bookings', href: '/admin/bookings', icon: Calendar, desc: 'Calendar & walk-ins' },
-                    { label: 'Clients', href: '/admin/clients', icon: Users, desc: 'CRM & campaigns' },
-                    { label: 'Membership', href: '/admin/membership', icon: UserCheck, desc: 'E-pass & visits' },
-                    { label: 'Barbers', href: '/admin/barbers', icon: Scissors, desc: 'Team management' },
-                    { label: 'Host View', href: '/host',             icon: TrendingUp,    desc: 'Display screen' },
-                    { label: 'Services',  href: '/admin/services',   icon: Layers,        desc: 'Menu management' },
-                    { label: 'Hiring',    href: '/admin/applicants', icon: ClipboardList, desc: 'Recruiting pipeline' },
+                    { label: 'Bookings',      href: '/admin/bookings',       icon: Calendar,      desc: 'Calendar & walk-ins' },
+                    { label: 'Clients',       href: '/admin/clients',        icon: Users,         desc: 'CRM & campaigns' },
+                    { label: 'Membership',    href: '/admin/membership',     icon: UserCheck,     desc: 'E-pass & visits' },
+                    { label: 'Barbers',       href: '/admin/barbers',        icon: Scissors,      desc: 'Team management' },
+                    { label: 'Host View',     href: '/host',                 icon: TrendingUp,    desc: 'Display screen' },
+                    { label: 'Services',      href: '/admin/services',       icon: Layers,        desc: 'Menu management' },
+                    { label: 'Hiring',        href: '/admin/applicants',     icon: ClipboardList, desc: 'Recruiting pipeline' },
+                    { label: 'Requests',      href: '/admin/requests',       icon: Inbox,         desc: 'Barber requests' },
                 ].map(item => (
                     <Link
                         key={item.href}
                         href={item.href}
                         className="card-savron hover:border-savron-green/20 hover:bg-white/[0.04] transition-all group p-4 text-center space-y-2"
                     >
-                        <item.icon className="w-5 h-5 text-savron-silver group-hover:text-savron-green transition-colors mx-auto" />
+                        <item.icon className="w-5 h-5 text-savron-silver group-hover:text-emerald-400 transition-colors mx-auto" />
                         <p className="text-white text-xs uppercase tracking-widest font-heading">{item.label}</p>
                         <p className="text-savron-silver/75 text-[11px] uppercase tracking-widest">{item.desc}</p>
                     </Link>

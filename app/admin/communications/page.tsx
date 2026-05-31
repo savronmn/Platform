@@ -165,19 +165,19 @@ export default function CommunicationsPage() {
 
                         <div>
                             <label className="block text-[10px] uppercase tracking-[0.2em] text-white/50 mb-2 ml-1">Target Audience</label>
-                            <div className="flex gap-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                 {[
                                     { id: 'all', label: 'Everyone' },
-                                    { id: 'clients', label: 'CRM Clients Only' },
-                                    { id: 'subscribers', label: 'E-Pass Subscribers Only' },
+                                    { id: 'clients', label: 'CRM Clients' },
+                                    { id: 'subscribers', label: 'E-Pass Subscribers' },
                                 ].map(t => (
                                     <button
                                         key={t.id}
                                         type="button"
                                         onClick={() => setTargetGroup(t.id as any)}
-                                        className={`flex-1 py-3 text-[10px] uppercase tracking-widest border rounded-savron transition-all ${
+                                        className={`py-3 px-2 text-[10px] uppercase tracking-widest border rounded-savron transition-all ${
                                             targetGroup === t.id 
-                                            ? 'bg-savron-green/15 text-savron-green border-savron-green/20' 
+                                            ? 'bg-savron-green text-white border border-savron-green-light/20' 
                                             : 'text-savron-silver border-white/10 hover:border-white/20 hover:text-white bg-white/5'
                                         }`}
                                     >
@@ -214,7 +214,7 @@ export default function CommunicationsPage() {
                         <button 
                             type="submit" 
                             disabled={sending || !subject || !content || activeRecipients.length === 0}
-                            className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-savron-green text-black text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-opacity-90 transition-all rounded-savron disabled:opacity-50"
+                            className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-savron-green text-white border border-savron-green-light/20 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-savron-green-light transition-all rounded-savron disabled:opacity-50"
                         >
                             {sending ? 'Sending Campaign...' : `Send to ${activeRecipients.length} Recipients`}
                             {!sending && <Send size={14} />}

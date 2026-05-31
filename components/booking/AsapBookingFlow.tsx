@@ -232,7 +232,7 @@ export default function AsapBookingFlow() {
                                     </div>
                                     <div className="flex items-center gap-4">
                                         <span className="text-white font-mono">{service.price}</span>
-                                        {selectedService === service.id && <Check className="w-4 h-4 text-savron-green" />}
+                                        {selectedService === service.id && <Check className="w-4 h-4 text-emerald-400" />}
                                     </div>
                                 </div>
                             ))}
@@ -260,7 +260,7 @@ export default function AsapBookingFlow() {
                             </div>
                             <div className="flex justify-between pt-2 border-t border-white/10">
                                 <span className="text-savron-silver">Barber</span>
-                                <span className="text-savron-green text-xs uppercase tracking-wider">Auto-assigned</span>
+                                <span className="text-emerald-400 text-xs uppercase tracking-wider">Auto-assigned</span>
                             </div>
                         </div>
                         <input placeholder="YOUR NAME" value={clientName} onChange={e => setClientName(e.target.value)} className="input-savron" />

@@ -110,7 +110,7 @@ export default function AdminRequestsPage() {
                             className={cn(
                                 "px-4 py-2 text-[10px] uppercase tracking-widest border rounded-savron transition-all",
                                 filter === f
-                                    ? "border-savron-green/30 bg-savron-green/10 text-savron-green"
+                                    ? "bg-savron-green border border-savron-green-light/20 text-white"
                                     : "border-white/10 text-savron-silver hover:text-white hover:border-white/20"
                             )}
                         >
@@ -190,11 +190,11 @@ export default function AdminRequestsPage() {
                                                             rows={2}
                                                             className="input-savron resize-none"
                                                         />
-                                                        <div className="flex gap-3">
+                                                        <div className="flex flex-col sm:flex-row gap-3">
                                                             <button
                                                                 onClick={() => handleApprove(r.id)}
                                                                 disabled={actingOn === r.id}
-                                                                className="flex-1 py-3 text-[11px] uppercase tracking-widest bg-savron-green/15 text-savron-green border border-savron-green/25 hover:bg-savron-green/25 rounded-savron transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                                                className="flex-1 py-3 text-[11px] uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 hover:bg-savron-green-light rounded-savron transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                                                             >
                                                                 <Check className="w-3.5 h-3.5" /> Approve & Apply
                                                             </button>

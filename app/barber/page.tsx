@@ -69,6 +69,13 @@ export default function BarberDashboard() {
     const handleStatusUpdate = async (id: string, status: string) => {
         await supabase.from('bookings').update({ status }).eq('id', id);
         setBookings(prev => prev.map(b => b.id === id ? { ...b, status: status as Booking['status'] } : b));
+        if (status === 'cancelled' || status === 'no_show') {
+            fetch('/api/calendar/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bookingId: id, action: 'delete' }),
+            }).catch(err => console.error('Failed to sync calendar deletion:', err));
+        }
     };
 
     const copyBookingLink = () => {
@@ -81,7 +88,7 @@ export default function BarberDashboard() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-[60vh]">
-                <div className="w-5 h-5 border-2 border-savron-green/30 border-t-savron-green rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
             </div>
         );
     }
@@ -105,7 +112,7 @@ export default function BarberDashboard() {
                 </div>
                 <button
                     onClick={copyBookingLink}
-                    className="flex items-center gap-2 px-4 py-2 bg-savron-green/10 border border-savron-green/20 text-savron-green rounded-savron text-xs uppercase tracking-widest hover:bg-savron-green/20 transition-all"
+                    className="flex items-center gap-2 px-4 py-2 bg-savron-green text-white border border-savron-green-light/20 rounded-savron text-xs uppercase tracking-widest hover:bg-savron-green-light transition-all"
                 >
                     {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                     {copied ? 'Copied!' : 'Copy Booking Link'}
@@ -115,14 +122,14 @@ export default function BarberDashboard() {
             {/* Google Calendar Connect */}
             {(calConnected || calError || !barber.google_calendar_id) && (
                 <div className={cn(
-                    "flex items-center justify-between p-4 border rounded-savron",
-                    calConnected ? "bg-savron-green/10 border-savron-green/30" :
+                    "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-savron",
+                    calConnected ? "bg-savron-green/20 border-savron-green-light/35" :
                     calError ? "bg-red-500/10 border-red-500/30" :
                     "bg-savron-grey border-white/10"
                 )}>
                     <div className="flex items-center gap-3">
                         {calConnected ? (
-                            <Link2 className="w-4 h-4 text-savron-green" />
+                            <Link2 className="w-4 h-4 text-emerald-400" />
                         ) : calError ? (
                             <Link2Off className="w-4 h-4 text-red-400" />
                         ) : (
@@ -130,7 +137,7 @@ export default function BarberDashboard() {
                         )}
                         <div>
                             <p className={cn("text-xs uppercase tracking-widest font-medium",
-                                calConnected ? "text-savron-green" : calError ? "text-red-400" : "text-savron-silver"
+                                calConnected ? "text-emerald-400" : calError ? "text-red-400" : "text-savron-silver"
                             )}>
                                 {calConnected ? "Google Calendar Connected" : calError ? "Connection Failed — Try Again" : "Google Calendar Not Connected"}
                             </p>
@@ -154,7 +161,7 @@ export default function BarberDashboard() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
                     { label: "Today", value: todayCount, icon: Calendar, color: "text-blue-400" },
-                    { label: "Upcoming", value: upcomingCount, icon: Clock, color: "text-savron-green" },
+                    { label: "Upcoming", value: upcomingCount, icon: Clock, color: "text-emerald-400" },
                     { label: "Completed", value: completedCount, icon: CheckCircle, color: "text-green-400" },
                     { label: "No Shows", value: noShowCount, icon: AlertTriangle, color: "text-yellow-400" },
                 ].map(stat => (
@@ -176,7 +183,7 @@ export default function BarberDashboard() {
                         onClick={() => setFilter(f)}
                         className={cn(
                             "px-4 py-2 rounded-savron text-xs uppercase tracking-widest transition-all border",
-                            filter === f ? "bg-savron-green/15 text-savron-green border-savron-green/20" : "text-savron-silver border-white/5 hover:text-white"
+                            filter === f ? "bg-savron-green border border-savron-green-light/20 text-white" : "text-savron-silver border-white/5 hover:text-white"
                         )}
                     >
                         {f}

@@ -50,7 +50,7 @@ export default function MembershipDashboard() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-[60vh]">
-                <div className="w-5 h-5 border-2 border-savron-green/30 border-t-savron-green rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
             </div>
         );
     }
@@ -89,7 +89,7 @@ export default function MembershipDashboard() {
                         <p className="text-white text-sm">{client.name}</p>
                         <p className="text-savron-silver text-xs">{client.email}</p>
                     </div>
-                    <div className="space-y-1 text-right">
+                    <div className="space-y-1 text-left md:text-right">
                         <p className="text-white text-4xl font-heading">{client.visit_count}</p>
                         <p className="text-savron-silver text-xs uppercase tracking-widest">Total Visits</p>
                         {tier.next && (
@@ -102,27 +102,27 @@ export default function MembershipDashboard() {
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="bg-savron-grey border border-white/5 rounded-savron p-5">
-                    <div className="flex items-center gap-2 mb-2">
-                        <Calendar className="w-4 h-4 text-savron-green" />
-                        <span className="text-savron-silver text-xs uppercase tracking-widest">Upcoming</span>
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                <div className="bg-savron-grey border border-white/5 rounded-savron p-3 sm:p-5">
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-2">
+                        <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
+                        <span className="text-savron-silver text-[10px] sm:text-xs uppercase tracking-widest truncate">Upcoming</span>
                     </div>
-                    <p className="text-white text-2xl font-heading">{upcomingBookings.length}</p>
+                    <p className="text-white text-xl sm:text-2xl font-heading">{upcomingBookings.length}</p>
                 </div>
-                <div className="bg-savron-grey border border-white/5 rounded-savron p-5">
-                    <div className="flex items-center gap-2 mb-2">
-                        <Clock className="w-4 h-4 text-blue-400" />
-                        <span className="text-savron-silver text-xs uppercase tracking-widest">Past Visits</span>
+                <div className="bg-savron-grey border border-white/5 rounded-savron p-3 sm:p-5">
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-2">
+                        <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400 shrink-0" />
+                        <span className="text-savron-silver text-[10px] sm:text-xs uppercase tracking-widest truncate">Visits</span>
                     </div>
-                    <p className="text-white text-2xl font-heading">{pastBookings.length}</p>
+                    <p className="text-white text-xl sm:text-2xl font-heading">{pastBookings.length}</p>
                 </div>
-                <div className="bg-savron-grey border border-white/5 rounded-savron p-5">
-                    <div className="flex items-center gap-2 mb-2">
-                        <CreditCard className="w-4 h-4 text-yellow-400" />
-                        <span className="text-savron-silver text-xs uppercase tracking-widest">Tier</span>
+                <div className="bg-savron-grey border border-white/5 rounded-savron p-3 sm:p-5">
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-2">
+                        <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-400 shrink-0" />
+                        <span className="text-savron-silver text-[10px] sm:text-xs uppercase tracking-widest truncate">Tier</span>
                     </div>
-                    <p className={cn("text-2xl font-heading", tier.color)}>{tier.label}</p>
+                    <p className={cn("text-xl sm:text-2xl font-heading truncate", tier.color)}>{tier.label}</p>
                 </div>
             </div>
 
@@ -130,19 +130,19 @@ export default function MembershipDashboard() {
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
                     <h2 className="font-heading text-xl uppercase tracking-widest text-white">Upcoming</h2>
-                    <Link href="/booking" className="text-savron-green text-xs uppercase tracking-widest hover:underline">Book New</Link>
+                    <Link href="/booking" className="text-emerald-400 hover:text-emerald-300 text-xs uppercase tracking-widest hover:underline">Book New</Link>
                 </div>
                 {upcomingBookings.length === 0 ? (
                     <div className="text-center py-12 bg-savron-grey border border-white/5 rounded-savron">
                         <p className="text-savron-silver text-sm uppercase tracking-wider">No upcoming appointments</p>
-                        <Link href="/booking" className="text-savron-green text-xs uppercase tracking-widest mt-2 inline-block hover:underline">Book Now</Link>
+                        <Link href="/booking" className="text-emerald-400 hover:text-emerald-300 text-xs uppercase tracking-widest mt-2 inline-block hover:underline">Book Now</Link>
                     </div>
                 ) : (
                     upcomingBookings.map(b => (
                         <div key={b.id} className="bg-savron-grey border border-white/5 rounded-savron p-5 flex items-center justify-between">
                             <div className="flex items-center gap-4">
                                 <div className="w-10 h-10 bg-savron-green/10 border border-savron-green/20 rounded-full flex items-center justify-center">
-                                    <Calendar className="w-4 h-4 text-savron-green" />
+                                    <Calendar className="w-4 h-4 text-emerald-400" />
                                 </div>
                                 <div>
                                     <p className="text-white font-medium text-sm">{b.service}</p>

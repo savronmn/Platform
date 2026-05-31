@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
 <body style="margin:0;padding:0;background:#050505;font-family:Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#050505;padding:40px 20px;"><tr><td align="center">
     <table width="560" cellpadding="0" cellspacing="0" style="background:#121212;border:1px solid rgba(255,255,255,0.08);">
-      <tr><td style="background:#0D3B4F;padding:28px 32px;text-align:center;">
+      <tr><td style="background:#125470;padding:28px 32px;text-align:center;">
         <img src="https://savronmn.com/logo.png" alt="SAVRON" width="160" style="display:block;margin:0 auto 8px;max-width:160px;height:auto;" />
         <p style="margin:0;color:rgba(255,255,255,0.5);font-size:10px;letter-spacing:3px;text-transform:uppercase;">Barbershop &amp; Lounge · Minneapolis</p>
       </td></tr>
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
           Walk-ins are welcome anytime. Or rebook online when you&rsquo;re ready.
         </p>
         <table cellpadding="0" cellspacing="0" style="margin:0 0 24px;"><tr>
-          <td style="background:#0D3B4F;padding:14px 32px;">
+          <td style="background:#125470;padding:14px 32px;">
             <a href="https://savronmn.com/booking" style="color:#fff;text-decoration:none;font-size:12px;letter-spacing:3px;text-transform:uppercase;font-weight:700;">Book Again</a>
           </td>
         </tr></table>

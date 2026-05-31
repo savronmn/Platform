@@ -75,7 +75,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 className={cn(
                                     "flex items-center gap-3 px-3 py-3 rounded-savron text-sm uppercase tracking-wider transition-all",
                                     isActive
-                                        ? "bg-savron-green/15 text-savron-green border border-savron-green/20"
+                                        ? "bg-savron-green border border-savron-green-light/20 text-white"
                                         : "text-savron-silver hover:text-white hover:bg-white/5 border border-transparent"
                                 )}
                             >
@@ -142,7 +142,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                             className={cn(
                                                 "flex items-center gap-3 px-3 py-3 rounded-savron text-sm uppercase tracking-wider transition-all",
                                                 isActive
-                                                    ? "bg-savron-green/15 text-savron-green border border-savron-green/20"
+                                                    ? "bg-savron-green border border-savron-green-light/20 text-white"
                                                     : "text-savron-silver hover:text-white hover:bg-white/5 border border-transparent"
                                             )}
                                         >
@@ -171,8 +171,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </AnimatePresence>
 
             {/* Main Content */}
-            <main className="flex-1 lg:ml-64 pt-20 lg:pt-8 p-6 md:p-12">
-                {children}
+            <main className="flex-1 lg:ml-64 pt-20 lg:pt-8 p-4 sm:p-6 lg:p-8 flex flex-col">
+                <div className="w-full max-w-7xl mx-auto flex-1">
+                    {children}
+                </div>
             </main>
         </div>
     );

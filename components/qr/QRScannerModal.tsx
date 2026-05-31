@@ -49,7 +49,14 @@ export default function QRScannerModal({ open, onClose }: QRScannerModalProps) {
         try {
             await scanner.start(
                 { facingMode: 'environment' },
-                { fps: 10, qrbox: { width: 240, height: 240 } },
+                {
+                    fps: 10,
+                    qrbox: (width, height) => {
+                        const min = Math.min(width, height);
+                        const size = Math.floor(min * 0.7);
+                        return { width: size, height: size };
+                    }
+                },
                 async (decodedText) => {
                     await stopScanner();
                     setScanState('loading');
@@ -68,7 +75,7 @@ export default function QRScannerModal({ open, onClose }: QRScannerModalProps) {
                             setErrorMsg(data.error || 'Pass not found');
                             setScanState('error');
                         }
-                    } catch {
+                    } catch (err) {
                         setErrorMsg('Network error — try again');
                         setScanState('error');
                     }
@@ -140,7 +147,7 @@ export default function QRScannerModal({ open, onClose }: QRScannerModalProps) {
                         {/* Header */}
                         <div className="flex items-center justify-between p-5 border-b border-white/5">
                             <div className="flex items-center gap-2">
-                                <ScanLine className="w-4 h-4 text-savron-green" />
+                                <ScanLine className="w-4 h-4 text-emerald-400" />
                                 <h3 className="font-heading text-white uppercase tracking-wider text-sm">Scan ePass</h3>
                             </div>
                             <button
@@ -157,8 +164,7 @@ export default function QRScannerModal({ open, onClose }: QRScannerModalProps) {
                                 <div className="space-y-4">
                                     <div
                                         id="qr-reader-element"
-                                        className="w-full overflow-hidden rounded-savron ring-2 ring-savron-green/40"
-                                        style={{ height: 280 }}
+                                        className="w-full aspect-square overflow-hidden rounded-savron ring-2 ring-savron-green/40 bg-savron-black"
                                     />
                                     <p className="text-center text-[10px] uppercase tracking-widest text-savron-silver/50">
                                         Hold pass QR code up to camera
@@ -178,13 +184,13 @@ export default function QRScannerModal({ open, onClose }: QRScannerModalProps) {
                             {scanState === 'success' && subscriber && tier && (
                                 <div className="space-y-5">
                                     <div className="flex flex-col items-center py-4 gap-3">
-                                        <CheckCircle className="w-10 h-10 text-savron-green" />
+                                        <CheckCircle className="w-10 h-10 text-emerald-400" />
                                         <div className="text-center">
                                             <p className="text-white font-heading text-2xl uppercase tracking-wider">{subscriber.name}</p>
                                             <p className={cn("text-xs uppercase tracking-widest mt-1", tier.color)}>{tier.label}</p>
                                         </div>
                                         <div className="bg-savron-charcoal border border-white/10 rounded-savron px-8 py-4 text-center">
-                                            <p className="text-savron-green font-mono text-4xl font-bold">{subscriber.visit_count}</p>
+                                            <p className="text-emerald-400 font-mono text-4xl font-bold">{subscriber.visit_count}</p>
                                             <p className="text-savron-silver/50 text-[10px] uppercase tracking-widest mt-1">
                                                 Visit{subscriber.visit_count !== 1 ? 's' : ''} total
                                             </p>
@@ -192,7 +198,7 @@ export default function QRScannerModal({ open, onClose }: QRScannerModalProps) {
                                     </div>
                                     <button
                                         onClick={resetToScan}
-                                        className="w-full py-3 text-[11px] uppercase tracking-widest bg-savron-green/15 text-savron-green border border-savron-green/20 rounded-savron hover:bg-savron-green/25 transition-all"
+                                        className="w-full py-3 text-[11px] uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 hover:bg-savron-green-light rounded-savron transition-all"
                                     >
                                         Scan Next
                                     </button>

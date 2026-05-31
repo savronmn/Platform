@@ -87,7 +87,7 @@ export default function BarberRegistration() {
                                     initial={{ scale: 0 }}
                                     animate={{ scale: 1 }}
                                     transition={{ type: "spring", stiffness: 200, damping: 20, delay: 0.2 }}
-                                    className="w-20 h-20 bg-savron-green/10 rounded-full flex items-center justify-center mx-auto mb-6 text-savron-green"
+                                    className="w-20 h-20 bg-savron-green/10 rounded-full flex items-center justify-center mx-auto mb-6 text-emerald-400"
                                 >
                                     <CheckCircle2 size={40} />
                                 </motion.div>
@@ -110,7 +110,7 @@ export default function BarberRegistration() {
                             >
                                 {/* Title */}
                                 <div className="text-center mb-8">
-                                    <p className="text-[10px] uppercase tracking-[0.3em] text-savron-green mb-3 flex items-center justify-center gap-2">
+                                    <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-400 mb-3 flex items-center justify-center gap-2">
                                         <Scissors size={12} /> Join the team
                                     </p>
                                     <h1 className="font-heading text-2xl md:text-4xl text-white uppercase tracking-widest mb-3">
@@ -181,7 +181,7 @@ export default function BarberRegistration() {
                                                     className={cn(
                                                         "px-3 py-2 rounded-savron text-[11px] uppercase tracking-wider border transition-all",
                                                         selectedSpecialties.includes(s)
-                                                            ? "bg-savron-green/15 border-savron-green/40 text-savron-green"
+                                                            ? "bg-savron-green border border-savron-green-light/20 text-white"
                                                             : "bg-white/[0.03] border-white/[0.08] text-white/50 hover:border-white/20 hover:text-white/80"
                                                     )}
                                                 >
@@ -230,7 +230,7 @@ export default function BarberRegistration() {
                                         <button
                                             type="submit"
                                             disabled={loading}
-                                            className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-savron-green text-black text-xs font-bold uppercase tracking-[0.2em] hover:bg-opacity-90 transition-all rounded-savron disabled:opacity-50 group"
+                                            className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-savron-green text-white border border-savron-green-light/20 text-xs font-bold uppercase tracking-[0.2em] hover:bg-savron-green-light transition-all rounded-savron disabled:opacity-50 group"
                                         >
                                             {loading ? 'Submitting…' : 'Complete Registration'}
                                             {!loading && <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />}

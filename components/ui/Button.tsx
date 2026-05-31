@@ -14,7 +14,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         const baseStyles = "inline-flex items-center justify-center font-medium transition-all duration-300 focus:outline-none disabled:opacity-40 disabled:pointer-events-none uppercase tracking-[0.18em] font-heading rounded-savron relative overflow-hidden";
 
         const variants = {
-            primary: "bg-savron-green/90 backdrop-blur-md text-white hover:bg-savron-green-light shadow-[0_8px_30px_rgba(13,59,79,0.35)] hover:shadow-[0_12px_40px_rgba(26,106,138,0.45)] active:scale-[0.98] border border-savron-green-light/20",
+            primary: "bg-savron-green/90 backdrop-blur-md text-white hover:bg-savron-green-light shadow-[0_8px_30px_rgba(18,84,112,0.35)] hover:shadow-[0_12px_40px_rgba(26,106,138,0.45)] active:scale-[0.98] border border-savron-green-light/20",
             secondary: "bg-white/95 backdrop-blur-md text-savron-black hover:bg-white shadow-[0_8px_30px_rgba(255,255,255,0.08)] active:scale-[0.98]",
             outline: "border border-white/25 text-white hover:border-white/60 hover:bg-white/[0.04] backdrop-blur-md active:scale-[0.98]",
             ghost: "text-savron-silver hover:text-white hover:bg-white/5 active:scale-[0.98]",

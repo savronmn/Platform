@@ -41,7 +41,7 @@ export default function BarberLayout({ children }: { children: React.ReactNode }
                     <Image src="/logo.png" alt="SAVRON" fill className="object-contain object-left" priority />
                 </Link>
                 <div className="flex items-center gap-3">
-                    <span className="text-savron-green/70 text-[9px] uppercase tracking-widest font-medium">Barber OS</span>
+                    <span className="text-savron-silver/50 text-[9px] uppercase tracking-widest font-medium">Barber OS</span>
                     <button
                         onClick={() => setIsDrawerOpen(true)}
                         className="p-2 text-savron-silver hover:text-white transition-colors focus:outline-none"
@@ -58,7 +58,7 @@ export default function BarberLayout({ children }: { children: React.ReactNode }
                     <Link href="/barber" className="relative w-28 h-7 block">
                         <Image src="/logo.png" alt="SAVRON" fill className="object-contain object-left" priority />
                     </Link>
-                    <p className="text-savron-green/70 text-[10px] uppercase tracking-widest mt-2">Barber Dashboard</p>
+                    <p className="text-savron-silver/50 text-[10px] uppercase tracking-widest mt-2">Barber Dashboard</p>
                 </div>
 
                 <nav className="flex-1 py-6 px-3 space-y-1">
@@ -71,7 +71,7 @@ export default function BarberLayout({ children }: { children: React.ReactNode }
                                 className={cn(
                                     "flex items-center gap-3 px-3 py-3 rounded-savron text-sm uppercase tracking-wider transition-all",
                                     isActive
-                                        ? "bg-savron-green/15 text-savron-green border border-savron-green/20"
+                                        ? "bg-savron-green border border-savron-green-light/20 text-white"
                                         : "text-savron-silver hover:text-white hover:bg-white/5 border border-transparent"
                                 )}
                             >
@@ -116,7 +116,7 @@ export default function BarberLayout({ children }: { children: React.ReactNode }
                                     <Link href="/barber" onClick={() => setIsDrawerOpen(false)} className="relative w-24 h-6 block">
                                         <Image src="/logo.png" alt="SAVRON" fill className="object-contain object-left" />
                                     </Link>
-                                    <p className="text-savron-green/70 text-[9px] uppercase tracking-widest mt-1">Barber Dashboard</p>
+                                    <p className="text-savron-silver/50 text-[9px] uppercase tracking-widest mt-1">Barber Dashboard</p>
                                 </div>
                                 <button
                                     onClick={() => setIsDrawerOpen(false)}
@@ -138,7 +138,7 @@ export default function BarberLayout({ children }: { children: React.ReactNode }
                                             className={cn(
                                                 "flex items-center gap-3 px-3 py-3 rounded-savron text-sm uppercase tracking-wider transition-all",
                                                 isActive
-                                                    ? "bg-savron-green/15 text-savron-green border border-savron-green/20"
+                                                    ? "bg-savron-green border border-savron-green-light/20 text-white"
                                                     : "text-savron-silver hover:text-white hover:bg-white/5 border border-transparent"
                                             )}
                                         >
@@ -167,8 +167,10 @@ export default function BarberLayout({ children }: { children: React.ReactNode }
             </AnimatePresence>
 
             {/* Main Content */}
-            <main className="flex-1 lg:ml-64 pt-20 lg:pt-8 p-6 md:p-12">
-                {children}
+            <main className="flex-1 lg:ml-64 pt-20 lg:pt-8 p-4 sm:p-6 lg:p-8">
+                <div className="w-full max-w-5xl mx-auto">
+                    {children}
+                </div>
             </main>
         </div>
     );

@@ -157,7 +157,7 @@ export default function BarberBookingPage() {
     if (loading) {
         return (
             <main className="min-h-screen bg-savron-black flex items-center justify-center pt-20">
-                <div className="w-5 h-5 border-2 border-savron-green/30 border-t-savron-green rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
             </main>
         );
     }
@@ -190,12 +190,12 @@ export default function BarberBookingPage() {
                         </div>
                         <div className="text-center md:text-left space-y-3">
                             <h1 className="font-heading text-4xl md:text-5xl uppercase tracking-widest text-white">{barber.name}</h1>
-                            <p className="text-savron-green uppercase tracking-widest text-sm font-medium">{barber.role}</p>
+                            <p className="text-emerald-400 uppercase tracking-widest text-sm font-medium">{barber.role}</p>
                             {barber.bio && <p className="text-savron-silver text-sm leading-relaxed max-w-lg">{barber.bio}</p>}
                             {barber.specialties && barber.specialties.length > 0 && (
                                 <div className="flex flex-wrap gap-2 justify-center md:justify-start">
                                     {barber.specialties.map((s, i) => (
-                                        <span key={i} className="badge bg-savron-green/10 text-savron-green border border-savron-green/20 text-xs">
+                                        <span key={i} className="badge bg-savron-green/15 text-emerald-400 border border-savron-green/30 text-xs">
                                             {s}
                                         </span>
                                     ))}
@@ -280,7 +280,7 @@ export default function BarberBookingPage() {
                                             </div>
                                             <div className="flex items-center gap-3">
                                                 <span className="text-white font-mono text-sm">{service.price}</span>
-                                                {selectedService === service.id && <Check className="w-4 h-4 text-savron-green" />}
+                                                {selectedService === service.id && <Check className="w-4 h-4 text-emerald-400" />}
                                             </div>
                                         </div>
                                     ))}
@@ -361,8 +361,8 @@ export default function BarberBookingPage() {
                                             <span className="text-white">{selectedTime}</span>
                                         </div>
                                         <div className="flex justify-between pt-2 border-t border-white/10">
-                                            <span className="text-savron-silver">Total</span>
-                                            <span className="text-savron-green font-mono font-bold">{services.find(s => s.id === selectedService)?.price}</span>
+                                            <span className="text-savron-silver font-mono font-bold">Total</span>
+                                            <span className="text-emerald-400 font-mono font-bold">{services.find(s => s.id === selectedService)?.price}</span>
                                         </div>
                                     </div>
                                     <input required placeholder="FULL NAME" value={clientName} onChange={e => setClientName(e.target.value)} className="input-savron" />

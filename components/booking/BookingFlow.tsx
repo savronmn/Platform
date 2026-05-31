@@ -204,7 +204,7 @@ const BookingFlow = () => {
                             </div>
                             <div className="flex items-center gap-3">
                                 <span className={cn("font-mono text-sm transition-colors duration-200", isSelected ? "text-savron-silver" : "text-savron-silver/50 group-hover:text-savron-silver")}>{service.price}</span>
-                                <div className={cn("w-4 h-4 flex items-center justify-center transition-all duration-200 flex-shrink-0", isSelected ? "text-savron-green-light" : "text-white/10")}>
+                                <div className={cn("w-4 h-4 flex items-center justify-center transition-all duration-200 flex-shrink-0", isSelected ? "text-emerald-400" : "text-white/10")}>
                                     {isSelected ? <Check className="w-4 h-4" /> : <div className="w-4 h-4 border border-white/20" />}
                                 </div>
                             </div>
@@ -241,7 +241,7 @@ const BookingFlow = () => {
                                     setLoadingBarbers(false);
                                 });
                         }}
-                        className="text-xs text-savron-green uppercase tracking-widest hover:text-white transition-colors"
+                        className="text-xs text-emerald-400 uppercase tracking-widest hover:text-emerald-300 transition-colors"
                     >
                         Retry
                     </button>
@@ -270,7 +270,7 @@ const BookingFlow = () => {
                                             ? "border-savron-green-light bg-savron-green-light text-white"
                                             : "border-white/25 bg-transparent"
                                     )}>
-                                        {isSelected && <Check className="w-2.5 h-2.5 text-savron-black stroke-[3px]" />}
+                                        {isSelected && <Check className="w-2.5 h-2.5 text-white stroke-[3px]" />}
                                     </div>
                                 </div>
 
@@ -361,7 +361,7 @@ const BookingFlow = () => {
                                         <p className="text-xs uppercase tracking-widest text-savron-silver/40 mb-2">Specialties</p>
                                         <div className="flex flex-wrap gap-1.5">
                                             {profileOpen.specialties.map((s, i) => (
-                                                <span key={i} className="px-2 py-0.5 bg-savron-green/10 text-savron-green-light border border-savron-green/20 text-[10px] uppercase tracking-wider">
+                                                <span key={i} className="px-2 py-0.5 bg-savron-green/10 text-emerald-400 border border-savron-green/20 text-[10px] uppercase tracking-wider">
                                                     {s}
                                                 </span>
                                             ))}
