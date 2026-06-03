@@ -82,7 +82,9 @@ const Footer = () => {
             </div>
 
             {/* Nav + contact row */}
-            <div style={{
+            <div
+                className="footer-nav-row"
+                style={{
                 padding: "clamp(40px, 6vw, 72px) clamp(24px, 8vw, 120px)",
                 display: "flex",
                 justifyContent: "space-between",
@@ -102,15 +104,15 @@ const Footer = () => {
                 </div>
 
                 {/* Links */}
-                <div style={{ display: "flex", gap: 64 }}>
+                <div className="footer-links-group" style={{ display: "flex", gap: 64 }}>
                     <div>
                         <p style={{ fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: "rgba(232,228,220,0.25)", marginBottom: 20 }}>
                             Explore
                         </p>
                         <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
                             {[
-                                { href: "#about", label: "About" },
-                                { href: "#services", label: "Services" },
+                                { href: "/#about", label: "About" },
+                                { href: "/#services", label: "Services" },
                                 { href: "/booking", label: "Book Now" },
                                 { href: "/portal", label: "Join the Team" },
                             ].map(({ href, label }) => (
@@ -170,7 +172,9 @@ const Footer = () => {
             </div>
 
             {/* Copyright */}
-            <div style={{
+            <div
+                className="footer-copyright-row"
+                style={{
                 padding: "20px clamp(24px, 8vw, 120px)",
                 display: "flex",
                 justifyContent: "space-between",
@@ -179,7 +183,7 @@ const Footer = () => {
                 <p style={{ fontSize: 9, letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(232,228,220,0.14)" }}>
                     © {new Date().getFullYear()} SAVRON. All rights reserved.
                 </p>
-                <div style={{ display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <div className="footer-copyright-links" style={{ display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
                     <Link href="/privacy" style={{ fontSize: 9, letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(232,228,220,0.14)", textDecoration: "none", transition: "color 0.3s" }} onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(232,228,220,0.4)")} onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(232,228,220,0.14)")}>Privacy</Link>
                     <Link href="/terms" style={{ fontSize: 9, letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(232,228,220,0.14)", textDecoration: "none", transition: "color 0.3s" }} onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(232,228,220,0.4)")} onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(232,228,220,0.14)")}>Terms</Link>
                     <p style={{ fontSize: 9, letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(232,228,220,0.14)" }}>
@@ -192,6 +196,32 @@ const Footer = () => {
                 @media (max-width: 768px) {
                     .footer-signup-grid {
                         grid-template-columns: 1fr !important;
+                    }
+                    .footer-nav-row {
+                        flex-direction: column !important;
+                        gap: 40px !important;
+                    }
+                    .footer-links-group {
+                        flex-direction: column !important;
+                        gap: 32px !important;
+                    }
+                    .footer-copyright-row {
+                        flex-direction: column !important;
+                        align-items: flex-start !important;
+                        gap: 12px !important;
+                    }
+                    .footer-copyright-links {
+                        justify-content: flex-start !important;
+                    }
+                    .footer-service-row {
+                        flex-direction: column !important;
+                        align-items: flex-start !important;
+                        gap: 16px !important;
+                    }
+                    .footer-service-right {
+                        flex-direction: row !important;
+                        justify-content: space-between !important;
+                        width: 100% !important;
                     }
                 }
             `}</style>

@@ -65,28 +65,28 @@ export default function BookingPage() {
                         </button>
                     </div>
                 ) : (
-                    <div className="flex gap-2 mb-5">
+                    <div className="flex gap-2 mb-5 flex-wrap">
                         <button
                             onClick={() => setMode('choose')}
                             className={cn(
-                                "flex items-center gap-1.5 px-4 py-2 border text-xs uppercase tracking-widest transition-all",
+                                "flex items-center gap-1.5 flex-1 min-w-0 justify-center px-3 py-3 border text-[10px] sm:text-xs uppercase tracking-widest transition-all touch-manipulation select-none",
                                 mode === 'choose'
                                     ? "border-savron-green/50 bg-savron-green/10 text-white"
                                     : "border-white/10 text-savron-silver hover:border-white/30 hover:text-white"
                             )}
                         >
-                            <User className="w-3 h-3" /> Choose Barber
+                            <User className="w-3 h-3 shrink-0" /> <span className="truncate">Choose Barber</span>
                         </button>
                         <button
                             onClick={() => setMode('asap')}
                             className={cn(
-                                "flex items-center gap-1.5 px-4 py-2 border text-xs uppercase tracking-widest transition-all",
+                                "flex items-center gap-1.5 flex-1 min-w-0 justify-center px-3 py-3 border text-[10px] sm:text-xs uppercase tracking-widest transition-all touch-manipulation select-none",
                                 mode === 'asap'
                                     ? "border-savron-green/50 bg-savron-green/10 text-white"
                                     : "border-white/10 text-savron-silver hover:border-white/30 hover:text-white"
                             )}
                         >
-                            <Zap className="w-3 h-3" /> ASAP
+                            <Zap className="w-3 h-3 shrink-0" /> <span className="truncate">ASAP</span>
                         </button>
                     </div>
                 )}

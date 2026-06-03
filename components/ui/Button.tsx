@@ -11,7 +11,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ({ className, variant = 'primary', size = 'md', isLoading, children, ...props }, ref) => {
 
-        const baseStyles = "inline-flex items-center justify-center font-medium transition-all duration-300 focus:outline-none disabled:opacity-40 disabled:pointer-events-none uppercase tracking-[0.18em] font-heading rounded-savron relative overflow-hidden";
+        const baseStyles = "inline-flex items-center justify-center font-medium transition-all duration-300 focus:outline-none disabled:opacity-40 disabled:pointer-events-none uppercase tracking-[0.18em] font-heading rounded-savron relative overflow-hidden select-none touch-manipulation";
 
         const variants = {
             primary: "bg-savron-green/90 backdrop-blur-md text-white hover:bg-savron-green-light shadow-[0_8px_30px_rgba(18,84,112,0.35)] hover:shadow-[0_12px_40px_rgba(26,106,138,0.45)] active:scale-[0.98] border border-savron-green-light/20",
@@ -20,11 +20,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             ghost: "text-savron-silver hover:text-white hover:bg-white/5 active:scale-[0.98]",
         };
 
-        // Larger, tactile sizing — luxury feel
+        // Responsive sizing — comfortable on mobile, luxurious on desktop
         const sizes = {
-            sm: "h-11 px-7 text-[11px]",
-            md: "h-14 px-10 text-xs",
-            lg: "h-16 px-14 text-sm",
+            sm: "h-10 md:h-11 px-5 md:px-7 text-[10px] md:text-[11px]",
+            md: "h-12 md:h-14 px-7 md:px-10 text-[10px] md:text-xs",
+            lg: "h-13 md:h-16 px-10 md:px-14 text-xs md:text-sm",
         };
 
         return (

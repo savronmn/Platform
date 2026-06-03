@@ -382,20 +382,25 @@ export default function AdminDashboard() {
             {/* Quick Actions */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                    { label: 'Bookings',      href: '/admin/bookings',       icon: Calendar,      desc: 'Calendar & walk-ins' },
-                    { label: 'Clients',       href: '/admin/clients',        icon: Users,         desc: 'CRM & campaigns' },
-                    { label: 'Membership',    href: '/admin/membership',     icon: UserCheck,     desc: 'E-pass & visits' },
-                    { label: 'Barbers',       href: '/admin/barbers',        icon: Scissors,      desc: 'Team management' },
-                    { label: 'Host View',     href: '/host',                 icon: TrendingUp,    desc: 'Display screen' },
-                    { label: 'Services',      href: '/admin/services',       icon: Layers,        desc: 'Menu management' },
-                    { label: 'Hiring',        href: '/admin/applicants',     icon: ClipboardList, desc: 'Recruiting pipeline' },
-                    { label: 'Requests',      href: '/admin/requests',       icon: Inbox,         desc: 'Barber requests' },
+                    { label: 'Bookings',   href: '/admin/bookings',   icon: Calendar,      desc: 'Calendar & walk-ins', badge: 0 },
+                    { label: 'Clients',    href: '/admin/clients',    icon: Users,         desc: 'CRM & campaigns',     badge: 0 },
+                    { label: 'Membership', href: '/admin/membership', icon: UserCheck,     desc: 'E-pass & visits',     badge: 0 },
+                    { label: 'Barbers',    href: '/admin/barbers',    icon: Scissors,      desc: 'Team management',     badge: 0 },
+                    { label: 'Host View',  href: '/host',             icon: TrendingUp,    desc: 'Display screen',      badge: 0 },
+                    { label: 'Services',   href: '/admin/services',   icon: Layers,        desc: 'Menu management',     badge: 0 },
+                    { label: 'Hiring',     href: '/admin/applicants', icon: ClipboardList, desc: 'Recruiting pipeline', badge: stats.pendingApplicants },
+                    { label: 'Requests',   href: '/admin/requests',   icon: Inbox,         desc: 'Barber requests',     badge: 0 },
                 ].map(item => (
                     <Link
                         key={item.href}
                         href={item.href}
-                        className="card-savron hover:border-savron-green/20 hover:bg-white/[0.04] transition-all group p-4 text-center space-y-2"
+                        className="card-savron hover:border-savron-green/20 hover:bg-white/[0.04] transition-all group p-4 text-center space-y-2 relative"
                     >
+                        {item.badge > 0 && (
+                            <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-amber-500 text-[9px] text-white flex items-center justify-center font-bold">
+                                {item.badge}
+                            </span>
+                        )}
                         <item.icon className="w-5 h-5 text-savron-silver group-hover:text-emerald-400 transition-colors mx-auto" />
                         <p className="text-white text-xs uppercase tracking-widest font-heading">{item.label}</p>
                         <p className="text-savron-silver/75 text-[11px] uppercase tracking-widest">{item.desc}</p>

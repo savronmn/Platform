@@ -21,8 +21,10 @@ const Hero = () => {
                 </video>
             </div>
 
-            {/* Nav */}
-            <nav style={{
+            {/* Nav — hidden on mobile (fixed Header handles it) */}
+            <nav
+                className="hero-nav"
+                style={{
                 position: "absolute", top: 0, left: 0, right: 0, zIndex: 20,
                 display: "flex", justifyContent: "space-between", alignItems: "center",
                 padding: "32px clamp(24px, 6vw, 80px)",
@@ -118,6 +120,11 @@ const Hero = () => {
                 @keyframes svFadeIn {
                     from { opacity: 0; }
                     to   { opacity: 1; }
+                }
+                @media (max-width: 768px) {
+                    .hero-nav {
+                        display: none !important;
+                    }
                 }
             `}</style>
         </section>

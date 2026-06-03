@@ -77,9 +77,22 @@ body {
     placeholder:text-white/35 placeholder:uppercase placeholder:tracking-widest
     hover:border-white/30;
     box-shadow: none;
+    /* Prevent iOS zoom — must be 16px+ to not trigger auto-zoom */
+    font-size: 16px;
+  }
+  /* Scale down the placeholder text visually on desktop without affecting the font-size */
+  @media (min-width: 768px) {
+    .input-savron {
+      font-size: 0.875rem; /* 14px = sm */
+    }
   }
   .input-savron:focus {
     box-shadow: 0 0 0 1px rgba(26,106,138,0.4), 0 0 20px rgba(26,106,138,0.1);
+  }
+  /* Select elements need appearance: none to show custom chevron */
+  select.input-savron {
+    @apply appearance-none cursor-pointer;
+    background-image: none; /* strip any UA background arrow */
   }
 
   /* Card surface */

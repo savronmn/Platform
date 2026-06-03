@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Scissors, Copy, Check, ToggleLeft, ToggleRight, UserCheck,
     Link as LinkIcon, Settings, X, Save, ShieldCheck, Calendar, Clock,
+    Trash2, Camera, User,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
@@ -52,7 +53,7 @@ export default function AdminBarbersPage() {
 
     // Settings panel
     const [settingsBarber, setSettingsBarber] = useState<Barber | null>(null);
-    const [activeTab, setActiveTab] = useState<'services' | 'schedule'>('services');
+    const [activeTab, setActiveTab] = useState<'profile' | 'services' | 'schedule'>('profile');
     const [licenseInput, setLicenseInput] = useState('');
     const [servicesOffered, setServicesOffered] = useState<string[]>([]);
     const [workingHours, setWorkingHours] = useState<WorkingHours>({});
@@ -68,9 +69,9 @@ export default function AdminBarbersPage() {
         load();
     }, []);
 
-    const openSettings = (barber: Barber) => {
+    const openSettings = (barber: Barber, tab: 'profile' | 'services' | 'schedule' = 'profile') => {
         setSettingsBarber(barber);
-        setActiveTab('services');
+        setActiveTab(tab);
         setLicenseInput(barber.license_number ?? '');
         setServicesOffered(barber.services_offered ?? services.map(s => s.name));
         // Parse working_hours — default Mon–Sat open if not set
@@ -256,12 +257,19 @@ export default function AdminBarbersPage() {
                     {active.map(barber => (
                         <div key={barber.id} className="bg-savron-grey border border-white/5 rounded-savron p-6 space-y-4">
                             <div className="flex items-start gap-4">
-                                <div className="w-16 h-16 rounded-full overflow-hidden bg-savron-charcoal border border-white/10 relative shrink-0">
+                                <button
+                                    onClick={() => openSettings(barber, 'profile')}
+                                    className="relative w-16 h-16 rounded-full overflow-hidden bg-savron-charcoal border border-white/10 shrink-0 group"
+                                    title="Edit profile photo"
+                                >
                                     {barber.image_url
                                         ? <Image src={barber.image_url} alt={barber.name} fill className="object-cover" />
                                         : <Scissors className="w-5 h-5 text-white/20 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                                     }
-                                </div>
+                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Camera className="w-4 h-4 text-white" />
+                                    </div>
+                                </button>
                                 <div className="flex-1 min-w-0">
                                     <h3 className="text-white font-heading uppercase tracking-wider">{barber.name}</h3>
                                     <p className="text-emerald-400 text-xs uppercase tracking-widest">{barber.role}</p>
@@ -313,7 +321,7 @@ export default function AdminBarbersPage() {
                                         onClick={() => setConfirmDelete(barber)}
                                         className="flex items-center gap-1 px-2.5 py-1.5 text-xs uppercase tracking-wider text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 rounded-savron transition-all"
                                     >
-                                        🗑 Archive
+                                        <Trash2 className="w-3.5 h-3.5" /> Archive
                                     </button>
                                 </div>
                             </div>
@@ -379,9 +387,17 @@ export default function AdminBarbersPage() {
                     >
                         {/* Panel header */}
                         <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
-                            <div>
-                                <p className="text-[10px] uppercase tracking-[0.3em] text-savron-silver/50 mb-1">Barber Settings</p>
-                                <h2 className="font-heading text-lg text-white uppercase tracking-wider">{settingsBarber.name}</h2>
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full overflow-hidden bg-savron-charcoal border border-white/10 relative shrink-0">
+                                    {settingsBarber.image_url
+                                        ? <Image src={settingsBarber.image_url} alt={settingsBarber.name} fill className="object-cover" />
+                                        : <User className="w-4 h-4 text-white/20 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                    }
+                                </div>
+                                <div>
+                                    <p className="text-[10px] uppercase tracking-[0.3em] text-savron-silver/50 mb-0.5">Barber Settings</p>
+                                    <h2 className="font-heading text-lg text-white uppercase tracking-wider">{settingsBarber.name}</h2>
+                                </div>
                             </div>
                             <button onClick={closeSettings} className="text-savron-silver hover:text-white transition-colors">
                                 <X className="w-5 h-5" />
@@ -390,52 +406,51 @@ export default function AdminBarbersPage() {
 
                         {/* Tabs */}
                         <div className="flex border-b border-white/5 shrink-0">
-                            {(['services', 'schedule'] as const).map(tab => (
+                            {([
+                                { key: 'profile',  label: 'Profile'   },
+                                { key: 'services', label: 'Services'  },
+                                { key: 'schedule', label: 'Schedule'  },
+                            ] as const).map(({ key, label }) => (
                                 <button
-                                    key={tab}
-                                    onClick={() => setActiveTab(tab)}
+                                    key={key}
+                                    onClick={() => setActiveTab(key)}
                                     className={cn(
                                         "flex-1 py-3 text-[10px] uppercase tracking-widest transition-colors",
-                                        activeTab === tab
+                                        activeTab === key
                                             ? "text-white border-b-2 border-savron-green-light"
                                             : "text-savron-silver/50 hover:text-savron-silver"
                                     )}
                                 >
-                                    {tab === 'services' ? 'Services' : 'Schedule'}
+                                    {label}
                                 </button>
                             ))}
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-6 space-y-8">
 
-                            {/* ── SERVICES TAB ─────────────────────────────────── */}
-                            {activeTab === 'services' && (
+                            {/* ── PROFILE TAB ──────────────────────────────────── */}
+                            {activeTab === 'profile' && (
                                 <>
-                                    {/* License number */}
+                                    {/* Photo */}
                                     <div>
-                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-3">
-                                            Professional License
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={licenseInput}
-                                            onChange={e => setLicenseInput(e.target.value)}
-                                            placeholder="License number (e.g. MN-12345)"
-                                            className="w-full bg-savron-charcoal border border-white/10 text-white placeholder-white/25 px-4 py-3 text-sm focus:outline-none focus:border-savron-green/50 transition-all rounded-savron"
-                                        />
-                                    </div>
-
-                                    {/* Profile Photo */}
-                                    <div>
-                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-3">
+                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-4">
                                             Profile Photo
                                         </label>
-                                        <div className="flex items-center gap-3">
-                                            {settingsBarber.image_url && (
-                                                <div className="w-12 h-12 rounded-full overflow-hidden border border-white/10 relative shrink-0">
-                                                    <Image src={settingsBarber.image_url} alt={settingsBarber.name} fill className="object-cover" />
+                                        <div className="flex flex-col items-center gap-4">
+                                            <div className="relative w-24 h-24">
+                                                <div className="w-24 h-24 rounded-full overflow-hidden bg-savron-charcoal border border-white/10 relative">
+                                                    {settingsBarber.image_url
+                                                        ? <Image src={settingsBarber.image_url} alt={settingsBarber.name} fill className="object-cover" />
+                                                        : <User className="w-8 h-8 text-white/20 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                                    }
                                                 </div>
-                                            )}
+                                                <label
+                                                    htmlFor="photo-upload"
+                                                    className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-savron-green border border-savron-grey flex items-center justify-center cursor-pointer hover:bg-savron-green-light transition-colors"
+                                                >
+                                                    <Camera className="w-3.5 h-3.5 text-white" />
+                                                </label>
+                                            </div>
                                             <input
                                                 type="file"
                                                 id="photo-upload"
@@ -454,53 +469,82 @@ export default function AdminBarbersPage() {
                                                         const { data: { publicUrl } } = supabase.storage.from('barbers').getPublicUrl(path);
                                                         await supabase.from('barbers').update({ image_url: publicUrl }).eq('id', settingsBarber.id);
                                                         setSettingsBarber(prev => prev ? { ...prev, image_url: publicUrl } : prev);
-                                                        setSaved(true);
+                                                        setBarbers(prev => prev.map(b => b.id === settingsBarber.id ? { ...b, image_url: publicUrl } : b));
                                                     } catch (err) {
                                                         console.error('Photo upload failed:', err);
                                                     }
                                                 }}
                                             />
-                                            <label htmlFor="photo-upload" className="flex-1 py-2.5 text-[11px] uppercase tracking-widest bg-savron-green/10 text-savron-green border border-savron-green/30 hover:bg-savron-green/20 rounded-savron cursor-pointer transition-all text-center font-medium">
-                                                📸 Upload Photo
+                                            <label htmlFor="photo-upload" className="px-6 py-2.5 text-[11px] uppercase tracking-widest bg-savron-green/10 text-savron-green border border-savron-green/30 hover:bg-savron-green/20 rounded-savron cursor-pointer transition-all font-medium">
+                                                {settingsBarber.image_url ? 'Change Photo' : 'Upload Photo'}
                                             </label>
                                         </div>
                                     </div>
 
-                                    {/* Services offered */}
+                                    {/* License number */}
                                     <div>
-                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-1">
-                                            Services Offered
+                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-3">
+                                            Professional License
                                         </label>
-                                        <p className="text-savron-silver/70 text-xs mb-4">Only toggled services appear on this barber&apos;s booking page.</p>
-                                        <div className="space-y-2">
-                                            {services.map(svc => {
-                                                const on = servicesOffered.includes(svc.name);
-                                                return (
-                                                    <button
-                                                        key={svc.id}
-                                                        type="button"
-                                                        onClick={() => toggleService(svc.name)}
-                                                        className={cn(
-                                                            "w-full flex items-center justify-between px-4 py-3 border rounded-savron transition-all text-left",
-                                                            on
-                                                                ? "bg-savron-green/10 border-savron-green/30 text-white"
-                                                                : "bg-savron-charcoal border-white/5 text-savron-silver/50"
-                                                        )}
-                                                    >
-                                                        <div>
-                                                            <p className="text-sm font-medium">{svc.name}</p>
-                                                            <p className="text-[10px] opacity-50 mt-0.5">{svc.duration} · {svc.price}</p>
-                                                        </div>
-                                                        {on
-                                                            ? <ToggleRight className="w-5 h-5 text-savron-green shrink-0" />
-                                                            : <ToggleLeft  className="w-5 h-5 shrink-0" />
-                                                        }
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
+                                        <input
+                                            type="text"
+                                            value={licenseInput}
+                                            onChange={e => setLicenseInput(e.target.value)}
+                                            placeholder="License number (e.g. MN-12345)"
+                                            className="w-full bg-savron-charcoal border border-white/10 text-white placeholder-white/25 px-4 py-3 text-sm focus:outline-none focus:border-savron-green/50 transition-all rounded-savron"
+                                        />
                                     </div>
+
+                                    {/* Contact info (read-only) */}
+                                    {(settingsBarber.email || settingsBarber.phone) && (
+                                        <div className="space-y-2">
+                                            <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50">Contact</label>
+                                            {settingsBarber.email && (
+                                                <p className="text-savron-silver/70 text-sm">{settingsBarber.email}</p>
+                                            )}
+                                            {settingsBarber.phone && (
+                                                <p className="text-savron-silver/70 text-sm">{settingsBarber.phone}</p>
+                                            )}
+                                        </div>
+                                    )}
                                 </>
+                            )}
+
+                            {/* ── SERVICES TAB ─────────────────────────────────── */}
+                            {activeTab === 'services' && (
+                                <div>
+                                    <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-1">
+                                        Services Offered
+                                    </label>
+                                    <p className="text-savron-silver/70 text-xs mb-4">Only toggled services appear on this barber&apos;s booking page.</p>
+                                    <div className="space-y-2">
+                                        {services.map(svc => {
+                                            const on = servicesOffered.includes(svc.name);
+                                            return (
+                                                <button
+                                                    key={svc.id}
+                                                    type="button"
+                                                    onClick={() => toggleService(svc.name)}
+                                                    className={cn(
+                                                        "w-full flex items-center justify-between px-4 py-3 border rounded-savron transition-all text-left",
+                                                        on
+                                                            ? "bg-savron-green/10 border-savron-green/30 text-white"
+                                                            : "bg-savron-charcoal border-white/5 text-savron-silver/50"
+                                                    )}
+                                                >
+                                                    <div>
+                                                        <p className="text-sm font-medium">{svc.name}</p>
+                                                        <p className="text-[10px] opacity-50 mt-0.5">{svc.duration} · {svc.price}</p>
+                                                    </div>
+                                                    {on
+                                                        ? <ToggleRight className="w-5 h-5 text-savron-green shrink-0" />
+                                                        : <ToggleLeft  className="w-5 h-5 shrink-0" />
+                                                    }
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                             )}
 
                             {/* ── SCHEDULE TAB ─────────────────────────────────── */}

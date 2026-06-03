@@ -247,7 +247,7 @@ export default function BarberBookingPage() {
             {/* Booking flow */}
             <section className="px-6 md:px-12 lg:px-24">
                 <div className="max-w-2xl mx-auto">
-                    <div className="bg-savron-grey border border-white/5 p-8 md:p-12 rounded-savron">
+                    <div className="bg-savron-grey border border-white/5 p-5 sm:p-8 md:p-12 rounded-savron">
                         {step < 4 && (
                             <div className="flex gap-2 mb-10">
                                 {[1, 2, 3].map(s => (
@@ -394,7 +394,7 @@ export default function BarberBookingPage() {
                                     <p className="text-xs text-savron-silver/50 uppercase tracking-widest">Check your email for details</p>
                                     <button
                                         onClick={resetBooking}
-                                        className="mx-auto mt-2 flex items-center gap-2 px-6 py-3 border border-white/10 text-xs uppercase tracking-widest text-savron-silver hover:text-white hover:border-white/25 transition-all rounded-savron"
+                                        className="mx-auto mt-2 flex items-center gap-2 px-6 py-3.5 min-h-[44px] border border-white/10 text-xs uppercase tracking-widest text-savron-silver hover:text-white hover:border-white/25 transition-all rounded-savron touch-manipulation select-none"
                                     >
                                         Book Another Appointment
                                     </button>

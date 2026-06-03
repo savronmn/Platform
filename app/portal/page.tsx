@@ -141,7 +141,7 @@ export default function PortalPage() {
                         <div className="relative w-40 h-10 mx-auto mb-8">
                             <Image src="/logo.png" alt="SAVRON" fill className="object-contain" priority />
                         </div>
-                        <h1 className="font-heading text-5xl md:text-7xl uppercase tracking-widest text-white">
+                        <h1 className="font-heading text-4xl sm:text-5xl md:text-7xl uppercase tracking-widest text-white">
                             Join the <span className="text-emerald-400">Craft</span>
                         </h1>
                         <p className="text-savron-silver text-lg font-light max-w-xl mx-auto">
@@ -171,19 +171,29 @@ export default function PortalPage() {
                         <div className="space-y-4">
                             <h3 className="text-white font-heading uppercase tracking-widest text-sm border-b border-white/10 pb-2">Professional Details</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <select value={form.license_status} onChange={(e) => setForm(p => ({ ...p, license_status: e.target.value }))} className="input-savron">
-                                    <option>Active Master Barber</option>
-                                    <option>Active Cosmetologist</option>
-                                    <option>Student / Apprentice</option>
-                                    <option>Other</option>
-                                </select>
-                                <select value={form.experience} onChange={(e) => setForm(p => ({ ...p, experience: e.target.value }))} className="input-savron">
-                                    <option value="">YEARS OF EXPERIENCE</option>
-                                    <option>1-3 Years</option>
-                                    <option>3-5 Years</option>
-                                    <option>5-10 Years</option>
-                                    <option>10+ Years</option>
-                                </select>
+                                <div className="relative">
+                                    <select value={form.license_status} onChange={(e) => setForm(p => ({ ...p, license_status: e.target.value }))} className="input-savron appearance-none pr-8 cursor-pointer">
+                                        <option>Active Master Barber</option>
+                                        <option>Active Cosmetologist</option>
+                                        <option>Student / Apprentice</option>
+                                        <option>Other</option>
+                                    </select>
+                                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/40">
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                    </div>
+                                </div>
+                                <div className="relative">
+                                    <select value={form.experience} onChange={(e) => setForm(p => ({ ...p, experience: e.target.value }))} className="input-savron appearance-none pr-8 cursor-pointer">
+                                        <option value="">YEARS OF EXPERIENCE</option>
+                                        <option>1-3 Years</option>
+                                        <option>3-5 Years</option>
+                                        <option>5-10 Years</option>
+                                        <option>10+ Years</option>
+                                    </select>
+                                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/40">
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                    </div>
+                                </div>
                             </div>
                             <textarea
                                 required

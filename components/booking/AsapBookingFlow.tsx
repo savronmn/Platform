@@ -150,7 +150,7 @@ export default function AsapBookingFlow() {
     };
 
     return (
-        <div className="bg-savron-grey p-8 md:p-12 rounded-savron border border-white/5 min-h-[500px] flex flex-col justify-between">
+        <div className="bg-savron-grey p-5 sm:p-8 md:p-12 rounded-savron border border-white/5 min-h-[500px] flex flex-col justify-between">
             {/* Progress */}
             {step < 4 && (
                 <div className="flex gap-2 mb-12">
@@ -313,7 +313,7 @@ export default function AsapBookingFlow() {
 
             {/* Navigation */}
             {step < 4 && (
-                <div className="flex justify-between mt-12 pt-8 border-t border-white/5">
+                <div className="flex justify-between mt-8 md:mt-12 pt-6 md:pt-8 border-t border-white/5">
                     {step > 1 ? (
                         <Button variant="ghost" onClick={() => setStep(step - 1)} className="flex gap-2">
                             <ChevronLeft className="w-4 h-4" /> Back

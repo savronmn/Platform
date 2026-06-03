@@ -247,7 +247,7 @@ const BookingFlow = () => {
                     </button>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3">
                     {displayBarbers.map((pro) => {
                         const hasPortfolio = (pro.portfolio_images?.length ?? 0) > 0;
                         const isSelected = selectedPro?.id === pro.id;
@@ -530,7 +530,7 @@ const BookingFlow = () => {
             )}
 
             {/* Scrollable content */}
-            <div className="px-6 pt-5 pb-4 overflow-y-auto max-h-[65vh]">
+            <div className="px-4 sm:px-6 pt-5 pb-4 overflow-y-auto max-h-[72vh] md:max-h-[65vh]">
                 <AnimatePresence mode="wait">
                     {step === 1 && renderProStep()}
                     {step === 2 && renderServiceStep()}
