@@ -311,6 +311,12 @@ export default function AdminBarbersPage() {
                                         {copiedSlug === barber.slug ? <Check className="w-3 h-3 text-savron-green" /> : <Copy className="w-3 h-3" />}
                                         {copiedSlug === barber.slug ? 'Copied' : 'Link'}
                                     </button>
+                                    <a
+                                        href={`/admin/barbers/${barber.id}/calendar`}
+                                        className="flex items-center gap-1 px-2.5 py-1.5 text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
+                                    >
+                                        <Calendar className="w-3.5 h-3.5" /> Calendar
+                                    </a>
                                     <button
                                         onClick={() => openSettings(barber)}
                                         className="flex items-center gap-1 px-2.5 py-1.5 text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"

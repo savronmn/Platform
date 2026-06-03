@@ -16,7 +16,7 @@ import { triggerPostBooking } from '@/lib/confirm-booking';
 import { isSlotInPast, nextBookableDate } from '@/lib/time-helpers';
 import BarberPortfolioGallery from './BarberPortfolioGallery';
 
-const nullBarber = { auth_id: null, bio: null, phone: null, email: null, instagram_url: null, license_number: null, services_offered: null, google_calendar_id: null, google_calendar_tokens: null, google_sync_token: null, google_channel_id: null, google_resource_id: null, working_hours: null, portfolio_images: null, created_at: '' };
+const nullBarber = { auth_id: null, bio: null, phone: null, email: null, instagram_url: null, license_number: null, services_offered: null, google_calendar_id: null, google_calendar_tokens: null, google_sync_token: null, google_channel_id: null, google_resource_id: null, working_hours: null, portfolio_images: null, booking_links: null, created_at: '' };
 const PLACEHOLDER_BARBERS: Barber[] = [
     { ...nullBarber, id: 'ph-1', name: 'Albi A.',   slug: 'albi-a',   role: 'Master Barber & Owner', specialties: ['Skin Fades', 'Beard Design'],         image_url: null, active: true },
     { ...nullBarber, id: 'ph-2', name: 'Marcus V.', slug: 'marcus-v', role: 'Master Barber',          specialties: ['Signature Fades', 'Hot Towel Shaves'], image_url: null, active: true },

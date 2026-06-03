@@ -38,6 +38,15 @@ export const metadata: Metadata = {
         'mens grooming Minneapolis MN',
         'SAVRON barbershop',
     ],
+    icons: {
+        icon: [
+            { url: '/icon.png', type: 'image/png' },
+        ],
+        apple: [
+            { url: '/icon.png', type: 'image/png' },
+        ],
+        shortcut: '/icon.png',
+    },
     openGraph: {
         title: 'SAVRON | Luxury Barbershop Minneapolis',
         description:
@@ -46,12 +55,21 @@ export const metadata: Metadata = {
         url: 'https://savron.com',
         siteName: 'SAVRON Barbershop',
         locale: 'en_US',
+        images: [
+            {
+                url: '/savron.png',
+                width: 1200,
+                height: 630,
+                alt: 'SAVRON Barbershop Minneapolis',
+            },
+        ],
     },
     twitter: {
         card: 'summary_large_image',
         title: 'SAVRON | Luxury Barbershop Minneapolis',
         description:
             'Precision cuts, beard shaping, and scalp treatments — by appointment or walk-in. Minneapolis\'s most refined barbershop experience.',
+        images: ['/savron.png'],
     },
     metadataBase: new URL('https://savron.com'),
     robots: {

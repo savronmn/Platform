@@ -17,7 +17,7 @@ const Hero = () => {
                     autoPlay loop muted playsInline
                     style={{ width: "100%", height: "100%", objectFit: "cover", filter: "grayscale(60%)", opacity: 0.55 }}
                 >
-                    <source src="/hero_bg.mp4" type="video/mp4" />
+                    <source src="/videos/hero_bg.mp4" type="video/mp4" />
                 </video>
             </div>
 

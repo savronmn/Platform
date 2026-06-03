@@ -43,6 +43,7 @@ export interface Barber {
     google_resource_id: string | null;
     working_hours: Record<string, { open: string; close: string } | null> | null;
     portfolio_images: string[] | null;
+    booking_links: string[] | null;
     active: boolean;
     created_at: string;
 }
