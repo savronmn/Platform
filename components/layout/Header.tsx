@@ -8,8 +8,9 @@ import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const navLinks = [
-    { href: '#about', label: 'About' },
-    { href: '#services', label: 'Services' },
+    { href: '/#about', label: 'About' },
+    { href: '/#services', label: 'Services' },
+    { href: '/blog', label: 'Journal' },
     { href: '/portal', label: 'Join Team' },
 ];
 
@@ -76,18 +77,18 @@ const Header = () => {
                         transition={{ duration: 0.25, ease: "easeInOut" }}
                         className="md:hidden overflow-hidden bg-savron-black/95 border-b border-white/[0.04]"
                     >
-                        <div className="flex flex-col px-6 py-6 gap-6">
+                        <div className="flex flex-col px-6 py-6 gap-2">
                             {navLinks.map(({ href, label }) => (
                                 <Link
                                     key={href}
                                     href={href}
                                     onClick={() => setIsMenuOpen(false)}
-                                    className="text-xs uppercase tracking-[0.2em] text-savron-silver hover:text-white py-1.5 transition-colors duration-300"
+                                    className="text-xs uppercase tracking-[0.2em] text-savron-silver hover:text-white py-4 transition-colors duration-300 border-b border-white/[0.04] last:border-0"
                                 >
                                     {label}
                                 </Link>
                             ))}
-                            <div className="pt-4 border-t border-white/[0.05]">
+                            <div className="pt-5 border-t border-white/[0.05] mt-2">
                                 <Link href="/booking" onClick={() => setIsMenuOpen(false)}>
                                     <Button className="w-full justify-center">Book Appointment</Button>
                                 </Link>
