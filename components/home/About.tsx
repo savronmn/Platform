@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 
 const pillars = [
     { title: "Intentional.", body: "Every detail considered. Nothing left to chance." },
@@ -13,12 +14,35 @@ const About = () => {
         <section
             id="about"
             style={{
+                position: "relative",
                 padding: "clamp(100px, 12vw, 160px) clamp(24px, 5vw, 64px)",
-                background: "#0d0d0b",
                 borderBottom: "1px solid rgba(232,228,220,0.06)",
+                overflow: "hidden",
             }}
         >
-            <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+            {/* Interior photo — bottom half visible */}
+            <div style={{ position: "absolute", inset: 0, zIndex: 0 }}>
+                <Image
+                    src="/savron.png"
+                    alt=""
+                    fill
+                    sizes="100vw"
+                    style={{
+                        objectFit: "cover",
+                        objectPosition: "center bottom",
+                        opacity: 0.18,
+                        filter: "grayscale(20%)",
+                    }}
+                    priority={false}
+                />
+                {/* Dark overlay so text stays sharp */}
+                <div style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: "linear-gradient(to bottom, #0d0d0b 0%, rgba(13,13,11,0.82) 50%, rgba(13,13,11,0.88) 100%)",
+                }} />
+            </div>
+            <div style={{ maxWidth: 1280, margin: "0 auto", position: "relative", zIndex: 1 }}>
                 <div
                     style={{
                         display: "grid",
