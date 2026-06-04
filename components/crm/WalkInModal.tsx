@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useServices } from '@/lib/use-services';
-import { TIME_SLOTS } from '@/lib/services-data';
+import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
 import type { Barber } from '@/lib/types';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 
@@ -60,21 +60,6 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
 
     const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
-    function toMinutes(t24: string): number {
-        const [h, m] = t24.split(':').map(Number);
-        return h * 60 + m;
-    }
-
-    function slotToMinutes(slot: string): number {
-        const [time, period] = slot.split(' ');
-        const [hStr, mStr] = time.split(':');
-        let h = parseInt(hStr, 10);
-        const m = parseInt(mStr, 10);
-        if (period === 'PM' && h !== 12) h += 12;
-        if (period === 'AM' && h === 12) h = 0;
-        return h * 60 + m;
-    }
-
     const availableSlots = (() => {
         const barber = barbers.find(b => b.id === form.barberId);
         if (!barber?.working_hours || !form.date) return TIME_SLOTS;
@@ -82,12 +67,7 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
         const dayKey = DAY_KEYS[dayIndex];
         const daySchedule = (barber.working_hours as Record<string, { open: string; close: string } | null>)[dayKey];
         if (!daySchedule) return []; // barber is off that day
-        const openMin = toMinutes(daySchedule.open);
-        const closeMin = toMinutes(daySchedule.close);
-        return TIME_SLOTS.filter(slot => {
-            const slotMin = slotToMinutes(slot);
-            return slotMin >= openMin && slotMin < closeMin;
-        });
+        return generateTimeSlots(daySchedule.open, daySchedule.close);
     })();
 
     async function handleSubmit(e: React.FormEvent) {

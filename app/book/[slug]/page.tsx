@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 import { Button } from '@/components/ui/Button';
 import Image from 'next/image';
 import type { Barber } from '@/lib/types';
-import { TIME_SLOTS } from '@/lib/services-data';
+import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { DatePicker } from '@/components/booking/DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
@@ -67,30 +67,6 @@ export default function BarberBookingPage() {
 
     // Is this entire day off for the barber?
     const isDayOff = workingHours !== null && (workingHours[selectedDayKey] === null || workingHours[selectedDayKey] === undefined);
-
-    // Convert "10:00 AM" style slot to 24h minutes-from-midnight for comparison
-    function slotToMinutes(timeStr: string): number {
-        const [timePart, meridiem] = timeStr.split(' ');
-        let [hours, minutes] = timePart.split(':').map(Number);
-        if (meridiem === 'PM' && hours !== 12) hours += 12;
-        if (meridiem === 'AM' && hours === 12) hours = 0;
-        return hours * 60 + minutes;
-    }
-
-    function timeStrToMinutes(t: string): number {
-        const [h, m] = t.split(':').map(Number);
-        return h * 60 + m;
-    }
-
-    const isSlotInWorkingHours = (timeStr: string): boolean => {
-        if (!workingHours) return true; // No schedule set = all hours open
-        const daySchedule = workingHours[selectedDayKey];
-        if (!daySchedule) return false; // Day is off
-        const slotMin = slotToMinutes(timeStr);
-        const openMin = timeStrToMinutes(daySchedule.open);
-        const closeMin = timeStrToMinutes(daySchedule.close);
-        return slotMin >= openMin && slotMin < closeMin;
-    };
 
     const isSlotBusy = (timeStr: string) => {
         if (isSlotInPast(selectedDate, timeStr, 5)) return true;
@@ -312,7 +288,10 @@ export default function BarberBookingPage() {
                                                 <p className="text-savron-silver/25 text-xs">This barber is off on {selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}s.</p>
                                             </div>
                                         ) : (() => {
-                                            const availableSlots = TIME_SLOTS.filter(t => isSlotInWorkingHours(t));
+                                            const daySchedule = workingHours?.[selectedDayKey];
+                                            const availableSlots = daySchedule
+                                                ? generateTimeSlots(daySchedule.open, daySchedule.close)
+                                                : TIME_SLOTS;
                                             if (availableSlots.length === 0) {
                                                 return (
                                                     <div className="py-8 text-center">

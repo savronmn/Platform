@@ -90,8 +90,25 @@ export function serviceBlockStyle(colorStr: string | null | undefined): Record<s
     };
 }
 
-// Shop time slots
+// Shop time slots — kept as fallback when a barber has no working_hours set
 export const TIME_SLOTS = [
     "10:00 AM", "10:45 AM", "11:30 AM",
     "1:00 PM",  "1:45 PM",  "2:30 PM",  "3:15 PM", "4:00 PM",
 ];
+
+// Generate 12h-format time slots from 24h open/close strings (e.g. "10:00", "19:00")
+export function generateTimeSlots(open: string, close: string, intervalMin = 45): string[] {
+    const [oh, om] = open.split(':').map(Number);
+    const [ch, cm] = close.split(':').map(Number);
+    const startMin = oh * 60 + om;
+    const endMin = ch * 60 + cm;
+    const slots: string[] = [];
+    for (let min = startMin; min < endMin; min += intervalMin) {
+        const h24 = Math.floor(min / 60);
+        const m = min % 60;
+        const period = h24 < 12 ? 'AM' : 'PM';
+        const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
+        slots.push(`${h12}:${String(m).padStart(2, '0')} ${period}`);
+    }
+    return slots;
+}
