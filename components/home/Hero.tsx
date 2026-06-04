@@ -7,18 +7,20 @@ const Hero = () => {
     return (
         <section style={{ position: "relative", height: "100vh", overflow: "hidden", background: "#0d0d0b" }}>
 
-            {/* Background video */}
+            {/* Background photo */}
             <div style={{ position: "absolute", inset: 0 }}>
+                <Image
+                    src="/savron.png"
+                    alt=""
+                    fill
+                    sizes="100vw"
+                    priority
+                    style={{ objectFit: "cover", objectPosition: "center", filter: "grayscale(40%)", opacity: 0.45 }}
+                />
                 <div style={{
-                    position: "absolute", inset: 0, zIndex: 1,
-                    background: "linear-gradient(to bottom, rgba(13,13,11,0.6) 0%, rgba(13,13,11,0.1) 40%, rgba(13,13,11,0.88) 100%)",
+                    position: "absolute", inset: 0,
+                    background: "linear-gradient(to bottom, rgba(13,13,11,0.55) 0%, rgba(13,13,11,0.1) 40%, rgba(13,13,11,0.88) 100%)",
                 }} />
-                <video
-                    autoPlay loop muted playsInline
-                    style={{ width: "100%", height: "100%", objectFit: "cover", filter: "grayscale(60%)", opacity: 0.55 }}
-                >
-                    <source src="/videos/hero_bg.mp4" type="video/mp4" />
-                </video>
             </div>
 
             {/* Nav — hidden on mobile (fixed Header handles it) */}
@@ -31,7 +33,7 @@ const Hero = () => {
             }}>
                 <div style={{ position: "relative", width: 110, height: 24 }}>
                     <Image src="/logo.png" alt="SAVRON" fill
-                        style={{ objectFit: "contain", objectPosition: "left", filter: "brightness(0) invert(1)", opacity: 0.75 }}
+                        style={{ objectFit: "contain", objectPosition: "left", opacity: 0.85 }}
                         priority
                     />
                 </div>
@@ -70,7 +72,7 @@ const Hero = () => {
                 <div style={{ overflow: "hidden", padding: "12px 0 18px" }}>
                     <div style={{ position: "relative", width: "clamp(240px, 42vw, 540px)", height: "clamp(56px, 10vw, 130px)" }}>
                         <Image src="/logo.png" alt="SAVRON" fill
-                            style={{ objectFit: "contain", filter: "brightness(0) invert(1)", opacity: 0.9 }}
+                            style={{ objectFit: "contain", opacity: 0.95 }}
                             priority
                         />
                     </div>
