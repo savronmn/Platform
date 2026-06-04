@@ -55,6 +55,7 @@ export default function AdminBarbersPage() {
     const [settingsBarber, setSettingsBarber] = useState<Barber | null>(null);
     const [activeTab, setActiveTab] = useState<'profile' | 'services' | 'schedule'>('profile');
     const [licenseInput, setLicenseInput] = useState('');
+    const [instagramInput, setInstagramInput] = useState('');
     const [servicesOffered, setServicesOffered] = useState<string[]>([]);
     const [workingHours, setWorkingHours] = useState<WorkingHours>({});
     const [saving, setSaving] = useState(false);
@@ -73,6 +74,12 @@ export default function AdminBarbersPage() {
         setSettingsBarber(barber);
         setActiveTab(tab);
         setLicenseInput(barber.license_number ?? '');
+        // Extract handle from full URL or bare handle
+        const raw = barber.instagram_url ?? '';
+        const handle = raw.includes('instagram.com/')
+            ? raw.split('instagram.com/').pop()?.replace(/^@/, '') ?? ''
+            : raw.replace(/^@/, '');
+        setInstagramInput(handle);
         setServicesOffered(barber.services_offered ?? services.map(s => s.name));
         // Parse working_hours — default Mon–Sat open if not set
         const wh: WorkingHours = barber.working_hours as WorkingHours ?? {};
@@ -114,8 +121,10 @@ export default function AdminBarbersPage() {
     const saveSettings = async () => {
         if (!settingsBarber) return;
         setSaving(true);
+        const handle = instagramInput.trim().replace(/^@/, '');
         const update = {
             license_number: licenseInput.trim() || null,
+            instagram_url: handle ? `https://www.instagram.com/${handle}` : null,
             services_offered: servicesOffered.length > 0 ? servicesOffered : null,
             working_hours: workingHours,
         };
@@ -499,6 +508,23 @@ export default function AdminBarbersPage() {
                                             placeholder="License number (e.g. MN-12345)"
                                             className="w-full bg-savron-charcoal border border-white/10 text-white placeholder-white/25 px-4 py-3 text-sm focus:outline-none focus:border-savron-green/50 transition-all rounded-savron"
                                         />
+                                    </div>
+
+                                    {/* Instagram handle */}
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-3">
+                                            Instagram
+                                        </label>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-savron-silver/40 text-sm select-none">@</span>
+                                            <input
+                                                type="text"
+                                                value={instagramInput}
+                                                onChange={e => { setInstagramInput(e.target.value.replace(/^@/, '')); setSaved(false); }}
+                                                placeholder="handle"
+                                                className="w-full bg-savron-charcoal border border-white/10 text-white placeholder-white/25 pl-8 pr-4 py-3 text-sm focus:outline-none focus:border-savron-green/50 transition-all rounded-savron"
+                                            />
+                                        </div>
                                     </div>
 
                                     {/* Contact info (read-only) */}

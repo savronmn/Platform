@@ -372,7 +372,7 @@ const BookingFlow = () => {
                                     <a href={profileOpen.instagram_url} target="_blank" rel="noopener noreferrer"
                                         className="flex items-center gap-2 text-savron-silver hover:text-white transition-colors text-sm">
                                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
-                                        @{profileOpen.instagram_url.split('/').pop()}
+                                        @{profileOpen.instagram_url.split('/').pop()?.replace(/^@/, '')}
                                     </a>
                                 )}
                             </div>

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
 import Image from 'next/image';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Scissors } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 const navLinks = [
     { href: '/#about', label: 'About' },
@@ -16,12 +16,21 @@ const navLinks = [
 
 const Header = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [scrolled, setScrolled] = useState(false);
+
+    useEffect(() => {
+        const onScroll = () => setScrolled(window.scrollY > 40);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
 
     return (
-        <header className="fixed top-0 left-0 right-0 z-50 bg-savron-black/90 backdrop-blur-xl">
-            {/* Thin silver accent line at very top */}
-            <div className="h-px w-full bg-gradient-to-r from-transparent via-savron-silver/30 to-transparent" />
-
+        <header className={cn(
+            "fixed top-0 left-0 right-0 z-50 transition-all duration-500",
+            scrolled
+                ? "bg-savron-black/80 backdrop-blur-xl border-b border-white/[0.04]"
+                : "bg-gradient-to-b from-black/60 to-transparent border-b border-transparent"
+        )}>
             <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-24 h-20 flex items-center justify-between">
 
                 {/* Logo */}
@@ -51,9 +60,13 @@ const Header = () => {
                         ))}
                     </nav>
 
-                    {/* CTA */}
-                    <Link href="/booking">
-                        <Button size="sm">Book Now</Button>
+                    {/* CTA — scissors silhouette */}
+                    <Link
+                        href="/booking"
+                        aria-label="Book appointment"
+                        className="group flex items-center justify-center w-10 h-10 rounded-full border border-white/20 hover:border-white/50 text-white/70 hover:text-white transition-all duration-300 hover:bg-white/5"
+                    >
+                        <Scissors className="w-4 h-4 transition-transform duration-300 group-hover:rotate-12" />
                     </Link>
 
                     {/* Mobile menu toggle */}
@@ -89,17 +102,18 @@ const Header = () => {
                                 </Link>
                             ))}
                             <div className="pt-5 border-t border-white/[0.05] mt-2">
-                                <Link href="/booking" onClick={() => setIsMenuOpen(false)}>
-                                    <Button className="w-full justify-center">Book Appointment</Button>
+                                <Link
+                                    href="/booking"
+                                    onClick={() => setIsMenuOpen(false)}
+                                    className="flex items-center justify-center gap-2 w-full py-3 border border-white/20 text-white/80 hover:text-white hover:border-white/40 text-[11px] uppercase tracking-widest transition-all rounded-savron"
+                                >
+                                    <Scissors className="w-3.5 h-3.5" /> Book Appointment
                                 </Link>
                             </div>
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
-
-            {/* Subtle bottom border */}
-            <div className="h-px w-full bg-white/[0.04]" />
         </header>
     );
 };

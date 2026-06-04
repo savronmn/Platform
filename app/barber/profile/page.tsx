@@ -14,6 +14,7 @@ type Barber = {
     role: string | null;
     image_url: string | null;
     portfolio_images: string[] | null;
+    instagram_url: string | null;
     google_calendar_tokens?: any;
 };
 
@@ -27,6 +28,8 @@ export default function BarberProfilePage() {
     const [uploadingProfile, setUploadingProfile] = useState(false);
     const [uploadingPortfolio, setUploadingPortfolio] = useState(false);
     const [linkingGoogle, setLinkingGoogle] = useState(false);
+    const [instagramHandle, setInstagramHandle] = useState('');
+    const [savingInstagram, setSavingInstagram] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -51,10 +54,17 @@ export default function BarberProfilePage() {
 
             const { data } = await supabase
                 .from('barbers')
-                .select('id, name, role, image_url, portfolio_images, google_calendar_tokens')
+                .select('id, name, role, image_url, portfolio_images, instagram_url, google_calendar_tokens')
                 .eq('auth_id', session.user.id)
                 .single();
-            if (data) setBarber(data as Barber);
+            if (data) {
+                setBarber(data as Barber);
+                const raw = (data as Barber).instagram_url ?? '';
+                const handle = raw.includes('instagram.com/')
+                    ? raw.split('instagram.com/').pop()?.replace(/^@/, '') ?? ''
+                    : raw.replace(/^@/, '');
+                setInstagramHandle(handle);
+            }
             setLoading(false);
         }
         load();
@@ -126,6 +136,25 @@ export default function BarberProfilePage() {
         if (!error) setBarber({ ...barber, portfolio_images: next });
     }
 
+    async function handleSaveInstagram() {
+        if (!barber) return;
+        setSavingInstagram(true);
+        setError(null);
+        const handle = instagramHandle.trim().replace(/^@/, '');
+        const instagram_url = handle ? `https://www.instagram.com/${handle}` : null;
+        const { error } = await supabase
+            .from('barbers')
+            .update({ instagram_url })
+            .eq('id', barber.id);
+        if (error) setError(error.message);
+        else {
+            setBarber({ ...barber, instagram_url });
+            setSuccessMessage('Instagram updated!');
+            setTimeout(() => setSuccessMessage(null), 3000);
+        }
+        setSavingInstagram(false);
+    }
+
     async function handleConnectGoogle() {
         if (!barber) return;
         setLinkingGoogle(true);
@@ -193,6 +222,33 @@ export default function BarberProfilePage() {
                             disabled={uploadingProfile}
                         />
                     </label>
+                </div>
+            </section>
+
+            {/* Instagram */}
+            <section className="card-savron space-y-5">
+                <div>
+                    <h2 className="font-heading uppercase tracking-widest text-white text-sm">Instagram</h2>
+                    <p className="text-savron-silver/50 text-xs mt-1">Shown on your public booking page.</p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <div className="relative flex-1">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-savron-silver/40 text-sm select-none">@</span>
+                        <input
+                            type="text"
+                            value={instagramHandle}
+                            onChange={e => setInstagramHandle(e.target.value.replace(/^@/, ''))}
+                            placeholder="yourhandle"
+                            className="w-full bg-savron-charcoal border border-white/10 text-white placeholder-white/25 pl-8 pr-4 py-3 text-sm focus:outline-none focus:border-savron-green/50 transition-all rounded-savron"
+                        />
+                    </div>
+                    <button
+                        onClick={handleSaveInstagram}
+                        disabled={savingInstagram}
+                        className="px-5 py-3 text-[11px] uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 hover:bg-savron-green-light rounded-savron transition-all disabled:opacity-50"
+                    >
+                        {savingInstagram ? 'Saving...' : 'Save'}
+                    </button>
                 </div>
             </section>
 
