@@ -44,12 +44,51 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
             date: format(new Date(), 'yyyy-MM-dd'),
             time: '',
         });
-        supabase.from('barbers').select('id, name, active').eq('active', true).then(({ data }) => {
+        supabase.from('barbers').select('id, name, active, working_hours').eq('active', true).then(({ data }) => {
             setBarbers((data as Barber[]) ?? []);
         });
     }, [open]);
 
-    const field = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
+    const field = (k: keyof typeof form, v: string) => {
+        setForm(f => {
+            const next = { ...f, [k]: v };
+            // Reset time when barber or date changes so stale selection can't persist
+            if (k === 'barberId' || k === 'date') next.time = '';
+            return next;
+        });
+    };
+
+    const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+    function toMinutes(t24: string): number {
+        const [h, m] = t24.split(':').map(Number);
+        return h * 60 + m;
+    }
+
+    function slotToMinutes(slot: string): number {
+        const [time, period] = slot.split(' ');
+        const [hStr, mStr] = time.split(':');
+        let h = parseInt(hStr, 10);
+        const m = parseInt(mStr, 10);
+        if (period === 'PM' && h !== 12) h += 12;
+        if (period === 'AM' && h === 12) h = 0;
+        return h * 60 + m;
+    }
+
+    const availableSlots = (() => {
+        const barber = barbers.find(b => b.id === form.barberId);
+        if (!barber?.working_hours || !form.date) return TIME_SLOTS;
+        const dayIndex = new Date(`${form.date}T12:00:00`).getDay();
+        const dayKey = DAY_KEYS[dayIndex];
+        const daySchedule = (barber.working_hours as Record<string, { open: string; close: string } | null>)[dayKey];
+        if (!daySchedule) return []; // barber is off that day
+        const openMin = toMinutes(daySchedule.open);
+        const closeMin = toMinutes(daySchedule.close);
+        return TIME_SLOTS.filter(slot => {
+            const slotMin = slotToMinutes(slot);
+            return slotMin >= openMin && slotMin < closeMin;
+        });
+    })();
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -172,8 +211,10 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
                                             onChange={e => field('time', e.target.value)}
                                             className="w-full bg-white/5 border border-white/10 rounded-savron px-3 py-2 text-sm text-white focus:outline-none focus:border-savron-green/50 transition-colors appearance-none"
                                         >
-                                            <option value="" className="bg-savron-grey">Select…</option>
-                                            {TIME_SLOTS.map(t => (
+                                            <option value="" className="bg-savron-grey">
+                                                {availableSlots.length === 0 && form.barberId ? 'Barber off this day' : 'Select…'}
+                                            </option>
+                                            {availableSlots.map(t => (
                                                 <option key={t} value={t} className="bg-savron-grey">{t}</option>
                                             ))}
                                         </select>
