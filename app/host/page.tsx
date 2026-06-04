@@ -8,12 +8,12 @@ import {
     startOfWeek, endOfWeek, eachDayOfInterval,
     startOfMonth, endOfMonth, addWeeks, subWeeks, addMonths, subMonths,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, RefreshCw, Wifi, X, UserCheck, UserX, RotateCcw, Phone, Scissors, Menu, LayoutDashboard, Users, CreditCard, Mail, MonitorPlay, Ban, Camera, Upload, ClipboardList, Plus, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw, Wifi, X, UserCheck, UserX, RotateCcw, Phone, Scissors, Menu, LayoutDashboard, Users, CreditCard, Mail, MonitorPlay, Ban, Camera, Upload, ClipboardList, Plus, Filter, Calendar, AtSign, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Barber, Booking } from '@/lib/types';
-import { SERVICE_COLORS, TIME_SLOTS } from '@/lib/services-data';
+import { TIME_SLOTS, serviceBlockStyle, resolveColor } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 
@@ -29,9 +29,26 @@ const NAV_ITEMS = [
 
 type CalView = 'day' | 'week' | 'month';
 
+type ExternalEvent = {
+    id: string;
+    barberId: string;
+    barberName: string;
+    summary: string;
+    attendee: string | null;
+    start: string;
+    end: string;
+    date: string;
+    time: string;
+    source: 'google';
+};
+
 export default function HostDashboard() {
     const supabase = createClient();
     const services = useServices();
+    const serviceColorMap = useMemo(() =>
+        Object.fromEntries(services.map(s => [s.name, s.color])),
+        [services]
+    );
     const [view, setView] = useState<CalView>('day');
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [barbers, setBarbers] = useState<Barber[]>([]);
@@ -43,6 +60,10 @@ export default function HostDashboard() {
     const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
     const [updating, setUpdating] = useState(false);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+    // External Google Calendar events
+    const [externalEvents, setExternalEvents] = useState<ExternalEvent[]>([]);
+    const [activeExternal, setActiveExternal] = useState<ExternalEvent | null>(null);
 
     // Burger nav
     const [showNav, setShowNav] = useState(false);
@@ -99,13 +120,20 @@ export default function HostDashboard() {
         setBookings(data ?? []);
     }, [rangeStart, rangeEnd]);
 
+    const fetchExternalEvents = useCallback(async () => {
+        try {
+            const res = await fetch(`/api/calendar/events?dateStart=${rangeStart}&dateEnd=${rangeEnd}`);
+            if (res.ok) setExternalEvents(await res.json());
+        } catch { /* silent — platform bookings still show */ }
+    }, [rangeStart, rangeEnd]);
+
     useEffect(() => {
         async function init() {
             setLoading(true);
             const { data: barberData } = await supabase
                 .from('barbers').select('*').eq('active', true).order('name');
             setBarbers(barberData ?? []);
-            await fetchBookings();
+            await Promise.all([fetchBookings(), fetchExternalEvents()]);
             setLoading(false);
         }
         init();
@@ -270,8 +298,24 @@ export default function HostDashboard() {
         return bookings.filter(b => b.date === d && isBookingVisible(b));
     };
 
-    const svcColor = (s: string, cancelled = false) =>
-        cancelled ? 'bg-white/5 border-white/10 text-white/25 line-through' : (SERVICE_COLORS[s] ?? 'bg-white/10 border-white/20 text-white/70');
+    // External Google Calendar event helpers
+    const isExternalVisible = (e: ExternalEvent) =>
+        filteredBarberIds.size === 0 || filteredBarberIds.has(e.barberId);
+    const externalForBarberTime = (barberId: string, time: string) =>
+        externalEvents.filter(e => e.barberId === barberId && e.time === time);
+    const externalForDayTime = (day: Date, time: string) => {
+        const d = format(day, 'yyyy-MM-dd');
+        return externalEvents.filter(e => e.date === d && e.time === time && isExternalVisible(e));
+    };
+    const externalForDay = (day: Date) => {
+        const d = format(day, 'yyyy-MM-dd');
+        return externalEvents.filter(e => e.date === d && isExternalVisible(e));
+    };
+
+    const svcColor = (s: string, cancelled = false): { className: string; style?: Record<string, string> } =>
+        cancelled
+            ? { className: 'bg-white/5 border-white/10 text-white/25 line-through' }
+            : { className: '', style: serviceBlockStyle(serviceColorMap[s]) };
     const statusDot = (s: Booking['status']) =>
         s === 'confirmed' ? 'bg-savron-green' :
         s === 'completed' ? 'bg-blue-400' :
@@ -291,8 +335,28 @@ export default function HostDashboard() {
         end:   endOfWeek(endOfMonth(selectedDate),     { weekStartsOn: 1 }),
     });
 
+    // External Google Calendar event pill
+    const ExternalPill = ({ e, compact = false }: { e: ExternalEvent; compact?: boolean }) => (
+        <div
+            onClick={ev => { ev.stopPropagation(); setActiveExternal(e); }}
+            className={cn(
+                "rounded-savron border cursor-pointer transition-opacity hover:opacity-80 mb-1",
+                compact ? "p-1.5 text-[10px] space-y-0.5" : "p-2.5 text-xs space-y-1",
+                "bg-violet-500/10 border-violet-500/25 text-violet-300"
+            )}
+        >
+            <div className="flex items-center justify-between gap-1">
+                <span className="font-medium truncate">{e.attendee ?? e.summary}</span>
+                <span className="text-[8px] uppercase tracking-widest opacity-50 shrink-0">GCal</span>
+            </div>
+            <p className="opacity-60 truncate">{compact ? e.barberName : e.summary}</p>
+        </div>
+    );
+
     // Reusable pill — used in all three views
-    const Pill = ({ b, compact = false }: { b: Booking; compact?: boolean }) => (
+    const Pill = ({ b, compact = false }: { b: Booking; compact?: boolean }) => {
+        const { className: colorClass, style: colorStyle } = svcColor(b.service, b.status === 'cancelled');
+        return (
         <motion.div
             key={b.id}
             initial={{ opacity: 0, scale: 0.96 }}
@@ -301,8 +365,9 @@ export default function HostDashboard() {
             className={cn(
                 "rounded-savron border cursor-pointer transition-opacity hover:opacity-80 mb-1",
                 compact ? "p-1.5 text-[10px] space-y-0.5" : "p-2.5 text-xs space-y-1",
-                svcColor(b.service, b.status === 'cancelled')
+                colorClass
             )}
+            style={colorStyle}
         >
             <div className="flex items-center justify-between gap-1">
                 <span className="font-medium truncate">{b.client_name ?? 'Walk-in'}</span>
@@ -313,6 +378,7 @@ export default function HostDashboard() {
             {!compact && b.client_phone && <p className="opacity-50 text-[10px] font-mono">{b.client_phone}</p>}
         </motion.div>
     );
+    };
 
     return (
         <div className="min-h-screen bg-savron-black flex flex-col">
@@ -499,6 +565,7 @@ export default function HostDashboard() {
                                         {visibleBarbers.map(barber => (
                                             <div key={barber.id} className="w-52 shrink-0 p-2 border-r border-white/5 min-h-[80px]">
                                                 {bookingsForBarberTime(barber.id, time).map(b => <Pill key={b.id} b={b} />)}
+                                                {externalForBarberTime(barber.id, time).map(e => <ExternalPill key={e.id} e={e} />)}
                                             </div>
                                         ))}
                                     </div>
@@ -519,7 +586,7 @@ export default function HostDashboard() {
                                         <span className="text-[10px] uppercase tracking-widest text-savron-silver/40">Time</span>
                                     </div>
                                     {weekDays.map(day => {
-                                        const count = bookingsForDay(day).length;
+                                        const count = bookingsForDay(day).length + externalForDay(day).length;
                                         return (
                                             <div key={day.toISOString()}
                                                 onClick={() => { setSelectedDate(day); setView('day'); }}
@@ -541,6 +608,7 @@ export default function HostDashboard() {
                                             <div key={day.toISOString()}
                                                 className={cn("w-44 shrink-0 p-1.5 border-r border-white/5 min-h-[72px]", isToday(day) && "bg-savron-green/[0.03]")}>
                                                 {bookingsForDayTime(day, time).map(b => <Pill key={b.id} b={b} compact />)}
+                                                {externalForDayTime(day, time).map(e => <ExternalPill key={e.id} e={e} compact />)}
                                             </div>
                                         ))}
                                     </div>
@@ -562,9 +630,14 @@ export default function HostDashboard() {
                             <div className="grid grid-cols-7 gap-px bg-white/5 border border-white/5 rounded-savron overflow-hidden">
                                 {calDays.map(day => {
                                     const dayBookings = bookingsForDay(day);
+                                    const dayExternal = externalForDay(day);
                                     const inMonth = isSameMonth(day, selectedDate);
                                     const today = isToday(day);
                                     const MAX = 3;
+                                    const allItems = [
+                                        ...dayBookings.map(b => ({ type: 'booking' as const, b })),
+                                        ...dayExternal.map(e => ({ type: 'external' as const, e })),
+                                    ];
                                     return (
                                         <div key={day.toISOString()}
                                             onClick={() => { setSelectedDate(day); setView('day'); }}
@@ -574,15 +647,23 @@ export default function HostDashboard() {
                                                 {format(day, 'd')}
                                             </div>
                                             <div className="space-y-0.5">
-                                                {dayBookings.slice(0, MAX).map(b => (
-                                                    <div key={b.id}
-                                                        onClick={e => { e.stopPropagation(); setActiveBooking(b); }}
-                                                        className={cn("px-1.5 py-0.5 rounded text-[9px] truncate border leading-tight cursor-pointer hover:opacity-80 transition-opacity", svcColor(b.service, b.status === 'cancelled'))}>
-                                                        {b.time?.replace(':00 ', '').replace(' ', '').toLowerCase()} · {b.client_name ?? 'Walk-in'}
-                                                    </div>
-                                                ))}
-                                                {dayBookings.length > MAX && (
-                                                    <p className="text-[9px] text-savron-silver/40 pl-1">+{dayBookings.length - MAX} more</p>
+                                                {allItems.slice(0, MAX).map(item =>
+                                                    item.type === 'booking' ? (
+                                                        <div key={item.b.id}
+                                                            onClick={ev => { ev.stopPropagation(); setActiveBooking(item.b); }}
+                                                            className={cn("px-1.5 py-0.5 rounded text-[9px] truncate border leading-tight cursor-pointer hover:opacity-80 transition-opacity", svcColor(item.b.service, item.b.status === 'cancelled'))}>
+                                                            {item.b.time?.replace(':00 ', '').replace(' ', '').toLowerCase()} · {item.b.client_name ?? 'Walk-in'}
+                                                        </div>
+                                                    ) : (
+                                                        <div key={item.e.id}
+                                                            onClick={ev => { ev.stopPropagation(); setActiveExternal(item.e); }}
+                                                            className="px-1.5 py-0.5 rounded text-[9px] truncate border leading-tight cursor-pointer hover:opacity-80 transition-opacity bg-violet-500/10 border-violet-500/25 text-violet-300">
+                                                            {item.e.time?.replace(':00 ', '').replace(' ', '').toLowerCase()} · {item.e.attendee ?? item.e.summary}
+                                                        </div>
+                                                    )
+                                                )}
+                                                {allItems.length > MAX && (
+                                                    <p className="text-[9px] text-savron-silver/40 pl-1">+{allItems.length - MAX} more</p>
                                                 )}
                                             </div>
                                         </div>
@@ -645,12 +726,20 @@ export default function HostDashboard() {
                                         <div className={cn("inline-flex px-2 py-0.5 rounded text-[10px] border", svcColor(activeBooking.service))}>
                                             {activeBooking.service}
                                         </div>
+                                        {activeBooking.price && (
+                                            <p className="text-savron-silver/50 text-[10px] mt-1.5 flex items-center gap-1">
+                                                <DollarSign className="w-3 h-3" />{activeBooking.price}
+                                            </p>
+                                        )}
                                     </div>
                                     <div className="bg-savron-charcoal rounded-savron p-3">
-                                        <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-1">Time</p>
+                                        <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-1">Date & Time</p>
                                         <p className="text-white text-sm font-mono">{activeBooking.time}</p>
+                                        {activeBooking.date && (
+                                            <p className="text-savron-silver/50 text-[10px] mt-0.5">{activeBooking.date}</p>
+                                        )}
                                         {activeBooking.duration && (
-                                            <p className="text-savron-silver/50 text-[10px] mt-0.5">{activeBooking.duration}</p>
+                                            <p className="text-savron-silver/40 text-[10px]">{activeBooking.duration}</p>
                                         )}
                                     </div>
                                 </div>
@@ -665,6 +754,12 @@ export default function HostDashboard() {
                                     <div className="flex items-center gap-2 text-sm text-savron-silver font-mono">
                                         <Phone className="w-3.5 h-3.5 shrink-0 text-savron-silver/40" />
                                         {activeBooking.client_phone}
+                                    </div>
+                                )}
+                                {activeBooking.client_email && (
+                                    <div className="flex items-center gap-2 text-sm text-savron-silver">
+                                        <AtSign className="w-3.5 h-3.5 shrink-0 text-savron-silver/40" />
+                                        {activeBooking.client_email}
                                     </div>
                                 )}
                                 {activeBooking.notes && (
@@ -780,6 +875,64 @@ export default function HostDashboard() {
                                             </button>
                                         </div>
                                     )}
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* ══════════════════════════════════════
+                EXTERNAL EVENT MODAL
+            ══════════════════════════════════════ */}
+            <AnimatePresence>
+                {activeExternal && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+                        onClick={() => setActiveExternal(null)}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 8 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 8 }}
+                            transition={{ duration: 0.15 }}
+                            className="bg-savron-grey border border-white/10 rounded-savron w-full max-w-sm shadow-2xl overflow-hidden"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="h-1 w-full bg-violet-500/60" />
+                            <div className="flex items-start justify-between p-5 pb-4">
+                                <div>
+                                    <p className="text-[10px] uppercase tracking-[0.3em] text-violet-400/70 mb-1 flex items-center gap-1.5">
+                                        <Calendar className="w-3 h-3" /> Google Calendar
+                                    </p>
+                                    <h2 className="text-white font-heading text-xl uppercase tracking-wider leading-tight">
+                                        {activeExternal.attendee ?? activeExternal.summary}
+                                    </h2>
+                                </div>
+                                <button onClick={() => setActiveExternal(null)}
+                                    className="text-savron-silver hover:text-white transition-colors p-1 -mr-1 -mt-1">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <div className="px-5 pb-5 space-y-3">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-savron-charcoal rounded-savron p-3">
+                                        <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-1">Event</p>
+                                        <p className="text-violet-300 text-xs truncate">{activeExternal.summary}</p>
+                                    </div>
+                                    <div className="bg-savron-charcoal rounded-savron p-3">
+                                        <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-1">Date & Time</p>
+                                        <p className="text-white text-sm font-mono">{activeExternal.time}</p>
+                                        <p className="text-savron-silver/50 text-[10px] mt-0.5">{activeExternal.date}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-savron-silver">
+                                    <Scissors className="w-3.5 h-3.5 shrink-0 text-savron-silver/40" />
+                                    {activeExternal.barberName}
+                                </div>
+                                <div className="bg-violet-500/5 border border-violet-500/20 rounded-savron px-3 py-2">
+                                    <p className="text-violet-300/60 text-[10px] uppercase tracking-widest">External booking via Google Calendar. Manage in Google Calendar directly.</p>
                                 </div>
                             </div>
                         </motion.div>

@@ -56,6 +56,40 @@ export const COLOR_DOTS: Record<string, string> = {
 
 export const AVAILABLE_COLORS = Object.keys(COLOR_CLASS_MAP) as string[];
 
+// ── Hex color system ──────────────────────────────────────────────────────────
+
+export const COLOR_HEX_MAP: Record<string, string> = {
+    emerald: '#34d399', blue:   '#60a5fa', amber:  '#fbbf24',
+    purple:  '#c084fc', teal:   '#2dd4bf', rose:   '#fb7185',
+    orange:  '#fb923c', cyan:   '#22d3ee', indigo: '#818cf8',
+    yellow:  '#facc15',
+};
+
+export const PRESET_HEX_COLORS: string[] = Object.values(COLOR_HEX_MAP);
+
+export function resolveColor(colorStr: string | null | undefined): string {
+    if (!colorStr) return '#34d399';
+    if (colorStr.startsWith('#')) return colorStr;
+    return COLOR_HEX_MAP[colorStr] ?? '#34d399';
+}
+
+export function hexToRgba(hex: string, alpha: number): string {
+    const clean = hex.replace('#', '').padEnd(6, '0');
+    const r = parseInt(clean.slice(0, 2), 16);
+    const g = parseInt(clean.slice(2, 4), 16);
+    const b = parseInt(clean.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+}
+
+export function serviceBlockStyle(colorStr: string | null | undefined): Record<string, string> {
+    const hex = resolveColor(colorStr);
+    return {
+        backgroundColor: hexToRgba(hex, 0.12),
+        borderColor: hexToRgba(hex, 0.38),
+        color: hex,
+    };
+}
+
 // Shop time slots
 export const TIME_SLOTS = [
     "10:00 AM", "10:45 AM", "11:30 AM",

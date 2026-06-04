@@ -12,7 +12,8 @@ import {
 import { ChevronLeft, ChevronRight, RefreshCw, ExternalLink, ArrowLeft, Link2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Barber, Booking } from '@/lib/types';
-import { TIME_SLOTS, SERVICE_COLORS } from '@/lib/services-data';
+import { TIME_SLOTS, serviceBlockStyle } from '@/lib/services-data';
+import { useServices } from '@/lib/use-services';
 import Link from 'next/link';
 
 type CalView = 'day' | 'week';
@@ -47,6 +48,8 @@ export default function AdminBarberCalendarPage() {
     const barberId = params.id as string;
     const supabase = createClient();
 
+    const services = useServices();
+    const serviceColorMap = useMemo(() => Object.fromEntries(services.map(s => [s.name, s.color])), [services]);
     const [view, setView] = useState<CalView>('day');
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [barber, setBarber] = useState<Barber | null>(null);
@@ -302,23 +305,18 @@ export default function AdminBarberCalendarPage() {
                         const booking = bookingsForDate(selectedDateStr).find(b => b.time === slot);
                         const gBusy = !booking && isGoogleBusy(slot, selectedDateStr);
                         const inHours = !daySchedule ? true : isSlotInHours(slot, daySchedule);
-                        const colorClass = booking
-                            ? SERVICE_COLORS[booking.service] || 'bg-white/10 border-white/20 text-white'
-                            : '';
-
                         return (
                             <div
                                 key={slot}
                                 className={cn(
                                     "flex items-center gap-4 p-4 border rounded-savron transition-all",
-                                    booking
-                                        ? colorClass
-                                        : gBusy
-                                            ? "border-blue-500/25 bg-blue-500/10"
-                                            : !inHours
-                                                ? "border-white/[0.03] bg-savron-grey/20 opacity-40"
-                                                : "border-white/[0.04] bg-savron-grey/50"
+                                    !booking && (gBusy
+                                        ? "border-blue-500/25 bg-blue-500/10"
+                                        : !inHours
+                                            ? "border-white/[0.03] bg-savron-grey/20 opacity-40"
+                                            : "border-white/[0.04] bg-savron-grey/50")
                                 )}
+                                style={booking ? serviceBlockStyle(serviceColorMap[booking.service]) : undefined}
                             >
                                 <span className="text-savron-silver/50 font-mono text-xs w-20 flex-shrink-0">{slot}</span>
                                 {booking ? (

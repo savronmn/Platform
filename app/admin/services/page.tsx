@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, X, Scissors, Clock, DollarSign, GripVertical, Pencil, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { COLOR_DOTS, AVAILABLE_COLORS } from '@/lib/services-data';
+import { PRESET_HEX_COLORS, resolveColor } from '@/lib/services-data';
 
 type DBService = {
     id: string;
@@ -18,7 +18,7 @@ type DBService = {
     created_at: string;
 };
 
-const defaultForm = { name: '', durationMin: '45', priceStr: '', color: 'emerald', description: '' };
+const defaultForm = { name: '', durationMin: '45', priceStr: '', color: '#34d399', description: '' };
 
 async function apiCall(method: string, body: object) {
     const res = await fetch('/api/services', {
@@ -31,6 +31,67 @@ async function apiCall(method: string, body: object) {
     return json;
 }
 
+function ColorPicker({
+    value,
+    onChange,
+}: {
+    value: string;
+    onChange: (hex: string) => void;
+}) {
+    const isPreset = PRESET_HEX_COLORS.includes(value);
+    const customInputRef = useRef<HTMLInputElement>(null);
+
+    return (
+        <div className="space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+                {PRESET_HEX_COLORS.map(hex => (
+                    <button
+                        key={hex}
+                        type="button"
+                        onClick={() => onChange(hex)}
+                        style={{ backgroundColor: hex }}
+                        className={cn(
+                            "w-7 h-7 rounded-full transition-all duration-150",
+                            value === hex
+                                ? "ring-2 ring-white/50 ring-offset-2 ring-offset-savron-grey scale-110"
+                                : "opacity-50 hover:opacity-90 hover:scale-105"
+                        )}
+                    />
+                ))}
+
+                {/* Custom color swatch */}
+                <label
+                    className={cn(
+                        "relative w-7 h-7 rounded-full cursor-pointer transition-all duration-150 overflow-hidden flex items-center justify-center",
+                        !isPreset
+                            ? "ring-2 ring-white/50 ring-offset-2 ring-offset-savron-grey scale-110"
+                            : "border border-dashed border-white/30 hover:border-white/60"
+                    )}
+                    style={!isPreset ? { backgroundColor: value } : {}}
+                    title="Custom color"
+                >
+                    <input
+                        ref={customInputRef}
+                        type="color"
+                        value={value.startsWith('#') ? value : '#34d399'}
+                        onChange={e => onChange(e.target.value)}
+                        className="absolute opacity-0 inset-0 w-full h-full cursor-pointer"
+                    />
+                    {isPreset && (
+                        <Plus className="w-3 h-3 text-white/40" />
+                    )}
+                </label>
+            </div>
+
+            {/* Hex preview */}
+            <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full border border-white/10" style={{ backgroundColor: value }} />
+                <span className="text-[10px] font-mono text-savron-silver/50 uppercase">{value}</span>
+            </div>
+        </div>
+    );
+}
+
 export default function AdminServicesPage() {
     const [services, setServices] = useState<DBService[]>([]);
     const [loading, setLoading] = useState(true);
@@ -41,13 +102,11 @@ export default function AdminServicesPage() {
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [addError, setAddError] = useState<string | null>(null);
 
-    // Inline edit
     const [editId, setEditId] = useState<string | null>(null);
     const [editForm, setEditForm] = useState({ name: '', durationMin: '', priceStr: '', color: '', description: '' });
     const [saving, setSaving] = useState(false);
     const [editError, setEditError] = useState<string | null>(null);
 
-    // Drag-to-reorder
     const dragIdx = useRef<number | null>(null);
     const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -98,7 +157,7 @@ export default function AdminServicesPage() {
             name: svc.name,
             durationMin: String(svc.duration_minutes),
             priceStr: String(Math.round(svc.price_cents / 100)),
-            color: svc.color ?? 'emerald',
+            color: resolveColor(svc.color),
             description: svc.description ?? '',
         });
     };
@@ -123,7 +182,6 @@ export default function AdminServicesPage() {
         setSaving(false);
     };
 
-    // Drag-to-reorder handlers
     const onDragStart = (idx: number, id: string) => {
         dragIdx.current = idx;
         setDraggingId(id);
@@ -140,7 +198,6 @@ export default function AdminServicesPage() {
     const onDrop = async () => {
         setDraggingId(null);
         dragIdx.current = null;
-        // Persist new order
         await fetch('/api/services', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -156,22 +213,25 @@ export default function AdminServicesPage() {
         );
     }
 
+    const inputCls = "w-full bg-savron-charcoal border border-white/10 text-white placeholder-white/25 px-4 py-3 text-sm focus:outline-none focus:border-savron-green/50 transition-all rounded-savron";
+
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
 
             {/* Header */}
             <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
                     <h1 className="font-heading text-3xl uppercase tracking-widest text-white">Services</h1>
-                    <p className="text-savron-silver text-sm mt-1">
-                        {services.length} service{services.length !== 1 ? 's' : ''} · Drag rows to reorder
+                    <p className="text-savron-silver/60 text-sm mt-1">
+                        {services.length} service{services.length !== 1 ? 's' : ''} · Drag to reorder
                     </p>
                 </div>
                 <button
                     onClick={() => { setShowAdd(v => !v); setAddError(null); setForm(defaultForm); }}
                     className="flex items-center gap-2 px-4 py-2.5 bg-savron-green text-white border border-savron-green-light/20 text-[10px] uppercase tracking-widest hover:bg-savron-green-light transition-all rounded-savron"
                 >
-                    <Plus className="w-3.5 h-3.5" /> Add Service
+                    <Plus className="w-3.5 h-3.5" />
+                    {showAdd ? 'Cancel' : 'Add Service'}
                 </button>
             </div>
 
@@ -179,63 +239,79 @@ export default function AdminServicesPage() {
             <AnimatePresence>
                 {showAdd && (
                     <motion.div
-                        initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                        className="bg-savron-grey border border-savron-green/20 rounded-savron p-6 space-y-5"
+                        initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                        className="bg-savron-grey border border-white/8 rounded-savron p-6 space-y-5"
                     >
                         <div className="flex items-center justify-between">
                             <h3 className="font-heading text-white uppercase tracking-wider text-sm">New Service</h3>
-                            <button onClick={() => { setShowAdd(false); setForm(defaultForm); setAddError(null); }} className="text-savron-silver hover:text-white">
+                            <button onClick={() => { setShowAdd(false); setForm(defaultForm); setAddError(null); }} className="text-savron-silver hover:text-white transition-colors">
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-2">Service Name *</label>
-                                <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                            <div className="md:col-span-2">
+                                <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-2">Name *</label>
+                                <input
+                                    type="text"
+                                    value={form.name}
+                                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                                     placeholder="e.g. The Signature Cut"
-                                    className="w-full bg-savron-charcoal border border-white/10 text-white placeholder-white/25 px-4 py-3 text-sm focus:outline-none focus:border-savron-green/50 transition-all rounded-savron" />
+                                    className={inputCls}
+                                />
                             </div>
                             <div>
                                 <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-2">Price (USD) *</label>
                                 <div className="relative">
                                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-savron-silver/50 text-sm">$</span>
-                                    <input type="number" value={form.priceStr} onChange={e => setForm(f => ({ ...f, priceStr: e.target.value }))}
+                                    <input
+                                        type="number"
+                                        value={form.priceStr}
+                                        onChange={e => setForm(f => ({ ...f, priceStr: e.target.value }))}
                                         placeholder="55" min="0" step="1"
-                                        className="w-full bg-savron-charcoal border border-white/10 text-white placeholder-white/25 pl-8 pr-4 py-3 text-sm focus:outline-none focus:border-savron-green/50 transition-all rounded-savron" />
+                                        className={cn(inputCls, "pl-8")}
+                                    />
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-2">Duration (minutes) *</label>
-                                <input type="number" value={form.durationMin} onChange={e => setForm(f => ({ ...f, durationMin: e.target.value }))}
+                                <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-2">Duration (min) *</label>
+                                <input
+                                    type="number"
+                                    value={form.durationMin}
+                                    onChange={e => setForm(f => ({ ...f, durationMin: e.target.value }))}
                                     placeholder="45" min="5" step="5"
-                                    className="w-full bg-savron-charcoal border border-white/10 text-white placeholder-white/25 px-4 py-3 text-sm focus:outline-none focus:border-savron-green/50 transition-all rounded-savron" />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-2">Color</label>
-                                <div className="flex flex-wrap gap-2 pt-1">
-                                    {AVAILABLE_COLORS.map(c => (
-                                        <button key={c} type="button" onClick={() => setForm(f => ({ ...f, color: c }))}
-                                            className={cn("w-7 h-7 rounded-full transition-all", COLOR_DOTS[c] ?? 'bg-white/30',
-                                                form.color === c ? "ring-2 ring-offset-2 ring-offset-savron-grey ring-white/60 scale-110" : "opacity-40 hover:opacity-80"
-                                            )} />
-                                    ))}
-                                </div>
+                                    className={inputCls}
+                                />
                             </div>
                         </div>
 
                         <div>
+                            <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-3">Color</label>
+                            <ColorPicker value={form.color} onChange={c => setForm(f => ({ ...f, color: c }))} />
+                        </div>
+
+                        <div>
                             <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-2">Description</label>
-                            <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                                placeholder="Brief service description for clients…" rows={2}
-                                className="w-full bg-savron-charcoal border border-white/10 text-white placeholder-white/25 px-4 py-3 text-sm focus:outline-none focus:border-savron-green/50 transition-all rounded-savron resize-none" />
+                            <textarea
+                                value={form.description}
+                                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                                placeholder="Brief description for clients…"
+                                rows={2}
+                                className={cn(inputCls, "resize-none")}
+                            />
                         </div>
 
                         {addError && <p className="text-red-400 text-xs">{addError}</p>}
 
-                        <button onClick={addService} disabled={adding || !form.name.trim() || !form.priceStr || !form.durationMin}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-savron-green text-white border border-savron-green-light/20 text-[11px] uppercase tracking-widest rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50">
-                            {adding ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                        <button
+                            onClick={addService}
+                            disabled={adding || !form.name.trim() || !form.priceStr || !form.durationMin}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-savron-green text-white border border-savron-green-light/20 text-[11px] uppercase tracking-widest rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50"
+                        >
+                            {adding
+                                ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                : <Plus className="w-3.5 h-3.5" />
+                            }
                             {adding ? 'Adding…' : 'Add Service'}
                         </button>
                     </motion.div>
@@ -251,117 +327,141 @@ export default function AdminServicesPage() {
             ) : (
                 <div className="space-y-2">
                     {services.map((svc, idx) => {
+                        const hex = resolveColor(svc.color);
                         const isEditing = editId === svc.id;
                         return (
                             <div
                                 key={svc.id}
-                                draggable
+                                draggable={!isEditing}
                                 onDragStart={() => onDragStart(idx, svc.id)}
                                 onDragOver={e => onDragOver(e, idx)}
                                 onDrop={onDrop}
                                 onDragEnd={() => { setDraggingId(null); dragIdx.current = null; }}
                                 className={cn(
-                                    "bg-savron-grey border rounded-savron transition-all",
-                                    draggingId === svc.id ? "border-savron-green/40 opacity-60 scale-[0.99]" : "border-white/5"
+                                    "flex bg-savron-grey border border-white/5 rounded-savron overflow-hidden transition-all",
+                                    draggingId === svc.id ? "opacity-50 scale-[0.99]" : ""
                                 )}
                             >
-                                {isEditing ? (
-                                    /* ── Inline edit row ── */
-                                    <div className="px-5 py-4 space-y-4">
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                            <div className="sm:col-span-3">
-                                                <label className="block text-[10px] uppercase tracking-widest text-savron-silver/70 mb-1">Name</label>
-                                                <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                                                    className="w-full bg-savron-charcoal border border-white/10 text-white px-3 py-2 text-sm rounded-savron focus:outline-none focus:border-savron-green/50" />
+                                {/* Color bar */}
+                                <div className="w-1 shrink-0 transition-colors" style={{ backgroundColor: hex }} />
+
+                                <div className="flex-1 min-w-0">
+                                    {isEditing ? (
+                                        /* ── Inline edit ── */
+                                        <div className="px-5 py-5 space-y-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                <div className="sm:col-span-3">
+                                                    <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-1.5">Name</label>
+                                                    <input
+                                                        value={editForm.name}
+                                                        onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                                                        className={inputCls}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-1.5">Price ($)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={editForm.priceStr}
+                                                        onChange={e => setEditForm(f => ({ ...f, priceStr: e.target.value }))}
+                                                        min="0" step="1"
+                                                        className={inputCls}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-1.5">Duration (min)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={editForm.durationMin}
+                                                        onChange={e => setEditForm(f => ({ ...f, durationMin: e.target.value }))}
+                                                        min="5" step="5"
+                                                        className={inputCls}
+                                                    />
+                                                </div>
+                                                <div className="sm:col-span-1" />
                                             </div>
                                             <div>
-                                                <label className="block text-[10px] uppercase tracking-widest text-savron-silver/70 mb-1">Price ($)</label>
-                                                <input type="number" value={editForm.priceStr} onChange={e => setEditForm(f => ({ ...f, priceStr: e.target.value }))}
-                                                    min="0" step="1"
-                                                    className="w-full bg-savron-charcoal border border-white/10 text-white px-3 py-2 text-sm rounded-savron focus:outline-none focus:border-savron-green/50" />
+                                                <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-1.5">Description</label>
+                                                <textarea
+                                                    value={editForm.description}
+                                                    onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                                                    rows={2}
+                                                    className={cn(inputCls, "resize-none")}
+                                                />
                                             </div>
                                             <div>
-                                                <label className="block text-[10px] uppercase tracking-widest text-savron-silver/70 mb-1">Duration (min)</label>
-                                                <input type="number" value={editForm.durationMin} onChange={e => setEditForm(f => ({ ...f, durationMin: e.target.value }))}
-                                                    min="5" step="5"
-                                                    className="w-full bg-savron-charcoal border border-white/10 text-white px-3 py-2 text-sm rounded-savron focus:outline-none focus:border-savron-green/50" />
+                                                <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-1.5">Color</label>
+                                                <ColorPicker value={editForm.color} onChange={c => setEditForm(f => ({ ...f, color: c }))} />
                                             </div>
-                                            <div>
-                                                <label className="block text-[10px] uppercase tracking-widest text-savron-silver/70 mb-1">Color</label>
-                                                <div className="flex flex-wrap gap-1.5 pt-1">
-                                                    {AVAILABLE_COLORS.map(c => (
-                                                        <button key={c} type="button" onClick={() => setEditForm(f => ({ ...f, color: c }))}
-                                                            className={cn("w-6 h-6 rounded-full transition-all", COLOR_DOTS[c] ?? 'bg-white/30',
-                                                                editForm.color === c ? "ring-2 ring-offset-1 ring-offset-savron-grey ring-white/60 scale-110" : "opacity-40 hover:opacity-80"
-                                                            )} />
-                                                    ))}
+                                            {editError && <p className="text-red-400 text-xs">{editError}</p>}
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => saveEdit(svc.id)}
+                                                    disabled={saving}
+                                                    className="flex items-center gap-1.5 px-4 py-2 bg-savron-green/90 text-white text-[11px] uppercase tracking-widest rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50"
+                                                >
+                                                    {saving
+                                                        ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                        : <Check className="w-3.5 h-3.5" />
+                                                    }
+                                                    Save
+                                                </button>
+                                                <button
+                                                    onClick={() => setEditId(null)}
+                                                    className="px-4 py-2 border border-white/10 text-savron-silver hover:text-white text-[11px] uppercase tracking-widest rounded-savron transition-all"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        /* ── Read-only row ── */
+                                        <div className="px-5 py-4 flex items-center justify-between gap-4">
+                                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                <GripVertical className="w-4 h-4 text-savron-silver/20 shrink-0 cursor-grab active:cursor-grabbing" />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-white text-sm font-medium truncate">{svc.name}</p>
+                                                    <div className="flex items-center gap-3 mt-0.5">
+                                                        <span className="text-savron-silver/50 text-[11px] flex items-center gap-1">
+                                                            <DollarSign className="w-3 h-3" />{Math.round(svc.price_cents / 100)}
+                                                        </span>
+                                                        <span className="text-savron-silver/30 text-[10px]">·</span>
+                                                        <span className="text-savron-silver/50 text-[11px] flex items-center gap-1">
+                                                            <Clock className="w-3 h-3" />{svc.duration_minutes} min
+                                                        </span>
+                                                        {svc.description && (
+                                                            <>
+                                                                <span className="text-savron-silver/30 text-[10px] hidden sm:inline">·</span>
+                                                                <span className="text-savron-silver/40 text-[11px] truncate hidden sm:inline">{svc.description}</span>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] uppercase tracking-widest text-savron-silver/70 mb-1">Description</label>
-                                            <textarea value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-                                                rows={2} className="w-full bg-savron-charcoal border border-white/10 text-white px-3 py-2 text-sm rounded-savron focus:outline-none focus:border-savron-green/50 resize-none" />
-                                        </div>
-                                        {editError && <p className="text-red-400 text-xs">{editError}</p>}
-                                        <div className="flex gap-2">
-                                            <button onClick={() => saveEdit(svc.id)} disabled={saving}
-                                                className="flex items-center gap-1.5 px-4 py-2 bg-savron-green/90 text-white text-[11px] uppercase tracking-widest rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50">
-                                                {saving ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                                                Save
-                                            </button>
-                                            <button onClick={() => setEditId(null)}
-                                                className="px-4 py-2 border border-white/10 text-savron-silver hover:text-white text-[11px] uppercase tracking-widest rounded-savron transition-all">
-                                                Cancel
-                                            </button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    /* ── Read-only row ── */
-                                    <div className="px-5 py-4 flex items-center justify-between gap-4">
-                                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                                            {/* Drag handle */}
-                                            <GripVertical className="w-4 h-4 text-savron-silver/25 shrink-0 cursor-grab active:cursor-grabbing" />
-                                            <div className={cn("w-3 h-3 rounded-full shrink-0", COLOR_DOTS[svc.color ?? ''] ?? 'bg-white/30')} />
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-white font-medium text-sm uppercase tracking-widest">{svc.name}</p>
-                                                <p className="text-savron-silver/70 text-[11px] mt-0.5 sm:hidden">
-                                                    ${Math.round(svc.price_cents / 100)} · {svc.duration_minutes} min
-                                                </p>
-                                                {svc.description && (
-                                                    <p className="text-savron-silver/70 text-[11px] mt-0.5 truncate">{svc.description}</p>
-                                                )}
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                <button
+                                                    onClick={() => startEdit(svc)}
+                                                    className="p-2 text-savron-silver/50 hover:text-white hover:bg-white/5 rounded-savron transition-all"
+                                                >
+                                                    <Pencil className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => setConfirmDelete(svc)}
+                                                    className="p-2 text-savron-silver/50 hover:text-red-400 hover:bg-red-500/5 rounded-savron transition-all"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-4 shrink-0">
-                                            <div className="text-right hidden sm:block">
-                                                <p className="text-savron-silver font-mono text-sm flex items-center gap-1">
-                                                    <DollarSign className="w-3 h-3 opacity-50" />
-                                                    {Math.round(svc.price_cents / 100)}
-                                                </p>
-                                                <p className="text-savron-silver/70 text-[10px] flex items-center gap-1 justify-end">
-                                                    <Clock className="w-2.5 h-2.5" />
-                                                    {svc.duration_minutes} min
-                                                </p>
-                                            </div>
-                                            <button onClick={() => startEdit(svc)}
-                                                className="p-2 text-savron-silver/70 hover:text-white hover:bg-white/5 border border-white/5 hover:border-white/20 rounded-savron transition-all">
-                                                <Pencil className="w-4 h-4" />
-                                            </button>
-                                            <button onClick={() => setConfirmDelete(svc)}
-                                                className="p-2 text-savron-silver/70 hover:text-red-400 hover:bg-red-500/5 border border-white/5 hover:border-red-500/20 rounded-savron transition-all">
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
                         );
                     })}
                 </div>
             )}
 
-            {/* Delete confirm modal */}
+            {/* Delete confirm */}
             <AnimatePresence>
                 {confirmDelete && (
                     <motion.div
@@ -386,12 +486,17 @@ export default function AdminServicesPage() {
                                 Remove <span className="text-white font-medium">{confirmDelete.name}</span> from the menu? Past bookings are unaffected.
                             </p>
                             <div className="flex gap-3">
-                                <button onClick={() => setConfirmDelete(null)}
-                                    className="flex-1 py-2.5 text-[11px] uppercase tracking-widest border border-white/10 text-savron-silver hover:text-white rounded-savron transition-all">
+                                <button
+                                    onClick={() => setConfirmDelete(null)}
+                                    className="flex-1 py-2.5 text-[11px] uppercase tracking-widest border border-white/10 text-savron-silver hover:text-white rounded-savron transition-all"
+                                >
                                     Cancel
                                 </button>
-                                <button onClick={() => deleteService(confirmDelete)} disabled={deletingId === confirmDelete.id}
-                                    className="flex-1 py-2.5 text-[11px] uppercase tracking-widest bg-red-500/15 text-red-400 border border-red-500/25 hover:bg-red-500/25 rounded-savron transition-all disabled:opacity-50">
+                                <button
+                                    onClick={() => deleteService(confirmDelete)}
+                                    disabled={deletingId === confirmDelete.id}
+                                    className="flex-1 py-2.5 text-[11px] uppercase tracking-widest bg-red-500/15 text-red-400 border border-red-500/25 hover:bg-red-500/25 rounded-savron transition-all disabled:opacity-50"
+                                >
                                     {deletingId === confirmDelete.id ? 'Removing…' : 'Remove'}
                                 </button>
                             </div>
