@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
             
             // 2. Subscribe webhook
             channelId = crypto.randomUUID();
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://placeholder.ngrok.app';
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL
+                ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://savron.com');
             const watchRes = await watchCalendar(accessToken, 'primary', channelId, `${appUrl}/api/calendar/webhook`);
             resourceId = watchRes.resourceId;
         } catch (watchErr) {

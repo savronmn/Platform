@@ -15,6 +15,7 @@ import Link from 'next/link';
 import type { Barber, Booking } from '@/lib/types';
 import { SERVICE_COLORS, TIME_SLOTS } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
+import { triggerPostBooking } from '@/lib/confirm-booking';
 
 const NAV_ITEMS = [
     { label: 'Dashboard',      href: '/admin',                icon: LayoutDashboard },
@@ -195,14 +196,7 @@ export default function HostDashboard() {
             status: 'confirmed',
         }).select('id').single();
         if (error) { setQuickSubmitting(false); setQuickError(error.message); return; }
-        // Send confirmation emails if client email provided
-        if (inserted?.id && quickForm.clientEmail.trim()) {
-            fetch('/api/email', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bookingId: inserted.id }),
-            }).catch(() => {/* silent — booking is already saved */});
-        }
+        if (inserted?.id) triggerPostBooking(inserted.id);
         setQuickSubmitting(false);
         setShowQuickAdd(false);
         setQuickForm({ clientName: '', clientPhone: '', clientEmail: '', service: '', barberId: '', time: '' });
