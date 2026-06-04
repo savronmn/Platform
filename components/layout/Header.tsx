@@ -64,7 +64,7 @@ const Header = () => {
                     <Link
                         href="/booking"
                         aria-label="Book appointment"
-                        className="group hidden md:flex items-center gap-2 px-4 py-2 text-white/70 hover:text-white transition-all duration-300"
+                        className="group hidden md:flex items-center gap-2 px-4 py-2 border border-white/25 rounded hover:border-white/50 text-white/70 hover:text-white transition-all duration-300"
                     >
                         <Scissors className="w-3.5 h-3.5 transition-transform duration-300 group-hover:rotate-12" />
                         <span className="text-[11px] uppercase tracking-[0.2em]">Book Now</span>
