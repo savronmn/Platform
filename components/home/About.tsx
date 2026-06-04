@@ -15,7 +15,7 @@ const About = () => {
             id="about"
             style={{
                 position: "relative",
-                padding: "clamp(100px, 12vw, 160px) clamp(24px, 5vw, 64px)",
+                padding: "clamp(64px, 10vw, 160px) clamp(24px, 5vw, 64px)",
                 borderBottom: "1px solid rgba(232,228,220,0.06)",
                 overflow: "hidden",
             }}
@@ -65,7 +65,7 @@ const About = () => {
                             letterSpacing: "0.4em", textTransform: "uppercase",
                             color: "rgba(232,228,220,0.25)", marginBottom: 28,
                         }}>
-                            001 — The Standard
+                            001 The Standard
                         </p>
                         <h2 style={{
                             fontFamily: "var(--font-playfair), Georgia, serif",

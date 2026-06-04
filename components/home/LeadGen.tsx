@@ -6,7 +6,7 @@ import Link from 'next/link';
 const LeadGen = () => {
     return (
         <section style={{
-            padding: "clamp(100px, 11vw, 160px) clamp(24px, 5vw, 64px)",
+            padding: "clamp(64px, 10vw, 160px) clamp(24px, 5vw, 64px)",
             background: "#0d0d0b",
             borderBottom: "1px solid rgba(232,228,220,0.06)",
         }}>
@@ -21,9 +21,9 @@ const LeadGen = () => {
                         fontFamily: "var(--font-montserrat), sans-serif",
                         fontWeight: 300, fontSize: 9,
                         letterSpacing: "0.4em", textTransform: "uppercase",
-                        color: "rgba(232,228,220,0.25)", marginBottom: 40,
+                        color: "rgba(232,228,220,0.25)", marginBottom: 24,
                     }}>
-                        003 — The Access
+                        003 The Access
                     </p>
                     <p style={{
                         fontFamily: "var(--font-playfair), Georgia, serif",
@@ -33,7 +33,7 @@ const LeadGen = () => {
                         color: "#f0ede8",
                         maxWidth: 720,
                         letterSpacing: "-0.015em",
-                        marginBottom: 56,
+                        marginBottom: "clamp(32px, 4vw, 56px)",
                     }}>
                         A great haircut should be the easiest part of your day.
                         Walk in, sit down, leave looking sharp.
@@ -49,7 +49,7 @@ const LeadGen = () => {
                             letterSpacing: "0.34em", textTransform: "uppercase",
                             color: "rgba(232,228,220,0.9)",
                             textDecoration: "none",
-                            padding: "26px 56px",
+                            padding: "clamp(16px, 2.5vw, 26px) clamp(28px, 5vw, 56px)",
                             transition: "all 0.45s ease",
                         }}
                         onMouseEnter={(e) => {
@@ -61,7 +61,7 @@ const LeadGen = () => {
                             e.currentTarget.style.transform = "translateY(0)";
                         }}
                     >
-                        Book an Appointment →
+                        Book an Appointment
                     </Link>
                 </motion.div>
             </div>

@@ -10,7 +10,7 @@ const Services = () => {
         <section
             id="services"
             style={{
-                padding: "clamp(100px, 11vw, 160px) clamp(24px, 5vw, 64px)",
+                padding: "clamp(64px, 10vw, 160px) clamp(24px, 5vw, 64px)",
                 background: "#0a0a09",
                 borderBottom: "1px solid rgba(232,228,220,0.06)",
             }}
@@ -23,7 +23,7 @@ const Services = () => {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.8 }}
-                    style={{ marginBottom: 72 }}
+                    style={{ marginBottom: "clamp(40px, 6vw, 72px)" }}
                 >
                     <p style={{
                         fontFamily: "var(--font-montserrat), sans-serif",
@@ -31,7 +31,7 @@ const Services = () => {
                         letterSpacing: "0.4em", textTransform: "uppercase",
                         color: "rgba(232,228,220,0.25)", marginBottom: 24,
                     }}>
-                        002 — The Menu
+                        002 The Menu
                     </p>
                     <h2 style={{
                         fontFamily: "var(--font-playfair), Georgia, serif",
@@ -62,19 +62,19 @@ const Services = () => {
                                     display: "grid",
                                     gridTemplateColumns: "1fr auto",
                                     alignItems: "center",
-                                    gap: 32,
-                                    padding: "36px 0",
+                                    gap: 24,
+                                    padding: "clamp(20px, 3vw, 36px) 0",
                                     borderBottom: "1px solid rgba(232,228,220,0.06)",
                                 }}
                                 className="service-row"
                             >
-                                <div style={{ display: "flex", alignItems: "flex-start", gap: 32, minWidth: 0 }}>
+                                <div style={{ display: "flex", alignItems: "flex-start", gap: 20, minWidth: 0 }}>
                                     <span style={{
                                         fontFamily: "var(--font-montserrat), sans-serif",
                                         fontWeight: 300, fontSize: 10,
                                         color: "rgba(232,228,220,0.22)",
                                         letterSpacing: "0.1em",
-                                        minWidth: 28,
+                                        minWidth: 24,
                                         paddingTop: 3,
                                         flexShrink: 0,
                                     }}>
@@ -85,13 +85,13 @@ const Services = () => {
                                             fontFamily: "var(--font-montserrat), sans-serif",
                                             fontWeight: 500, fontSize: 14,
                                             letterSpacing: "0.06em", textTransform: "uppercase",
-                                            color: "#e8e4dc", marginBottom: 8,
+                                            color: "#e8e4dc", marginBottom: 6,
                                         }}>
                                             {service.name}
                                         </h3>
                                         <p style={{
                                             fontFamily: "var(--font-montserrat), sans-serif",
-                                            fontWeight: 300, fontSize: 14,
+                                            fontWeight: 300, fontSize: 13,
                                             lineHeight: 1.8,
                                             color: "rgba(232,228,220,0.55)",
                                             maxWidth: 480,
@@ -101,11 +101,11 @@ const Services = () => {
                                     </div>
                                 </div>
 
-                                <div style={{ display: "flex", alignItems: "center", gap: 36, flexShrink: 0 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 24, flexShrink: 0 }}>
                                     <div style={{ textAlign: "right" }}>
                                         <p style={{
                                             fontFamily: "var(--font-playfair), Georgia, serif",
-                                            fontSize: 22, fontWeight: 400,
+                                            fontSize: 20, fontWeight: 400,
                                             color: "#e8e4dc",
                                         }}>
                                             {price}
@@ -146,7 +146,7 @@ const Services = () => {
                     whileInView={{ opacity: 1 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.8, delay: 0.4 }}
-                    style={{ marginTop: 56 }}
+                    style={{ marginTop: "clamp(32px, 4vw, 56px)" }}
                 >
                     <Link href="/booking" style={{
                         display: "inline-block",
@@ -175,6 +175,18 @@ const Services = () => {
                 </motion.div>
 
             </div>
+
+            <style>{`
+                @media (max-width: 640px) {
+                    .service-row {
+                        grid-template-columns: 1fr !important;
+                        gap: 16px !important;
+                    }
+                    .service-row > div:last-child {
+                        justify-content: flex-start !important;
+                    }
+                }
+            `}</style>
         </section>
     );
 };
