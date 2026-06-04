@@ -301,8 +301,10 @@ export default function HostDashboard() {
     // External Google Calendar event helpers
     const isExternalVisible = (e: ExternalEvent) =>
         filteredBarberIds.size === 0 || filteredBarberIds.has(e.barberId);
-    const externalForBarberTime = (barberId: string, time: string) =>
-        externalEvents.filter(e => e.barberId === barberId && e.time === time);
+    const externalForBarberTime = (barberId: string, time: string) => {
+        const d = format(selectedDate, 'yyyy-MM-dd');
+        return externalEvents.filter(e => e.barberId === barberId && e.date === d && e.time === time);
+    };
     const externalForDayTime = (day: Date, time: string) => {
         const d = format(day, 'yyyy-MM-dd');
         return externalEvents.filter(e => e.date === d && e.time === time && isExternalVisible(e));

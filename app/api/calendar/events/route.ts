@@ -25,13 +25,17 @@ async function listEvents(accessToken: string, calendarId: string, timeMin: stri
 }
 
 function isoToTimeSlot(iso: string): string {
-    const d = new Date(iso);
-    let h = d.getHours();
-    const m = d.getMinutes();
+    // Parse h/m directly from the ISO string so the server's UTC timezone
+    // doesn't shift the hour. e.g. "2026-06-05T10:30:00-05:00" → h=10, m=30.
+    // If the string is UTC (ends in Z), shift by CDT offset (-5).
+    const match = iso.match(/T(\d{2}):(\d{2})/);
+    if (!match) return '9:00 AM';
+    let h = parseInt(match[1], 10);
+    const m = parseInt(match[2], 10);
+    if (iso.endsWith('Z')) h = (h - 5 + 24) % 24; // UTC → CDT
     const meridiem = h >= 12 ? 'PM' : 'AM';
-    if (h > 12) h -= 12;
-    if (h === 0) h = 12;
-    return `${h}:${String(m).padStart(2, '0')} ${meridiem}`;
+    const displayH = h % 12 || 12;
+    return `${displayH}:${String(m).padStart(2, '0')} ${meridiem}`;
 }
 
 export async function GET(req: NextRequest) {
