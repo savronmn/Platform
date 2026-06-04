@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase';
 import StatCard from '@/components/crm/StatCard';
-import { Users, Calendar, DollarSign, Clock, ArrowRight, TrendingUp, Scissors, UserCheck, ClipboardList, Layers, ScanLine, Inbox } from 'lucide-react';
+import { Users, Calendar, DollarSign, Clock, ArrowRight, TrendingUp, Scissors, UserCheck, ClipboardList, Layers, ScanLine, Inbox, UserPlus } from 'lucide-react';
 import type { Booking, Client } from '@/lib/types';
 import { format, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 const QRScannerModal = dynamic(() => import('@/components/qr/QRScannerModal'), { ssr: false });
+const WalkInModal = dynamic(() => import('@/components/crm/WalkInModal'), { ssr: false });
 
 export default function AdminDashboard() {
     const supabase = createClient();
@@ -34,6 +35,7 @@ export default function AdminDashboard() {
     const [upcomingSchedule, setUpcomingSchedule] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(true);
     const [showScanner, setShowScanner] = useState(false);
+    const [showWalkIn, setShowWalkIn] = useState(false);
     const [debugError, setDebugError] = useState<string | null>(null);
 
     async function fetchData() {
@@ -196,6 +198,12 @@ export default function AdminDashboard() {
                 </div>
                 <div className="flex items-center gap-3">
                     <button
+                        onClick={() => setShowWalkIn(true)}
+                        className="flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-widest bg-white/5 text-savron-silver border border-white/10 rounded-savron hover:text-white hover:border-white/20 transition-all"
+                    >
+                        <UserPlus className="w-3.5 h-3.5" /> Walk-in
+                    </button>
+                    <button
                         onClick={() => setShowScanner(true)}
                         className="flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all"
                     >
@@ -208,6 +216,7 @@ export default function AdminDashboard() {
             </div>
 
             <QRScannerModal open={showScanner} onClose={() => setShowScanner(false)} />
+            <WalkInModal open={showWalkIn} onClose={() => setShowWalkIn(false)} onBooked={fetchData} />
 
             {/* Empty State / Demo Data Seeder Banner */}
             {stats.clients === 0 && stats.totalBookings === 0 && (

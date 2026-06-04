@@ -1,7 +1,6 @@
 "use client";
 
 import Image from 'next/image';
-import Link from 'next/link';
 
 const Hero = () => {
     return (
@@ -23,44 +22,6 @@ const Hero = () => {
                 }} />
             </div>
 
-            {/* Nav — hidden on mobile (fixed Header handles it) */}
-            <nav
-                className="hero-nav"
-                style={{
-                position: "absolute", top: 0, left: 0, right: 0, zIndex: 20,
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "32px clamp(24px, 6vw, 80px)",
-            }}>
-                <div style={{ position: "relative", width: 110, height: 24 }}>
-                    <Image src="/logo.png" alt="SAVRON" fill
-                        style={{ objectFit: "contain", objectPosition: "left", opacity: 0.85 }}
-                        priority
-                    />
-                </div>
-                <Link
-                    href="/booking"
-                    className="glass-panel"
-                    style={{
-                        display: "inline-flex", alignItems: "center",
-                        fontFamily: "var(--font-montserrat), sans-serif",
-                        fontWeight: 500, fontSize: 10,
-                        letterSpacing: "0.32em", textTransform: "uppercase",
-                        color: "rgba(232,228,220,0.85)", textDecoration: "none",
-                        padding: "14px 26px",
-                        transition: "all 0.4s ease",
-                    }}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.color = "#fff";
-                        e.currentTarget.style.transform = "translateY(-1px)";
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.color = "rgba(232,228,220,0.85)";
-                        e.currentTarget.style.transform = "translateY(0)";
-                    }}
-                >
-                    Book Now →
-                </Link>
-            </nav>
 
             {/* Centered logo */}
             <div style={{
