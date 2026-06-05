@@ -83,6 +83,22 @@ export default function HostDashboard() {
     const [quickSubmitting, setQuickSubmitting] = useState(false);
     const [quickError, setQuickError] = useState<string | null>(null);
 
+    // Calendar sharing
+    const [sharingCal, setSharingCal] = useState(false);
+    const [shareResult, setShareResult] = useState<string | null>(null);
+    const shareCalendars = async () => {
+        setSharingCal(true);
+        setShareResult(null);
+        try {
+            const res = await fetch('/api/calendar/share', { method: 'POST' });
+            const data = await res.json();
+            setShareResult(data.message ?? 'Done');
+        } catch {
+            setShareResult('Error — check console');
+        }
+        setSharingCal(false);
+    };
+
     // Barber filter (empty set = show all)
     const [filteredBarberIds, setFilteredBarberIds] = useState<Set<string>>(new Set());
     const toggleBarberFilter = (id: string) => {
@@ -355,9 +371,13 @@ export default function HostDashboard() {
         s === 'no_show'   ? 'bg-red-400' :
         s === 'cancelled' ? 'bg-white/20' : 'bg-savron-silver';
 
-    const confirmed = bookings.filter(b => b.status === 'confirmed').length;
-    const completed = bookings.filter(b => b.status === 'completed').length;
-    const noShow    = bookings.filter(b => b.status === 'no_show').length;
+    const confirmed  = bookings.filter(b => b.status === 'confirmed').length;
+    const completed  = bookings.filter(b => b.status === 'completed').length;
+    const noShow     = bookings.filter(b => b.status === 'no_show').length;
+    const cancelled  = bookings.filter(b => b.status === 'cancelled').length;
+    const totalToday = view === 'day'
+        ? bookings.filter(b => b.date === format(selectedDate, 'yyyy-MM-dd')).length
+        : bookings.length;
 
     const weekDays = eachDayOfInterval({
         start: startOfWeek(selectedDate, { weekStartsOn: 1 }),
@@ -439,6 +459,16 @@ export default function HostDashboard() {
                     <div className="text-center hidden sm:block"><p className="text-blue-400 font-mono text-lg">{completed}</p><p className="text-savron-silver text-[10px] uppercase tracking-widest">Done</p></div>
                     <div className="text-center hidden sm:block"><p className="text-red-400 font-mono text-lg">{noShow}</p><p className="text-savron-silver text-[10px] uppercase tracking-widest">No-show</p></div>
                     <button onClick={fetchBookings} className="p-2 text-savron-silver hover:text-white transition-colors"><RefreshCw className="w-4 h-4" /></button>
+                    {/* Share Calendar access */}
+                    <button
+                        onClick={shareCalendars}
+                        disabled={sharingCal}
+                        title={shareResult ?? 'Grant savronmn@gmail.com editor access to all barber calendars'}
+                        className="hidden md:flex items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-widest bg-white/5 border border-white/10 rounded-savron text-savron-silver hover:text-white hover:border-white/20 transition-all disabled:opacity-40"
+                    >
+                        <Calendar className={cn('w-3.5 h-3.5', sharingCal && 'animate-spin')} />
+                        {sharingCal ? 'Sharing…' : shareResult ? '✓ Shared' : 'Share Cal'}
+                    </button>
                     {/* Quick-Add walk-in */}
                     <button
                         onClick={() => { setQuickFormDate(new Date()); setShowQuickAdd(true); }}
@@ -477,6 +507,44 @@ export default function HostDashboard() {
                     ))}
                 </div>
             </div>
+
+            {/* ── Day summary strip (day view only) ── */}
+            {view === 'day' && !loading && (
+                <div className="bg-savron-black border-b border-white/[0.04] px-6 py-2 flex items-center gap-6 shrink-0 overflow-x-auto">
+                    <span className="text-[10px] uppercase tracking-widest text-savron-silver/40 shrink-0">Today's Progress</span>
+                    {/* Progress bar */}
+                    <div className="flex-1 min-w-[120px] max-w-xs h-1.5 bg-white/5 rounded-full overflow-hidden hidden sm:block">
+                        <div
+                            className="h-full bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full transition-all duration-500"
+                            style={{ width: totalToday > 0 ? `${Math.round(((completed + noShow + cancelled) / totalToday) * 100)}%` : '0%' }}
+                        />
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0">
+                        <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
+                            <span className="text-emerald-400 font-mono">{confirmed}</span>
+                            <span className="text-savron-silver/40">waiting</span>
+                        </span>
+                        <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest">
+                            <span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />
+                            <span className="text-blue-400 font-mono">{completed}</span>
+                            <span className="text-savron-silver/40">done</span>
+                        </span>
+                        <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest">
+                            <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+                            <span className="text-red-400 font-mono">{noShow}</span>
+                            <span className="text-savron-silver/40">no-show</span>
+                        </span>
+                        {cancelled > 0 && (
+                            <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest">
+                                <span className="w-2 h-2 rounded-full bg-white/20 inline-block" />
+                                <span className="text-savron-silver/40 font-mono">{cancelled}</span>
+                                <span className="text-savron-silver/40">cancelled</span>
+                            </span>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* ── Row 3: barber filter ── */}
             {barbers.length > 1 && (
@@ -839,8 +907,10 @@ export default function HostDashboard() {
                                     </label>
                                 </div>
 
-                                {/* Action buttons */}
-                                <div className="pt-2 space-y-2">
+                                {/* ── Track This Visit ── */}
+                                <div className="pt-3 border-t border-white/5 space-y-2">
+                                    <p className="text-[9px] uppercase tracking-[0.3em] text-savron-silver/40 mb-3">Track This Visit</p>
+
                                     {activeBooking.status === 'confirmed' && (
                                         <>
                                             <div className="grid grid-cols-2 gap-2">
