@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import type { Barber } from '@/lib/types';
-import { TIME_SLOTS } from '@/lib/services-data';
+import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
@@ -30,13 +30,38 @@ export default function AsapBookingFlow() {
     const [assignedBarber, setAssignedBarber] = useState<Barber | null>(null);
     const [busySlots, setBusySlots] = useState<{ start: string; end: string }[]>([]);
     const [loadingBusy, setLoadingBusy] = useState(false);
+    const [allBarbers, setAllBarbers] = useState<Barber[]>([]);
 
     useEffect(() => {
-        if (!selectedDate) return;
-        // Fetch combined busy slots for all barbers (we'll use these for display only;
-        // the canonical check is done per-barber inside pickAvailableBarber)
-        // For simplicity, we don't pre-fetch here — isSlotBusy is only used for UI hints.
-    }, [selectedDate]);
+        supabase.from('barbers').select('id, active, working_hours').eq('active', true).then(({ data }) => {
+            setAllBarbers((data as Barber[]) ?? []);
+        });
+    }, []);
+
+    const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+    const availableSlots = (() => {
+        if (allBarbers.length === 0) return TIME_SLOTS;
+        const dayKey = DAY_KEYS[selectedDate.getDay()];
+        const slotSet = new Set<string>();
+        for (const barber of allBarbers) {
+            const wh = barber.working_hours as Record<string, { open: string; close: string } | null> | null;
+            if (!wh) { generateTimeSlots('10:00', '19:00').forEach(s => slotSet.add(s)); continue; }
+            const day = wh[dayKey];
+            if (day) generateTimeSlots(day.open, day.close).forEach(s => slotSet.add(s));
+        }
+        // Sort by time-of-day
+        return Array.from(slotSet).sort((a, b) => {
+            const toMin = (t: string) => {
+                const [time, p] = t.split(' ');
+                let [h, m] = time.split(':').map(Number);
+                if (p === 'PM' && h !== 12) h += 12;
+                if (p === 'AM' && h === 12) h = 0;
+                return h * 60 + m;
+            };
+            return toMin(a) - toMin(b);
+        });
+    })();
 
     const isSlotBusy = (timeStr: string) => {
         if (isSlotInPast(selectedDate, timeStr, 5)) return true;
@@ -183,7 +208,7 @@ export default function AsapBookingFlow() {
                         <div>
                             <p className="text-xs uppercase tracking-widest text-savron-silver/50 mb-3">Time</p>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                {TIME_SLOTS.map((time, idx) => {
+                                {availableSlots.map((time, idx) => {
                                     const past = isSlotInPast(selectedDate, time, 5);
                                     return (
                                         <button

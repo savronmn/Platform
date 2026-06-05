@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import type { Barber } from '@/lib/types';
-import { TIME_SLOTS } from '@/lib/services-data';
+import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
@@ -105,6 +105,19 @@ const BookingFlow = () => {
         }
         fetchBusy();
     }, [selectedPro, selectedDate]);
+
+    const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+    const selectedDayKey = DAY_KEYS[selectedDate.getDay()];
+
+    const availableSlots = (() => {
+        const wh = selectedPro?.working_hours as Record<string, { open: string; close: string } | null> | null;
+        if (!wh) return TIME_SLOTS;
+        const day = wh[selectedDayKey];
+        if (!day) return [];
+        return generateTimeSlots(day.open, day.close);
+    })();
+
+    const isBarberOffToday = selectedPro?.working_hours !== null && availableSlots.length === 0;
 
     const isSlotBusy = (timeStr: string) => {
         // Past times are always disabled (with 5-min buffer for the current slot)
@@ -422,8 +435,12 @@ const BookingFlow = () => {
                             <div className="col-span-full py-6 flex justify-center text-savron-silver/40 text-xs uppercase">
                                 Checking availability...
                             </div>
+                        ) : isBarberOffToday ? (
+                            <div className="col-span-full py-6 text-center text-savron-silver/40 text-xs uppercase tracking-widest">
+                                Not available on {selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}s
+                            </div>
                         ) : (
-                            TIME_SLOTS.map((time, idx) => {
+                            availableSlots.map((time, idx) => {
                                 const busy = isSlotBusy(time);
                                 return (
                                     <button
