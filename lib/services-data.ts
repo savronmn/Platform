@@ -96,10 +96,8 @@ export const TIME_SLOTS = [
     "1:00 PM",  "1:45 PM",  "2:30 PM",  "3:15 PM", "4:00 PM",
 ];
 
-// Full-day 15-min grid used by the host calendar view (9 AM – 9 PM).
-// 15-min intervals cover all 45-min booking slots (10:00, 10:45, 11:30, …)
-// and standard external GCal appointment times (:00, :15, :30, :45).
-export const HOST_TIME_SLOTS = generateTimeSlots('09:00', '21:15', 15);
+// 45-min grid for host calendar (9 AM – 9 PM). One row per booking slot.
+export const HOST_TIME_SLOTS = generateTimeSlots('09:00', '21:00', 45);
 
 // Generate 12h-format time slots from 24h open/close strings (e.g. "10:00", "19:00")
 export function generateTimeSlots(open: string, close: string, intervalMin = 45): string[] {

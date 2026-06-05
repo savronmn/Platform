@@ -592,17 +592,14 @@ export default function HostDashboard() {
 
                                 {HOST_TIME_SLOTS.map((time, i) => (
                                     <div key={i} className={cn(
-                                        "flex border-b hover:bg-white/[0.01] transition-colors",
-                                        i % 4 === 0 ? "border-white/[0.06]" : "border-white/[0.02]",
-                                        i % 2 !== 0 && "bg-white/[0.005]"
+                                        "flex border-b border-white/[0.05] hover:bg-white/[0.01] transition-colors",
+                                        i % 2 !== 0 && "bg-white/[0.01]"
                                     )}>
-                                        <div className="w-14 sm:w-20 shrink-0 px-1 sm:px-3 py-1 border-r border-white/5 flex items-start pt-1.5">
-                                            {i % 4 === 0 && (
-                                                <span className="text-savron-silver/50 text-[9px] sm:text-xs font-mono whitespace-nowrap">{time}</span>
-                                            )}
+                                        <div className="w-14 sm:w-20 shrink-0 px-2 py-1.5 border-r border-white/5 flex items-center">
+                                            <span className="text-savron-silver/50 text-[9px] font-mono whitespace-nowrap">{time}</span>
                                         </div>
                                         {visibleBarbers.map(barber => (
-                                            <div key={barber.id} className="w-40 sm:w-52 shrink-0 p-1 sm:p-2 border-r border-white/5 min-h-[32px]">
+                                            <div key={barber.id} className="w-40 sm:w-52 shrink-0 px-1 py-0.5 border-r border-white/5 min-h-[36px]">
                                                 {bookingsForBarberTime(barber.id, time).map(b => <Pill key={b.id} b={b} />)}
                                                 {externalForBarberTime(barber.id, time).map(e => <ExternalPill key={e.id} e={e} />)}
                                             </div>
@@ -639,18 +636,15 @@ export default function HostDashboard() {
 
                                 {HOST_TIME_SLOTS.map((time, i) => (
                                     <div key={i} className={cn(
-                                        "flex border-b",
-                                        i % 4 === 0 ? "border-white/[0.06]" : "border-white/[0.02]",
-                                        i % 2 !== 0 && "bg-white/[0.005]"
+                                        "flex border-b border-white/[0.05]",
+                                        i % 2 !== 0 && "bg-white/[0.01]"
                                     )}>
-                                        <div className="w-14 sm:w-20 shrink-0 px-1 sm:px-3 py-1 border-r border-white/5 flex items-start pt-1.5">
-                                            {i % 4 === 0 && (
-                                                <span className="text-savron-silver/50 text-[9px] sm:text-xs font-mono whitespace-nowrap">{time}</span>
-                                            )}
+                                        <div className="w-14 sm:w-20 shrink-0 px-2 py-1.5 border-r border-white/5 flex items-center">
+                                            <span className="text-savron-silver/50 text-[9px] font-mono whitespace-nowrap">{time}</span>
                                         </div>
                                         {weekDays.map(day => (
                                             <div key={day.toISOString()}
-                                                className={cn("w-36 sm:w-44 shrink-0 p-1 border-r border-white/5 min-h-[28px]", isToday(day) && "bg-savron-green/[0.03]")}>
+                                                className={cn("w-36 sm:w-44 shrink-0 px-1 py-0.5 border-r border-white/5 min-h-[36px]", isToday(day) && "bg-savron-green/[0.03]")}>
                                                 {bookingsForDayTime(day, time).map(b => <Pill key={b.id} b={b} compact />)}
                                                 {externalForDayTime(day, time).map(e => <ExternalPill key={e.id} e={e} compact />)}
                                             </div>

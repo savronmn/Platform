@@ -33,9 +33,9 @@ function isoToTimeSlot(iso: string): string {
     let h = parseInt(match[1], 10);
     let m = parseInt(match[2], 10);
     if (iso.endsWith('Z')) h = (h - 5 + 24) % 24; // UTC → CDT
-    // Round to nearest 15 min so events always land on a HOST_TIME_SLOTS row
-    m = Math.round(m / 15) * 15;
-    if (m === 60) { m = 0; h = (h + 1) % 24; }
+    // Round to nearest 45 min so events land on a HOST_TIME_SLOTS row
+    m = Math.round(m / 45) * 45;
+    if (m >= 60) { m = m - 60; h = (h + 1) % 24; }
     const meridiem = h >= 12 ? 'PM' : 'AM';
     const displayH = h % 12 || 12;
     return `${displayH}:${String(m).padStart(2, '0')} ${meridiem}`;
