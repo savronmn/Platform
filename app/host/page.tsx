@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Barber, Booking } from '@/lib/types';
-import { TIME_SLOTS, serviceBlockStyle, resolveColor } from '@/lib/services-data';
+import { TIME_SLOTS, HOST_TIME_SLOTS, serviceBlockStyle, resolveColor } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 import EditBookingModal from '@/components/crm/EditBookingModal';
@@ -319,20 +319,30 @@ export default function HostDashboard() {
         return bookings.filter(b => b.date === d && isBookingVisible(b));
     };
 
+    // Deduplicate: hide GCal events that have a matching platform booking
+    // (same barber + date + time). Platform bookings pushed to GCal via
+    // triggerPostBooking would otherwise show twice.
+    const deduplicatedExternal = useMemo(() => {
+        const bookedSlots = new Set(
+            bookings.map(b => `${b.barber_id}|${b.date}|${b.time}`)
+        );
+        return externalEvents.filter(e => !bookedSlots.has(`${e.barberId}|${e.date}|${e.time}`));
+    }, [externalEvents, bookings]);
+
     // External Google Calendar event helpers
     const isExternalVisible = (e: ExternalEvent) =>
         filteredBarberIds.size === 0 || filteredBarberIds.has(e.barberId);
     const externalForBarberTime = (barberId: string, time: string) => {
         const d = format(selectedDate, 'yyyy-MM-dd');
-        return externalEvents.filter(e => e.barberId === barberId && e.date === d && e.time === time);
+        return deduplicatedExternal.filter(e => e.barberId === barberId && e.date === d && e.time === time);
     };
     const externalForDayTime = (day: Date, time: string) => {
         const d = format(day, 'yyyy-MM-dd');
-        return externalEvents.filter(e => e.date === d && e.time === time && isExternalVisible(e));
+        return deduplicatedExternal.filter(e => e.date === d && e.time === time && isExternalVisible(e));
     };
     const externalForDay = (day: Date) => {
         const d = format(day, 'yyyy-MM-dd');
-        return externalEvents.filter(e => e.date === d && isExternalVisible(e));
+        return deduplicatedExternal.filter(e => e.date === d && isExternalVisible(e));
     };
 
     const svcColor = (s: string, cancelled = false): { className: string; style?: Record<string, string> } =>
@@ -564,29 +574,35 @@ export default function HostDashboard() {
                         <div className="flex-1 overflow-auto">
                             <div className="min-w-max">
                                 <div className="flex border-b border-white/5 bg-savron-grey sticky top-0 z-10">
-                                    <div className="w-24 shrink-0 p-4 border-r border-white/5">
+                                    <div className="w-14 sm:w-20 shrink-0 p-2 sm:p-4 border-r border-white/5">
                                         <span className="text-[10px] uppercase tracking-widest text-savron-silver/40">Time</span>
                                     </div>
                                     {visibleBarbers.map(barber => (
-                                        <div key={barber.id} className="w-52 shrink-0 p-4 border-r border-white/5 flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full overflow-hidden bg-savron-black relative shrink-0">
+                                        <div key={barber.id} className="w-40 sm:w-52 shrink-0 p-3 sm:p-4 border-r border-white/5 flex items-center gap-2 sm:gap-3">
+                                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden bg-savron-black relative shrink-0">
                                                 {barber.image_url && <Image src={barber.image_url} alt={barber.name} fill className="object-cover grayscale" />}
                                             </div>
-                                            <div>
-                                                <p className="text-white text-xs font-heading uppercase tracking-widest leading-none">{barber.name}</p>
-                                                <p className="text-savron-silver text-[10px] mt-0.5">{barber.role}</p>
+                                            <div className="min-w-0">
+                                                <p className="text-white text-[10px] sm:text-xs font-heading uppercase tracking-widest leading-none truncate">{barber.name}</p>
+                                                <p className="text-savron-silver text-[9px] sm:text-[10px] mt-0.5 truncate">{barber.role}</p>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
 
-                                {TIME_SLOTS.map((time, i) => (
-                                    <div key={i} className={cn("flex border-b border-white/[0.03] hover:bg-white/[0.01] transition-colors", i % 2 !== 0 && "bg-white/[0.01]")}>
-                                        <div className="w-24 shrink-0 p-4 border-r border-white/5 flex items-start">
-                                            <span className="text-savron-silver/50 text-xs font-mono">{time}</span>
+                                {HOST_TIME_SLOTS.map((time, i) => (
+                                    <div key={i} className={cn(
+                                        "flex border-b hover:bg-white/[0.01] transition-colors",
+                                        i % 4 === 0 ? "border-white/[0.06]" : "border-white/[0.02]",
+                                        i % 2 !== 0 && "bg-white/[0.005]"
+                                    )}>
+                                        <div className="w-14 sm:w-20 shrink-0 px-1 sm:px-3 py-1 border-r border-white/5 flex items-start pt-1.5">
+                                            {i % 4 === 0 && (
+                                                <span className="text-savron-silver/50 text-[9px] sm:text-xs font-mono whitespace-nowrap">{time}</span>
+                                            )}
                                         </div>
                                         {visibleBarbers.map(barber => (
-                                            <div key={barber.id} className="w-52 shrink-0 p-2 border-r border-white/5 min-h-[80px]">
+                                            <div key={barber.id} className="w-40 sm:w-52 shrink-0 p-1 sm:p-2 border-r border-white/5 min-h-[32px]">
                                                 {bookingsForBarberTime(barber.id, time).map(b => <Pill key={b.id} b={b} />)}
                                                 {externalForBarberTime(barber.id, time).map(e => <ExternalPill key={e.id} e={e} />)}
                                             </div>
@@ -594,7 +610,6 @@ export default function HostDashboard() {
                                     </div>
                                 ))}
                             </div>
-
                         </div>
                     )}
 
@@ -605,7 +620,7 @@ export default function HostDashboard() {
                         <div className="flex-1 overflow-auto">
                             <div className="min-w-max">
                                 <div className="flex border-b border-white/5 bg-savron-grey sticky top-0 z-10">
-                                    <div className="w-24 shrink-0 p-4 border-r border-white/5">
+                                    <div className="w-14 sm:w-20 shrink-0 p-2 sm:p-4 border-r border-white/5">
                                         <span className="text-[10px] uppercase tracking-widest text-savron-silver/40">Time</span>
                                     </div>
                                     {weekDays.map(day => {
@@ -613,23 +628,29 @@ export default function HostDashboard() {
                                         return (
                                             <div key={day.toISOString()}
                                                 onClick={() => { setSelectedDate(day); setView('day'); }}
-                                                className={cn("w-44 shrink-0 p-3 border-r border-white/5 text-center cursor-pointer hover:bg-white/5 transition-colors", isToday(day) && "bg-savron-green/5")}>
-                                                <p className={cn("text-xs font-heading uppercase tracking-widest", isToday(day) ? "text-savron-green" : "text-white")}>{format(day, 'EEE')}</p>
-                                                <p className={cn("text-lg font-mono", isToday(day) ? "text-savron-green" : "text-savron-silver/70")}>{format(day, 'd')}</p>
+                                                className={cn("w-36 sm:w-44 shrink-0 p-2 sm:p-3 border-r border-white/5 text-center cursor-pointer hover:bg-white/5 transition-colors", isToday(day) && "bg-savron-green/5")}>
+                                                <p className={cn("text-[10px] sm:text-xs font-heading uppercase tracking-widest", isToday(day) ? "text-savron-green" : "text-white")}>{format(day, 'EEE')}</p>
+                                                <p className={cn("text-base sm:text-lg font-mono", isToday(day) ? "text-savron-green" : "text-savron-silver/70")}>{format(day, 'd')}</p>
                                                 {count > 0 && <span className="text-[9px] text-savron-silver/40 uppercase tracking-widest">{count} appt{count !== 1 ? 's' : ''}</span>}
                                             </div>
                                         );
                                     })}
                                 </div>
 
-                                {TIME_SLOTS.map((time, i) => (
-                                    <div key={i} className={cn("flex border-b border-white/[0.03]", i % 2 !== 0 && "bg-white/[0.01]")}>
-                                        <div className="w-24 shrink-0 p-4 border-r border-white/5 flex items-start">
-                                            <span className="text-savron-silver/50 text-xs font-mono">{time}</span>
+                                {HOST_TIME_SLOTS.map((time, i) => (
+                                    <div key={i} className={cn(
+                                        "flex border-b",
+                                        i % 4 === 0 ? "border-white/[0.06]" : "border-white/[0.02]",
+                                        i % 2 !== 0 && "bg-white/[0.005]"
+                                    )}>
+                                        <div className="w-14 sm:w-20 shrink-0 px-1 sm:px-3 py-1 border-r border-white/5 flex items-start pt-1.5">
+                                            {i % 4 === 0 && (
+                                                <span className="text-savron-silver/50 text-[9px] sm:text-xs font-mono whitespace-nowrap">{time}</span>
+                                            )}
                                         </div>
                                         {weekDays.map(day => (
                                             <div key={day.toISOString()}
-                                                className={cn("w-44 shrink-0 p-1.5 border-r border-white/5 min-h-[72px]", isToday(day) && "bg-savron-green/[0.03]")}>
+                                                className={cn("w-36 sm:w-44 shrink-0 p-1 border-r border-white/5 min-h-[28px]", isToday(day) && "bg-savron-green/[0.03]")}>
                                                 {bookingsForDayTime(day, time).map(b => <Pill key={b.id} b={b} compact />)}
                                                 {externalForDayTime(day, time).map(e => <ExternalPill key={e.id} e={e} compact />)}
                                             </div>
