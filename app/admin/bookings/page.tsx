@@ -67,11 +67,26 @@ export default function BookingsPage() {
             supabase.from('barbers').select('id, name, active').order('name'),
         ]);
         if (!bookRes.error) {
-            // Deduplicate by id — guaranteed no duplicates even if joins or
-            // double-inserts ever slip through
-            const deduped = Array.from(
-                new Map((bookRes.data as Booking[]).map(b => [b.id, b])).values()
+            const raw = bookRes.data as Booking[];
+
+            // Pass 1: deduplicate by Supabase row id
+            const byId = Array.from(
+                new Map(raw.map(b => [b.id, b])).values()
             );
+
+            // Pass 2: deduplicate by composite key — catches GCal sync duplicates
+            // where the same appointment was written twice with different IDs.
+            // We keep whichever row came first (lowest created_at).
+            const seen = new Set<string>();
+            const deduped = byId.filter(b => {
+                // Build a fingerprint: date|time|barber_id|normalized_client_name
+                const name = (b.client_name ?? 'walkin').toLowerCase().trim();
+                const key  = `${b.date}|${b.time}|${b.barber_id ?? ''}|${name}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+
             setBookings(deduped);
         }
         if (!barberRes.error) setBarbers((barberRes.data as Barber[]) ?? []);
@@ -412,12 +427,12 @@ function AppointmentCard({ booking, onEdit, onStatusChange }: AppointmentCardPro
             )}
 
             {/* Actions */}
-            <div className="flex items-center gap-1.5 pt-0.5 border-t border-white/5">
+            <div className="flex items-center gap-2 pt-1.5 border-t border-white/8 flex-wrap">
                 <button
                     onClick={onEdit}
-                    className="flex items-center gap-1 px-2 py-1 text-[9px] uppercase tracking-widest bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded text-savron-silver hover:text-white transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs uppercase tracking-widest bg-savron-green/15 hover:bg-savron-green/25 border border-savron-green/30 hover:border-savron-green/50 rounded-savron text-emerald-400 hover:text-emerald-300 font-medium transition-all"
                 >
-                    <Pencil className="w-2.5 h-2.5" /> Edit
+                    <Pencil className="w-3 h-3" /> Edit Appointment
                 </button>
 
                 {booking.status === 'confirmed' && (
