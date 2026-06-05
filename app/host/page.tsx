@@ -1068,19 +1068,43 @@ export default function HostDashboard() {
                                     <Scissors className="w-3.5 h-3.5 shrink-0 text-savron-silver/40" />
                                     {activeExternal.barberName}
                                 </div>
-                                {/* Edit in Google Calendar button */}
-                                <a
-                                    href={activeExternal.htmlLink ?? `https://calendar.google.com/calendar/r/day/${activeExternal.date.replace(/-/g, '/')}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center justify-center gap-2 w-full py-3 text-[11px] uppercase tracking-widest font-medium bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 hover:text-violet-200 border border-violet-500/30 hover:border-violet-500/50 rounded-savron transition-all"
-                                    onClick={() => setActiveExternal(null)}
-                                >
-                                    <Pencil className="w-3.5 h-3.5" /> Edit in Google Calendar
-                                </a>
-                                <div className="bg-violet-500/5 border border-violet-500/10 rounded-savron px-3 py-2">
-                                    <p className="text-violet-300/40 text-[10px] uppercase tracking-widest">This event lives in Google Calendar — edits go there directly.</p>
-                                </div>
+                                {/* Source booking links from barber profile */}
+                                {(() => {
+                                    const barber = barbers.find(b => b.id === activeExternal.barberId);
+                                    const links = barber?.booking_links ?? [];
+                                    if (links.length > 0) {
+                                        return (
+                                            <div className="space-y-2">
+                                                <p className="text-[9px] uppercase tracking-widest text-savron-silver/40">Booking Source</p>
+                                                {links.map((link, i) => (
+                                                    <a
+                                                        key={i}
+                                                        href={link}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="flex items-center justify-between gap-2 w-full px-3 py-2.5 text-[11px] uppercase tracking-widest font-medium bg-violet-500/15 hover:bg-violet-500/25 text-violet-300 hover:text-violet-200 border border-violet-500/25 hover:border-violet-500/40 rounded-savron transition-all"
+                                                        onClick={() => setActiveExternal(null)}
+                                                    >
+                                                        <span className="flex items-center gap-2"><Pencil className="w-3 h-3" /> Schedule Link {i + 1}</span>
+                                                        <span className="text-violet-400/40 text-[9px] truncate max-w-[120px]">{new URL(link).hostname}</span>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        );
+                                    }
+                                    // Fallback to htmlLink if no booking_links saved
+                                    return (
+                                        <a
+                                            href={activeExternal.htmlLink ?? `https://calendar.google.com/calendar/r/day/${activeExternal.date.replace(/-/g, '/')}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center justify-center gap-2 w-full py-3 text-[11px] uppercase tracking-widest font-medium bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 hover:text-violet-200 border border-violet-500/30 hover:border-violet-500/50 rounded-savron transition-all"
+                                            onClick={() => setActiveExternal(null)}
+                                        >
+                                            <Pencil className="w-3.5 h-3.5" /> Open in Google Calendar
+                                        </a>
+                                    );
+                                })()}
                             </div>
                         </motion.div>
                     </motion.div>
