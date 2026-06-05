@@ -512,7 +512,7 @@ export default function HostDashboard() {
             {/* ── Day summary strip (day view only) ── */}
             {view === 'day' && !loading && (
                 <div className="bg-savron-black border-b border-white/[0.04] px-6 py-2 flex items-center gap-6 shrink-0 overflow-x-auto">
-                    <span className="text-[10px] uppercase tracking-widest text-savron-silver/40 shrink-0">Today's Progress</span>
+                    <span className="text-[10px] uppercase tracking-widest text-savron-silver/40 shrink-0">Today&apos;s Progress</span>
                     {/* Progress bar */}
                     <div className="flex-1 min-w-[120px] max-w-xs h-1.5 bg-white/5 rounded-full overflow-hidden hidden sm:block">
                         <div
