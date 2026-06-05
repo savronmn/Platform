@@ -187,51 +187,85 @@ export default function AsapBookingFlow() {
 
             <AnimatePresence mode="wait">
                 {/* Step 1: Date + Time */}
-                {step === 1 && (
-                    <motion.div key="datetime" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="w-8 h-8 bg-savron-green/20 border border-savron-green/30 rounded-savron flex items-center justify-center">
-                                <Zap className="w-4 h-4 text-savron-green" />
-                            </div>
-                            <h2 className="text-2xl font-heading text-white uppercase tracking-wider">When do you need in?</h2>
-                        </div>
-                        <p className="text-savron-silver text-xs uppercase tracking-widest">We&apos;ll find the first available barber for you</p>
+                {step === 1 && (() => {
+                    const slotHour = (t: string) => {
+                        const [time, period] = t.split(' ');
+                        let h = parseInt(time.split(':')[0]);
+                        if (period === 'PM' && h !== 12) h += 12;
+                        if (period === 'AM' && h === 12) h = 0;
+                        return h;
+                    };
+                    const openSlots = availableSlots.filter(t => !isSlotInPast(selectedDate, t, 5));
+                    const morning   = openSlots.filter(t => slotHour(t) < 12);
+                    const afternoon = openSlots.filter(t => { const h = slotHour(t); return h >= 12 && h < 17; });
+                    const evening   = openSlots.filter(t => slotHour(t) >= 17);
 
-                        <div>
-                            <p className="text-xs uppercase tracking-widest text-savron-silver/50 mb-3">Date</p>
-                            <DatePicker
-                                selected={selectedDate}
-                                onChange={(d) => { setSelectedDate(d); setSelectedTime(null); }}
-                            />
-                        </div>
-
-                        <div>
-                            <p className="text-xs uppercase tracking-widest text-savron-silver/50 mb-3">Time</p>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                {availableSlots.map((time, idx) => {
-                                    const past = isSlotInPast(selectedDate, time, 5);
-                                    return (
+                    const TimeGroup = ({ label, icon, slots }: { label: string; icon: string; slots: string[] }) => {
+                        if (slots.length === 0) return null;
+                        return (
+                            <div>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-[9px] text-savron-silver/25">{icon}</span>
+                                    <span className="text-[9px] uppercase tracking-[0.18em] text-savron-silver/35 font-medium">{label}</span>
+                                    <div className="flex-1 h-px bg-white/[0.04]" />
+                                    <span className="text-[9px] text-savron-silver/25">{slots.length} open</span>
+                                </div>
+                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-5">
+                                    {slots.map((time, idx) => (
                                         <button
                                             key={idx}
-                                            disabled={past}
-                                            onClick={() => !past && setSelectedTime(time)}
+                                            onClick={() => setSelectedTime(time)}
                                             className={cn(
-                                                "p-3 border rounded-savron transition-all text-center text-sm font-mono",
-                                                past
-                                                    ? "opacity-30 cursor-not-allowed border-white/[0.02] line-through text-savron-silver/30"
-                                                    : selectedTime === time
-                                                        ? "border-savron-green bg-savron-green text-white cursor-pointer"
-                                                        : "border-white/10 hover:border-white/30 text-savron-silver hover:text-white cursor-pointer"
+                                                "py-3 border rounded-savron transition-all duration-150 text-center text-[11px] font-mono tracking-wide",
+                                                selectedTime === time
+                                                    ? "border-savron-green/60 bg-savron-green/10 text-white shadow-[0_0_12px_rgba(0,255,120,0.06)]"
+                                                    : "border-white/[0.07] hover:border-white/20 text-savron-silver/60 hover:text-white hover:bg-white/[0.03]"
                                             )}
                                         >
                                             {time}
                                         </button>
-                                    );
-                                })}
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    </motion.div>
-                )}
+                        );
+                    };
+
+                    return (
+                        <motion.div key="datetime" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="w-8 h-8 bg-savron-green/20 border border-savron-green/30 rounded-savron flex items-center justify-center">
+                                    <Zap className="w-4 h-4 text-savron-green" />
+                                </div>
+                                <h2 className="text-2xl font-heading text-white uppercase tracking-wider">When do you need in?</h2>
+                            </div>
+                            <p className="text-savron-silver text-xs uppercase tracking-widest">We&apos;ll find the first available barber for you</p>
+
+                            <div>
+                                <p className="text-[9px] uppercase tracking-[0.18em] text-savron-silver/35 mb-3">Date</p>
+                                <DatePicker
+                                    selected={selectedDate}
+                                    onChange={(d) => { setSelectedDate(d); setSelectedTime(null); }}
+                                />
+                            </div>
+
+                            <div>
+                                <p className="text-[9px] uppercase tracking-[0.18em] text-savron-silver/35 mb-3">Available Times</p>
+                                {openSlots.length === 0 ? (
+                                    <div className="py-8 text-center space-y-1">
+                                        <p className="text-savron-silver/40 text-sm uppercase tracking-widest">No Times Left Today</p>
+                                        <p className="text-savron-silver/25 text-xs">Try a different date</p>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <TimeGroup label="Morning"   icon="◐" slots={morning} />
+                                        <TimeGroup label="Afternoon" icon="○" slots={afternoon} />
+                                        <TimeGroup label="Evening"   icon="◑" slots={evening} />
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    );
+                })()}
 
                 {/* Step 2: Service */}
                 {step === 2 && (

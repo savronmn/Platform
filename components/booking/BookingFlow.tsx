@@ -420,52 +420,88 @@ const BookingFlow = () => {
     );
 
     /* ─── STEP 3: Date & Time ────────────────────────────────── */
-    const renderDateTimeStep = () => (
-        <motion.div key="datetime" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-            <h2 className="text-xl font-heading text-white uppercase tracking-wider mb-4">Select Date & Time</h2>
-            <div className="md:grid md:grid-cols-2 md:gap-6 space-y-5 md:space-y-0">
+    const renderDateTimeStep = () => {
+        const slotHour = (t: string) => {
+            const [time, period] = t.split(' ');
+            let h = parseInt(time.split(':')[0]);
+            if (period === 'PM' && h !== 12) h += 12;
+            if (period === 'AM' && h === 12) h = 0;
+            return h;
+        };
+
+        const openSlots = availableSlots.filter(t => !isSlotBusy(t));
+        const morning   = openSlots.filter(t => slotHour(t) < 12);
+        const afternoon = openSlots.filter(t => { const h = slotHour(t); return h >= 12 && h < 17; });
+        const evening   = openSlots.filter(t => slotHour(t) >= 17);
+
+        const TimeGroup = ({ label, icon, slots }: { label: string; icon: string; slots: string[] }) => {
+            if (slots.length === 0) return null;
+            return (
                 <div>
-                    <p className="text-[10px] uppercase tracking-widest text-savron-silver/40 mb-2">Date</p>
-                    <DatePicker selected={selectedDate} onChange={(d) => { setSelectedDate(d); setSelectedTime(null); }} />
-                </div>
-                <div>
-                    <p className="text-[10px] uppercase tracking-widest text-savron-silver/40 mb-2">Time</p>
-                    <div className="grid grid-cols-3 md:grid-cols-2 gap-2">
-                        {loadingBusy ? (
-                            <div className="col-span-full py-6 flex justify-center text-savron-silver/40 text-xs uppercase">
-                                Checking availability...
-                            </div>
-                        ) : isBarberOffToday ? (
-                            <div className="col-span-full py-6 text-center text-savron-silver/40 text-xs uppercase tracking-widest">
-                                Not available on {selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}s
-                            </div>
-                        ) : (
-                            availableSlots.map((time, idx) => {
-                                const busy = isSlotBusy(time);
-                                return (
-                                    <button
-                                        key={idx}
-                                        disabled={busy}
-                                        onClick={() => !busy && setSelectedTime(time)}
-                                        className={cn(
-                                            "py-2.5 border transition-all duration-200 text-center text-[10px] font-mono tracking-wider w-full",
-                                            busy
-                                                ? "opacity-30 cursor-not-allowed border-white/[0.02] bg-white/[0.01] line-through text-savron-silver/30"
-                                                : selectedTime === time
-                                                    ? "border-savron-green/60 bg-savron-green/10 text-white cursor-pointer"
-                                                    : "border-white/[0.06] hover:border-white/20 text-savron-silver/50 hover:text-savron-silver cursor-pointer"
-                                        )}
-                                    >
-                                        {time}
-                                    </button>
-                                );
-                            })
-                        )}
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[9px] text-savron-silver/25">{icon}</span>
+                        <span className="text-[9px] uppercase tracking-[0.18em] text-savron-silver/35 font-medium">{label}</span>
+                        <div className="flex-1 h-px bg-white/[0.04]" />
+                        <span className="text-[9px] text-savron-silver/25">{slots.length} open</span>
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-5">
+                        {slots.map((time, idx) => (
+                            <button
+                                key={idx}
+                                onClick={() => setSelectedTime(time)}
+                                className={cn(
+                                    "py-3 border rounded-savron transition-all duration-150 text-center text-[11px] font-mono tracking-wide",
+                                    selectedTime === time
+                                        ? "border-savron-green/60 bg-savron-green/10 text-white shadow-[0_0_12px_rgba(0,255,120,0.06)]"
+                                        : "border-white/[0.07] hover:border-white/20 text-savron-silver/60 hover:text-white hover:bg-white/[0.03]"
+                                )}
+                            >
+                                {time}
+                            </button>
+                        ))}
                     </div>
                 </div>
-            </div>
-        </motion.div>
-    );
+            );
+        };
+
+        return (
+            <motion.div key="datetime" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                <h2 className="text-xl font-heading text-white uppercase tracking-wider mb-5">Select Date & Time</h2>
+
+                {/* Date row */}
+                <div className="mb-6">
+                    <p className="text-[9px] uppercase tracking-[0.18em] text-savron-silver/35 mb-3">Date</p>
+                    <DatePicker selected={selectedDate} onChange={(d) => { setSelectedDate(d); setSelectedTime(null); }} />
+                </div>
+
+                {/* Time section */}
+                <div>
+                    <p className="text-[9px] uppercase tracking-[0.18em] text-savron-silver/35 mb-3">Available Times</p>
+                    {loadingBusy ? (
+                        <div className="py-10 flex items-center justify-center gap-2 text-savron-silver/30 text-xs uppercase tracking-widest">
+                            <span className="animate-pulse">●</span> Checking availability
+                        </div>
+                    ) : isBarberOffToday ? (
+                        <div className="py-10 text-center space-y-1">
+                            <p className="text-savron-silver/40 text-sm uppercase tracking-widest">Not Available</p>
+                            <p className="text-savron-silver/25 text-xs">{selectedPro?.name} is off on {selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}s</p>
+                        </div>
+                    ) : openSlots.length === 0 ? (
+                        <div className="py-10 text-center space-y-1">
+                            <p className="text-savron-silver/40 text-sm uppercase tracking-widest">Fully Booked</p>
+                            <p className="text-savron-silver/25 text-xs">Try a different date</p>
+                        </div>
+                    ) : (
+                        <div>
+                            <TimeGroup label="Morning"   icon="◐" slots={morning} />
+                            <TimeGroup label="Afternoon" icon="○" slots={afternoon} />
+                            <TimeGroup label="Evening"   icon="◑" slots={evening} />
+                        </div>
+                    )}
+                </div>
+            </motion.div>
+        );
+    };
 
     /* ─── STEP 4: Details ────────────────────────────────────── */
     const renderDetailsStep = () => (
