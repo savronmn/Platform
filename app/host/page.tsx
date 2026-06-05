@@ -40,6 +40,7 @@ type ExternalEvent = {
     end: string;
     date: string;
     time: string;
+    htmlLink: string | null;
     source: 'google';
 };
 
@@ -1069,7 +1070,7 @@ export default function HostDashboard() {
                                 </div>
                                 {/* Edit in Google Calendar button */}
                                 <a
-                                    href={`https://calendar.google.com/calendar/r/eventedit/${encodeURIComponent(activeExternal.id)}`}
+                                    href={activeExternal.htmlLink ?? `https://calendar.google.com/calendar/r/day/${activeExternal.date.replace(/-/g, '/')}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center justify-center gap-2 w-full py-3 text-[11px] uppercase tracking-widest font-medium bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 hover:text-violet-200 border border-violet-500/30 hover:border-violet-500/50 rounded-savron transition-all"

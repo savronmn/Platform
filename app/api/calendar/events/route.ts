@@ -85,6 +85,8 @@ export async function GET(req: NextRequest) {
                     end: (e.end?.dateTime ?? e.start.dateTime) as string,
                     date: (e.start.dateTime as string).slice(0, 10),
                     time: isoToTimeSlot(e.start.dateTime as string),
+                    // htmlLink is the canonical Google Calendar URL to view/edit this event
+                    htmlLink: (e.htmlLink as string | undefined) ?? null,
                     source: 'google' as const,
                 }));
         })
