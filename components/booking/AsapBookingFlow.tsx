@@ -200,26 +200,21 @@ export default function AsapBookingFlow() {
                     const afternoon = openSlots.filter(t => { const h = slotHour(t); return h >= 12 && h < 17; });
                     const evening   = openSlots.filter(t => slotHour(t) >= 17);
 
-                    const TimeGroup = ({ label, icon, slots }: { label: string; icon: string; slots: string[] }) => {
+                    const TimeGroup = ({ label, slots }: { label: string; slots: string[] }) => {
                         if (slots.length === 0) return null;
                         return (
-                            <div>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-[9px] text-savron-silver/25">{icon}</span>
-                                    <span className="text-[9px] uppercase tracking-[0.18em] text-savron-silver/35 font-medium">{label}</span>
-                                    <div className="flex-1 h-px bg-white/[0.04]" />
-                                    <span className="text-[9px] text-savron-silver/25">{slots.length} open</span>
-                                </div>
-                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-5">
+                            <div className="mb-6">
+                                <p className="text-[10px] uppercase tracking-[0.2em] text-savron-silver/30 mb-3">{label}</p>
+                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                                     {slots.map((time, idx) => (
                                         <button
                                             key={idx}
                                             onClick={() => setSelectedTime(time)}
                                             className={cn(
-                                                "py-3 border rounded-savron transition-all duration-150 text-center text-[11px] font-mono tracking-wide",
+                                                "py-4 border transition-all duration-150 text-center text-sm font-mono",
                                                 selectedTime === time
-                                                    ? "border-savron-green/60 bg-savron-green/10 text-white shadow-[0_0_12px_rgba(0,255,120,0.06)]"
-                                                    : "border-white/[0.07] hover:border-white/20 text-savron-silver/60 hover:text-white hover:bg-white/[0.03]"
+                                                    ? "border-savron-green/50 bg-savron-green/10 text-white"
+                                                    : "border-white/[0.07] hover:border-white/20 text-savron-silver/50 hover:text-white"
                                             )}
                                         >
                                             {time}
@@ -257,9 +252,9 @@ export default function AsapBookingFlow() {
                                     </div>
                                 ) : (
                                     <div>
-                                        <TimeGroup label="Morning"   icon="◐" slots={morning} />
-                                        <TimeGroup label="Afternoon" icon="○" slots={afternoon} />
-                                        <TimeGroup label="Evening"   icon="◑" slots={evening} />
+                                        <TimeGroup label="Morning"   slots={morning} />
+                                        <TimeGroup label="Afternoon" slots={afternoon} />
+                                        <TimeGroup label="Evening"   slots={evening} />
                                     </div>
                                 )}
                             </div>
