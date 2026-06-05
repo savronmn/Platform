@@ -1068,22 +1068,17 @@ export default function HostDashboard() {
                                     <Scissors className="w-3.5 h-3.5 shrink-0 text-savron-silver/40" />
                                     {activeExternal.barberName}
                                 </div>
-                                {/* Calendar source link */}
-                                {(() => {
-                                    const barber = barbers.find(b => b.id === activeExternal.barberId);
-                                    const calLink = barber?.booking_links?.[0] ?? activeExternal.htmlLink ?? `https://calendar.google.com/calendar/r/day/${activeExternal.date.replace(/-/g, '/')}`;
-                                    return (
-                                        <a
-                                            href={calLink}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center justify-center gap-2 w-full py-3 text-[11px] uppercase tracking-widest font-medium bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 hover:text-violet-200 border border-violet-500/30 hover:border-violet-500/50 rounded-savron transition-all"
-                                            onClick={() => setActiveExternal(null)}
-                                        >
-                                            <Calendar className="w-3.5 h-3.5" /> Open Calendar
-                                        </a>
-                                    );
-                                })()}
+                                {/* Open the specific event in Google Calendar */}
+                                <a
+                                    href={activeExternal.htmlLink ?? `https://calendar.google.com/calendar/r/day/${activeExternal.date.replace(/-/g, '/')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-2 w-full py-3 text-[11px] uppercase tracking-widest font-medium bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 hover:text-violet-200 border border-violet-500/30 hover:border-violet-500/50 rounded-savron transition-all"
+                                    onClick={() => setActiveExternal(null)}
+                                >
+                                    <Pencil className="w-3.5 h-3.5" /> Open Event to Edit / Delete
+                                </a>
+                                <p className="text-[9px] text-savron-silver/30 text-center uppercase tracking-widest">Opens directly in Google Calendar — make sure you&apos;re signed into the right account</p>
                             </div>
                         </motion.div>
                     </motion.div>
