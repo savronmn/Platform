@@ -8,7 +8,7 @@ import {
     startOfWeek, endOfWeek, eachDayOfInterval,
     startOfMonth, endOfMonth, addWeeks, subWeeks, addMonths, subMonths,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, RefreshCw, Wifi, X, UserCheck, UserX, RotateCcw, Phone, Scissors, Menu, LayoutDashboard, Users, CreditCard, Mail, MonitorPlay, Ban, Camera, Upload, ClipboardList, Plus, Filter, Calendar, AtSign, DollarSign } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw, Wifi, X, UserCheck, UserX, RotateCcw, Phone, Scissors, Menu, LayoutDashboard, Users, CreditCard, Mail, MonitorPlay, Ban, Camera, Upload, ClipboardList, Plus, Filter, Calendar, AtSign, DollarSign, Pencil, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -16,6 +16,7 @@ import type { Barber, Booking } from '@/lib/types';
 import { TIME_SLOTS, serviceBlockStyle, resolveColor } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { triggerPostBooking } from '@/lib/confirm-booking';
+import EditBookingModal from '@/components/crm/EditBookingModal';
 
 const NAV_ITEMS = [
     { label: 'Dashboard',      href: '/admin',                icon: LayoutDashboard },
@@ -60,6 +61,11 @@ export default function HostDashboard() {
     const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
     const [updating, setUpdating] = useState(false);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+    // Edit + delete
+    const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [confirmDelete, setConfirmDelete] = useState(false);
 
     // External Google Calendar events
     const [externalEvents, setExternalEvents] = useState<ExternalEvent[]>([]);
@@ -169,6 +175,21 @@ export default function HostDashboard() {
             }).catch(err => console.error('Failed to sync calendar deletion:', err));
         }
         setUpdating(false);
+    };
+
+    // Hard-delete a booking from DB + sync calendar
+    const deleteBooking = async (booking: Booking) => {
+        setDeletingId(booking.id);
+        await supabase.from('bookings').delete().eq('id', booking.id);
+        fetch('/api/calendar/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookingId: booking.id, action: 'delete' }),
+        }).catch(() => {});
+        setBookings(prev => prev.filter(b => b.id !== booking.id));
+        setDeletingId(null);
+        setConfirmDelete(false);
+        setActiveBooking(null);
     };
 
     // Available time slots — excludes past slots (when viewing today) and already-booked slots for selected barber
@@ -685,7 +706,7 @@ export default function HostDashboard() {
                     <motion.div
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                         className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-                        onClick={() => setActiveBooking(null)}
+                        onClick={() => { setActiveBooking(null); setConfirmDelete(false); }}
                     >
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 8 }}
@@ -714,7 +735,7 @@ export default function HostDashboard() {
                                         {activeBooking.client_name ?? 'Walk-in'}
                                     </h2>
                                 </div>
-                                <button onClick={() => setActiveBooking(null)}
+                                <button onClick={() => { setActiveBooking(null); setConfirmDelete(false); }}
                                     className="text-savron-silver hover:text-white transition-colors p-1 -mr-1 -mt-1">
                                     <X className="w-5 h-5" />
                                 </button>
@@ -877,6 +898,34 @@ export default function HostDashboard() {
                                             </button>
                                         </div>
                                     )}
+
+                                    {/* Edit + Delete row */}
+                                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5 mt-1">
+                                        <button
+                                            onClick={() => { setEditingBooking(activeBooking); setActiveBooking(null); }}
+                                            className="flex items-center justify-center gap-2 py-2.5 text-[11px] uppercase tracking-widest text-savron-silver border border-white/10 rounded-savron hover:border-white/20 hover:text-white transition-all"
+                                        >
+                                            <Pencil className="w-3.5 h-3.5" /> Edit
+                                        </button>
+                                        {confirmDelete ? (
+                                            <button
+                                                onClick={() => deleteBooking(activeBooking)}
+                                                disabled={deletingId === activeBooking.id}
+                                                className="flex items-center justify-center gap-2 py-2.5 text-[11px] uppercase tracking-widest text-red-400 bg-red-500/20 border border-red-500/30 rounded-savron hover:bg-red-500/30 transition-all disabled:opacity-50"
+                                            >
+                                                {deletingId === activeBooking.id
+                                                    ? <div className="w-3.5 h-3.5 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                                                    : <><Trash2 className="w-3.5 h-3.5" /> Confirm</>}
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => setConfirmDelete(true)}
+                                                className="flex items-center justify-center gap-2 py-2.5 text-[11px] uppercase tracking-widest text-savron-silver/50 border border-white/10 rounded-savron hover:border-red-500/30 hover:text-red-400 transition-all"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" /> Delete
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </motion.div>
@@ -941,6 +990,19 @@ export default function HostDashboard() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* ══════════════════════════════════════
+                EDIT BOOKING MODAL
+            ══════════════════════════════════════ */}
+            <EditBookingModal
+                booking={editingBooking}
+                barbers={barbers}
+                onClose={() => setEditingBooking(null)}
+                onSaved={(updated) => {
+                    setBookings(prev => prev.map(b => b.id === updated.id ? updated : b));
+                    setEditingBooking(null);
+                }}
+            />
 
             {/* ══════════════════════════════════════
                 QUICK-ADD WALK-IN MODAL
