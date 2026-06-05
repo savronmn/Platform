@@ -918,7 +918,7 @@ export default function HostDashboard() {
                                     <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5 mt-1">
                                         <button
                                             onClick={() => { setEditingBooking(activeBooking); setActiveBooking(null); }}
-                                            className="flex items-center justify-center gap-2 py-2.5 text-[11px] uppercase tracking-widest text-savron-silver border border-white/10 rounded-savron hover:border-white/20 hover:text-white transition-all"
+                                            className="flex items-center justify-center gap-2 py-2.5 text-[11px] uppercase tracking-widest font-medium bg-savron-green/15 hover:bg-savron-green/25 text-emerald-400 hover:text-emerald-300 border border-savron-green/30 hover:border-savron-green/50 rounded-savron transition-all"
                                         >
                                             <Pencil className="w-3.5 h-3.5" /> Edit
                                         </button>
@@ -997,8 +997,18 @@ export default function HostDashboard() {
                                     <Scissors className="w-3.5 h-3.5 shrink-0 text-savron-silver/40" />
                                     {activeExternal.barberName}
                                 </div>
-                                <div className="bg-violet-500/5 border border-violet-500/20 rounded-savron px-3 py-2">
-                                    <p className="text-violet-300/60 text-[10px] uppercase tracking-widest">External booking via Google Calendar. Manage in Google Calendar directly.</p>
+                                {/* Edit in Google Calendar button */}
+                                <a
+                                    href={`https://calendar.google.com/calendar/r/eventedit/${encodeURIComponent(activeExternal.id)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-2 w-full py-3 text-[11px] uppercase tracking-widest font-medium bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 hover:text-violet-200 border border-violet-500/30 hover:border-violet-500/50 rounded-savron transition-all"
+                                    onClick={() => setActiveExternal(null)}
+                                >
+                                    <Pencil className="w-3.5 h-3.5" /> Edit in Google Calendar
+                                </a>
+                                <div className="bg-violet-500/5 border border-violet-500/10 rounded-savron px-3 py-2">
+                                    <p className="text-violet-300/40 text-[10px] uppercase tracking-widest">This event lives in Google Calendar — edits go there directly.</p>
                                 </div>
                             </div>
                         </motion.div>
