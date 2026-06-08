@@ -8,7 +8,7 @@ import {
     startOfWeek, endOfWeek, eachDayOfInterval,
     startOfMonth, endOfMonth, addWeeks, subWeeks, addMonths, subMonths,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, RefreshCw, Wifi, X, UserCheck, UserX, RotateCcw, Phone, Scissors, Menu, LayoutDashboard, Users, CreditCard, Mail, MonitorPlay, Ban, Camera, Upload, ClipboardList, Plus, Filter, Calendar, AtSign, DollarSign, Pencil, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw, Wifi, X, UserCheck, UserX, RotateCcw, Phone, Scissors, Menu, LayoutDashboard, Users, CreditCard, Mail, MonitorPlay, Ban, Camera, Upload, ClipboardList, Plus, Filter, Calendar, AtSign, DollarSign, Pencil, Trash2, Languages } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -55,7 +55,7 @@ export default function HostDashboard() {
 }
 
 function HostDashboardInner() {
-    const { t } = useLanguage();
+    const { lang, toggle, t } = useLanguage();
     const supabase = createClient();
     const services = useServices();
     const serviceColorMap = useMemo(() =>
@@ -332,8 +332,8 @@ function HostDashboardInner() {
     };
 
     // Convert a "10:00 AM" string to total minutes for range comparison
-    const timeToMins = (t: string): number => {
-        const [timePart, mer] = t.split(' ');
+    const timeToMins = (timeStr: string): number => {
+        const [timePart, mer] = timeStr.split(' ');
         let [h, m] = timePart.split(':').map(Number);
         if (mer === 'PM' && h !== 12) h += 12;
         if (mer === 'AM' && h === 12) h = 0;
@@ -452,7 +452,7 @@ function HostDashboardInner() {
         if (done) {
             return (
                 <div className="flex items-center justify-center gap-2 py-3 text-[11px] uppercase tracking-widest text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-savron">
-                    <UserCheck className="w-4 h-4" /> Checked In ✓
+                    <UserCheck className="w-4 h-4" /> {t('host.checked_in')} ✓
                 </div>
             );
         }
@@ -465,7 +465,7 @@ function HostDashboardInner() {
             >
                 {checking
                     ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    : <><UserCheck className="w-4 h-4" /> Check In</>}
+                    : <><UserCheck className="w-4 h-4" /> {t('host.check_in')}</>}
             </button>
         );
     };
@@ -531,11 +531,11 @@ function HostDashboardInner() {
                     >
                         <Menu className="w-5 h-5" />
                     </button>
-                    <h1 className="font-heading text-xl uppercase tracking-widest text-white">Host View</h1>
+                    <h1 className="font-heading text-xl uppercase tracking-widest text-white">{t('host.title')}</h1>
                     <div className="flex items-center gap-1.5">
                         <Wifi className={cn("w-3 h-3", realtimeConnected ? "text-emerald-400" : "text-savron-silver/40")} />
                         <span className={cn("text-[10px] uppercase tracking-widest", realtimeConnected ? "text-emerald-400" : "text-savron-silver/40")}>
-                            {realtimeConnected ? "Live" : "Connecting…"}
+                            {realtimeConnected ? t('host.live') : t('host.connecting')}
                         </span>
                     </div>
                 </div>
@@ -550,7 +550,7 @@ function HostDashboardInner() {
                         onClick={() => { setQuickFormDate(new Date()); setShowQuickAdd(true); }}
                         className="flex items-center gap-1.5 px-3 py-2 bg-savron-green text-white border border-savron-green-light/20 text-[10px] uppercase tracking-widest rounded-savron hover:bg-savron-green-light transition-all"
                     >
-                        <Plus className="w-3.5 h-3.5" /> {t('host.walk_in')}
+                        <Plus className="w-3.5 h-3.5" /> Walk-in
                     </button>
                 </div>
             </header>
@@ -590,7 +590,7 @@ function HostDashboardInner() {
             {/* ── Day summary strip (day view only) ── */}
             {view === 'day' && !loading && (
                 <div className="bg-savron-black border-b border-white/[0.04] px-6 py-2 flex items-center gap-6 shrink-0 overflow-x-auto">
-                    <span className="text-[10px] uppercase tracking-widest text-savron-silver/40 shrink-0">Today&apos;s Progress</span>
+                    <span className="text-[10px] uppercase tracking-widest text-savron-silver/40 shrink-0">{t('host.today_progress')}</span>
                     {/* Progress bar */}
                     <div className="flex-1 min-w-[120px] max-w-xs h-1.5 bg-white/5 rounded-full overflow-hidden hidden sm:block">
                         <div
@@ -602,23 +602,23 @@ function HostDashboardInner() {
                         <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest">
                             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
                             <span className="text-emerald-400 font-mono">{confirmed}</span>
-                            <span className="text-savron-silver/40">waiting</span>
+                            <span className="text-savron-silver/40">{t('host.waiting')}</span>
                         </span>
                         <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest">
                             <span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />
                             <span className="text-blue-400 font-mono">{completed}</span>
-                            <span className="text-savron-silver/40">done</span>
+                            <span className="text-savron-silver/40">{t('host.done_s')}</span>
                         </span>
                         <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest">
                             <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
                             <span className="text-red-400 font-mono">{noShow}</span>
-                            <span className="text-savron-silver/40">no-show</span>
+                            <span className="text-savron-silver/40">{t('host.no_show_s')}</span>
                         </span>
                         {cancelled > 0 && (
                             <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest">
                                 <span className="w-2 h-2 rounded-full bg-white/20 inline-block" />
                                 <span className="text-savron-silver/40 font-mono">{cancelled}</span>
-                                <span className="text-savron-silver/40">cancelled</span>
+                                <span className="text-savron-silver/40">{t('host.cancelled_s')}</span>
                             </span>
                         )}
                     </div>
@@ -629,7 +629,7 @@ function HostDashboardInner() {
             {barbers.length > 1 && (
                 <div className="bg-savron-black border-b border-white/[0.04] px-6 py-2 flex items-center gap-3 shrink-0 overflow-x-auto">
                     <Filter className="w-3.5 h-3.5 text-savron-silver/40 shrink-0" />
-                    <span className="text-[10px] uppercase tracking-widest text-savron-silver/40 shrink-0">Filter:</span>
+                    <span className="text-[10px] uppercase tracking-widest text-savron-silver/40 shrink-0">{t('host.filter')}</span>
                     <button
                         onClick={() => setFilteredBarberIds(new Set())}
                         className={cn(
@@ -639,7 +639,7 @@ function HostDashboardInner() {
                                 : "border-white/10 text-savron-silver/60 hover:text-white"
                         )}
                     >
-                        All
+                        {t('host.all')}
                     </button>
                     {barbers.map(b => (
                         <button
@@ -702,6 +702,27 @@ function HostDashboardInner() {
                                         {item.label}
                                     </Link>
                                 ))}
+                            </div>
+                            <div className="p-3 border-t border-white/5">
+                                <button
+                                    onClick={toggle}
+                                    className="flex items-center gap-3 px-3 py-3 rounded-savron text-sm uppercase tracking-wider text-savron-silver hover:text-white hover:bg-white/5 transition-all w-full border border-transparent"
+                                >
+                                    <Languages className="w-4 h-4" />
+                                    <span className="flex items-center gap-1.5">
+                                        <span className={cn("transition-colors", lang === 'en' ? "text-white" : "text-savron-silver/40")}>EN</span>
+                                        <span className="text-savron-silver/30">/</span>
+                                        <span className={cn("transition-colors", lang === 'es' ? "text-white" : "text-savron-silver/40")}>ES</span>
+                                    </span>
+                                    <span className={cn(
+                                        "ml-auto text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded border transition-colors",
+                                        lang === 'es'
+                                            ? "border-savron-green/40 text-savron-green bg-savron-green/10"
+                                            : "border-white/10 text-savron-silver/40"
+                                    )}>
+                                        {lang === 'en' ? 'EN' : 'ES'}
+                                    </span>
+                                </button>
                             </div>
                         </motion.nav>
                     </>
@@ -889,9 +910,9 @@ function HostDashboardInner() {
                             <div className="flex items-start justify-between p-5 pb-4">
                                 <div>
                                     <p className="text-[10px] uppercase tracking-[0.3em] text-savron-silver/50 mb-1">
-                                        {activeBooking.status === 'confirmed' ? 'Appointment' :
-                                         activeBooking.status === 'completed' ? 'Checked In' :
-                                         activeBooking.status === 'cancelled' ? 'Cancelled' : 'No Show'}
+                                        {activeBooking.status === 'confirmed' ? t('host.appointment') :
+                                         activeBooking.status === 'completed' ? t('host.checked_in') :
+                                         activeBooking.status === 'cancelled' ? t('host.cancelled_b') : t('host.no_show_btn')}
                                     </p>
                                     <h2 className="text-white font-heading text-xl uppercase tracking-wider leading-tight">
                                         {activeBooking.client_name ?? 'Walk-in'}
@@ -907,7 +928,7 @@ function HostDashboardInner() {
                             <div className="px-5 pb-5 space-y-3">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="bg-savron-charcoal rounded-savron p-3">
-                                        <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-1">Service</p>
+                                        <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-1">{t('host.service')}</p>
                                         <div className={cn("inline-flex px-2 py-0.5 rounded text-[10px] border", svcColor(activeBooking.service))}>
                                             {activeBooking.service}
                                         </div>
@@ -918,7 +939,7 @@ function HostDashboardInner() {
                                         )}
                                     </div>
                                     <div className="bg-savron-charcoal rounded-savron p-3">
-                                        <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-1">Date & Time</p>
+                                        <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-1">{t('host.date_time')}</p>
                                         <p className="text-white text-sm font-mono">{activeBooking.time}</p>
                                         {activeBooking.date && (
                                             <p className="text-savron-silver/50 text-[10px] mt-0.5">{activeBooking.date}</p>
@@ -955,7 +976,7 @@ function HostDashboardInner() {
 
                                 {/* Client photo */}
                                 <div className="border-t border-white/5 pt-3">
-                                    <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-2">Client Photo</p>
+                                    <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-2">{t('host.client_photo')}</p>
                                     <label className="group relative cursor-pointer block">
                                         <input
                                             type="file"
@@ -988,7 +1009,7 @@ function HostDashboardInner() {
 
                                 {/* ── Track This Visit ── */}
                                 <div className="pt-3 border-t border-white/5 space-y-2">
-                                    <p className="text-[9px] uppercase tracking-[0.3em] text-savron-silver/40 mb-3">Track This Visit</p>
+                                    <p className="text-[9px] uppercase tracking-[0.3em] text-savron-silver/40 mb-3">{t('host.track_visit')}</p>
 
                                     {activeBooking.status === 'confirmed' && (
                                         <>
@@ -998,14 +1019,14 @@ function HostDashboardInner() {
                                                     disabled={updating}
                                                     className="flex items-center justify-center gap-2 py-3 text-[11px] uppercase tracking-widest font-medium bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50"
                                                 >
-                                                    {updating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><UserCheck className="w-4 h-4" /> Check In</>}
+                                                    {updating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><UserCheck className="w-4 h-4" /> {t('host.check_in')}</>}
                                                 </button>
                                                 <button
                                                     onClick={() => updateStatus(activeBooking, 'no_show')}
                                                     disabled={updating}
                                                     className="flex items-center justify-center gap-2 py-3 text-[11px] uppercase tracking-widest font-medium bg-red-500/15 text-red-400 border border-red-500/25 rounded-savron hover:bg-red-500/25 transition-all disabled:opacity-50"
                                                 >
-                                                    {updating ? <div className="w-4 h-4 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" /> : <><UserX className="w-4 h-4" /> No Show</>}
+                                                    {updating ? <div className="w-4 h-4 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" /> : <><UserX className="w-4 h-4" /> {t('host.no_show_btn')}</>}
                                                 </button>
                                             </div>
                                             <button
@@ -1013,7 +1034,7 @@ function HostDashboardInner() {
                                                 disabled={updating}
                                                 className="w-full flex items-center justify-center gap-2 py-2.5 text-[11px] uppercase tracking-widest font-medium bg-white/5 text-white/40 border border-white/10 rounded-savron hover:bg-white/10 hover:text-white/70 transition-all disabled:opacity-50"
                                             >
-                                                {updating ? <div className="w-4 h-4 border-2 border-white/20 border-t-white/50 rounded-full animate-spin" /> : <><Ban className="w-4 h-4" /> Cancel Appointment</>}
+                                                {updating ? <div className="w-4 h-4 border-2 border-white/20 border-t-white/50 rounded-full animate-spin" /> : <><Ban className="w-4 h-4" /> {t('host.cancel_appt')}</>}
                                             </button>
                                         </>
                                     )}
@@ -1021,14 +1042,14 @@ function HostDashboardInner() {
                                     {activeBooking.status === 'completed' && (
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-center gap-2 py-3 text-[11px] uppercase tracking-widest text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-savron">
-                                                <UserCheck className="w-4 h-4" /> Checked In
+                                                <UserCheck className="w-4 h-4" /> {t('host.checked_in')}
                                             </div>
                                             <button
                                                 onClick={() => updateStatus(activeBooking, 'confirmed')}
                                                 disabled={updating}
                                                 className="w-full flex items-center justify-center gap-2 py-2 text-[10px] uppercase tracking-widest text-savron-silver/60 hover:text-white transition-colors disabled:opacity-50"
                                             >
-                                                <RotateCcw className="w-3 h-3" /> Undo
+                                                <RotateCcw className="w-3 h-3" /> {t('host.undo')}
                                             </button>
                                         </div>
                                     )}
@@ -1036,14 +1057,14 @@ function HostDashboardInner() {
                                     {activeBooking.status === 'no_show' && (
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-center gap-2 py-3 text-[11px] uppercase tracking-widest text-red-400 bg-red-500/10 border border-red-500/20 rounded-savron">
-                                                <UserX className="w-4 h-4" /> No Show
+                                                <UserX className="w-4 h-4" /> {t('host.no_show_btn')}
                                             </div>
                                             <button
                                                 onClick={() => updateStatus(activeBooking, 'confirmed')}
                                                 disabled={updating}
                                                 className="w-full flex items-center justify-center gap-2 py-2 text-[10px] uppercase tracking-widest text-savron-silver/60 hover:text-white transition-colors disabled:opacity-50"
                                             >
-                                                <RotateCcw className="w-3 h-3" /> Undo
+                                                <RotateCcw className="w-3 h-3" /> {t('host.undo')}
                                             </button>
                                         </div>
                                     )}
@@ -1051,14 +1072,14 @@ function HostDashboardInner() {
                                     {activeBooking.status === 'cancelled' && (
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-center gap-2 py-3 text-[11px] uppercase tracking-widest text-white/30 bg-white/5 border border-white/10 rounded-savron">
-                                                <Ban className="w-4 h-4" /> Cancelled
+                                                <Ban className="w-4 h-4" /> {t('host.cancelled_b')}
                                             </div>
                                             <button
                                                 onClick={() => updateStatus(activeBooking, 'confirmed')}
                                                 disabled={updating}
                                                 className="w-full flex items-center justify-center gap-2 py-2 text-[10px] uppercase tracking-widest text-savron-silver/60 hover:text-white transition-colors disabled:opacity-50"
                                             >
-                                                <RotateCcw className="w-3 h-3" /> Restore
+                                                <RotateCcw className="w-3 h-3" /> {t('host.restore')}
                                             </button>
                                         </div>
                                     )}
@@ -1069,7 +1090,7 @@ function HostDashboardInner() {
                                             onClick={() => { setEditingBooking(activeBooking); setActiveBooking(null); }}
                                             className="flex items-center justify-center gap-2 py-2.5 text-[11px] uppercase tracking-widest font-medium bg-savron-green/15 hover:bg-savron-green/25 text-emerald-400 hover:text-emerald-300 border border-savron-green/30 hover:border-savron-green/50 rounded-savron transition-all"
                                         >
-                                            <Pencil className="w-3.5 h-3.5" /> Edit
+                                            <Pencil className="w-3.5 h-3.5" /> {t('host.edit')}
                                         </button>
                                         {confirmDelete ? (
                                             <button
@@ -1079,14 +1100,14 @@ function HostDashboardInner() {
                                             >
                                                 {deletingId === activeBooking.id
                                                     ? <div className="w-3.5 h-3.5 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
-                                                    : <><Trash2 className="w-3.5 h-3.5" /> Confirm</>}
+                                                    : <><Trash2 className="w-3.5 h-3.5" /> {t('host.confirm')}</>}
                                             </button>
                                         ) : (
                                             <button
                                                 onClick={() => setConfirmDelete(true)}
                                                 className="flex items-center justify-center gap-2 py-2.5 text-[11px] uppercase tracking-widest text-savron-silver/50 border border-white/10 rounded-savron hover:border-red-500/30 hover:text-red-400 transition-all"
                                             >
-                                                <Trash2 className="w-3.5 h-3.5" /> Delete
+                                                <Trash2 className="w-3.5 h-3.5" /> {t('host.delete')}
                                             </button>
                                         )}
                                     </div>
@@ -1134,11 +1155,11 @@ function HostDashboardInner() {
                             <div className="px-5 pb-5 space-y-3">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="bg-savron-charcoal rounded-savron p-3">
-                                        <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-1">Service</p>
+                                        <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-1">{t('host.service')}</p>
                                         <p className="text-violet-300 text-xs truncate">{activeExternal.summary.replace(/^✂️\s*/, '').replace(/^.+?\s*[—–-]\s*/, '') || activeExternal.summary}</p>
                                     </div>
                                     <div className="bg-savron-charcoal rounded-savron p-3">
-                                        <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-1">Date & Time</p>
+                                        <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-1">{t('host.date_time')}</p>
                                         <p className="text-white text-sm font-mono">{activeExternal.time}</p>
                                         <p className="text-savron-silver/50 text-[10px] mt-0.5">{activeExternal.date}</p>
                                     </div>
@@ -1146,7 +1167,7 @@ function HostDashboardInner() {
 
                                 {/* ── Check In — creates a platform booking for revenue tracking ── */}
                                 <div className="pt-1 border-t border-white/5 space-y-2">
-                                    <p className="text-[9px] uppercase tracking-[0.3em] text-savron-silver/40">Track This Visit</p>
+                                    <p className="text-[9px] uppercase tracking-[0.3em] text-savron-silver/40">{t('host.track_visit')}</p>
                                     <ExternalCheckIn event={activeExternal} barbers={barbers} onDone={(b) => {
                                         setBookings(prev => [...prev, b]);
                                         setActiveExternal(null);
@@ -1161,9 +1182,9 @@ function HostDashboardInner() {
                                     className="flex items-center justify-center gap-2 w-full py-2.5 text-[10px] uppercase tracking-widest font-medium bg-white/5 hover:bg-white/10 text-savron-silver hover:text-white border border-white/10 hover:border-white/20 rounded-savron transition-all"
                                     onClick={() => setActiveExternal(null)}
                                 >
-                                    <Pencil className="w-3 h-3" /> Edit / Delete in Google Calendar
+                                    <Pencil className="w-3 h-3" /> {t('host.open_gcal')}
                                 </a>
-                                <p className="text-[9px] text-savron-silver/25 text-center uppercase tracking-widest">Make sure you&apos;re signed into the right account</p>
+                                <p className="text-[9px] text-savron-silver/25 text-center uppercase tracking-widest">{t('host.gcal_hint')}</p>
                             </div>
                         </motion.div>
                     </motion.div>
