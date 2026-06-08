@@ -337,26 +337,53 @@ export default function HostDashboard() {
         return bookings.filter(b => b.date === d && isBookingVisible(b));
     };
 
-    // Deduplicate: hide GCal events that have a matching platform booking
-    // (same barber + date + time). Platform bookings pushed to GCal via
-    // triggerPostBooking would otherwise show twice.
+    // Convert a "10:00 AM" string to total minutes for range comparison
+    const timeToMins = (t: string): number => {
+        const [timePart, mer] = t.split(' ');
+        let [h, m] = timePart.split(':').map(Number);
+        if (mer === 'PM' && h !== 12) h += 12;
+        if (mer === 'AM' && h === 12) h = 0;
+        return h * 60 + m;
+    };
+
+    // Deduplicate: hide GCal events that overlap with a platform booking
+    // (same barber + date, event time within 22 mins of booking time).
     const deduplicatedExternal = useMemo(() => {
-        const bookedSlots = new Set(
-            bookings.map(b => `${b.barber_id}|${b.date}|${b.time}`)
-        );
-        return externalEvents.filter(e => !bookedSlots.has(`${e.barberId}|${e.date}|${e.time}`));
+        return externalEvents.filter(e => {
+            const eMins = timeToMins(e.time);
+            return !bookings.some(b =>
+                b.barber_id === e.barberId &&
+                b.date === e.date &&
+                Math.abs(timeToMins(b.time) - eMins) <= 22
+            );
+        });
     }, [externalEvents, bookings]);
 
-    // External Google Calendar event helpers
+    // External Google Calendar event helpers — bucket by slot range
+    // An event belongs to slot[i] if its time is in [slot[i], slot[i+1]).
+    const SLOT_MINS = HOST_TIME_SLOTS.map(timeToMins);
     const isExternalVisible = (e: ExternalEvent) =>
         filteredBarberIds.size === 0 || filteredBarberIds.has(e.barberId);
-    const externalForBarberTime = (barberId: string, time: string) => {
+
+    const externalForBarberTime = (barberId: string, slotIdx: number) => {
         const d = format(selectedDate, 'yyyy-MM-dd');
-        return deduplicatedExternal.filter(e => e.barberId === barberId && e.date === d && e.time === time);
+        const lo = SLOT_MINS[slotIdx];
+        const hi = slotIdx + 1 < SLOT_MINS.length ? SLOT_MINS[slotIdx + 1] : lo + 45;
+        return deduplicatedExternal.filter(e => {
+            if (e.barberId !== barberId || e.date !== d) return false;
+            const em = timeToMins(e.time);
+            return em >= lo && em < hi;
+        });
     };
-    const externalForDayTime = (day: Date, time: string) => {
+    const externalForDayTime = (day: Date, slotIdx: number) => {
         const d = format(day, 'yyyy-MM-dd');
-        return deduplicatedExternal.filter(e => e.date === d && e.time === time && isExternalVisible(e));
+        const lo = SLOT_MINS[slotIdx];
+        const hi = slotIdx + 1 < SLOT_MINS.length ? SLOT_MINS[slotIdx + 1] : lo + 45;
+        return deduplicatedExternal.filter(e => {
+            if (e.date !== d || !isExternalVisible(e)) return false;
+            const em = timeToMins(e.time);
+            return em >= lo && em < hi;
+        });
     };
     const externalForDay = (day: Date) => {
         const d = format(day, 'yyyy-MM-dd');
@@ -734,7 +761,7 @@ export default function HostDashboard() {
                                         {visibleBarbers.map(barber => (
                                             <div key={barber.id} className="w-40 sm:w-52 shrink-0 px-1 py-0.5 border-r border-white/5 min-h-[36px]">
                                                 {bookingsForBarberTime(barber.id, time).map(b => <Pill key={b.id} b={b} />)}
-                                                {externalForBarberTime(barber.id, time).map(e => <ExternalPill key={e.id} e={e} />)}
+                                                {externalForBarberTime(barber.id, i).map(e => <ExternalPill key={e.id} e={e} />)}
                                             </div>
                                         ))}
                                     </div>
@@ -779,7 +806,7 @@ export default function HostDashboard() {
                                             <div key={day.toISOString()}
                                                 className={cn("w-36 sm:w-44 shrink-0 px-1 py-0.5 border-r border-white/5 min-h-[36px]", isToday(day) && "bg-savron-green/[0.03]")}>
                                                 {bookingsForDayTime(day, time).map(b => <Pill key={b.id} b={b} compact />)}
-                                                {externalForDayTime(day, time).map(e => <ExternalPill key={e.id} e={e} compact />)}
+                                                {externalForDayTime(day, i).map(e => <ExternalPill key={e.id} e={e} compact />)}
                                             </div>
                                         ))}
                                     </div>
