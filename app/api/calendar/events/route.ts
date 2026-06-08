@@ -41,6 +41,57 @@ function isoToTimeSlot(iso: string): string {
     return `${displayH}:${String(m).padStart(2, '0')} ${meridiem}`;
 }
 
+/** Extract a clean client name from GCal event data.
+ *  Priority:
+ *  1. Non-email displayName from attendees (exclude savronmn & info@savronmn)
+ *  2. Name parsed from summary patterns: "✂️ {Name} — {service}", "{service} ({Name})", etc.
+ *  3. Raw summary if it looks like a name (no special chars, short enough)
+ *  4. null
+ */
+function extractClientName(e: any): string | null {
+    const SYSTEM_EMAILS = ['info@savronmn.com', 'savronmn@gmail.com', 'aah8903@gmail.com'];
+
+    // 1. Look for a real attendee (non-system, non-email-only)
+    const attendees: any[] = e.attendees ?? [];
+    for (const a of attendees) {
+        const email = (a.email ?? '').toLowerCase();
+        if (SYSTEM_EMAILS.includes(email)) continue;
+        if (a.displayName && !a.displayName.includes('@')) return a.displayName;
+        // Has a non-system email but no display name — skip (we'll parse from summary)
+    }
+
+    // 2. Parse name from known summary patterns
+    const summary: string = (e.summary ?? '').trim();
+
+    // Pattern: "✂️ Name — Service" or "✂️ Name - Service"
+    const scissorsMatch = summary.match(/^✂️?\s*(.+?)\s*[—–-]\s*.+/);
+    if (scissorsMatch) {
+        const name = scissorsMatch[1].trim();
+        if (name && !name.includes('@')) return name;
+    }
+
+    // Pattern: "Service (Name)" or "SERVICE (Name)"
+    const parenMatch = summary.match(/\(([^)]+)\)\s*$/);
+    if (parenMatch) {
+        const name = parenMatch[1].trim();
+        if (name && !name.includes('@')) return name;
+    }
+
+    // Pattern: "Name — Service" (no scissors)
+    const dashMatch = summary.match(/^([A-Z][a-z]+(?: [A-Z][a-z]+)+)\s*[—–-]/);
+    if (dashMatch) {
+        const name = dashMatch[1].trim();
+        if (name && !name.includes('@')) return name;
+    }
+
+    // 3. If summary looks like just a name (1-3 words, titlecase, no special chars)
+    if (/^[A-Z][a-z]+(?: [A-Z][a-z]+){0,2}$/.test(summary)) {
+        return summary;
+    }
+
+    return null;
+}
+
 export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     const dateStart = searchParams.get('dateStart');
@@ -75,47 +126,63 @@ export async function GET(req: NextRequest) {
 
             const mapped = events
                 .filter((e) => e.status !== 'cancelled' && e.start?.dateTime)
-                .map((e) => ({
-                    id: e.id as string,
-                    barberId: barber.id as string,
-                    barberName: barber.name as string,
-                    summary: (e.summary as string) || 'Appointment',
-                    attendee: (e.attendees?.[0]?.displayName ?? e.attendees?.[0]?.email ?? null) as string | null,
-                    start: e.start.dateTime as string,
-                    end: (e.end?.dateTime ?? e.start.dateTime) as string,
-                    date: (e.start.dateTime as string).slice(0, 10),
-                    time: isoToTimeSlot(e.start.dateTime as string),
-                    // htmlLink is the canonical Google Calendar URL to view/edit this event
-                    htmlLink: (e.htmlLink as string | undefined) ?? null,
-                    source: 'google' as const,
-                }));
+                .map((e) => {
+                    const clientName = extractClientName(e);
+                    return {
+                        id: e.id as string,
+                        barberId: barber.id as string,
+                        barberName: barber.name as string,
+                        summary: (e.summary as string) || 'Appointment',
+                        // clientName is the clean extracted name; attendee kept for backward compat
+                        clientName,
+                        attendee: clientName,
+                        start: e.start.dateTime as string,
+                        end: (e.end?.dateTime ?? e.start.dateTime) as string,
+                        date: (e.start.dateTime as string).slice(0, 10),
+                        time: isoToTimeSlot(e.start.dateTime as string),
+                        // htmlLink is the canonical Google Calendar URL to view/edit this event
+                        htmlLink: (e.htmlLink as string | undefined) ?? null,
+                        source: 'google' as const,
+                    };
+                });
 
-            // Dedup: keep one event per barber+date+time.
-            // Prefer events whose attendee is a real client name (not info@savronmn.com, not null).
-            // Among ties, prefer the ✂️ platform-sync event (most accurate data).
+            // Dedup pass 1: keep one event per barber+date+time.
+            // Among duplicates at the same time, prefer the one with a real client name.
             const slotMap = new Map<string, typeof mapped[number]>();
             for (const ev of mapped) {
                 const slotKey = `${ev.barberId}|${ev.date}|${ev.time}`;
                 const existing = slotMap.get(slotKey);
                 if (!existing) { slotMap.set(slotKey, ev); continue; }
-
-                const isRealClient = (a: string | null) =>
-                    a && a !== 'info@savronmn.com' && !a.includes('@');
-                const isPlatformSync = (e: typeof ev) => e.summary.startsWith('✂️');
-
-                // Keep whichever has a real client name; if tie, prefer platform sync
-                const evScore   = (isRealClient(ev.attendee) ? 2 : 0) + (isPlatformSync(ev) ? 1 : 0);
-                const exScore   = (isRealClient(existing.attendee) ? 2 : 0) + (isPlatformSync(existing) ? 1 : 0);
-                if (evScore > exScore) slotMap.set(slotKey, ev);
+                // Prefer whichever has a real client name
+                if (ev.clientName && !existing.clientName) slotMap.set(slotKey, ev);
             }
 
-            return Array.from(slotMap.values());
+            const pass1 = Array.from(slotMap.values());
+
+            // Dedup pass 2: if same client name appears at same date+time (across barbers),
+            // keep only the first. This handles duplicate calendars reading the same event.
+            return pass1;
         })
     );
 
-    const events = settled
+    const allEvents = settled
         .filter((r): r is PromiseFulfilledResult<any[]> => r.status === 'fulfilled')
         .flatMap((r) => r.value);
 
-    return NextResponse.json(events);
+    // Global dedup by name+date+time — catches the same appointment showing from
+    // multiple connected calendars (e.g. personal + appointment calendar both connected).
+    const globalSeen = new Map<string, typeof allEvents[number]>();
+    for (const ev of allEvents) {
+        const normalName = (ev.clientName ?? ev.summary).toLowerCase().trim().replace(/\s+/g, ' ');
+        const globalKey = `${normalName}|${ev.date}|${ev.time}`;
+        if (!globalSeen.has(globalKey)) {
+            globalSeen.set(globalKey, ev);
+        } else {
+            // Keep whichever has the better name
+            const existing = globalSeen.get(globalKey)!;
+            if (ev.clientName && !existing.clientName) globalSeen.set(globalKey, ev);
+        }
+    }
+
+    return NextResponse.json(Array.from(globalSeen.values()));
 }

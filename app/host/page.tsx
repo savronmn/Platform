@@ -36,6 +36,7 @@ type ExternalEvent = {
     barberName: string;
     summary: string;
     attendee: string | null;
+    clientName: string | null;
     start: string;
     end: string;
     date: string;
@@ -389,23 +390,86 @@ export default function HostDashboard() {
         end:   endOfWeek(endOfMonth(selectedDate),     { weekStartsOn: 1 }),
     });
 
+    // ExternalCheckIn — creates a platform booking from a GCal event so it can be tracked for revenue
+    const ExternalCheckIn = ({
+        event, barbers, onDone,
+    }: { event: ExternalEvent; barbers: Barber[]; onDone: (b: Booking) => void }) => {
+        const [checking, setChecking] = useState(false);
+        const [done, setDone] = useState(false);
+
+        const handleCheckIn = async () => {
+            setChecking(true);
+            // Parse service from summary (strip ✂️ prefix and barber name)
+            const rawSummary = event.summary;
+            let service = rawSummary
+                .replace(/^✂️\s*/, '')
+                .replace(/^.+?\s*[—–-]\s*/, '')
+                .trim() || rawSummary;
+
+            const clientName = event.clientName ?? event.attendee ?? 'Walk-in';
+
+            const { data, error } = await supabase.from('bookings').insert({
+                client_name: clientName,
+                service,
+                barber_id: event.barberId,
+                barber_name: event.barberName,
+                date: event.date,
+                time: event.time,
+                duration: '45 min',
+                price: '',
+                status: 'completed', // Check In = completed
+                notes: `Checked in from Google Calendar event`,
+            }).select('*').single();
+
+            if (!error && data) {
+                setDone(true);
+                setTimeout(() => onDone(data as Booking), 600);
+            }
+            setChecking(false);
+        };
+
+        if (done) {
+            return (
+                <div className="flex items-center justify-center gap-2 py-3 text-[11px] uppercase tracking-widest text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-savron">
+                    <UserCheck className="w-4 h-4" /> Checked In ✓
+                </div>
+            );
+        }
+
+        return (
+            <button
+                onClick={handleCheckIn}
+                disabled={checking}
+                className="flex items-center justify-center gap-2 w-full py-3 text-[11px] uppercase tracking-widest font-medium bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50"
+            >
+                {checking
+                    ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    : <><UserCheck className="w-4 h-4" /> Check In &amp; Track Revenue</>}
+            </button>
+        );
+    };
+
     // External Google Calendar event pill
-    const ExternalPill = ({ e, compact = false }: { e: ExternalEvent; compact?: boolean }) => (
-        <div
-            onClick={ev => { ev.stopPropagation(); setActiveExternal(e); }}
-            className={cn(
-                "rounded-savron border cursor-pointer transition-opacity hover:opacity-80 mb-1",
-                compact ? "p-1.5 text-[10px] space-y-0.5" : "p-2.5 text-xs space-y-1",
-                "bg-violet-500/10 border-violet-500/25 text-violet-300"
-            )}
-        >
-            <div className="flex items-center justify-between gap-1">
-                <span className="font-medium truncate">{e.attendee ?? e.summary}</span>
-                <span className="text-[8px] uppercase tracking-widest opacity-50 shrink-0">GCal</span>
+    const ExternalPill = ({ e, compact = false }: { e: ExternalEvent; compact?: boolean }) => {
+        const displayName = e.clientName ?? e.attendee ?? e.summary;
+        return (
+            <div
+                onClick={ev => { ev.stopPropagation(); setActiveExternal(e); }}
+                className={cn(
+                    "rounded-savron border cursor-pointer transition-opacity hover:opacity-80 mb-1",
+                    compact ? "p-1.5 text-[10px] space-y-0.5" : "p-2.5 text-xs space-y-1",
+                    "bg-violet-500/10 border-violet-500/25 text-violet-300"
+                )}
+            >
+                <div className="flex items-center justify-between gap-1">
+                    <span className="font-medium truncate">{displayName}</span>
+                    <span className="text-[8px] uppercase tracking-widest opacity-50 shrink-0">GCal</span>
+                </div>
+                {!compact && <p className="opacity-50 truncate text-[10px]">{e.time} · {e.barberName}</p>}
+                {compact && <p className="opacity-60 truncate">{e.barberName}</p>}
             </div>
-            <p className="opacity-60 truncate">{compact ? e.barberName : e.summary}</p>
-        </div>
-    );
+        );
+    };
 
     // Reusable pill — used in all three views
     const Pill = ({ b, compact = false }: { b: Booking; compact?: boolean }) => {
@@ -1044,8 +1108,9 @@ export default function HostDashboard() {
                                         <Calendar className="w-3 h-3" /> Google Calendar
                                     </p>
                                     <h2 className="text-white font-heading text-xl uppercase tracking-wider leading-tight">
-                                        {activeExternal.attendee ?? activeExternal.summary}
+                                        {activeExternal.clientName ?? activeExternal.attendee ?? activeExternal.summary}
                                     </h2>
+                                    <p className="text-savron-silver/40 text-[11px] mt-0.5">{activeExternal.time} · {activeExternal.barberName}</p>
                                 </div>
                                 <button onClick={() => setActiveExternal(null)}
                                     className="text-savron-silver hover:text-white transition-colors p-1 -mr-1 -mt-1">
@@ -1055,8 +1120,8 @@ export default function HostDashboard() {
                             <div className="px-5 pb-5 space-y-3">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="bg-savron-charcoal rounded-savron p-3">
-                                        <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-1">Event</p>
-                                        <p className="text-violet-300 text-xs truncate">{activeExternal.summary}</p>
+                                        <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-1">Service</p>
+                                        <p className="text-violet-300 text-xs truncate">{activeExternal.summary.replace(/^✂️\s*/, '').replace(/^.+?\s*[—–-]\s*/, '') || activeExternal.summary}</p>
                                     </div>
                                     <div className="bg-savron-charcoal rounded-savron p-3">
                                         <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-1">Date & Time</p>
@@ -1064,21 +1129,27 @@ export default function HostDashboard() {
                                         <p className="text-savron-silver/50 text-[10px] mt-0.5">{activeExternal.date}</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 text-sm text-savron-silver">
-                                    <Scissors className="w-3.5 h-3.5 shrink-0 text-savron-silver/40" />
-                                    {activeExternal.barberName}
+
+                                {/* ── Check In — creates a platform booking for revenue tracking ── */}
+                                <div className="pt-1 border-t border-white/5 space-y-2">
+                                    <p className="text-[9px] uppercase tracking-[0.3em] text-savron-silver/40">Track This Visit</p>
+                                    <ExternalCheckIn event={activeExternal} barbers={barbers} onDone={(b) => {
+                                        setBookings(prev => [...prev, b]);
+                                        setActiveExternal(null);
+                                    }} />
                                 </div>
-                                {/* Open the specific event in Google Calendar */}
+
+                                {/* Open in Google Calendar */}
                                 <a
                                     href={activeExternal.htmlLink ?? `https://calendar.google.com/calendar/r/day/${activeExternal.date.replace(/-/g, '/')}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center justify-center gap-2 w-full py-3 text-[11px] uppercase tracking-widest font-medium bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 hover:text-violet-200 border border-violet-500/30 hover:border-violet-500/50 rounded-savron transition-all"
+                                    className="flex items-center justify-center gap-2 w-full py-2.5 text-[10px] uppercase tracking-widest font-medium bg-white/5 hover:bg-white/10 text-savron-silver hover:text-white border border-white/10 hover:border-white/20 rounded-savron transition-all"
                                     onClick={() => setActiveExternal(null)}
                                 >
-                                    <Pencil className="w-3.5 h-3.5" /> Open Event to Edit / Delete
+                                    <Pencil className="w-3 h-3" /> Edit / Delete in Google Calendar
                                 </a>
-                                <p className="text-[9px] text-savron-silver/30 text-center uppercase tracking-widest">Opens directly in Google Calendar — make sure you&apos;re signed into the right account</p>
+                                <p className="text-[9px] text-savron-silver/25 text-center uppercase tracking-widest">Make sure you&apos;re signed into the right account</p>
                             </div>
                         </motion.div>
                     </motion.div>
