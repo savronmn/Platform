@@ -12,7 +12,7 @@ import {
 import { ChevronLeft, ChevronRight, RefreshCw, ExternalLink, ArrowLeft, Link2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Barber, Booking } from '@/lib/types';
-import { TIME_SLOTS, serviceBlockStyle } from '@/lib/services-data';
+import { HOST_TIME_SLOTS, serviceBlockStyle } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import Link from 'next/link';
 
@@ -301,8 +301,13 @@ export default function AdminBarberCalendarPage() {
             {/* Day View */}
             {view === 'day' && (
                 <div className="space-y-2">
-                    {TIME_SLOTS.map((slot) => {
-                        const booking = bookingsForDate(selectedDateStr).find(b => b.time === slot);
+                    {HOST_TIME_SLOTS.map((slot, i) => {
+                        const lo = slotToMinutes(slot);
+                        const hi = i + 1 < HOST_TIME_SLOTS.length ? slotToMinutes(HOST_TIME_SLOTS[i + 1]) : lo + 45;
+                        const booking = bookingsForDate(selectedDateStr).find(b => {
+                            const bm = slotToMinutes(b.time);
+                            return bm >= lo && bm < hi;
+                        });
                         const gBusy = !booking && isGoogleBusy(slot, selectedDateStr);
                         const inHours = !daySchedule ? true : isSlotInHours(slot, daySchedule);
                         return (
