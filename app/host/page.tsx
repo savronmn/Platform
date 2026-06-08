@@ -17,6 +17,7 @@ import { TIME_SLOTS, HOST_TIME_SLOTS, serviceBlockStyle, resolveColor } from '@/
 import { useServices } from '@/lib/use-services';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 import EditBookingModal from '@/components/crm/EditBookingModal';
+import { LanguageProvider, useLanguage } from '@/lib/language-context';
 
 const NAV_ITEMS = [
     { label: 'Dashboard',      href: '/admin',                icon: LayoutDashboard },
@@ -46,6 +47,15 @@ type ExternalEvent = {
 };
 
 export default function HostDashboard() {
+    return (
+        <LanguageProvider>
+            <HostDashboardInner />
+        </LanguageProvider>
+    );
+}
+
+function HostDashboardInner() {
+    const { t } = useLanguage();
     const supabase = createClient();
     const services = useServices();
     const serviceColorMap = useMemo(() =>
@@ -84,22 +94,6 @@ export default function HostDashboard() {
     });
     const [quickSubmitting, setQuickSubmitting] = useState(false);
     const [quickError, setQuickError] = useState<string | null>(null);
-
-    // Calendar sharing
-    const [sharingCal, setSharingCal] = useState(false);
-    const [shareResult, setShareResult] = useState<string | null>(null);
-    const shareCalendars = async () => {
-        setSharingCal(true);
-        setShareResult(null);
-        try {
-            const res = await fetch('/api/calendar/share', { method: 'POST' });
-            const data = await res.json();
-            setShareResult(data.message ?? 'Done');
-        } catch {
-            setShareResult('Error — check console');
-        }
-        setSharingCal(false);
-    };
 
     // Barber filter (empty set = show all)
     const [filteredBarberIds, setFilteredBarberIds] = useState<Set<string>>(new Set());
@@ -471,7 +465,7 @@ export default function HostDashboard() {
             >
                 {checking
                     ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    : <><UserCheck className="w-4 h-4" /> Check In &amp; Track Revenue</>}
+                    : <><UserCheck className="w-4 h-4" /> Check In</>}
             </button>
         );
     };
@@ -547,33 +541,26 @@ export default function HostDashboard() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <div className="text-center hidden sm:block"><p className="text-white font-mono text-lg">{confirmed}</p><p className="text-savron-silver text-[10px] uppercase tracking-widest">Confirmed</p></div>
-                    <div className="text-center hidden sm:block"><p className="text-blue-400 font-mono text-lg">{completed}</p><p className="text-savron-silver text-[10px] uppercase tracking-widest">Done</p></div>
-                    <div className="text-center hidden sm:block"><p className="text-red-400 font-mono text-lg">{noShow}</p><p className="text-savron-silver text-[10px] uppercase tracking-widest">No-show</p></div>
+                    <div className="text-center hidden sm:block"><p className="text-white font-mono text-lg">{confirmed}</p><p className="text-savron-silver text-[10px] uppercase tracking-widest">{t('host.confirmed')}</p></div>
+                    <div className="text-center hidden sm:block"><p className="text-blue-400 font-mono text-lg">{completed}</p><p className="text-savron-silver text-[10px] uppercase tracking-widest">{t('host.done')}</p></div>
+                    <div className="text-center hidden sm:block"><p className="text-red-400 font-mono text-lg">{noShow}</p><p className="text-savron-silver text-[10px] uppercase tracking-widest">{t('host.no_show')}</p></div>
                     <button onClick={fetchBookings} className="p-2 text-savron-silver hover:text-white transition-colors"><RefreshCw className="w-4 h-4" /></button>
-                    {/* Share Calendar access */}
-                    <button
-                        onClick={shareCalendars}
-                        disabled={sharingCal}
-                        title={shareResult ?? 'Grant savronmn@gmail.com editor access to all barber calendars'}
-                        className="hidden md:flex items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-widest bg-white/5 border border-white/10 rounded-savron text-savron-silver hover:text-white hover:border-white/20 transition-all disabled:opacity-40"
-                    >
-                        <Calendar className={cn('w-3.5 h-3.5', sharingCal && 'animate-spin')} />
-                        {sharingCal ? 'Sharing…' : shareResult ? '✓ Shared' : 'Share Cal'}
-                    </button>
                     {/* Quick-Add walk-in */}
                     <button
                         onClick={() => { setQuickFormDate(new Date()); setShowQuickAdd(true); }}
                         className="flex items-center gap-1.5 px-3 py-2 bg-savron-green text-white border border-savron-green-light/20 text-[10px] uppercase tracking-widest rounded-savron hover:bg-savron-green-light transition-all"
                     >
-                        <Plus className="w-3.5 h-3.5" /> Walk-in
+                        <Plus className="w-3.5 h-3.5" /> {t('host.walk_in')}
                     </button>
                 </div>
             </header>
 
             {/* ── Row 2: date nav + view toggle ── */}
-            <div className="bg-savron-grey border-b border-white/[0.04] px-6 py-2 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2">
+            <div className="bg-savron-grey border-b border-white/[0.04] px-6 py-2 flex items-center justify-between shrink-0 relative">
+                <div className="flex-1"></div> {/* Spacer to allow absolute centering */}
+                
+                {/* Centered Date Nav */}
+                <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
                     <button onClick={prev} className="p-1.5 text-savron-silver hover:text-white transition-colors"><ChevronLeft className="w-4 h-4" /></button>
                     <div className="text-center min-w-[148px]">
                         <p className="text-white font-heading uppercase tracking-widest text-sm leading-none">{headingLabel}</p>
@@ -583,18 +570,18 @@ export default function HostDashboard() {
                     {!isToday(selectedDate) && (
                         <button onClick={() => setSelectedDate(new Date())}
                             className="ml-1 text-[10px] uppercase tracking-widest text-emerald-400 border border-savron-green-light/20 hover:bg-savron-green/10 transition-colors px-2.5 py-1 rounded-savron">
-                            Today
+                            {t('host.today')}
                         </button>
                     )}
                 </div>
 
-                <div className="flex border border-white/10 rounded-savron overflow-hidden">
+                <div className="flex border border-white/10 rounded-savron overflow-hidden z-10">
                     {(['day', 'week', 'month'] as CalView[]).map(v => (
                         <button key={v} onClick={() => setView(v)}
                             className={cn("px-3 py-1.5 text-[10px] uppercase tracking-widest transition-all",
                                 view === v ? "bg-savron-green text-white border border-savron-green-light/20" : "text-savron-silver hover:text-white hover:bg-white/5"
                             )}>
-                            {v}
+                            {t(`host.${v}`) || v}
                         </button>
                     ))}
                 </div>
