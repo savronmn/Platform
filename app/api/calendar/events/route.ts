@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
             const accessToken = await getValidAccessToken(tokens);
             const events = await listEvents(accessToken, barber.google_calendar_id, timeMin, timeMax);
 
-            return events
+            const mapped = events
                 .filter((e) => e.status !== 'cancelled' && e.start?.dateTime)
                 .map((e) => ({
                     id: e.id as string,
@@ -89,6 +89,27 @@ export async function GET(req: NextRequest) {
                     htmlLink: (e.htmlLink as string | undefined) ?? null,
                     source: 'google' as const,
                 }));
+
+            // Dedup: keep one event per barber+date+time.
+            // Prefer events whose attendee is a real client name (not info@savronmn.com, not null).
+            // Among ties, prefer the ✂️ platform-sync event (most accurate data).
+            const slotMap = new Map<string, typeof mapped[number]>();
+            for (const ev of mapped) {
+                const slotKey = `${ev.barberId}|${ev.date}|${ev.time}`;
+                const existing = slotMap.get(slotKey);
+                if (!existing) { slotMap.set(slotKey, ev); continue; }
+
+                const isRealClient = (a: string | null) =>
+                    a && a !== 'info@savronmn.com' && !a.includes('@');
+                const isPlatformSync = (e: typeof ev) => e.summary.startsWith('✂️');
+
+                // Keep whichever has a real client name; if tie, prefer platform sync
+                const evScore   = (isRealClient(ev.attendee) ? 2 : 0) + (isPlatformSync(ev) ? 1 : 0);
+                const exScore   = (isRealClient(existing.attendee) ? 2 : 0) + (isPlatformSync(existing) ? 1 : 0);
+                if (evScore > exScore) slotMap.set(slotKey, ev);
+            }
+
+            return Array.from(slotMap.values());
         })
     );
 
