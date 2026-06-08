@@ -24,6 +24,19 @@ async function listEvents(accessToken: string, calendarId: string, timeMin: stri
     return (data.items ?? []) as any[];
 }
 
+// Returns all calendar IDs in the account — catches events booked on secondary/personal calendars.
+async function listAllCalendarIds(accessToken: string): Promise<string[]> {
+    const url = new URL(`${GOOGLE_CALENDAR_BASE}/users/me/calendarList`);
+    url.searchParams.set('minAccessRole', 'reader');
+    const res = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        next: { revalidate: 0 },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return ((data.items ?? []) as any[]).map((c: any) => c.id as string).filter(Boolean);
+}
+
 function isoToTimeSlot(iso: string): string {
     // Return the exact event time — no rounding.
     // Parse h/m from ISO string to avoid server UTC timezone shifts.
@@ -119,7 +132,16 @@ export async function GET(req: NextRequest) {
         barbers.map(async (barber) => {
             const tokens = barber.google_calendar_tokens as CalendarToken;
             const accessToken = await getValidAccessToken(tokens);
-            const events = await listEvents(accessToken, barber.google_calendar_id, timeMin, timeMax);
+
+            // Fetch from every calendar in the account so events on secondary/personal
+            // calendars aren't missed. Fall back to the stored ID if listing fails.
+            const calendarIds = await listAllCalendarIds(accessToken);
+            const idsToFetch = calendarIds.length > 0 ? calendarIds : [barber.google_calendar_id];
+
+            const allRaw = await Promise.all(
+                idsToFetch.map(id => listEvents(accessToken, id, timeMin, timeMax))
+            );
+            const events = allRaw.flat();
 
             const mapped = events
                 .filter((e) => e.status !== 'cancelled' && e.start?.dateTime)

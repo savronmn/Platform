@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Barber, Booking } from '@/lib/types';
-import { TIME_SLOTS, HOST_TIME_SLOTS, serviceBlockStyle, resolveColor } from '@/lib/services-data';
+import { HOST_TIME_SLOTS, serviceBlockStyle } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 import EditBookingModal from '@/components/crm/EditBookingModal';
@@ -212,7 +212,7 @@ function HostDashboardInner() {
         const now = new Date();
         const nowMins = now.getHours() * 60 + now.getMinutes();
 
-        return TIME_SLOTS.filter(slot => {
+        return HOST_TIME_SLOTS.filter(slot => {
             if (isViewingToday) {
                 const [timePart, meridiem] = slot.split(' ');
                 let [h, m] = timePart.split(':').map(Number);
@@ -319,12 +319,28 @@ function HostDashboardInner() {
         return `${bookings.length} booking${bookings.length !== 1 ? 's' : ''}`;
     })();
 
-    // Data helpers — respect the active barber filter
-    const bookingsForBarberTime = (barberId: string, time: string) =>
-        bookings.filter(b => b.barber_id === barberId && b.time === time);
-    const bookingsForDayTime = (day: Date, time: string) => {
+    // Data helpers — range-based bucketing matches how GCal events are placed.
+    // A booking belongs to slot[i] if its time falls in [slot[i], slot[i+1]).
+    // This means bookings from the booking flow (different 45-min grid) still show up correctly.
+    const bookingsForBarberTime = (barberId: string, slotIdx: number) => {
+        const d = format(selectedDate, 'yyyy-MM-dd');
+        const lo = SLOT_MINS[slotIdx];
+        const hi = slotIdx + 1 < SLOT_MINS.length ? SLOT_MINS[slotIdx + 1] : lo + 45;
+        return bookings.filter(b => {
+            if (b.barber_id !== barberId || b.date !== d) return false;
+            const bm = timeToMins(b.time);
+            return bm >= lo && bm < hi;
+        });
+    };
+    const bookingsForDayTime = (day: Date, slotIdx: number) => {
         const d = format(day, 'yyyy-MM-dd');
-        return bookings.filter(b => b.date === d && b.time === time && isBookingVisible(b));
+        const lo = SLOT_MINS[slotIdx];
+        const hi = slotIdx + 1 < SLOT_MINS.length ? SLOT_MINS[slotIdx + 1] : lo + 45;
+        return bookings.filter(b => {
+            if (b.date !== d || !isBookingVisible(b)) return false;
+            const bm = timeToMins(b.time);
+            return bm >= lo && bm < hi;
+        });
     };
     const bookingsForDay = (day: Date) => {
         const d = format(day, 'yyyy-MM-dd');
@@ -768,7 +784,7 @@ function HostDashboardInner() {
                                         </div>
                                         {visibleBarbers.map(barber => (
                                             <div key={barber.id} className="w-40 sm:w-52 shrink-0 px-1 py-0.5 border-r border-white/5 min-h-[36px]">
-                                                {bookingsForBarberTime(barber.id, time).map(b => <Pill key={b.id} b={b} />)}
+                                                {bookingsForBarberTime(barber.id, i).map(b => <Pill key={b.id} b={b} />)}
                                                 {externalForBarberTime(barber.id, i).map(e => <ExternalPill key={e.id} e={e} />)}
                                             </div>
                                         ))}
@@ -813,7 +829,7 @@ function HostDashboardInner() {
                                         {weekDays.map(day => (
                                             <div key={day.toISOString()}
                                                 className={cn("w-36 sm:w-44 shrink-0 px-1 py-0.5 border-r border-white/5 min-h-[36px]", isToday(day) && "bg-savron-green/[0.03]")}>
-                                                {bookingsForDayTime(day, time).map(b => <Pill key={b.id} b={b} compact />)}
+                                                {bookingsForDayTime(day, i).map(b => <Pill key={b.id} b={b} compact />)}
                                                 {externalForDayTime(day, i).map(e => <ExternalPill key={e.id} e={e} compact />)}
                                             </div>
                                         ))}
