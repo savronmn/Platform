@@ -356,6 +356,16 @@ function HostDashboardInner() {
         return h * 60 + m;
     };
 
+    // Format "10:00 AM" → "10am", "1:30 PM" → "1:30pm" for compact display
+    const formatTime = (timeStr: string | null | undefined): string => {
+        if (!timeStr) return '';
+        const [timePart, mer] = timeStr.split(' ');
+        const [, m] = timePart.split(':').map(Number);
+        const hPart = timePart.split(':')[0];
+        const suffix = (mer ?? '').toLowerCase();
+        return m === 0 ? `${hPart}${suffix}` : `${hPart}:${String(m).padStart(2, '0')}${suffix}`;
+    };
+
     // Deduplicate: hide GCal events that overlap with a platform booking
     // (same barber + date, event time within 22 mins of booking time).
     const deduplicatedExternal = useMemo(() => {
@@ -529,8 +539,10 @@ function HostDashboardInner() {
                 <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", statusDot(b.status))} />
             </div>
             <p className="opacity-70 truncate">{compact ? (b.barber_name ?? b.service) : b.service}</p>
-            {!compact && b.duration    && <p className="opacity-50 text-[10px]">{b.duration}</p>}
+            {!compact && b.time       && <p className="opacity-60 text-[10px] font-mono">{b.time}</p>}
+            {!compact && b.duration   && <p className="opacity-50 text-[10px]">{b.duration}</p>}
             {!compact && b.client_phone && <p className="opacity-50 text-[10px] font-mono">{b.client_phone}</p>}
+            {compact  && b.time       && <p className="opacity-50 text-[9px] font-mono">{formatTime(b.time)}</p>}
         </motion.div>
     );
     };
@@ -870,17 +882,21 @@ function HostDashboardInner() {
                                             </div>
                                             <div className="space-y-0.5">
                                                 {allItems.slice(0, MAX).map(item =>
-                                                    item.type === 'booking' ? (
+                                                    item.type === 'booking' ? (() => {
+                                                        const { className: mc, style: ms } = svcColor(item.b.service, item.b.status === 'cancelled');
+                                                        return (
                                                         <div key={item.b.id}
                                                             onClick={ev => { ev.stopPropagation(); setActiveBooking(item.b); }}
-                                                            className={cn("px-1.5 py-0.5 rounded text-[9px] truncate border leading-tight cursor-pointer hover:opacity-80 transition-opacity", svcColor(item.b.service, item.b.status === 'cancelled'))}>
-                                                            {item.b.time?.replace(':00 ', '').replace(' ', '').toLowerCase()} · {item.b.client_name ?? 'Walk-in'}
+                                                            className={cn("px-1.5 py-0.5 rounded text-[9px] truncate border leading-tight cursor-pointer hover:opacity-80 transition-opacity", mc)}
+                                                            style={ms}>
+                                                            {formatTime(item.b.time)} · {item.b.client_name ?? 'Walk-in'}
                                                         </div>
-                                                    ) : (
+                                                        );
+                                                    })() : (
                                                         <div key={item.e.id}
                                                             onClick={ev => { ev.stopPropagation(); setActiveExternal(item.e); }}
                                                             className="px-1.5 py-0.5 rounded text-[9px] truncate border leading-tight cursor-pointer hover:opacity-80 transition-opacity bg-violet-500/10 border-violet-500/25 text-violet-300">
-                                                            {item.e.time?.replace(':00 ', '').replace(' ', '').toLowerCase()} · {item.e.attendee ?? item.e.summary}
+                                                            {formatTime(item.e.time)} · {item.e.attendee ?? item.e.summary}
                                                         </div>
                                                     )
                                                 )}
