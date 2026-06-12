@@ -204,34 +204,7 @@ function HostDashboardInner() {
         setActiveBooking(null);
     };
 
-    // Available time slots — excludes past slots (when viewing today) and already-booked slots for selected barber
-    const availableTimeSlots = useMemo(() => {
-        const dateStr = format(quickFormDate, 'yyyy-MM-dd');
-        const todayStr = format(new Date(), 'yyyy-MM-dd');
-        const isViewingToday = dateStr === todayStr;
-        const now = new Date();
-        const nowMins = now.getHours() * 60 + now.getMinutes();
 
-        return HOST_TIME_SLOTS.filter(slot => {
-            if (isViewingToday) {
-                const [timePart, meridiem] = slot.split(' ');
-                let [h, m] = timePart.split(':').map(Number);
-                if (meridiem === 'PM' && h !== 12) h += 12;
-                if (meridiem === 'AM' && h === 12) h = 0;
-                if (h * 60 + m <= nowMins) return false;
-            }
-            if (quickForm.barberId) {
-                const taken = bookings.some(b =>
-                    b.barber_id === quickForm.barberId &&
-                    b.date === dateStr &&
-                    b.time === slot &&
-                    b.status === 'confirmed'
-                );
-                if (taken) return false;
-            }
-            return true;
-        });
-    }, [quickFormDate, quickForm.barberId, bookings]);
 
     // Quick-Add walk-in — creates a booking directly from the host view
     const submitQuickAdd = async () => {
@@ -242,6 +215,23 @@ function HostDashboardInner() {
         setQuickSubmitting(true);
         setQuickError(null);
         const dateStr = format(quickFormDate, 'yyyy-MM-dd');
+
+        // Race-condition guard: re-check availability fresh from DB right before inserting
+        const { data: conflictCheck } = await supabase
+            .from('bookings')
+            .select('id')
+            .eq('barber_id', quickForm.barberId)
+            .eq('date', dateStr)
+            .eq('time', quickForm.time)
+            .in('status', ['confirmed', 'completed', 'no_show'])
+            .limit(1);
+        if (conflictCheck && conflictCheck.length > 0) {
+            setQuickError('That slot was just booked. Please choose a different time.');
+            setQuickSubmitting(false);
+            await fetchBookings(); // refresh so the UI reflects reality
+            return;
+        }
+
         const barber = barbers.find(b => b.id === quickForm.barberId);
         const { data: inserted, error } = await supabase.from('bookings').insert({
             client_name: quickForm.clientName.trim() || 'Walk-in',
@@ -378,6 +368,58 @@ function HostDashboardInner() {
             );
         });
     }, [externalEvents, bookings]);
+
+    // Returns minutes a booking's service occupies (default 45 if unknown)
+    const bookingDurationMins = (b: Booking): number => {
+        if (!b.duration) return 45;
+        const match = b.duration.match(/(\d+)/);
+        return match ? parseInt(match[1]) : 45;
+    };
+
+    // Slot availability helpers — blocks a slot if any active booking or GCal event
+    // for the selected barber overlaps with it (accounting for duration).
+    const slotTakenByBooking = (barberId: string, dateStr: string, slotMins: number): boolean =>
+        bookings.some(b => {
+            if (b.barber_id !== barberId || b.date !== dateStr) return false;
+            if (!['confirmed', 'completed', 'no_show'].includes(b.status)) return false;
+            const bStart = timeToMins(b.time);
+            const bEnd   = bStart + bookingDurationMins(b);
+            return slotMins >= bStart && slotMins < bEnd;
+        });
+
+    const slotTakenByExternal = (barberId: string, dateStr: string, slotMins: number): boolean =>
+        deduplicatedExternal.some(e => {
+            if (e.barberId !== barberId || e.date !== dateStr) return false;
+            const eStart = timeToMins(e.time);
+            const eEnd   = eStart + 45;
+            return slotMins >= eStart && slotMins < eEnd;
+        });
+
+    // Quick-Add slot availability — excludes past, booked (all active statuses), and GCal-occupied slots
+    const allTimeSlotsWithStatus = useMemo(() => {
+        const dateStr = format(quickFormDate, 'yyyy-MM-dd');
+        const todayStr = format(new Date(), 'yyyy-MM-dd');
+        const isViewingToday = dateStr === todayStr;
+        const now = new Date();
+        const nowMins = now.getHours() * 60 + now.getMinutes();
+
+        return HOST_TIME_SLOTS.map(slot => {
+            const slotMins = timeToMins(slot);
+            if (isViewingToday && slotMins <= nowMins) return { slot, status: 'past' as const };
+            if (quickForm.barberId) {
+                const taken =
+                    slotTakenByBooking(quickForm.barberId, dateStr, slotMins) ||
+                    slotTakenByExternal(quickForm.barberId, dateStr, slotMins);
+                if (taken) return { slot, status: 'taken' as const };
+            }
+            return { slot, status: 'available' as const };
+        });
+    }, [quickFormDate, quickForm.barberId, bookings, deduplicatedExternal]);
+
+    const availableTimeSlots = allTimeSlotsWithStatus
+        .filter(s => s.status === 'available')
+        .map(s => s.slot);
+
 
     // External Google Calendar event helpers — bucket by slot range
     // An event belongs to slot[i] if its time is in [slot[i], slot[i+1]).
@@ -1279,7 +1321,7 @@ function HostDashboardInner() {
                                     <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">Barber *</label>
                                     <select
                                         value={quickForm.barberId}
-                                        onChange={e => setQuickForm(f => ({ ...f, barberId: e.target.value }))}
+                                        onChange={e => setQuickForm(f => ({ ...f, barberId: e.target.value, time: '' }))}
                                         className="input-savron"
                                     >
                                         <option value="">Select barber…</option>
@@ -1305,16 +1347,29 @@ function HostDashboardInner() {
                                 {/* Time */}
                                 <div>
                                     <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">Time *</label>
-                                    {availableTimeSlots.length === 0 ? (
-                                        <p className="text-yellow-400 text-xs uppercase tracking-widest py-3">No available slots for this barber today.</p>
+                                    {!quickForm.barberId ? (
+                                        <p className="text-savron-silver/40 text-xs uppercase tracking-widest py-3">Select a barber first.</p>
+                                    ) : availableTimeSlots.length === 0 ? (
+                                        <p className="text-yellow-400 text-xs uppercase tracking-widest py-3">No available slots — barber is fully booked.</p>
                                     ) : (
                                         <select
-                                            value={quickForm.time || availableTimeSlots[0]}
+                                            value={quickForm.time}
                                             onChange={e => setQuickForm(f => ({ ...f, time: e.target.value }))}
                                             className="input-savron"
                                         >
                                             <option value="">Select time…</option>
-                                            {availableTimeSlots.map(t => <option key={t} value={t}>{t}</option>)}
+                                            {allTimeSlotsWithStatus
+                                                .filter(s => s.status !== 'past')
+                                                .map(({ slot, status }) => (
+                                                    <option
+                                                        key={slot}
+                                                        value={slot}
+                                                        disabled={status === 'taken'}
+                                                    >
+                                                        {slot}{status === 'taken' ? ' — booked' : ''}
+                                                    </option>
+                                                ))
+                                            }
                                         </select>
                                     )}
                                 </div>
