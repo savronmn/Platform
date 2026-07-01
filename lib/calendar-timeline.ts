@@ -1,7 +1,7 @@
 import { HOST_TIME_SLOTS } from './services-data';
 
 /** Height in px of each 45-minute grid row in calendar timeline views. */
-export const CALENDAR_ROW_HEIGHT_PX = 56;
+export const CALENDAR_ROW_HEIGHT_PX = 88;
 
 /** Interval between HOST_TIME_SLOTS entries (minutes). */
 export const CALENDAR_SLOT_INTERVAL_MINS = 45;

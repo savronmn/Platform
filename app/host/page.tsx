@@ -508,6 +508,14 @@ function HostDashboardInner() {
         cancelled
             ? { className: 'bg-white/5 border-white/10 text-white/25 line-through' }
             : { className: '', style: serviceBlockStyle(serviceColorMap[s]) };
+    const timelineServiceStyle = (s: string): Record<string, string> => {
+        const base = serviceBlockStyle(serviceColorMap[s]);
+        return {
+            ...base,
+            backgroundColor: String(base.backgroundColor).replace(/0\.12\)$/, '0.28)'),
+            borderColor: String(base.borderColor).replace(/0\.38\)$/, '0.85)'),
+        };
+    };
     const statusDot = (s: Booking['status']) =>
         s === 'confirmed' ? 'bg-savron-green' :
         s === 'completed' ? 'bg-blue-400' :
@@ -649,31 +657,34 @@ function HostDashboardInner() {
     ) => {
         const item = itemMap.get(event.id);
         if (!item) return null;
-        const tight = layout.heightPx < 44;
-        const roomy = layout.heightPx >= 64;
+        const tight = layout.heightPx < 58;
+        const roomy = layout.heightPx >= 86;
 
         if (item.kind === 'booking') {
             const b = item.b;
-            const { className: colorClass, style: colorStyle } = svcColor(b.service, b.status === 'cancelled');
+            const { className: colorClass } = svcColor(b.service, b.status === 'cancelled');
             return (
                 <motion.div
                     initial={{ opacity: 0, scale: 0.96 }}
                     animate={{ opacity: 1, scale: 1 }}
                     onClick={e => { e.stopPropagation(); setActiveBooking(b); }}
                     className={cn(
-                        'h-full rounded-savron border cursor-pointer transition-opacity hover:opacity-80 overflow-hidden shadow-lg shadow-black/10',
-                        tight ? 'px-2 py-1 text-[10px]' : 'p-2 text-[10px] space-y-0.5',
-                        compact && 'text-[9px]',
+                        'h-full rounded-lg border cursor-pointer transition-all hover:brightness-110 overflow-hidden shadow-xl shadow-black/25 backdrop-blur-sm',
+                        tight ? 'px-3 py-2 text-[11px]' : 'p-3 text-xs space-y-1',
+                        compact && 'text-[11px]',
                         colorClass,
                     )}
-                    style={colorStyle}
+                    style={timelineServiceStyle(b.service)}
                 >
-                    <div className="flex items-center justify-between gap-1">
-                        <span className="font-semibold truncate">{b.client_name ?? 'Walk-in'}</span>
+                    <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-[10px] uppercase tracking-wider opacity-80 shrink-0">
+                            {formatTime(b.time)}
+                        </span>
                         <div className={cn('w-1.5 h-1.5 rounded-full shrink-0', statusDot(b.status))} />
                     </div>
-                    {!tight && <p className="opacity-75 truncate">{compact ? (b.barber_name ?? b.service) : b.service}</p>}
-                    {roomy && b.time && <p className="opacity-60 text-[9px] font-mono">{b.time}{b.duration ? ` · ${b.duration}` : ''}</p>}
+                    <p className="font-semibold text-white truncate">{b.client_name ?? 'Walk-in'}</p>
+                    {!tight && <p className="opacity-85 truncate">{compact ? (b.barber_name ?? b.service) : b.service}</p>}
+                    {roomy && b.duration && <p className="opacity-60 text-[10px]">{b.duration}</p>}
                 </motion.div>
             );
         }
@@ -684,16 +695,17 @@ function HostDashboardInner() {
             <div
                 onClick={ev => { ev.stopPropagation(); setActiveExternal(e); }}
                 className={cn(
-                    'h-full rounded-savron border cursor-pointer transition-opacity hover:opacity-80 overflow-hidden bg-violet-500/10 border-violet-500/25 text-violet-300 shadow-lg shadow-black/10',
-                    tight ? 'px-2 py-1 text-[10px]' : 'p-2 text-[10px] space-y-0.5',
-                    compact && 'text-[9px]',
+                    'h-full rounded-lg border cursor-pointer transition-all hover:brightness-110 overflow-hidden bg-violet-950/95 border-violet-400/75 text-violet-100 shadow-xl shadow-black/25',
+                    tight ? 'px-3 py-2 text-[11px]' : 'p-3 text-xs space-y-1',
+                    compact && 'text-[11px]',
                 )}
             >
-                <div className="flex items-center justify-between gap-1">
-                    <span className="font-semibold truncate">{displayName || 'External event'}</span>
-                    <span className="text-[8px] uppercase tracking-widest opacity-50 shrink-0">GCal</span>
+                <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-violet-200/80 shrink-0">{formatTime(e.time)}</span>
+                    <span className="text-[8px] uppercase tracking-widest text-violet-200/60 shrink-0">GCal</span>
                 </div>
-                {!tight && <p className="opacity-60 truncate text-[9px]">{e.time}{!compact ? ` · ${e.barberName}` : ''}</p>}
+                <p className="font-semibold text-white truncate">{displayName || 'External event'}</p>
+                {!tight && <p className="text-violet-200/75 truncate text-[10px]">{!compact ? e.barberName : 'External calendar'}</p>}
             </div>
         );
     };
@@ -948,7 +960,7 @@ function HostDashboardInner() {
                                         </div>
                                     ),
                                 }))}
-                                columnWidth="min-w-[190px] sm:min-w-[240px]"
+                                columnWidth="w-[calc(100vw-5rem)] sm:min-w-[360px]"
                                 getEventsForColumn={dayTimelineEventsForBarber}
                                 renderEvent={(event, _columnId, layout) => renderTimelineEvent(event, layout, dayTimelineMap)}
                             />
@@ -978,7 +990,7 @@ function HostDashboardInner() {
                                         ),
                                     };
                                 })}
-                                columnWidth="min-w-[140px] sm:min-w-[180px]"
+                                columnWidth="min-w-[220px] sm:min-w-[260px]"
                                 getEventsForColumn={timelineEventsForDay}
                                 renderEvent={(event, _columnId, layout) => renderTimelineEvent(event, layout, timelineItemMap, true)}
                             />

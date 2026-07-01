@@ -171,6 +171,14 @@ export default function AdminBarberCalendarPage() {
 
     const daySchedule = getScheduleForDate(selectedDate);
     const isDayOff = workingHours !== null && daySchedule === null;
+    const timelineServiceStyle = (service: string): Record<string, string> => {
+        const base = serviceBlockStyle(serviceColorMap[service]);
+        return {
+            ...base,
+            backgroundColor: String(base.backgroundColor).replace(/0\.12\)$/, '0.28)'),
+            borderColor: String(base.borderColor).replace(/0\.38\)$/, '0.85)'),
+        };
+    };
 
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -327,7 +335,7 @@ export default function AdminBarberCalendarPage() {
                                 <p className="text-white text-xs font-heading uppercase tracking-widest">{barber.name}</p>
                             ),
                         }]}
-                        columnWidth="flex-1 min-w-[280px]"
+                        columnWidth="flex-1 min-w-[360px]"
                         getEventsForColumn={() => dayTimelineEvents}
                         renderColumnBackground={() => {
                             if (!daySchedule || isDayOff) return null;
@@ -366,22 +374,23 @@ export default function AdminBarberCalendarPage() {
                                 return (
                                     <div
                                         className={cn(
-                                            'h-full rounded-savron border text-xs overflow-hidden flex flex-col justify-center shadow-lg shadow-black/10',
-                                            tight ? 'px-2 py-1' : 'p-2',
+                                            'h-full rounded-lg border text-xs overflow-hidden flex flex-col justify-center shadow-xl shadow-black/25',
+                                            tight ? 'px-3 py-2' : 'p-3',
                                         )}
-                                        style={serviceBlockStyle(serviceColorMap[booking.service])}
+                                        style={timelineServiceStyle(booking.service)}
                                     >
-                                        <p className="text-white text-sm font-medium truncate">{booking.client_name || 'Walk-in'}</p>
-                                        {!tight && <p className="opacity-70 truncate">{booking.service} · {booking.duration}</p>}
-                                        {!tight && <p className="opacity-60 text-[10px] font-mono">{booking.time}</p>}
+                                        <p className="font-mono text-[10px] uppercase tracking-wider opacity-80">{formatTimeCompact(booking.time)}</p>
+                                        <p className="text-white text-sm font-semibold truncate">{booking.client_name || 'Walk-in'}</p>
+                                        {!tight && <p className="opacity-85 truncate">{booking.service} · {booking.duration}</p>}
                                     </div>
                                 );
                             }
                             const gcalTime = formatTimeCompact(new Date(item.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }));
                             return (
-                                <div className="h-full rounded-savron border p-2 text-xs overflow-hidden flex flex-col justify-center bg-blue-500/10 border-blue-500/25 text-blue-300/80 shadow-lg shadow-black/10">
-                                    <span className="uppercase tracking-widest text-[10px]">External (Google Calendar)</span>
-                                    {!tight && <span className="opacity-60 text-[10px] font-mono">{gcalTime}</span>}
+                                <div className="h-full rounded-lg border p-3 text-xs overflow-hidden flex flex-col justify-center bg-blue-950/95 border-blue-400/75 text-blue-100 shadow-xl shadow-black/25">
+                                    <span className="font-mono text-[10px] uppercase tracking-wider text-blue-200/80">{gcalTime}</span>
+                                    <span className="font-semibold text-white truncate">External calendar</span>
+                                    {!tight && <span className="text-blue-200/75 text-[10px]">Google Calendar</span>}
                                 </div>
                             );
                         }}
@@ -419,7 +428,7 @@ export default function AdminBarberCalendarPage() {
                                 ),
                             };
                         })}
-                        columnWidth="min-w-[150px] sm:min-w-[190px]"
+                        columnWidth="min-w-[220px] sm:min-w-[260px]"
                         getEventsForColumn={timelineEventsForDate}
                         renderEvent={(event) => {
                             const booking = bookingTimelineMap.get(event.id);
@@ -429,14 +438,14 @@ export default function AdminBarberCalendarPage() {
                                 <div
                                     onClick={() => { setSelectedDate(new Date(`${booking.date}T12:00:00`)); setView('day'); }}
                                     className={cn(
-                                        'h-full rounded-savron border text-xs overflow-hidden flex flex-col justify-center cursor-pointer shadow-lg shadow-black/10',
-                                        tight ? 'px-2 py-1' : 'p-2',
+                                        'h-full rounded-lg border text-xs overflow-hidden flex flex-col justify-center cursor-pointer shadow-xl shadow-black/25',
+                                        tight ? 'px-3 py-2' : 'p-3',
                                     )}
-                                    style={serviceBlockStyle(serviceColorMap[booking.service])}
+                                    style={timelineServiceStyle(booking.service)}
                                 >
-                                    <p className="text-white font-medium truncate">{booking.client_name || 'Walk-in'}</p>
-                                    {!tight && <p className="opacity-70 truncate">{booking.service}</p>}
-                                    {!tight && <p className="opacity-60 text-[10px] font-mono">{booking.time}</p>}
+                                    <p className="font-mono text-[10px] uppercase tracking-wider opacity-80">{formatTimeCompact(booking.time)}</p>
+                                    <p className="text-white font-semibold truncate">{booking.client_name || 'Walk-in'}</p>
+                                    {!tight && <p className="opacity-85 truncate">{booking.service}</p>}
                                 </div>
                             );
                         }}

@@ -42,22 +42,22 @@ export default function TimelineDayGrid({
     getEventsForColumn,
     renderEvent,
     renderColumnBackground,
-    timeLabelWidth = 'w-14 sm:w-20',
-    columnWidth = 'min-w-[180px] sm:min-w-[220px]',
+    timeLabelWidth = 'w-20 sm:w-24',
+    columnWidth = 'min-w-[280px] sm:min-w-[320px]',
 }: TimelineDayGridProps) {
     const { totalHeightPx } = getCalendarGridBounds();
 
     return (
-        <div className="min-w-max">
+        <div className="min-w-max bg-savron-black">
             {/* Column headers */}
-            <div className="flex border-b border-white/5 bg-savron-grey sticky top-0 z-10">
-                <div className={cn(timeLabelWidth, 'shrink-0 p-2 sm:p-4 border-r border-white/5 sticky left-0 z-20 bg-savron-grey')}>
+            <div className="flex border-b border-white/10 bg-savron-grey sticky top-0 z-10 shadow-lg shadow-black/30">
+                <div className={cn(timeLabelWidth, 'shrink-0 p-3 sm:p-4 border-r border-white/10 sticky left-0 z-20 bg-savron-grey')}>
                     <span className="text-[10px] uppercase tracking-widest text-savron-silver/40">Time</span>
                 </div>
                 {columns.map(col => (
                     <div
                         key={col.id}
-                        className={cn(columnWidth, 'shrink-0 p-3 sm:p-4 border-r border-white/5')}
+                        className={cn(columnWidth, 'shrink-0 p-3 sm:p-4 border-r border-white/10')}
                     >
                         {col.header}
                     </div>
@@ -67,7 +67,7 @@ export default function TimelineDayGrid({
             {/* Timeline body */}
             <div className="flex">
                 {/* Time labels */}
-                <div className={cn(timeLabelWidth, 'shrink-0 border-r border-white/5 relative sticky left-0 z-10 bg-savron-black')}
+                <div className={cn(timeLabelWidth, 'shrink-0 border-r border-white/10 relative sticky left-0 z-10 bg-savron-black')}
                     style={{ height: totalHeightPx }}
                 >
                     {HOST_TIME_SLOTS.map((time, i) => {
@@ -75,11 +75,15 @@ export default function TimelineDayGrid({
                         return (
                             <div
                                 key={time}
-                                className="absolute left-0 right-0 px-2 flex items-start"
+                                className="absolute left-0 right-0 px-3 flex items-start"
                                 style={{ top: i * CALENDAR_ROW_HEIGHT_PX, height: CALENDAR_ROW_HEIGHT_PX }}
                             >
-                                {isHour && (
-                                    <span className="text-savron-silver/60 text-[9px] font-mono whitespace-nowrap leading-none">
+                                {isHour ? (
+                                    <span className="text-savron-silver/70 text-[10px] font-mono whitespace-nowrap leading-none">
+                                        {time}
+                                    </span>
+                                ) : (
+                                    <span className="text-savron-silver/35 text-[10px] font-mono whitespace-nowrap leading-none">
                                         {time}
                                     </span>
                                 )}
@@ -92,7 +96,7 @@ export default function TimelineDayGrid({
                 {columns.map(col => (
                     <div
                         key={col.id}
-                        className={cn(columnWidth, 'shrink-0 border-r border-white/5 relative')}
+                        className={cn(columnWidth, 'shrink-0 border-r border-white/10 relative bg-savron-black')}
                         style={{ height: totalHeightPx }}
                     >
                         {/* Grid lines */}
@@ -100,8 +104,8 @@ export default function TimelineDayGrid({
                             <div
                                 key={time}
                                 className={cn(
-                                    'absolute left-0 right-0 border-b border-white/[0.05]',
-                                    i % 2 !== 0 && 'bg-white/[0.01]',
+                                    'absolute left-0 right-0 border-b border-white/[0.08]',
+                                    i % 2 !== 0 && 'bg-white/[0.018]',
                                 )}
                                 style={{ top: i * CALENDAR_ROW_HEIGHT_PX, height: CALENDAR_ROW_HEIGHT_PX }}
                             />
@@ -119,7 +123,7 @@ export default function TimelineDayGrid({
                             const layout = getTimelineLayout(event.startMins, event.durationMins);
                             if (layout.heightPx <= 0) return null;
                             const overlap = overlapLayouts.get(event.id) ?? { lane: 0, laneCount: 1 };
-                            const gutterPx = 3;
+                            const gutterPx = 6;
                             const widthPercent = 100 / overlap.laneCount;
                             return (
                                 <div
@@ -129,7 +133,7 @@ export default function TimelineDayGrid({
                                         top: layout.topPx,
                                         height: layout.heightPx,
                                         left: `calc(${overlap.lane * widthPercent}% + ${gutterPx}px)`,
-                                        width: `calc(${widthPercent}% - ${gutterPx + 2}px)`,
+                                        width: `calc(${widthPercent}% - ${gutterPx + 4}px)`,
                                     }}
                                 >
                                     {renderEvent(event, col.id, layout)}
