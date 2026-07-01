@@ -177,7 +177,7 @@ export default function MembershipPage() {
     const inputStyle = "w-full bg-white/[0.03] border border-white/[0.08] text-white placeholder-white/25 px-4 py-3 text-sm font-light tracking-wide focus:outline-none focus:border-white/20 transition-colors";
 
     return (
-        <div className="min-h-screen bg-savron-black text-white">
+        <div className="admin-page text-white">
             <QRScannerModal
                 open={showScanner}
                 onClose={() => setShowScanner(false)}
@@ -212,33 +212,26 @@ export default function MembershipPage() {
                     </motion.div>
                 )}
             </AnimatePresence>
-
-            <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-24 py-12">
-
                 {/* Header */}
-                <div className="flex items-start justify-between mb-10 flex-wrap gap-4">
+                <div className="admin-header">
                     <div>
-                        <p className="text-[10px] uppercase tracking-[0.35em] text-white/25 mb-3">
-                            Membership
-                        </p>
-                        <h1 className="font-heading text-3xl md:text-4xl text-white uppercase tracking-wider mb-2">
-                            E-Pass Subscribers
-                        </h1>
-                        <p className="text-sm text-white/40 font-light">
+                        <p className="admin-kicker">Membership</p>
+                        <h1 className="admin-title">E-Pass Subscribers</h1>
+                        <p className="admin-subtitle">
                             Manage digital passes, record visits, and track engagement.
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <button
                             onClick={() => setShowScanner(true)}
-                            className="flex items-center gap-1.5 px-4 py-2.5 text-[10px] uppercase tracking-[0.2em] text-emerald-400 border border-savron-green-light/20 hover:bg-savron-green/10 transition-all"
+                            className="flex items-center gap-1.5 px-5 py-3 text-[10px] uppercase tracking-[0.2em] text-emerald-400 border border-savron-green-light/20 rounded-savron hover:bg-savron-green/10 transition-all"
                         >
                             <ScanLine size={12} />
                             Scan ePass
                         </button>
                         <button
                             onClick={() => setShowAddForm(!showAddForm)}
-                            className="flex items-center gap-1.5 px-4 py-2.5 text-[10px] uppercase tracking-[0.2em] text-white/60 border border-white/[0.1] hover:border-savron-green/40 hover:text-white hover:bg-savron-green/5 transition-all"
+                            className="flex items-center gap-1.5 px-5 py-3 text-[10px] uppercase tracking-[0.2em] text-white/60 border border-white/[0.1] rounded-savron hover:border-savron-green/40 hover:text-white hover:bg-savron-green/5 transition-all"
                         >
                             <UserPlus size={12} />
                             Add Member
@@ -246,7 +239,7 @@ export default function MembershipPage() {
                         <button
                             onClick={fetchSubscribers}
                             disabled={loading}
-                            className="flex items-center gap-1.5 px-4 py-2.5 text-[10px] uppercase tracking-[0.2em] text-white/60 border border-white/[0.1] hover:border-white/25 hover:text-white transition-all disabled:opacity-40"
+                            className="flex items-center gap-1.5 px-5 py-3 text-[10px] uppercase tracking-[0.2em] text-white/60 border border-white/[0.1] rounded-savron hover:border-white/25 hover:text-white transition-all disabled:opacity-40"
                         >
                             <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
                             Refresh
@@ -263,7 +256,7 @@ export default function MembershipPage() {
                             exit={{ opacity: 0, height: 0 }}
                             className="overflow-hidden mb-8"
                         >
-                            <div className="border border-white/[0.08] bg-white/[0.02] p-6">
+                            <div className="card-savron space-y-5">
                                 <div className="flex items-center justify-between mb-5">
                                     <p className="text-[10px] uppercase tracking-[0.3em] text-white/30">
                                         Add New Member — sends pass via email
@@ -309,7 +302,7 @@ export default function MembershipPage() {
                 </AnimatePresence>
 
                 {/* Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 lg:gap-6">
                     {[
                         { icon: UserCheck, label: "Total Subscribers", value: subscribers.length.toString() },
                         { icon: Plus, label: "Total Visits Recorded", value: totalVisits.toString() },
@@ -319,7 +312,7 @@ export default function MembershipPage() {
                             return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
                         }).length.toString() },
                     ].map(({ icon: Icon, label, value }) => (
-                        <div key={label} className="bg-white/[0.02] border border-white/[0.06] p-6">
+                        <div key={label} className="card-savron">
                             <div className="flex items-center gap-3 mb-3">
                                 <Icon size={14} className="text-white/30" />
                                 <p className="text-[10px] uppercase tracking-[0.25em] text-white/30">{label}</p>
@@ -330,14 +323,14 @@ export default function MembershipPage() {
                 </div>
 
                 {/* Search */}
-                <div className="relative mb-6">
+                <div className="relative card-savron p-0 overflow-hidden">
                     <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
                     <input
                         type="text"
                         placeholder="Search by name, email, or phone…"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="w-full bg-white/[0.03] border border-white/[0.08] text-white placeholder-white/25 pl-10 pr-4 py-3 text-sm font-light tracking-wide focus:outline-none focus:border-white/20 transition-colors"
+                        className="w-full bg-transparent text-white placeholder-white/25 pl-10 pr-4 py-4 text-sm font-light tracking-wide focus:outline-none transition-colors"
                     />
                 </div>
 
@@ -349,9 +342,9 @@ export default function MembershipPage() {
                         {search ? 'No results found' : 'No subscribers yet — use the form above or the footer signup to add members'}
                     </div>
                 ) : (
-                    <div className="border border-white/[0.07]">
+                    <div className="card-savron p-0 overflow-hidden">
                         {/* Header row */}
-                        <div className="hidden md:grid gap-4 px-6 py-3 border-b border-white/[0.05]"
+                        <div className="hidden md:grid gap-4 px-6 py-4 border-b border-white/[0.06]"
                             style={{ gridTemplateColumns: "2fr 2fr 1fr 80px 80px 240px" }}
                         >
                             {['Name', 'Email', 'Phone', 'Visits', 'Joined', 'Actions'].map(h => (
@@ -500,7 +493,6 @@ export default function MembershipPage() {
                     &nbsp;·&nbsp; Visit button updates Google Wallet live on device + records to DB.
                     Pass button re-sends updated Apple Wallet .pkpass via email.
                 </p>
-            </div>
         </div>
     );
 }

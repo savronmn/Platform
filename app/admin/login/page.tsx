@@ -53,7 +53,7 @@ export default function AdminLoginPage() {
                 </div>
 
                 {/* Card */}
-                <div className="bg-savron-grey border border-white/5 p-8 rounded-savron">
+                <div className="glass-panel-strong p-8 md:p-10 rounded-savron">
                     <h1 className="font-heading text-xl uppercase tracking-widest text-white text-center mb-2">
                         Admin Access
                     </h1>

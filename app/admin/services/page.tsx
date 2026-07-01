@@ -216,19 +216,20 @@ export default function AdminServicesPage() {
     const inputCls = "w-full bg-savron-charcoal border border-white/10 text-white placeholder-white/25 px-4 py-3 text-sm focus:outline-none focus:border-savron-green/50 transition-all rounded-savron";
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="admin-page">
 
             {/* Header */}
-            <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="admin-header">
                 <div>
-                    <h1 className="font-heading text-3xl uppercase tracking-widest text-white">Services</h1>
-                    <p className="text-savron-silver/60 text-sm mt-1">
+                    <p className="admin-kicker">Menu</p>
+                    <h1 className="admin-title">Services</h1>
+                    <p className="admin-subtitle">
                         {services.length} service{services.length !== 1 ? 's' : ''} · Drag to reorder
                     </p>
                 </div>
                 <button
                     onClick={() => { setShowAdd(v => !v); setAddError(null); setForm(defaultForm); }}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-savron-green text-white border border-savron-green-light/20 text-[10px] uppercase tracking-widest hover:bg-savron-green-light transition-all rounded-savron"
+                    className="flex items-center gap-2 px-5 py-3 bg-savron-green text-white border border-savron-green-light/20 text-[10px] uppercase tracking-widest hover:bg-savron-green-light transition-all rounded-savron glow-green"
                 >
                     <Plus className="w-3.5 h-3.5" />
                     {showAdd ? 'Cancel' : 'Add Service'}
@@ -240,7 +241,7 @@ export default function AdminServicesPage() {
                 {showAdd && (
                     <motion.div
                         initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                        className="bg-savron-grey border border-white/8 rounded-savron p-6 space-y-5"
+                        className="card-savron space-y-6"
                     >
                         <div className="flex items-center justify-between">
                             <h3 className="font-heading text-white uppercase tracking-wider text-sm">New Service</h3>
@@ -320,12 +321,12 @@ export default function AdminServicesPage() {
 
             {/* Services list */}
             {services.length === 0 ? (
-                <div className="text-center py-20">
+                <div className="card-savron text-center py-20">
                     <Scissors className="w-8 h-8 text-savron-silver/20 mx-auto mb-3" />
                     <p className="text-savron-silver/60 text-sm uppercase tracking-widest">No services yet</p>
                 </div>
             ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                     {services.map((svc, idx) => {
                         const hex = resolveColor(svc.color);
                         const isEditing = editId === svc.id;
@@ -338,7 +339,7 @@ export default function AdminServicesPage() {
                                 onDrop={onDrop}
                                 onDragEnd={() => { setDraggingId(null); dragIdx.current = null; }}
                                 className={cn(
-                                    "flex bg-savron-grey border border-white/5 rounded-savron overflow-hidden transition-all",
+                                    "flex card-savron p-0 overflow-hidden transition-all",
                                     draggingId === svc.id ? "opacity-50 scale-[0.99]" : ""
                                 )}
                             >

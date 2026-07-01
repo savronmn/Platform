@@ -181,9 +181,9 @@ export default function AdminBarberCalendarPage() {
     };
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="admin-page">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="admin-header">
                 <div className="flex items-center gap-3">
                     <Link
                         href="/admin/barbers"
@@ -192,10 +192,11 @@ export default function AdminBarberCalendarPage() {
                         <ArrowLeft className="w-4 h-4" />
                     </Link>
                     <div>
-                        <h1 className="font-heading text-2xl uppercase tracking-widest text-white">
+                        <p className="admin-kicker">Calendar</p>
+                        <h1 className="font-heading text-3xl md:text-4xl uppercase tracking-wider text-white">
                             {barber.name}&rsquo;s Calendar
                         </h1>
-                        <p className="text-savron-silver/40 text-[10px] uppercase tracking-widest mt-0.5">Host View</p>
+                        <p className="admin-subtitle">Host View</p>
                     </div>
                 </div>
                 <div className="flex gap-2 items-center flex-wrap">
@@ -243,7 +244,7 @@ export default function AdminBarberCalendarPage() {
 
             {/* Booking Links */}
             {barber.booking_links && barber.booking_links.length > 0 && (
-                <div className="bg-savron-grey border border-white/5 rounded-savron p-4">
+                <div className="card-savron">
                     <div className="flex items-center gap-2 mb-3">
                         <Link2 className="w-3.5 h-3.5 text-savron-silver/50" />
                         <span className="text-[10px] uppercase tracking-widest text-savron-silver/50">Personal Booking Links ({barber.booking_links.length})</span>
@@ -288,7 +289,7 @@ export default function AdminBarberCalendarPage() {
             )}
 
             {/* Date Navigation */}
-            <div className="flex items-center justify-between bg-savron-grey border border-white/5 rounded-savron p-4">
+            <div className="card-savron flex items-center justify-between">
                 <button onClick={() => navigate(-1)} className="p-2 text-savron-silver hover:text-white transition-colors">
                     <ChevronLeft className="w-5 h-5" />
                 </button>

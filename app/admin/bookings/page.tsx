@@ -140,12 +140,13 @@ export default function BookingsPage() {
     const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     return (
-        <div className="flex flex-col gap-5 entry-fade h-[calc(100vh-6rem)]">
+        <div className="flex flex-col gap-8 entry-fade h-[calc(100vh-8rem)]">
             {/* ── Header ── */}
-            <div className="flex items-center justify-between flex-wrap gap-3 shrink-0">
+            <div className="admin-header shrink-0">
                 <div>
-                    <h1 className="font-heading text-3xl uppercase tracking-widest text-white">Calendar</h1>
-                    <p className="text-savron-silver text-sm uppercase tracking-wider mt-1">
+                    <p className="admin-kicker">Bookings</p>
+                    <h1 className="admin-title">Calendar</h1>
+                    <p className="admin-subtitle">
                         Appointments &amp; Walk-ins
                     </p>
                 </div>
@@ -200,7 +201,7 @@ export default function BookingsPage() {
             </div>
 
             {/* ── Main grid: Calendar + Day panel ── */}
-            <div className="flex gap-4 flex-1 min-h-0">
+            <div className="flex gap-6 flex-1 min-h-0">
 
                 {/* ── Calendar ── */}
                 <div className="flex flex-col flex-1 card-savron min-w-0 overflow-hidden">
