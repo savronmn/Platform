@@ -14,6 +14,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import type { Barber, Booking } from '@/lib/types';
 import { HOST_TIME_SLOTS, serviceBlockStyle } from '@/lib/services-data';
+import {
+    timeToMins, formatTimeCompact, parseDurationMins, itemsInSlot,
+} from '@/lib/calendar-timeline';
+import TimelineDayGrid, { bookingToTimelineEvent, isoRangeToTimelineEvent, type TimelineEvent } from '@/components/calendar/TimelineDayGrid';
 import { useServices } from '@/lib/use-services';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 import EditBookingModal from '@/components/crm/EditBookingModal';
@@ -309,52 +313,29 @@ function HostDashboardInner() {
         return `${bookings.length} booking${bookings.length !== 1 ? 's' : ''}`;
     })();
 
-    // Data helpers — range-based bucketing matches how GCal events are placed.
-    // A booking belongs to slot[i] if its time falls in [slot[i], slot[i+1]).
-    // This means bookings from the booking flow (different 45-min grid) still show up correctly.
+    // Data helpers — range-based bucketing for week view (day view uses proportional timeline).
     const bookingsForBarberTime = (barberId: string, slotIdx: number) => {
         const d = format(selectedDate, 'yyyy-MM-dd');
-        const lo = SLOT_MINS[slotIdx];
-        const hi = slotIdx + 1 < SLOT_MINS.length ? SLOT_MINS[slotIdx + 1] : lo + 45;
-        return bookings.filter(b => {
-            if (b.barber_id !== barberId || b.date !== d) return false;
-            const bm = timeToMins(b.time);
-            return bm >= lo && bm < hi;
-        });
+        return itemsInSlot(
+            bookings.filter(b => b.barber_id === barberId && b.date === d),
+            slotIdx,
+            b => timeToMins(b.time),
+        );
     };
     const bookingsForDayTime = (day: Date, slotIdx: number) => {
         const d = format(day, 'yyyy-MM-dd');
-        const lo = SLOT_MINS[slotIdx];
-        const hi = slotIdx + 1 < SLOT_MINS.length ? SLOT_MINS[slotIdx + 1] : lo + 45;
-        return bookings.filter(b => {
-            if (b.date !== d || !isBookingVisible(b)) return false;
-            const bm = timeToMins(b.time);
-            return bm >= lo && bm < hi;
-        });
+        return itemsInSlot(
+            bookings.filter(b => b.date === d && isBookingVisible(b)),
+            slotIdx,
+            b => timeToMins(b.time),
+        );
     };
     const bookingsForDay = (day: Date) => {
         const d = format(day, 'yyyy-MM-dd');
         return bookings.filter(b => b.date === d && isBookingVisible(b));
     };
 
-    // Convert a "10:00 AM" string to total minutes for range comparison
-    const timeToMins = (timeStr: string): number => {
-        const [timePart, mer] = timeStr.split(' ');
-        let [h, m] = timePart.split(':').map(Number);
-        if (mer === 'PM' && h !== 12) h += 12;
-        if (mer === 'AM' && h === 12) h = 0;
-        return h * 60 + m;
-    };
-
-    // Format "10:00 AM" → "10am", "1:30 PM" → "1:30pm" for compact display
-    const formatTime = (timeStr: string | null | undefined): string => {
-        if (!timeStr) return '';
-        const [timePart, mer] = timeStr.split(' ');
-        const [, m] = timePart.split(':').map(Number);
-        const hPart = timePart.split(':')[0];
-        const suffix = (mer ?? '').toLowerCase();
-        return m === 0 ? `${hPart}${suffix}` : `${hPart}:${String(m).padStart(2, '0')}${suffix}`;
-    };
+    const formatTime = formatTimeCompact;
 
     // Deduplicate: hide GCal events that overlap with a platform booking
     // (same barber + date, event time within 22 mins of booking time).
@@ -369,12 +350,7 @@ function HostDashboardInner() {
         });
     }, [externalEvents, bookings]);
 
-    // Returns minutes a booking's service occupies (default 45 if unknown)
-    const bookingDurationMins = (b: Booking): number => {
-        if (!b.duration) return 45;
-        const match = b.duration.match(/(\d+)/);
-        return match ? parseInt(match[1]) : 45;
-    };
+    const bookingDurationMins = (b: Booking): number => parseDurationMins(b.duration);
 
     // Slot availability helpers — blocks a slot if any active booking or GCal event
     // for the selected barber overlaps with it (accounting for duration).
@@ -421,31 +397,54 @@ function HostDashboardInner() {
         .map(s => s.slot);
 
 
-    // External Google Calendar event helpers — bucket by slot range
-    // An event belongs to slot[i] if its time is in [slot[i], slot[i+1]).
-    const SLOT_MINS = HOST_TIME_SLOTS.map(timeToMins);
     const isExternalVisible = (e: ExternalEvent) =>
         filteredBarberIds.size === 0 || filteredBarberIds.has(e.barberId);
 
     const externalForBarberTime = (barberId: string, slotIdx: number) => {
         const d = format(selectedDate, 'yyyy-MM-dd');
-        const lo = SLOT_MINS[slotIdx];
-        const hi = slotIdx + 1 < SLOT_MINS.length ? SLOT_MINS[slotIdx + 1] : lo + 45;
-        return deduplicatedExternal.filter(e => {
-            if (e.barberId !== barberId || e.date !== d) return false;
-            const em = timeToMins(e.time);
-            return em >= lo && em < hi;
-        });
+        return itemsInSlot(
+            deduplicatedExternal.filter(e => e.barberId === barberId && e.date === d),
+            slotIdx,
+            e => timeToMins(e.time),
+        );
     };
     const externalForDayTime = (day: Date, slotIdx: number) => {
         const d = format(day, 'yyyy-MM-dd');
-        const lo = SLOT_MINS[slotIdx];
-        const hi = slotIdx + 1 < SLOT_MINS.length ? SLOT_MINS[slotIdx + 1] : lo + 45;
-        return deduplicatedExternal.filter(e => {
-            if (e.date !== d || !isExternalVisible(e)) return false;
-            const em = timeToMins(e.time);
-            return em >= lo && em < hi;
+        return itemsInSlot(
+            deduplicatedExternal.filter(e => e.date === d && isExternalVisible(e)),
+            slotIdx,
+            e => timeToMins(e.time),
+        );
+    };
+
+    // Day-view timeline: map event id → full object for rendering
+    type DayTimelineItem =
+        | { kind: 'booking'; b: Booking }
+        | { kind: 'external'; e: ExternalEvent };
+    const dayTimelineMap = useMemo(() => {
+        const map = new Map<string, DayTimelineItem>();
+        const d = format(selectedDate, 'yyyy-MM-dd');
+        for (const b of bookings.filter(b => b.date === d && isBookingVisible(b))) {
+            map.set(`b-${b.id}`, { kind: 'booking', b });
+        }
+        for (const e of deduplicatedExternal.filter(e => e.date === d && isExternalVisible(e))) {
+            map.set(`e-${e.id}`, { kind: 'external', e });
+        }
+        return map;
+    }, [bookings, deduplicatedExternal, selectedDate, filteredBarberIds]);
+
+    const dayTimelineEventsForBarber = (barberId: string): TimelineEvent[] => {
+        const events: TimelineEvent[] = [];
+        dayTimelineMap.forEach((item, id) => {
+            if (item.kind === 'booking') {
+                if (item.b.barber_id !== barberId) return;
+                events.push(bookingToTimelineEvent(id, item.b.time, item.b.duration));
+            } else {
+                if (item.e.barberId !== barberId) return;
+                events.push(isoRangeToTimelineEvent(id, item.e.start, item.e.end));
+            }
         });
+        return events;
     };
     const externalForDay = (day: Date) => {
         const d = format(day, 'yyyy-MM-dd');
@@ -810,13 +809,11 @@ function HostDashboardInner() {
                     ══════════════════════════════════════ */}
                     {view === 'day' && (
                         <div className="flex-1 overflow-auto">
-                            <div className="min-w-max">
-                                <div className="flex border-b border-white/5 bg-savron-grey sticky top-0 z-10">
-                                    <div className="w-14 sm:w-20 shrink-0 p-2 sm:p-4 border-r border-white/5">
-                                        <span className="text-[10px] uppercase tracking-widest text-savron-silver/40">Time</span>
-                                    </div>
-                                    {visibleBarbers.map(barber => (
-                                        <div key={barber.id} className="w-40 sm:w-52 shrink-0 p-3 sm:p-4 border-r border-white/5 flex items-center gap-2 sm:gap-3">
+                            <TimelineDayGrid
+                                columns={visibleBarbers.map(barber => ({
+                                    id: barber.id,
+                                    header: (
+                                        <div className="flex items-center gap-2 sm:gap-3">
                                             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden bg-savron-black relative shrink-0">
                                                 {barber.image_url && <Image src={barber.image_url} alt={barber.name} fill className="object-cover grayscale" />}
                                             </div>
@@ -825,26 +822,51 @@ function HostDashboardInner() {
                                                 <p className="text-savron-silver text-[9px] sm:text-[10px] mt-0.5 truncate">{barber.role}</p>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-
-                                {HOST_TIME_SLOTS.map((time, i) => (
-                                    <div key={i} className={cn(
-                                        "flex border-b border-white/[0.05] hover:bg-white/[0.01] transition-colors",
-                                        i % 2 !== 0 && "bg-white/[0.01]"
-                                    )}>
-                                        <div className="w-14 sm:w-20 shrink-0 px-2 py-1.5 border-r border-white/5 flex items-center">
-                                            <span className="text-savron-silver/50 text-[9px] font-mono whitespace-nowrap">{time}</span>
-                                        </div>
-                                        {visibleBarbers.map(barber => (
-                                            <div key={barber.id} className="w-40 sm:w-52 shrink-0 px-1 py-0.5 border-r border-white/5 min-h-[36px]">
-                                                {bookingsForBarberTime(barber.id, i).map(b => <Pill key={b.id} b={b} />)}
-                                                {externalForBarberTime(barber.id, i).map(e => <ExternalPill key={e.id} e={e} />)}
+                                    ),
+                                }))}
+                                getEventsForColumn={dayTimelineEventsForBarber}
+                                renderEvent={(event) => {
+                                    const item = dayTimelineMap.get(event.id);
+                                    if (!item) return null;
+                                    if (item.kind === 'booking') {
+                                        const b = item.b;
+                                        const { className: colorClass, style: colorStyle } = svcColor(b.service, b.status === 'cancelled');
+                                        return (
+                                            <motion.div
+                                                initial={{ opacity: 0, scale: 0.96 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                onClick={e => { e.stopPropagation(); setActiveBooking(b); }}
+                                                className={cn(
+                                                    'h-full rounded-savron border cursor-pointer transition-opacity hover:opacity-80 p-1.5 text-[10px] space-y-0.5 overflow-hidden',
+                                                    colorClass,
+                                                )}
+                                                style={colorStyle}
+                                            >
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <span className="font-medium truncate">{b.client_name ?? 'Walk-in'}</span>
+                                                    <div className={cn('w-1.5 h-1.5 rounded-full shrink-0', statusDot(b.status))} />
+                                                </div>
+                                                <p className="opacity-70 truncate">{b.service}</p>
+                                                {b.time && <p className="opacity-60 text-[9px] font-mono">{b.time}</p>}
+                                            </motion.div>
+                                        );
+                                    }
+                                    const e = item.e;
+                                    const displayName = e.clientName ?? e.attendee ?? e.summary.replace(/^✂️\s*/, '').split(/[—–-]/)[0].trim();
+                                    return (
+                                        <div
+                                            onClick={ev => { ev.stopPropagation(); setActiveExternal(e); }}
+                                            className="h-full rounded-savron border cursor-pointer transition-opacity hover:opacity-80 p-1.5 text-[10px] space-y-0.5 overflow-hidden bg-violet-500/10 border-violet-500/25 text-violet-300"
+                                        >
+                                            <div className="flex items-center justify-between gap-1">
+                                                <span className="font-medium truncate">{displayName}</span>
+                                                <span className="text-[8px] uppercase tracking-widest opacity-50 shrink-0">GCal</span>
                                             </div>
-                                        ))}
-                                    </div>
-                                ))}
-                            </div>
+                                            <p className="opacity-50 truncate text-[9px]">{e.time}</p>
+                                        </div>
+                                    );
+                                }}
+                            />
                         </div>
                     )}
 

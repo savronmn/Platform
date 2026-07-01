@@ -12,7 +12,11 @@ import {
 import { ChevronLeft, ChevronRight, RefreshCw, ExternalLink, ArrowLeft, Link2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Barber, Booking } from '@/lib/types';
-import { HOST_TIME_SLOTS, serviceBlockStyle } from '@/lib/services-data';
+import { serviceBlockStyle } from '@/lib/services-data';
+import {
+    time24ToMins, getCalendarGridBounds, getTimelineLayout,
+} from '@/lib/calendar-timeline';
+import TimelineDayGrid, { bookingToTimelineEvent, isoRangeToTimelineEvent, type TimelineEvent } from '@/components/calendar/TimelineDayGrid';
 import { useServices } from '@/lib/use-services';
 import Link from 'next/link';
 
@@ -21,26 +25,6 @@ type CalView = 'day' | 'week';
 const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 type DayKey = typeof DAY_KEYS[number];
 type WorkingHours = Partial<Record<DayKey, { open: string; close: string } | null>>;
-
-function slotToMinutes(timeStr: string): number {
-    const [timePart, meridiem] = timeStr.split(' ');
-    let [hours, minutes] = timePart.split(':').map(Number);
-    if (meridiem === 'PM' && hours !== 12) hours += 12;
-    if (meridiem === 'AM' && hours === 12) hours = 0;
-    return hours * 60 + minutes;
-}
-
-function timeStrToMinutes(t: string): number {
-    const [h, m] = t.split(':').map(Number);
-    return h * 60 + m;
-}
-
-function isSlotInHours(timeStr: string, schedule: { open: string; close: string }): boolean {
-    const slotMin = slotToMinutes(timeStr);
-    const openMin = timeStrToMinutes(schedule.open);
-    const closeMin = timeStrToMinutes(schedule.close);
-    return slotMin >= openMin && slotMin < closeMin;
-}
 
 export default function AdminBarberCalendarPage() {
     const params = useParams();
@@ -130,14 +114,31 @@ export default function AdminBarberCalendarPage() {
     const bookingsForDate = (dateStr: string) =>
         bookings.filter(b => b.date === dateStr);
 
-    const isGoogleBusy = (timeStr: string, dateStr: string): boolean => {
-        const slotMin = slotToMinutes(timeStr);
-        const slotStart = new Date(`${dateStr}T${String(Math.floor(slotMin / 60)).padStart(2, '0')}:${String(slotMin % 60).padStart(2, '0')}:00-05:00`).getTime();
-        const slotEnd = slotStart + 45 * 60000;
-        return googleBusy.some(b =>
-            slotStart < new Date(b.end).getTime() && slotEnd > new Date(b.start).getTime()
-        );
-    };
+    const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+
+    // Day-view timeline items for this barber
+    const dayTimelineMap = useMemo(() => {
+        const map = new Map<string, { kind: 'booking'; b: Booking } | { kind: 'gcal'; start: string; end: string }>();
+        for (const b of bookings.filter(bk => bk.date === selectedDateStr)) {
+            map.set(`b-${b.id}`, { kind: 'booking', b });
+        }
+        googleBusy.forEach((block, i) => {
+            map.set(`g-${i}`, { kind: 'gcal', start: block.start, end: block.end });
+        });
+        return map;
+    }, [bookings, googleBusy, selectedDateStr]);
+
+    const dayTimelineEvents = useMemo((): TimelineEvent[] => {
+        const events: TimelineEvent[] = [];
+        dayTimelineMap.forEach((item, id) => {
+            if (item.kind === 'booking') {
+                events.push(bookingToTimelineEvent(id, item.b.time, item.b.duration));
+            } else {
+                events.push(isoRangeToTimelineEvent(id, item.start, item.end));
+            }
+        });
+        return events;
+    }, [dayTimelineMap]);
 
     const getScheduleForDate = (date: Date): { open: string; close: string } | null => {
         if (!workingHours) return null;
@@ -155,7 +156,6 @@ export default function AdminBarberCalendarPage() {
 
     if (!barber) return null;
 
-    const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
     const daySchedule = getScheduleForDate(selectedDate);
     const isDayOff = workingHours !== null && daySchedule === null;
 
@@ -300,50 +300,67 @@ export default function AdminBarberCalendarPage() {
 
             {/* Day View */}
             {view === 'day' && (
-                <div className="space-y-2">
-                    {HOST_TIME_SLOTS.map((slot, i) => {
-                        const lo = slotToMinutes(slot);
-                        const hi = i + 1 < HOST_TIME_SLOTS.length ? slotToMinutes(HOST_TIME_SLOTS[i + 1]) : lo + 45;
-                        const booking = bookingsForDate(selectedDateStr).find(b => {
-                            const bm = slotToMinutes(b.time);
-                            return bm >= lo && bm < hi;
-                        });
-                        const gBusy = !booking && isGoogleBusy(slot, selectedDateStr);
-                        const inHours = !daySchedule ? true : isSlotInHours(slot, daySchedule);
-                        return (
-                            <div
-                                key={slot}
-                                className={cn(
-                                    "flex items-center gap-4 p-4 border rounded-savron transition-all",
-                                    !booking && (gBusy
-                                        ? "border-blue-500/25 bg-blue-500/10"
-                                        : !inHours
-                                            ? "border-white/[0.03] bg-savron-grey/20 opacity-40"
-                                            : "border-white/[0.04] bg-savron-grey/50")
-                                )}
-                                style={booking ? serviceBlockStyle(serviceColorMap[booking.service]) : undefined}
-                            >
-                                <span className="text-savron-silver/50 font-mono text-xs w-20 flex-shrink-0">{slot}</span>
-                                {booking ? (
-                                    <div className="flex-1 flex items-center justify-between">
-                                        <div>
-                                            <p className="text-white text-sm font-medium">{booking.client_name || 'Walk-in'}</p>
-                                            <p className="text-xs opacity-70">{booking.service} · {booking.duration}</p>
-                                        </div>
-                                        {booking.client_phone && (
-                                            <span className="text-xs opacity-50">{booking.client_phone}</span>
-                                        )}
+                <div className="overflow-auto border border-white/5 rounded-savron">
+                    <TimelineDayGrid
+                        columns={[{
+                            id: barber.id,
+                            header: (
+                                <p className="text-white text-xs font-heading uppercase tracking-widest">{barber.name}</p>
+                            ),
+                        }]}
+                        columnWidth="flex-1 min-w-[280px]"
+                        getEventsForColumn={() => dayTimelineEvents}
+                        renderColumnBackground={() => {
+                            if (!daySchedule || isDayOff) return null;
+                            const { startMins: gridStart, endMins: gridEnd } = getCalendarGridBounds();
+                            const openMins = time24ToMins(daySchedule.open);
+                            const closeMins = time24ToMins(daySchedule.close);
+                            const overlays = [];
+                            if (openMins > gridStart) {
+                                const layout = getTimelineLayout(gridStart, openMins - gridStart);
+                                overlays.push(
+                                    <div
+                                        key="before-hours"
+                                        className="absolute left-0 right-0 bg-savron-black/30 pointer-events-none z-0"
+                                        style={{ top: layout.topPx, height: layout.heightPx }}
+                                    />,
+                                );
+                            }
+                            if (closeMins < gridEnd) {
+                                const layout = getTimelineLayout(closeMins, gridEnd - closeMins);
+                                overlays.push(
+                                    <div
+                                        key="after-hours"
+                                        className="absolute left-0 right-0 bg-savron-black/30 pointer-events-none z-0"
+                                        style={{ top: layout.topPx, height: layout.heightPx }}
+                                    />,
+                                );
+                            }
+                            return overlays;
+                        }}
+                        renderEvent={(event) => {
+                            const item = dayTimelineMap.get(event.id);
+                            if (!item) return null;
+                            if (item.kind === 'booking') {
+                                const booking = item.b;
+                                return (
+                                    <div
+                                        className="h-full rounded-savron border p-2 text-xs overflow-hidden flex flex-col justify-center"
+                                        style={serviceBlockStyle(serviceColorMap[booking.service])}
+                                    >
+                                        <p className="text-white text-sm font-medium truncate">{booking.client_name || 'Walk-in'}</p>
+                                        <p className="opacity-70 truncate">{booking.service} · {booking.duration}</p>
+                                        <p className="opacity-60 text-[10px] font-mono">{booking.time}</p>
                                     </div>
-                                ) : gBusy ? (
-                                    <span className="text-blue-300/60 text-xs uppercase tracking-widest">External booking (Google Calendar)</span>
-                                ) : !inHours ? (
-                                    <span className="text-savron-silver/20 text-xs uppercase tracking-widest">Outside hours</span>
-                                ) : (
-                                    <span className="text-savron-silver/20 text-xs uppercase tracking-widest">Available</span>
-                                )}
-                            </div>
-                        );
-                    })}
+                                );
+                            }
+                            return (
+                                <div className="h-full rounded-savron border p-2 text-xs overflow-hidden flex items-center bg-blue-500/10 border-blue-500/25 text-blue-300/80">
+                                    <span className="uppercase tracking-widest text-[10px]">External (Google Calendar)</span>
+                                </div>
+                            );
+                        }}
+                    />
                 </div>
             )}
 
