@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, User, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, User, ChevronDown, ChevronUp, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Booking } from '@/lib/types';
+import { triggerCancelBooking } from '@/lib/confirm-booking';
 
 export default function MemberBookingsPage() {
     const supabase = createClient();
@@ -14,13 +15,14 @@ export default function MemberBookingsPage() {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'upcoming' | 'past'>('upcoming');
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [cancellingId, setCancellingId] = useState<string | null>(null);
+    const [cancelError, setCancelError] = useState<string | null>(null);
 
     useEffect(() => {
         async function load() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // Find the client record linked to this auth user
             const { data: client } = await supabase
                 .from('clients')
                 .select('id')
@@ -36,7 +38,6 @@ export default function MemberBookingsPage() {
                     .order('time', { ascending: false });
                 if (data) setBookings(data);
             } else {
-                // Fallback — match by email
                 const { data } = await supabase
                     .from('bookings')
                     .select('*')
@@ -49,6 +50,22 @@ export default function MemberBookingsPage() {
         }
         load();
     }, []);
+
+    const handleCancel = async (booking: Booking) => {
+        if (!confirm(`Cancel your ${booking.service} appointment on ${booking.date} at ${booking.time}?`)) return;
+        setCancellingId(booking.id);
+        setCancelError(null);
+        const result = await triggerCancelBooking(booking.id);
+        if (result.success) {
+            setBookings(prev => prev.map(b =>
+                b.id === booking.id ? { ...b, status: 'cancelled' } : b
+            ));
+            setExpandedId(null);
+        } else {
+            setCancelError(result.error ?? 'Could not cancel booking');
+        }
+        setCancellingId(null);
+    };
 
     const today = new Date().toISOString().split('T')[0];
     const filtered = bookings.filter(b =>
@@ -66,6 +83,12 @@ export default function MemberBookingsPage() {
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             <h1 className="font-heading text-2xl uppercase tracking-widest text-white">My Bookings</h1>
+
+            {cancelError && (
+                <div className="px-4 py-3 border border-red-500/20 bg-red-500/10 rounded-savron text-red-400 text-sm">
+                    {cancelError}
+                </div>
+            )}
 
             {/* Filter Tabs */}
             <div className="flex gap-2">
@@ -97,6 +120,7 @@ export default function MemberBookingsPage() {
                 <div className="space-y-3">
                     {filtered.map(booking => {
                         const isExpanded = expandedId === booking.id;
+                        const canCancel = booking.status === 'confirmed' && booking.date >= today;
                         return (
                             <div
                                 key={booking.id}
@@ -153,6 +177,18 @@ export default function MemberBookingsPage() {
                                             <div className="pt-2 border-t border-white/[0.04]">
                                                 <p className="text-savron-silver/40 text-xs uppercase tracking-widest mb-1">Notes</p>
                                                 <p className="text-savron-silver text-xs">{booking.notes}</p>
+                                            </div>
+                                        )}
+                                        {canCancel && (
+                                            <div className="pt-3 border-t border-white/[0.04]">
+                                                <button
+                                                    onClick={() => handleCancel(booking)}
+                                                    disabled={cancellingId === booking.id}
+                                                    className="flex items-center gap-2 px-4 py-2 text-[11px] uppercase tracking-widest text-red-400 border border-red-500/20 rounded-savron hover:bg-red-500/10 transition-all disabled:opacity-50"
+                                                >
+                                                    <XCircle className="w-3.5 h-3.5" />
+                                                    {cancellingId === booking.id ? 'Cancelling…' : 'Cancel Appointment'}
+                                                </button>
                                             </div>
                                         )}
                                     </div>
