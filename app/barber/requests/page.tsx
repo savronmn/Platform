@@ -99,7 +99,13 @@ export default function BarberRequestsPage() {
             case 'price':
                 return JSON.stringify({ service_id: 'paste-service-uuid-here', price_cents: 6000 }, null, 2);
             case 'profile':
-                return JSON.stringify({ bio: 'Updated bio…', specialties: ['Fades', 'Hot Towel'], instagram_url: 'https://instagram.com/handle' }, null, 2);
+                return JSON.stringify({
+                    bio: 'Updated bio...',
+                    specialties: ['Fades', 'Hot Towel'],
+                    instagram_url: 'https://instagram.com/handle',
+                    image_url: 'https://...',
+                    portfolio_images: ['https://...'],
+                }, null, 2);
         }
     }
 

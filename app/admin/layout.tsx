@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
-import { Users, Scissors, LayoutDashboard, LogOut, MonitorPlay, CreditCard, Mail, ClipboardList, Layers, Inbox, Menu, X, Languages } from 'lucide-react';
+import { Users, Scissors, LayoutDashboard, LogOut, MonitorPlay, CreditCard, Mail, ClipboardList, Layers, Inbox, Menu, X, Languages, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LanguageProvider, useLanguage } from '@/lib/language-context';
 
@@ -19,6 +19,7 @@ function NavContent({ onClose }: { onClose?: () => void }) {
     const navItems = [
         { labelKey: 'nav.dashboard',      href: '/admin',                icon: LayoutDashboard },
         { labelKey: 'nav.host_view',      href: '/host',                 icon: MonitorPlay },
+        { labelKey: 'nav.bookings',       href: '/admin/bookings',       icon: Calendar },
         { labelKey: 'nav.requests',       href: '/admin/requests',       icon: Inbox },
         { labelKey: 'nav.barbers',        href: '/admin/barbers',        icon: Scissors },
         { labelKey: 'nav.clients',        href: '/admin/clients',        icon: Users },

@@ -45,11 +45,13 @@ export async function POST(request: NextRequest) {
             .update({ price_cents: req.payload.price_cents })
             .eq('id', req.payload.service_id);
     } else if (req.type === 'profile') {
-        // Payload may include: bio, specialties, instagram_url
+        // Payload may include: bio, specialties, instagram_url, image_url, portfolio_images
         const updates: any = {};
         if (req.payload.bio !== undefined) updates.bio = req.payload.bio;
         if (req.payload.specialties !== undefined) updates.specialties = req.payload.specialties;
         if (req.payload.instagram_url !== undefined) updates.instagram_url = req.payload.instagram_url;
+        if (req.payload.image_url !== undefined) updates.image_url = req.payload.image_url;
+        if (req.payload.portfolio_images !== undefined) updates.portfolio_images = req.payload.portfolio_images;
         applyResult = await supabaseAdmin
             .from('barbers')
             .update(updates)

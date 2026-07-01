@@ -21,6 +21,7 @@ export function useServices(): ServiceItem[] {
             .from('services')
             .select('*')
             .eq('active', true)
+            .order('sort_order', { ascending: true, nullsFirst: false })
             .order('created_at')
             .then(({ data }) => {
                 if (data && data.length > 0) {

@@ -340,8 +340,12 @@ export default function AsapBookingFlow() {
                         <h2 className="text-3xl font-heading text-white uppercase tracking-wider">You&apos;re In</h2>
                         <div className="flex flex-col items-center gap-4">
                             <div className="w-20 h-20 rounded-full overflow-hidden bg-savron-grey border-2 border-savron-green/40 relative">
-                                {assignedBarber.image_url && (
-                                    <Image src={assignedBarber.image_url} alt={assignedBarber.name} fill className="object-cover" />
+                                {assignedBarber.image_url ? (
+                                    <Image src={assignedBarber.image_url} alt={assignedBarber.name} fill sizes="80px" className="object-cover" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-2xl font-heading text-savron-silver/50">
+                                        {assignedBarber.name.charAt(0)}
+                                    </div>
                                 )}
                             </div>
                             <div>

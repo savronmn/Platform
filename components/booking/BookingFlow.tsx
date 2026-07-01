@@ -195,7 +195,7 @@ const BookingFlow = () => {
             </div>
             <div className="grid grid-cols-1 gap-2">
                 {services.filter(s =>
-                    !selectedPro?.services_offered || selectedPro.services_offered.includes(s.name)
+                    !selectedPro?.services_offered?.length || selectedPro.services_offered.includes(s.name)
                 ).map((service) => {
                     const isSelected = selectedServices.includes(service.id);
                     return (
@@ -211,6 +211,9 @@ const BookingFlow = () => {
                         >
                             <div>
                                 <h3 className="text-white font-medium uppercase tracking-widest text-xs">{service.name}</h3>
+                                {service.description && (
+                                    <p className="text-savron-silver/45 text-[11px] mt-1 leading-relaxed max-w-md">{service.description}</p>
+                                )}
                                 <p className="text-savron-silver/40 text-[10px] mt-0.5 flex items-center gap-1">
                                     <Clock className="w-2.5 h-2.5" /> {service.duration}
                                 </p>
@@ -359,7 +362,7 @@ const BookingFlow = () => {
                             <div className="flex-1 overflow-y-auto p-5 space-y-5">
                                 <div className="w-20 h-20 rounded-full overflow-hidden bg-savron-black border-2 border-savron-green/30 relative mx-auto">
                                     {profileOpen.image_url ? (
-                                        <Image src={profileOpen.image_url} alt={profileOpen.name} fill className="object-cover" />
+                                        <Image src={profileOpen.image_url} alt={profileOpen.name} fill sizes="80px" className="object-cover" />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-savron-silver/40 text-2xl font-heading">{profileOpen.name.charAt(0)}</div>
                                     )}

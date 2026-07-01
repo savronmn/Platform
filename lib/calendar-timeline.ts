@@ -1,7 +1,7 @@
 import { HOST_TIME_SLOTS } from './services-data';
 
-/** Height in px of each 45-minute grid row in calendar day views. */
-export const CALENDAR_ROW_HEIGHT_PX = 36;
+/** Height in px of each 45-minute grid row in calendar timeline views. */
+export const CALENDAR_ROW_HEIGHT_PX = 56;
 
 /** Interval between HOST_TIME_SLOTS entries (minutes). */
 export const CALENDAR_SLOT_INTERVAL_MINS = 45;
@@ -72,11 +72,66 @@ export interface TimelineLayout {
  * Position is proportional to actual start time and duration.
  */
 export function getTimelineLayout(startMins: number, durationMins: number): TimelineLayout {
-    const { startMins: gridStart, totalMins, totalHeightPx } = getCalendarGridBounds();
-    const clampedStart = Math.max(startMins, gridStart);
-    const topPx = ((clampedStart - gridStart) / totalMins) * totalHeightPx;
-    const heightPx = Math.max((durationMins / totalMins) * totalHeightPx, 18);
+    const { startMins: gridStart, endMins: gridEnd, totalMins, totalHeightPx } = getCalendarGridBounds();
+    const eventEnd = startMins + durationMins;
+    const visibleStart = Math.max(startMins, gridStart);
+    const visibleEnd = Math.min(eventEnd, gridEnd);
+
+    if (visibleEnd <= visibleStart) {
+        return { topPx: 0, heightPx: 0 };
+    }
+
+    const topPx = ((visibleStart - gridStart) / totalMins) * totalHeightPx;
+    const heightPx = Math.max(((visibleEnd - visibleStart) / totalMins) * totalHeightPx, 22);
     return { topPx, heightPx };
+}
+
+export interface TimelineOverlapLayout {
+    lane: number;
+    laneCount: number;
+}
+
+/**
+ * Assign side-by-side lanes for overlapping timeline events.
+ * This mirrors the Google Calendar convention where overlapping events share width.
+ */
+export function getTimelineOverlapLayouts<T extends { id: string; startMins: number; durationMins: number }>(
+    events: T[],
+): Map<string, TimelineOverlapLayout> {
+    const sorted = [...events].sort((a, b) => a.startMins - b.startMins || b.durationMins - a.durationMins);
+    const layouts = new Map<string, TimelineOverlapLayout>();
+    let group: T[] = [];
+    let groupEnd = -Infinity;
+
+    const flushGroup = () => {
+        if (!group.length) return;
+        const lanes: number[] = [];
+        const assignments = new Map<string, number>();
+
+        for (const event of group) {
+            const lane = lanes.findIndex(end => end <= event.startMins);
+            const chosenLane = lane === -1 ? lanes.length : lane;
+            lanes[chosenLane] = event.startMins + event.durationMins;
+            assignments.set(event.id, chosenLane);
+        }
+
+        const laneCount = Math.max(1, lanes.length);
+        assignments.forEach((lane, id) => layouts.set(id, { lane, laneCount }));
+        group = [];
+        groupEnd = -Infinity;
+    };
+
+    for (const event of sorted) {
+        if (group.length && event.startMins >= groupEnd) {
+            flushGroup();
+        }
+
+        group.push(event);
+        groupEnd = Math.max(groupEnd, event.startMins + event.durationMins);
+    }
+
+    flushGroup();
+    return layouts;
 }
 
 /** Whether an event overlaps a slot range [lo, hi). */

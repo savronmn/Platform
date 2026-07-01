@@ -11,6 +11,7 @@ const translations: Record<string, Record<Lang, string>> = {
     // Nav
     'nav.dashboard':      { en: 'Dashboard',      es: 'Panel' },
     'nav.host_view':      { en: 'Host View',       es: 'Vista Host' },
+    'nav.bookings':       { en: 'Bookings',        es: 'Reservas' },
     'nav.requests':       { en: 'Requests',        es: 'Solicitudes' },
     'nav.barbers':        { en: 'Barbers',         es: 'Barberos' },
     'nav.clients':        { en: 'Clients',         es: 'Clientes' },

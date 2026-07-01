@@ -206,7 +206,7 @@ export default function BarberRegistration() {
                                             <div className="border-2 border-dashed border-white/10 rounded-savron p-6 flex flex-col items-center justify-center text-center group-hover:border-savron-green/40 group-hover:bg-white/[0.02] transition-all relative overflow-hidden min-h-[100px]">
                                                 {imagePreview ? (
                                                     <div className="absolute inset-0">
-                                                        <Image src={imagePreview} alt="Preview" fill className="object-cover opacity-60" />
+                                                        <Image src={imagePreview} alt="Preview" fill unoptimized className="object-cover opacity-60" />
                                                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
                                                             <Upload size={18} className="text-white mb-1" />
                                                             <span className="text-[10px] uppercase tracking-widest text-white font-medium">Change Photo</span>

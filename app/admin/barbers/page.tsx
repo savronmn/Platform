@@ -60,6 +60,7 @@ export default function AdminBarbersPage() {
     const [workingHours, setWorkingHours] = useState<WorkingHours>({});
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [photoError, setPhotoError] = useState<string | null>(null);
 
     useEffect(() => {
         async function load() {
@@ -73,6 +74,7 @@ export default function AdminBarbersPage() {
     const openSettings = (barber: Barber, tab: 'profile' | 'services' | 'schedule' = 'profile') => {
         setSettingsBarber(barber);
         setActiveTab(tab);
+        setPhotoError(null);
         setLicenseInput(barber.license_number ?? '');
         // Extract handle from full URL or bare handle
         const raw = barber.instagram_url ?? '';
@@ -95,7 +97,7 @@ export default function AdminBarbersPage() {
         setSaved(false);
     };
 
-    const closeSettings = () => { setSettingsBarber(null); setSaved(false); };
+    const closeSettings = () => { setSettingsBarber(null); setSaved(false); setPhotoError(null); };
 
     const toggleService = (name: string) =>
         setServicesOffered(prev =>
@@ -218,8 +220,13 @@ export default function AdminBarbersPage() {
                             <div key={barber.id} className="bg-savron-grey border border-amber-500/15 rounded-savron p-5 space-y-4">
                                 <div className="flex items-start gap-3">
                                     <div className="w-12 h-12 rounded-full overflow-hidden bg-savron-charcoal border border-white/10 relative shrink-0">
-                                        {barber.image_url && <Image src={barber.image_url} alt={barber.name} fill className="object-cover" />}
-                                        {!barber.image_url && <Scissors className="w-4 h-4 text-white/20 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
+                                        {barber.image_url ? (
+                                            <Image src={barber.image_url} alt={barber.name} fill sizes="48px" className="object-cover" />
+                                        ) : (
+                                            <span className="absolute inset-0 flex items-center justify-center text-sm font-heading text-white/30">
+                                                {barber.name.charAt(0)}
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <h3 className="text-white font-heading uppercase tracking-wider text-sm">{barber.name}</h3>
@@ -271,10 +278,13 @@ export default function AdminBarbersPage() {
                                     className="relative w-16 h-16 rounded-full overflow-hidden bg-savron-charcoal border border-white/10 shrink-0 group"
                                     title="Edit profile photo"
                                 >
-                                    {barber.image_url
-                                        ? <Image src={barber.image_url} alt={barber.name} fill className="object-cover" />
-                                        : <Scissors className="w-5 h-5 text-white/20 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                                    }
+                                    {barber.image_url ? (
+                                        <Image src={barber.image_url} alt={barber.name} fill sizes="64px" className="object-cover" />
+                                    ) : (
+                                        <span className="absolute inset-0 flex items-center justify-center text-lg font-heading text-white/30">
+                                            {barber.name.charAt(0)}
+                                        </span>
+                                    )}
                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                         <Camera className="w-4 h-4 text-white" />
                                     </div>
@@ -404,10 +414,13 @@ export default function AdminBarbersPage() {
                         <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-savron-charcoal border border-white/10 relative shrink-0">
-                                    {settingsBarber.image_url
-                                        ? <Image src={settingsBarber.image_url} alt={settingsBarber.name} fill className="object-cover" />
-                                        : <User className="w-4 h-4 text-white/20 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                                    }
+                                    {settingsBarber.image_url ? (
+                                        <Image src={settingsBarber.image_url} alt={settingsBarber.name} fill sizes="40px" className="object-cover" />
+                                    ) : (
+                                        <span className="absolute inset-0 flex items-center justify-center text-xs font-heading text-white/30">
+                                            {settingsBarber.name.charAt(0)}
+                                        </span>
+                                    )}
                                 </div>
                                 <div>
                                     <p className="text-[10px] uppercase tracking-[0.3em] text-savron-silver/50 mb-0.5">Barber Settings</p>
@@ -455,7 +468,7 @@ export default function AdminBarbersPage() {
                                             <div className="relative w-24 h-24">
                                                 <div className="w-24 h-24 rounded-full overflow-hidden bg-savron-charcoal border border-white/10 relative">
                                                     {settingsBarber.image_url
-                                                        ? <Image src={settingsBarber.image_url} alt={settingsBarber.name} fill className="object-cover" />
+                                                        ? <Image src={settingsBarber.image_url} alt={settingsBarber.name} fill sizes="96px" className="object-cover" />
                                                         : <User className="w-8 h-8 text-white/20 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                                                     }
                                                 </div>
@@ -474,27 +487,53 @@ export default function AdminBarbersPage() {
                                                 onChange={async (e) => {
                                                     const file = e.currentTarget.files?.[0];
                                                     if (!file) return;
+                                                    setPhotoError(null);
                                                     try {
                                                         const ext = file.name.split('.').pop();
-                                                        const path = `barber-photos/${settingsBarber.id}.${ext}`;
+                                                        const path = `${settingsBarber.id}/profile/${Date.now()}.${ext}`;
                                                         const { error: upErr } = await supabase.storage
-                                                            .from('barbers')
+                                                            .from('barber-portfolios')
                                                             .upload(path, file, { upsert: true, contentType: file.type });
                                                         if (upErr) throw upErr;
-                                                        const { data: { publicUrl } } = supabase.storage.from('barbers').getPublicUrl(path);
+                                                        const { data: { publicUrl } } = supabase.storage.from('barber-portfolios').getPublicUrl(path);
                                                         await supabase.from('barbers').update({ image_url: publicUrl }).eq('id', settingsBarber.id);
                                                         setSettingsBarber(prev => prev ? { ...prev, image_url: publicUrl } : prev);
                                                         setBarbers(prev => prev.map(b => b.id === settingsBarber.id ? { ...b, image_url: publicUrl } : b));
                                                     } catch (err) {
                                                         console.error('Photo upload failed:', err);
+                                                        setPhotoError('Photo upload failed. Please try a different image or check storage settings.');
+                                                        e.currentTarget.value = '';
                                                     }
                                                 }}
                                             />
                                             <label htmlFor="photo-upload" className="px-6 py-2.5 text-[11px] uppercase tracking-widest bg-savron-green/10 text-savron-green border border-savron-green/30 hover:bg-savron-green/20 rounded-savron cursor-pointer transition-all font-medium">
                                                 {settingsBarber.image_url ? 'Change Photo' : 'Upload Photo'}
                                             </label>
+                                            {photoError && (
+                                                <p className="text-red-400 text-[11px] text-center max-w-xs">{photoError}</p>
+                                            )}
                                         </div>
                                     </div>
+
+                                    {(settingsBarber.portfolio_images?.length ?? 0) > 0 && (
+                                        <div>
+                                            <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-3">
+                                                Portfolio Photos
+                                            </label>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {settingsBarber.portfolio_images!.slice(0, 6).map((url, i) => (
+                                                    <div key={`${url}-${i}`} className="relative aspect-square rounded-savron overflow-hidden bg-savron-charcoal border border-white/10">
+                                                        <Image src={url} alt={`${settingsBarber.name} portfolio ${i + 1}`} fill sizes="96px" className="object-cover" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {settingsBarber.portfolio_images!.length > 6 && (
+                                                <p className="text-savron-silver/40 text-[10px] mt-2">
+                                                    +{settingsBarber.portfolio_images!.length - 6} more in barber profile
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* License number */}
                                     <div>
