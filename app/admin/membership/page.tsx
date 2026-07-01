@@ -178,7 +178,19 @@ export default function MembershipPage() {
 
     return (
         <div className="min-h-screen bg-savron-black text-white">
-            <QRScannerModal open={showScanner} onClose={() => setShowScanner(false)} />
+            <QRScannerModal
+                open={showScanner}
+                onClose={() => setShowScanner(false)}
+                onScanSuccess={(sub) => {
+                    setSubscribers(prev =>
+                        prev.map(s => s.id === sub.id
+                            ? { ...s, visit_count: sub.visit_count, last_visit_at: sub.last_visit_at ?? new Date().toISOString() }
+                            : s
+                        )
+                    );
+                    showToast(`Visit recorded — ${sub.name} now has ${sub.visit_count} visit${sub.visit_count === 1 ? '' : 's'}.`);
+                }}
+            />
             {/* Toast */}
             <AnimatePresence>
                 {toast && (
