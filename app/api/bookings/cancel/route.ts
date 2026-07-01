@@ -1,0 +1,86 @@
+// POST /api/bookings/cancel
+// Cancels a booking with email + calendar sync. Used by host, client, and admin flows.
+// Body: { bookingId: string }
+
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { createServerSupabase } from '@/lib/supabase-server';
+import { cancelBooking } from '@/lib/cancel-booking';
+
+const getAdmin = () => createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+);
+
+export async function POST(request: NextRequest) {
+    const { bookingId } = await request.json() as { bookingId?: string };
+
+    if (!bookingId) {
+        return NextResponse.json({ error: 'Missing bookingId' }, { status: 400 });
+    }
+
+    const supabaseAdmin = getAdmin();
+
+    const { data: booking } = await supabaseAdmin
+        .from('bookings')
+        .select('id, client_id, client_email, status, barber_id')
+        .eq('id', bookingId)
+        .single();
+
+    if (!booking) {
+        return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+    }
+
+    if (booking.status === 'cancelled') {
+        return NextResponse.json({ success: true, alreadyCancelled: true });
+    }
+
+    // Only confirmed bookings can be cancelled via this endpoint
+    if (booking.status !== 'confirmed') {
+        return NextResponse.json({ error: 'Only confirmed bookings can be cancelled' }, { status: 400 });
+    }
+
+    // Auth: client may cancel own booking; staff (admin/barber/host) may cancel any
+    const supabase = createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: barberRecord } = await supabaseAdmin
+        .from('barbers')
+        .select('id')
+        .eq('auth_id', user.id)
+        .maybeSingle();
+
+    const isStaff = !!barberRecord;
+
+    if (!isStaff) {
+        // Client must own this booking
+        const { data: client } = await supabaseAdmin
+            .from('clients')
+            .select('id')
+            .eq('auth_id', user.id)
+            .single();
+
+        const ownsByClientId = client && booking.client_id === client.id;
+        const ownsByEmail = booking.client_email && booking.client_email === user.email;
+
+        if (!ownsByClientId && !ownsByEmail) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+    }
+
+    const result = await cancelBooking(bookingId);
+
+    if (!result.success) {
+        return NextResponse.json({ error: result.error ?? 'Cancellation failed' }, { status: 500 });
+    }
+
+    return NextResponse.json({
+        success: true,
+        emailSent: result.emailSent,
+        calendarDeleted: result.calendarDeleted,
+    });
+}
