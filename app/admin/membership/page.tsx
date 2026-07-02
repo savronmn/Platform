@@ -88,7 +88,10 @@ export default function MembershipPage() {
                         : s
                     )
                 );
-                showToast(`Visit recorded — ${subscriber.name} now has ${data.visit_count} visit${data.visit_count === 1 ? '' : 's'}. Google Wallet updated.`);
+                showToast(
+                    `Visit recorded — ${subscriber.name} now has ${data.visit_count} visit${data.visit_count === 1 ? '' : 's'}.` +
+                    (data.google_wallet_updated ? ' Google Wallet updated.' : ' Google Wallet did not update automatically.')
+                );
             } else {
                 showToast(data.error || 'Failed to record visit', 'error');
             }
@@ -116,7 +119,10 @@ export default function MembershipPage() {
                         : s
                     )
                 );
-                showToast(`Visit removed — ${subscriber.name} now has ${data.visit_count} visit${data.visit_count === 1 ? '' : 's'}. Google Wallet updated.`);
+                showToast(
+                    `Visit removed — ${subscriber.name} now has ${data.visit_count} visit${data.visit_count === 1 ? '' : 's'}.` +
+                    (data.google_wallet_updated ? ' Google Wallet updated.' : ' Google Wallet did not update automatically.')
+                );
             } else {
                 showToast(data.error || 'Failed to remove visit', 'error');
             }

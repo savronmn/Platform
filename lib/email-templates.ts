@@ -94,8 +94,16 @@ export function getSpecialOfferTemplate(clientName: string, offerText: string): 
     };
 }
 
-export function buildMembershipEmail(name: string, downloadUrl: string): string {
+export function buildMembershipEmail(name: string, downloadUrl: string, googleSaveUrl?: string | null): string {
     const firstName = name.split(' ')[0];
+    const googleWalletBlock = googleSaveUrl ? `
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 0 20px;">
+              <tr>
+                <td align="center">
+                  <a href="${googleSaveUrl}" style="display:inline-block;border:1px solid rgba(232,228,220,0.18);color:rgba(232,228,220,0.78);padding:16px 36px;text-decoration:none;font-family:Arial,sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;font-weight:700;background:rgba(232,228,220,0.03);">Save to Google Wallet</a>
+                </td>
+              </tr>
+            </table>` : '';
     return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -144,11 +152,12 @@ export function buildMembershipEmail(name: string, downloadUrl: string): string 
             <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin-bottom:20px;">
               <tr>
                 <td align="center">
-                  <a href="${downloadUrl}" style="display:inline-block;background-color:#1A6A8A;color:#ffffff;padding:18px 48px;text-decoration:none;font-family:Arial,sans-serif;font-size:13px;letter-spacing:3px;text-transform:uppercase;font-weight:700;">Add to Wallet</a>
+                  <a href="${downloadUrl}" style="display:inline-block;background-color:#1A6A8A;color:#ffffff;padding:18px 48px;text-decoration:none;font-family:Arial,sans-serif;font-size:13px;letter-spacing:3px;text-transform:uppercase;font-weight:700;">Add to Apple Wallet</a>
                 </td>
               </tr>
             </table>
-            <p style="margin:0;color:rgba(255,255,255,0.3);font-size:11px;line-height:1.6;text-align:center;">Opens Apple Wallet on iPhone &middot; .pkpass attached to this email</p>
+            ${googleWalletBlock}
+            <p style="margin:0;color:rgba(255,255,255,0.3);font-size:11px;line-height:1.6;text-align:center;">Apple Wallet uses the attached .pkpass. Google Wallet updates automatically after check-ins.</p>
           </td>
         </tr>
         <tr>

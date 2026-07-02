@@ -1,44 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { GoogleAuth } from 'google-auth-library';
-
-const ISSUER_ID = process.env.GOOGLE_WALLET_ISSUER_ID;
-const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL;
-const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_WALLET_PRIVATE_KEY?.replace(/\\n/g, '\n');
-const CLASS_ID = process.env.GOOGLE_WALLET_CLASS_ID;
+import { updateGoogleWalletPass } from '@/lib/google-wallet';
 
 function getSupabaseAdmin() {
     return createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
-}
-
-async function updateGoogleWalletPass(
-    objectId: string,
-    name: string,
-    email: string,
-    visitCount: number
-): Promise<void> {
-    if (!ISSUER_ID || !SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY || !CLASS_ID) return;
-    const auth = new GoogleAuth({
-        credentials: { client_email: SERVICE_ACCOUNT_EMAIL, private_key: GOOGLE_PRIVATE_KEY },
-        scopes: ['https://www.googleapis.com/auth/wallet_object.issuer'],
-    });
-    const client = await auth.getClient();
-    await client.request({
-        url: `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${encodeURIComponent(objectId)}`,
-        method: 'PUT',
-        data: {
-            id: objectId,
-            classId: CLASS_ID,
-            state: 'ACTIVE',
-            barcode: { type: 'QR_CODE', value: email },
-            accountName: name,
-            accountId: email,
-            loyaltyPoints: { label: 'Visits', balance: { string: visitCount.toString() } },
-        },
-    });
 }
 
 export async function POST(req: NextRequest) {
@@ -79,13 +47,14 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Failed to record visit' }, { status: 500 });
         }
 
+        let googleWalletUpdated = false;
         if (subscriber.google_pass_object_id) {
-            updateGoogleWalletPass(
+            googleWalletUpdated = await updateGoogleWalletPass(
                 subscriber.google_pass_object_id,
                 subscriber.name,
                 subscriber.email,
                 newCount
-            ).catch(err => console.error('Google Wallet update failed (non-fatal):', err));
+            );
         }
 
         return NextResponse.json({
@@ -97,6 +66,8 @@ export async function POST(req: NextRequest) {
                 visit_count: newCount,
                 last_visit_at: new Date().toISOString(),
             },
+            google_wallet_updated: googleWalletUpdated,
+            google_wallet_object_id: subscriber.google_pass_object_id ?? null,
         });
     } catch (err) {
         console.error('scan-checkin failed:', err);
