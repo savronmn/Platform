@@ -146,7 +146,7 @@ export default function CommunicationsPage() {
                                 <motion.div 
                                     initial={{ opacity: 0, height: 0 }} 
                                     animate={{ opacity: 1, height: 'auto' }} 
-                                    className="bg-green-500/10 border border-green-500/20 text-green-400 p-4 rounded-savron flex items-center gap-3"
+                                    className="bg-savron-blue/10 border border-savron-blue/20 text-accent-blue p-4 rounded-savron flex items-center gap-3"
                                 >
                                     <CheckCircle2 size={16} />
                                     <span className="text-xs uppercase tracking-widest">Campaign sent successfully via Brevo!</span>

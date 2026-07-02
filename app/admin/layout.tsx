@@ -48,8 +48,8 @@ function NavContent({ onClose }: { onClose?: () => void }) {
                             className={cn(
                                 "flex items-center gap-3 px-4 py-3.5 rounded-savron text-sm uppercase tracking-wider transition-all border",
                                 isActive
-                                    ? "bg-savron-green border-savron-green-light/20 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_30px_rgba(18,84,112,0.25)]"
-                                    : "text-savron-silver border-transparent hover:text-white hover:bg-white/[0.06] hover:border-white/[0.08]"
+                                    ? "bg-savron-blue border-savron-blue-light/30 text-white"
+                                    : "text-savron-silver border-transparent hover:text-white hover:bg-savron-blue/10 hover:border-savron-blue/20"
                             )}
                         >
                             <item.icon className="w-4 h-4" />
@@ -59,11 +59,10 @@ function NavContent({ onClose }: { onClose?: () => void }) {
                 })}
             </nav>
 
-            <div className="p-4 border-t border-white/[0.06] space-y-1.5">
-                {/* EN / ES language toggle */}
+            <div className="p-4 border-t border-savron-blue/15 space-y-1.5">
                 <button
                     onClick={toggle}
-                    className="flex items-center gap-3 px-4 py-3.5 rounded-savron text-sm uppercase tracking-wider text-savron-silver hover:text-white hover:bg-white/[0.06] transition-all w-full border border-transparent hover:border-white/[0.08] group"
+                    className="flex items-center gap-3 px-4 py-3.5 rounded-savron text-sm uppercase tracking-wider text-savron-silver hover:text-white hover:bg-savron-blue/10 transition-all w-full border border-transparent hover:border-savron-blue/20 group"
                 >
                     <Languages className="w-4 h-4" />
                     <span className="flex items-center gap-1.5">
@@ -74,7 +73,7 @@ function NavContent({ onClose }: { onClose?: () => void }) {
                     <span className={cn(
                         "ml-auto text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded border transition-colors",
                         lang === 'es'
-                            ? "border-savron-green/40 text-savron-green bg-savron-green/10"
+                            ? "border-savron-blue/40 text-savron-blue-light bg-savron-blue/10"
                             : "border-white/10 text-savron-silver/40"
                     )}>
                         {lang === 'en' ? 'EN' : 'ES'}
@@ -103,16 +102,14 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <div className="min-h-screen bg-savron-black flex flex-col lg:flex-row relative overflow-hidden">
-            <div className="pointer-events-none fixed inset-0 opacity-[0.055] bg-[url('/savron.png')] bg-cover bg-center" />
-            <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_right,rgba(18,84,112,0.16),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.025),transparent_26%)]" />
+        <div className="min-h-screen bg-savron-black savron-grid-bg flex flex-col lg:flex-row relative overflow-hidden">
             {/* Mobile Top Header */}
-            <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-savron-grey/85 backdrop-blur-xl border-b border-white/[0.06] flex items-center justify-between px-6 z-30">
+            <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-savron-grey/95 border-b border-savron-blue/20 savron-grid-surface flex items-center justify-between px-6 z-30">
                 <Link href="/admin" className="relative w-24 h-6 block">
                     <Image src="/logo.png" alt="SAVRON" fill className="object-contain object-left" priority />
                 </Link>
                 <div className="flex items-center gap-3">
-                    <span className="text-savron-silver/50 text-[9px] uppercase tracking-widest font-medium">{t('nav.business_os')}</span>
+                    <span className="text-savron-cream/40 text-[9px] uppercase tracking-widest font-medium">{t('nav.business_os')}</span>
                     <button
                         onClick={() => setIsDrawerOpen(true)}
                         className="p-2 text-savron-silver hover:text-white transition-colors focus:outline-none"
@@ -124,12 +121,12 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             </header>
 
             {/* Desktop Sidebar */}
-            <aside className="hidden lg:flex w-72 glass-panel border-r border-white/[0.06] flex-col fixed h-full z-40">
-                <div className="p-8 border-b border-white/[0.06]">
+            <aside className="hidden lg:flex w-72 bg-savron-grey border-r border-savron-blue/20 savron-grid-surface flex-col fixed h-full z-40">
+                <div className="p-8 border-b border-savron-blue/15">
                     <Link href="/admin" className="relative w-28 h-7 block">
                         <Image src="/logo.png" alt="SAVRON" fill className="object-contain object-left" priority />
                     </Link>
-                    <p className="text-savron-silver/50 text-[10px] uppercase tracking-widest mt-2">{t('nav.business_os')}</p>
+                    <p className="text-savron-cream/40 text-[10px] uppercase tracking-widest mt-2">{t('nav.business_os')}</p>
                     <div className="divider-silver mt-5" />
                 </div>
                 <NavContent />
@@ -151,14 +148,14 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                             animate={{ x: 0 }}
                             exit={{ x: '-100%' }}
                             transition={{ type: 'tween', duration: 0.25 }}
-                            className="lg:hidden fixed top-0 left-0 bottom-0 w-72 glass-panel border-r border-white/[0.06] z-50 flex flex-col"
+                            className="lg:hidden fixed top-0 left-0 bottom-0 w-72 bg-savron-grey border-r border-savron-blue/20 savron-grid-surface z-50 flex flex-col"
                         >
-                            <div className="p-6 border-b border-white/[0.06] flex items-center justify-between">
+                            <div className="p-6 border-b border-savron-blue/15 flex items-center justify-between">
                                 <div>
                                     <Link href="/admin" onClick={() => setIsDrawerOpen(false)} className="relative w-24 h-6 block">
                                         <Image src="/logo.png" alt="SAVRON" fill className="object-contain object-left" />
                                     </Link>
-                                    <p className="text-savron-silver/50 text-[9px] uppercase tracking-widest mt-1">{t('nav.business_os')}</p>
+                                    <p className="text-savron-cream/40 text-[9px] uppercase tracking-widest mt-1">{t('nav.business_os')}</p>
                                 </div>
                                 <button
                                     onClick={() => setIsDrawerOpen(false)}

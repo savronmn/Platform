@@ -11,7 +11,7 @@ import type { Applicant } from '@/lib/types';
 const STATUS_STYLES: Record<Applicant['status'], string> = {
     pending:   'bg-amber-500/10 text-amber-400 border-amber-500/20',
     interview: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    approved:  'bg-savron-green/10 text-emerald-400 border-savron-green/20',
+    approved:  'bg-savron-green/10 text-accent-blue border-savron-green/20',
     rejected:  'bg-red-500/10 text-red-400 border-red-500/20',
 };
 
@@ -116,7 +116,7 @@ export default function AdminApplicantsPage() {
                         <p className={cn("text-2xl font-mono font-bold",
                             s === 'pending'   ? 'text-amber-400' :
                             s === 'interview' ? 'text-blue-400' :
-                            s === 'approved'  ? 'text-emerald-400' : 'text-red-400'
+                            s === 'approved'  ? 'text-accent-blue' : 'text-red-400'
                         )}>{counts[s]}</p>
                     </div>
                 ))}
@@ -344,13 +344,13 @@ export default function AdminApplicantsPage() {
                                         <div className="space-y-1.5 text-sm text-white">
                                             <div className="flex items-center">
                                                 <span className="text-savron-silver/60 text-xs inline-block w-20 shrink-0">Email:</span>
-                                                <a href={`mailto:${selectedApplicant.email}`} className="text-emerald-400 hover:text-emerald-300 hover:underline truncate">
+                                                <a href={`mailto:${selectedApplicant.email}`} className="text-accent-blue hover:text-savron-cream hover:underline truncate">
                                                     {selectedApplicant.email}
                                                 </a>
                                             </div>
                                             <div className="flex items-center">
                                                 <span className="text-savron-silver/60 text-xs inline-block w-20 shrink-0">Phone:</span>
-                                                <a href={`tel:${selectedApplicant.phone}`} className="text-emerald-400 hover:text-emerald-300 hover:underline">
+                                                <a href={`tel:${selectedApplicant.phone}`} className="text-accent-blue hover:text-savron-cream hover:underline">
                                                     {selectedApplicant.phone}
                                                 </a>
                                             </div>
@@ -361,7 +361,7 @@ export default function AdminApplicantsPage() {
                                                         href={`https://instagram.com/${selectedApplicant.ig_handle.replace(/^@/, '')}`}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="text-emerald-400 hover:text-emerald-300 hover:underline inline-flex items-center gap-1"
+                                                        className="text-accent-blue hover:text-savron-cream hover:underline inline-flex items-center gap-1"
                                                     >
                                                         {selectedApplicant.ig_handle} <ExternalLink className="w-3 h-3" />
                                                     </a>
@@ -421,7 +421,7 @@ export default function AdminApplicantsPage() {
                                                 href={selectedApplicant.video_url}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="text-[10px] text-emerald-400 hover:text-emerald-300 hover:underline flex items-center justify-end gap-1 uppercase tracking-widest font-mono"
+                                                className="text-[10px] text-accent-blue hover:text-savron-cream hover:underline flex items-center justify-end gap-1 uppercase tracking-widest font-mono"
                                             >
                                                 Open video in tab <ExternalLink className="w-3 h-3" />
                                             </a>

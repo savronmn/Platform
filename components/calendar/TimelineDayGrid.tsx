@@ -48,16 +48,16 @@ export default function TimelineDayGrid({
     const { totalHeightPx } = getCalendarGridBounds();
 
     return (
-        <div className="min-w-max bg-savron-black">
+        <div className="min-w-max bg-savron-black savron-grid-surface">
             {/* Column headers */}
-            <div className="flex border-b border-white/10 bg-savron-grey sticky top-0 z-10 shadow-lg shadow-black/30">
-                <div className={cn(timeLabelWidth, 'shrink-0 p-3 sm:p-4 border-r border-white/10 sticky left-0 z-20 bg-savron-grey')}>
+            <div className="flex border-b border-savron-blue/20 bg-savron-grey sticky top-0 z-10">
+                <div className={cn(timeLabelWidth, 'shrink-0 p-3 sm:p-4 border-r border-savron-blue/15 sticky left-0 z-20 bg-savron-grey savron-grid-surface')}>
                     <span className="text-[10px] uppercase tracking-widest text-savron-silver/40">Time</span>
                 </div>
                 {columns.map(col => (
                     <div
                         key={col.id}
-                        className={cn(columnWidth, 'shrink-0 p-3 sm:p-4 border-r border-white/10')}
+                        className={cn(columnWidth, 'shrink-0 p-3 sm:p-4 border-r border-savron-blue/15')}
                     >
                         {col.header}
                     </div>
@@ -67,7 +67,7 @@ export default function TimelineDayGrid({
             {/* Timeline body */}
             <div className="flex">
                 {/* Time labels */}
-                <div className={cn(timeLabelWidth, 'shrink-0 border-r border-white/10 relative sticky left-0 z-10 bg-savron-black')}
+                <div className={cn(timeLabelWidth, 'shrink-0 border-r border-savron-blue/15 relative sticky left-0 z-10 bg-savron-black savron-grid-surface')}
                     style={{ height: totalHeightPx }}
                 >
                     {HOST_TIME_SLOTS.map((time, i) => {
@@ -96,7 +96,7 @@ export default function TimelineDayGrid({
                 {columns.map(col => (
                     <div
                         key={col.id}
-                        className={cn(columnWidth, 'shrink-0 border-r border-white/10 relative bg-savron-black')}
+                        className={cn(columnWidth, 'shrink-0 border-r border-savron-blue/15 relative bg-savron-black savron-grid-surface')}
                         style={{ height: totalHeightPx }}
                     >
                         {/* Grid lines */}
@@ -104,8 +104,8 @@ export default function TimelineDayGrid({
                             <div
                                 key={time}
                                 className={cn(
-                                    'absolute left-0 right-0 border-b border-white/[0.08]',
-                                    i % 2 !== 0 && 'bg-white/[0.018]',
+                                    'absolute left-0 right-0 border-b border-savron-blue/10',
+                                    i % 2 !== 0 && 'bg-savron-blue/[0.03]',
                                 )}
                                 style={{ top: i * CALENDAR_ROW_HEIGHT_PX, height: CALENDAR_ROW_HEIGHT_PX }}
                             />

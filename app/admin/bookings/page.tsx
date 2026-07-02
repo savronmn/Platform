@@ -19,7 +19,7 @@ const EditBookingModal = dynamic(() => import('@/components/crm/EditBookingModal
 // ─── Status helpers ───────────────────────────────────────────────────────────
 
 const STATUS_CONFIG = {
-    confirmed:  { label: 'Confirmed',  dot: 'bg-emerald-400 animate-pulse', pill: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
+    confirmed:  { label: 'Confirmed',  dot: 'bg-savron-blue-light animate-pulse', pill: 'bg-savron-blue/15 text-accent-blue border-savron-blue/30' },
     completed:  { label: 'Completed',  dot: 'bg-blue-400',                  pill: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
     cancelled:  { label: 'Cancelled',  dot: 'bg-white/20',                  pill: 'bg-white/5 text-white/30 border-white/10' },
     no_show:    { label: 'No-show',    dot: 'bg-red-400/60',                pill: 'bg-red-500/10 text-red-400/70 border-red-500/20' },
@@ -284,7 +284,7 @@ export default function BookingsPage() {
                                             {total > 0 && (
                                                 <span className={cn(
                                                     "text-[9px] leading-none",
-                                                    confirmed > 0 ? "text-emerald-400" : "text-savron-silver/50"
+                                                    confirmed > 0 ? "text-accent-blue" : "text-savron-silver/50"
                                                 )}>
                                                     {confirmed > 0 && `${confirmed} conf`}
                                                     {confirmed > 0 && completed > 0 && ' · '}
@@ -330,7 +330,7 @@ export default function BookingsPage() {
                                 </p>
                                 <button
                                     onClick={() => setShowWalkIn(true)}
-                                    className="text-emerald-400 hover:text-emerald-300 text-[10px] uppercase tracking-widest transition-colors"
+                                    className="text-accent-blue hover:text-savron-cream text-[10px] uppercase tracking-widest transition-colors"
                                 >
                                     + Add walk-in
                                 </button>
@@ -387,7 +387,7 @@ function AppointmentCard({ booking, onEdit, onStatusChange }: AppointmentCardPro
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                     <Clock className="w-3 h-3 text-savron-silver/50" />
-                    <span className="font-mono text-xs text-emerald-400">{booking.time}</span>
+                    <span className="font-mono text-xs text-accent-blue">{booking.time}</span>
                 </div>
                 <span className={cn(
                     "text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-full border",
@@ -431,7 +431,7 @@ function AppointmentCard({ booking, onEdit, onStatusChange }: AppointmentCardPro
             <div className="flex items-center gap-2 pt-1.5 border-t border-white/8 flex-wrap">
                 <button
                     onClick={onEdit}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs uppercase tracking-widest bg-savron-green/15 hover:bg-savron-green/25 border border-savron-green/30 hover:border-savron-green/50 rounded-savron text-emerald-400 hover:text-emerald-300 font-medium transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs uppercase tracking-widest bg-savron-green/15 hover:bg-savron-green/25 border border-savron-green/30 hover:border-savron-green/50 rounded-savron text-accent-blue hover:text-savron-cream font-medium transition-all"
                 >
                     <Pencil className="w-3 h-3" /> Edit Appointment
                 </button>
@@ -465,7 +465,7 @@ function AppointmentCard({ booking, onEdit, onStatusChange }: AppointmentCardPro
                 {booking.status === 'cancelled' && (
                     <button
                         onClick={() => onStatusChange('confirmed')}
-                        className="flex items-center gap-1 px-2 py-1 text-[9px] uppercase tracking-widest bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 rounded text-emerald-400 transition-all"
+                        className="flex items-center gap-1 px-2 py-1 text-[9px] uppercase tracking-widest bg-savron-blue/10 hover:bg-savron-blue/15 border border-savron-blue/20 rounded text-accent-blue transition-all"
                     >
                         ↩ Restore
                     </button>

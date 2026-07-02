@@ -38,7 +38,7 @@ export default function AdminLoginPage() {
     };
 
     return (
-        <main className="min-h-screen bg-savron-black flex items-center justify-center px-4">
+        <main className="min-h-screen bg-savron-black savron-grid-bg flex items-center justify-center px-4">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -99,7 +99,7 @@ export default function AdminLoginPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-savron-green text-white font-heading uppercase tracking-widest text-sm py-4 rounded-savron hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                            className="w-full bg-savron-blue text-white font-heading uppercase tracking-widest text-sm py-4 rounded-savron hover:bg-savron-blue-light transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 glow-blue"
                         >
                             {loading ? (
                                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

@@ -209,8 +209,8 @@ export default function AdminBarberCalendarPage() {
                         <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin")} />
                     </button>
                     {barber.google_calendar_id ? (
-                        <span className="text-[10px] uppercase tracking-widest text-emerald-400 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                        <span className="text-[10px] uppercase tracking-widest text-accent-blue flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-savron-blue-light inline-block" />
                             Google Calendar synced
                         </span>
                     ) : (
@@ -272,7 +272,7 @@ export default function AdminBarberCalendarPage() {
                     "flex items-center justify-between px-4 py-3 border rounded-savron text-xs",
                     isDayOff
                         ? "border-amber-500/20 bg-amber-500/5 text-amber-400/70"
-                        : "border-savron-green-light/20 bg-savron-green/10 text-emerald-400"
+                        : "border-savron-green-light/20 bg-savron-green/10 text-accent-blue"
                 )}>
                     <span className="uppercase tracking-widest">
                         {isDayOff
@@ -300,7 +300,7 @@ export default function AdminBarberCalendarPage() {
                             : `${format(weekDays[0], 'MMM d')} — ${format(weekDays[6], 'MMM d, yyyy')}`}
                     </p>
                     {view === 'day' && isToday(selectedDate) && (
-                        <p className="text-emerald-400 text-[10px] uppercase tracking-widest mt-0.5">Today</p>
+                        <p className="text-accent-blue text-[10px] uppercase tracking-widest mt-0.5">Today</p>
                     )}
                 </div>
                 <button onClick={() => navigate(1)} className="p-2 text-savron-silver hover:text-white transition-colors">
@@ -311,7 +311,7 @@ export default function AdminBarberCalendarPage() {
             {!isToday(selectedDate) && (
                 <button
                     onClick={() => setSelectedDate(new Date())}
-                    className="text-xs uppercase tracking-widest text-emerald-400 hover:text-emerald-300 transition-colors"
+                    className="text-xs uppercase tracking-widest text-accent-blue hover:text-savron-cream transition-colors"
                 >
                     Jump to Today
                 </button>
@@ -414,7 +414,7 @@ export default function AdminBarberCalendarPage() {
                                         onClick={() => { setSelectedDate(day); setView('day'); }}
                                         className={cn('w-full rounded-savron p-1 text-center hover:bg-white/5 transition-colors', isToday(day) && 'bg-savron-green/5')}
                                     >
-                                        <p className={cn('text-xs uppercase tracking-widest font-heading', isToday(day) ? 'text-emerald-400' : 'text-savron-silver')}>
+                                        <p className={cn('text-xs uppercase tracking-widest font-heading', isToday(day) ? 'text-accent-blue' : 'text-savron-silver')}>
                                             {format(day, 'EEE')}
                                         </p>
                                         <p className={cn('text-lg font-heading', isToday(day) ? 'text-white' : 'text-savron-silver/60')}>

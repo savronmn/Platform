@@ -34,7 +34,7 @@ export default function StatCard({ label, value, change, icon, sub, alert, class
                 {change && (
                     <span className={cn(
                         "text-xs uppercase tracking-wider mb-1.5",
-                        change.startsWith('+') ? "text-green-400" : "text-red-400"
+                        change.startsWith('+') ? "text-savron-blue-light" : "text-red-400"
                     )}>
                         {change}
                     </span>

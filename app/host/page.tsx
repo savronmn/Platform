@@ -711,10 +711,10 @@ function HostDashboardInner() {
     };
 
     return (
-        <div className="min-h-screen bg-savron-black flex flex-col">
+        <div className="min-h-screen bg-savron-black savron-grid-bg flex flex-col">
 
             {/* ── Row 1: main bar ── */}
-            <header className="bg-savron-grey border-b border-white/5 px-6 py-3 flex items-center justify-between shrink-0 gap-4">
+            <header className="bg-savron-grey border-b border-savron-blue/20 savron-grid-surface px-6 py-3 flex items-center justify-between shrink-0 gap-4">
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setShowNav(true)}
@@ -724,8 +724,8 @@ function HostDashboardInner() {
                     </button>
                     <h1 className="font-heading text-xl uppercase tracking-widest text-white">{t('host.title')}</h1>
                     <div className="flex items-center gap-1.5">
-                        <Wifi className={cn("w-3 h-3", realtimeConnected ? "text-emerald-400" : "text-savron-silver/40")} />
-                        <span className={cn("text-[10px] uppercase tracking-widest", realtimeConnected ? "text-emerald-400" : "text-savron-silver/40")}>
+                        <Wifi className={cn("w-3 h-3", realtimeConnected ? "text-accent-blue" : "text-savron-silver/40")} />
+                        <span className={cn("text-[10px] uppercase tracking-widest", realtimeConnected ? "text-accent-blue" : "text-savron-silver/40")}>
                             {realtimeConnected ? t('host.live') : t('host.connecting')}
                         </span>
                     </div>
@@ -753,7 +753,7 @@ function HostDashboardInner() {
             )}
 
             {/* ── Row 2: date nav + view toggle ── */}
-            <div className="bg-savron-grey border-b border-white/[0.04] px-6 py-2 flex items-center justify-between shrink-0 relative">
+            <div className="bg-savron-grey border-b border-savron-blue/15 savron-grid-surface px-6 py-2 flex items-center justify-between shrink-0 relative">
                 <div className="flex-1"></div> {/* Spacer to allow absolute centering */}
                 
                 {/* Centered Date Nav */}
@@ -766,7 +766,7 @@ function HostDashboardInner() {
                     <button onClick={next} className="p-1.5 text-savron-silver hover:text-white transition-colors"><ChevronRight className="w-4 h-4" /></button>
                     {!isToday(selectedDate) && (
                         <button onClick={() => setSelectedDate(new Date())}
-                            className="ml-1 text-[10px] uppercase tracking-widest text-emerald-400 border border-savron-green-light/20 hover:bg-savron-green/10 transition-colors px-2.5 py-1 rounded-savron">
+                            className="ml-1 text-[10px] uppercase tracking-widest text-accent-blue border border-savron-green-light/20 hover:bg-savron-green/10 transition-colors px-2.5 py-1 rounded-savron">
                             {t('host.today')}
                         </button>
                     )}
@@ -791,14 +791,14 @@ function HostDashboardInner() {
                     {/* Progress bar */}
                     <div className="flex-1 min-w-[120px] max-w-xs h-1.5 bg-white/5 rounded-full overflow-hidden hidden sm:block">
                         <div
-                            className="h-full bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full transition-all duration-500"
+                            className="h-full bg-gradient-to-r from-savron-blue-light to-savron-blue rounded-full transition-all duration-500"
                             style={{ width: totalToday > 0 ? `${Math.round(((completed + noShow + cancelled) / totalToday) * 100)}%` : '0%' }}
                         />
                     </div>
                     <div className="flex items-center gap-4 shrink-0">
                         <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest">
-                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
-                            <span className="text-emerald-400 font-mono">{confirmed}</span>
+                            <span className="w-2 h-2 rounded-full bg-savron-blue-light animate-pulse inline-block" />
+                            <span className="text-accent-blue font-mono">{confirmed}</span>
                             <span className="text-savron-silver/40">{t('host.waiting')}</span>
                         </span>
                         <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest">
@@ -1272,7 +1272,7 @@ function HostDashboardInner() {
                                     <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5 mt-1">
                                         <button
                                             onClick={() => { setEditingBooking(activeBooking); setActiveBooking(null); }}
-                                            className="flex items-center justify-center gap-2 py-2.5 text-[11px] uppercase tracking-widest font-medium bg-savron-green/15 hover:bg-savron-green/25 text-emerald-400 hover:text-emerald-300 border border-savron-green/30 hover:border-savron-green/50 rounded-savron transition-all"
+                                            className="flex items-center justify-center gap-2 py-2.5 text-[11px] uppercase tracking-widest font-medium bg-savron-green/15 hover:bg-savron-green/25 text-accent-blue hover:text-savron-cream border border-savron-green/30 hover:border-savron-green/50 rounded-savron transition-all"
                                         >
                                             <Pencil className="w-3.5 h-3.5" /> {t('host.edit')}
                                         </button>

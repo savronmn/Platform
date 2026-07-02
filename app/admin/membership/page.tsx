@@ -230,7 +230,7 @@ export default function MembershipPage() {
                     <div className="flex flex-wrap gap-2">
                         <button
                             onClick={() => setShowScanner(true)}
-                            className="flex items-center gap-1.5 px-5 py-3 text-[10px] uppercase tracking-[0.2em] text-emerald-400 border border-savron-green-light/20 rounded-savron hover:bg-savron-green/10 transition-all"
+                            className="flex items-center gap-1.5 px-5 py-3 text-[10px] uppercase tracking-[0.2em] text-accent-blue border border-savron-green-light/20 rounded-savron hover:bg-savron-green/10 transition-all"
                         >
                             <ScanLine size={12} />
                             Scan ePass
@@ -411,7 +411,7 @@ export default function MembershipPage() {
                                             onClick={() => recordVisit(subscriber)}
                                             disabled={actionLoading === `visit-${subscriber.id}`}
                                             title="Record visit (+1 count, updates Google Wallet)"
-                                            className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] uppercase tracking-[0.2em] text-white/50 border border-white/[0.1] hover:border-savron-green/40 hover:text-emerald-400 hover:bg-savron-green/10 transition-all disabled:opacity-40"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] uppercase tracking-[0.2em] text-white/50 border border-white/[0.1] hover:border-savron-green/40 hover:text-accent-blue hover:bg-savron-green/10 transition-all disabled:opacity-40"
                                         >
                                             <Plus size={10} />
                                             {actionLoading === `visit-${subscriber.id}` ? '…' : 'Visit'}
@@ -466,7 +466,7 @@ export default function MembershipPage() {
                                             <button
                                                 onClick={() => recordVisit(subscriber)}
                                                 disabled={actionLoading === `visit-${subscriber.id}`}
-                                                className="flex items-center gap-1.5 px-3 py-2 text-[9px] uppercase tracking-[0.2em] text-white/50 border border-white/[0.1] hover:border-savron-green/40 hover:text-emerald-400 hover:bg-savron-green/10 transition-all disabled:opacity-40"
+                                                className="flex items-center gap-1.5 px-3 py-2 text-[9px] uppercase tracking-[0.2em] text-white/50 border border-white/[0.1] hover:border-savron-green/40 hover:text-accent-blue hover:bg-savron-green/10 transition-all disabled:opacity-40"
                                             >
                                                 <Plus size={10} />
                                                 {actionLoading === `visit-${subscriber.id}` ? '…' : 'Visit'}

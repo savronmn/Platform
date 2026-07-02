@@ -206,7 +206,7 @@ export default function AdminDashboard() {
                     </button>
                     <button
                         onClick={() => setShowScanner(true)}
-                        className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all glow-green"
+                        className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all glow-blue"
                     >
                         <ScanLine className="w-3.5 h-3.5" /> Scan ePass
                     </button>
@@ -222,7 +222,7 @@ export default function AdminDashboard() {
             {/* Empty State / Demo Data Seeder Banner */}
             {stats.clients === 0 && stats.totalBookings === 0 && (
                 <div className="card-savron border-savron-green-light/30 bg-savron-green/10 text-center space-y-4">
-                    <h3 className="font-heading text-lg text-emerald-400 uppercase tracking-widest">Database Empty</h3>
+                    <h3 className="font-heading text-lg text-accent-blue uppercase tracking-widest">Database Empty</h3>
                     <p className="text-savron-silver text-sm max-w-md mx-auto">
                         Your SAVRON CRM is currently empty. Click the button below to automatically populate the database with mock barbers, clients, and appointments to preview the dashboard.
                     </p>
@@ -304,13 +304,13 @@ export default function AdminDashboard() {
                     label="Barbers Active"
                     value={stats.activeBarbers}
                     icon={<Scissors className="w-4 h-4" />}
-                    sub={<Link href="/admin/barbers" className="text-emerald-400 hover:text-emerald-300 hover:underline">Manage team</Link>}
+                    sub={<Link href="/admin/barbers" className="text-accent-blue hover:text-savron-cream hover:underline">Manage team</Link>}
                 />
                 <StatCard
                     label="Pending Applications"
                     value={stats.pendingApplicants}
                     icon={<ClipboardList className="w-4 h-4" />}
-                    sub={<Link href="/admin/applicants" className="text-emerald-400 hover:text-emerald-300 hover:underline">View pipeline</Link>}
+                    sub={<Link href="/admin/applicants" className="text-accent-blue hover:text-savron-cream hover:underline">View pipeline</Link>}
                     alert={stats.pendingApplicants > 0}
                 />
             </div>
@@ -322,7 +322,7 @@ export default function AdminDashboard() {
                         <h2 className="font-heading text-lg uppercase tracking-widest text-white">Today&apos;s Schedule</h2>
                         <p className="text-savron-silver/75 text-[11px] uppercase tracking-widest mt-0.5">{stats.todayBookings} appointment{stats.todayBookings !== 1 ? 's' : ''}</p>
                     </div>
-                    <Link href="/admin/bookings" className="text-xs uppercase tracking-widest text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors">
+                    <Link href="/admin/bookings" className="text-xs uppercase tracking-widest text-accent-blue hover:text-savron-cream flex items-center gap-1 transition-colors">
                         Full View <ArrowRight className="w-3 h-3" />
                     </Link>
                 </div>
@@ -331,7 +331,7 @@ export default function AdminDashboard() {
                     <div className="py-10 text-center">
                         <Calendar className="w-8 h-8 text-savron-silver/20 mx-auto mb-3" />
                         <p className="text-savron-silver/50 text-sm uppercase tracking-wider">No appointments scheduled today</p>
-                        <Link href="/admin/bookings" className="mt-3 inline-block text-xs text-emerald-400 hover:text-emerald-300 uppercase tracking-widest hover:underline">Add walk-in →</Link>
+                        <Link href="/admin/bookings" className="mt-3 inline-block text-xs text-accent-blue hover:text-savron-cream uppercase tracking-widest hover:underline">Add walk-in →</Link>
                     </div>
                 ) : (
                     <div className="space-y-2">
@@ -339,7 +339,7 @@ export default function AdminDashboard() {
                             <div key={b.id} className="flex items-center justify-between py-4 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.025] transition-colors rounded-lg px-3 -mx-3">
                                 <div className="flex items-center gap-4">
                                     <div className="w-20 shrink-0 text-right">
-                                        <span className="font-mono text-sm text-emerald-400 block">{b.time}</span>
+                                        <span className="font-mono text-sm text-accent-blue block">{b.time}</span>
                                     </div>
                                     <div>
                                         <p className="text-white text-sm font-medium">{b.client_name || 'Walk-in'}</p>
@@ -361,7 +361,7 @@ export default function AdminDashboard() {
                 <div className="card-savron relative overflow-hidden">
                     <div className="flex items-center justify-between mb-5">
                         <h2 className="font-heading text-lg uppercase tracking-widest text-white">Upcoming This Week</h2>
-                        <Link href="/admin/bookings" className="text-xs uppercase tracking-widest text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors">
+                        <Link href="/admin/bookings" className="text-xs uppercase tracking-widest text-accent-blue hover:text-savron-cream flex items-center gap-1 transition-colors">
                             Calendar <ArrowRight className="w-3 h-3" />
                         </Link>
                     </div>
@@ -411,7 +411,7 @@ export default function AdminDashboard() {
                                 {item.badge}
                             </span>
                         )}
-                        <item.icon className="w-5 h-5 text-savron-silver group-hover:text-emerald-400 transition-colors mx-auto" />
+                        <item.icon className="w-5 h-5 text-savron-silver group-hover:text-accent-blue transition-colors mx-auto" />
                         <p className="text-white text-xs uppercase tracking-widest font-heading">{item.label}</p>
                         <p className="text-savron-silver/75 text-[11px] uppercase tracking-widest">{item.desc}</p>
                     </Link>

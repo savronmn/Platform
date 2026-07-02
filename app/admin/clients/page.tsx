@@ -260,7 +260,7 @@ export default function ClientsPage() {
                     )}
                     <button
                         onClick={() => setShowAdd(true)}
-                        className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all glow-green"
+                        className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all glow-blue"
                     >
                         <Plus className="w-4 h-4" /> Add Client
                     </button>
@@ -684,7 +684,7 @@ export default function ClientsPage() {
                                 )}
 
                                 {campaignResult && (
-                                    <div className={cn("p-4 border rounded-savron text-sm", campaignResult.failed > 0 ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-300" : "border-savron-green/30 bg-savron-green/10 text-emerald-400")}>
+                                    <div className={cn("p-4 border rounded-savron text-sm", campaignResult.failed > 0 ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-300" : "border-savron-green/30 bg-savron-green/10 text-accent-blue")}>
                                         ✅ {campaignResult.sent} sent{campaignResult.failed > 0 ? ` · ❌ ${campaignResult.failed} failed` : ''}
                                     </div>
                                 )}

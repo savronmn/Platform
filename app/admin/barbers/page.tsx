@@ -292,7 +292,7 @@ export default function AdminBarbersPage() {
                                 </button>
                                 <div className="flex-1 min-w-0">
                                     <h3 className="text-white font-heading uppercase tracking-wider">{barber.name}</h3>
-                                    <p className="text-emerald-400 text-xs uppercase tracking-widest">{barber.role}</p>
+                                    <p className="text-accent-blue text-xs uppercase tracking-widest">{barber.role}</p>
                                     {barber.email && <p className="text-savron-silver/50 text-xs mt-1 truncate">{barber.email}</p>}
                                     {barber.license_number && (
                                         <p className="text-savron-silver/70 text-[10px] mt-0.5 flex items-center gap-1">
@@ -319,7 +319,7 @@ export default function AdminBarbersPage() {
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-2 border-t border-white/5 gap-3">
                                 <button
                                     onClick={() => toggleActive(barber)}
-                                    className="flex items-center gap-2 text-xs uppercase tracking-wider transition-all text-emerald-400 hover:text-emerald-300 font-medium"
+                                    className="flex items-center gap-2 text-xs uppercase tracking-wider transition-all text-accent-blue hover:text-savron-cream font-medium"
                                 >
                                     <ToggleRight className="w-4 h-4" /> Active
                                 </button>
@@ -645,7 +645,7 @@ export default function AdminBarbersPage() {
                                                             className="flex items-center gap-1.5 text-xs transition-colors"
                                                         >
                                                             {isOn
-                                                                ? <><ToggleRight className="w-5 h-5 text-emerald-400" /><span className="text-emerald-400 uppercase tracking-widest text-[10px]">Open</span></>
+                                                                ? <><ToggleRight className="w-5 h-5 text-accent-blue" /><span className="text-accent-blue uppercase tracking-widest text-[10px]">Open</span></>
                                                                 : <><ToggleLeft className="w-5 h-5 text-savron-silver/30" /><span className="text-savron-silver/30 uppercase tracking-widest text-[10px]">Off</span></>
                                                             }
                                                         </button>
@@ -696,7 +696,7 @@ export default function AdminBarbersPage() {
                                 className={cn(
                                     "w-full flex items-center justify-center gap-2 py-3 text-[11px] uppercase tracking-widest font-medium rounded-savron transition-all disabled:opacity-50",
                                     saved
-                                        ? "bg-savron-green/20 text-emerald-400 border border-savron-green/35"
+                                        ? "bg-savron-green/20 text-accent-blue border border-savron-green/35"
                                         : "bg-savron-green text-white border border-savron-green-light/20 hover:bg-savron-green-light"
                                 )}
                             >

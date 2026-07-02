@@ -229,7 +229,7 @@ export default function AdminServicesPage() {
                 </div>
                 <button
                     onClick={() => { setShowAdd(v => !v); setAddError(null); setForm(defaultForm); }}
-                    className="flex items-center gap-2 px-5 py-3 bg-savron-green text-white border border-savron-green-light/20 text-[10px] uppercase tracking-widest hover:bg-savron-green-light transition-all rounded-savron glow-green"
+                    className="flex items-center gap-2 px-5 py-3 bg-savron-green text-white border border-savron-green-light/20 text-[10px] uppercase tracking-widest hover:bg-savron-green-light transition-all rounded-savron glow-blue"
                 >
                     <Plus className="w-3.5 h-3.5" />
                     {showAdd ? 'Cancel' : 'Add Service'}
