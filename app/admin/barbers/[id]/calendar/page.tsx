@@ -5,11 +5,11 @@ import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { motion } from 'framer-motion';
 import {
-    format, addDays, subDays, addWeeks, subWeeks,
+    format,
     startOfWeek, endOfWeek, eachDayOfInterval,
-    isToday, isSunday,
+    isToday,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, RefreshCw, ExternalLink, ArrowLeft, Link2 } from 'lucide-react';
+import { RefreshCw, ExternalLink, ArrowLeft, Link2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Barber, Booking } from '@/lib/types';
 import { serviceBlockStyle } from '@/lib/services-data';
@@ -17,6 +17,7 @@ import {
     time24ToMins, getCalendarGridBounds, getTimelineLayout,
 } from '@/lib/calendar-timeline';
 import TimelineDayGrid, { bookingToTimelineEvent, isoRangeToTimelineEvent, type TimelineEvent } from '@/components/calendar/TimelineDayGrid';
+import CalendarNavBar from '@/components/calendar/CalendarNavBar';
 import { useServices } from '@/lib/use-services';
 import Link from 'next/link';
 
@@ -101,22 +102,11 @@ export default function AdminBarberCalendarPage() {
         return eachDayOfInterval({ start, end });
     }, [selectedDate]);
 
-    const navigate = (dir: -1 | 1) => {
-        if (view === 'day') {
-            let next = dir === 1 ? addDays(selectedDate, 1) : subDays(selectedDate, 1);
-            if (isSunday(next)) next = dir === 1 ? addDays(next, 1) : subDays(next, 1);
-            setSelectedDate(next);
-        } else {
-            setSelectedDate(dir === 1 ? addWeeks(selectedDate, 1) : subWeeks(selectedDate, 1));
-        }
-    };
-
     const bookingsForDate = (dateStr: string) =>
         bookings.filter(b => b.date === dateStr);
 
     const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
 
-    // Day-view timeline items for this barber
     const dayTimelineMap = useMemo(() => {
         const map = new Map<string, { kind: 'booking'; b: Booking } | { kind: 'gcal'; start: string; end: string }>();
         for (const b of bookings.filter(bk => bk.date === selectedDateStr)) {
@@ -197,22 +187,17 @@ export default function AdminBarberCalendarPage() {
                             Google Calendar not connected
                         </span>
                     )}
-                    {(['day', 'week'] as const).map(v => (
-                        <button
-                            key={v}
-                            onClick={() => setView(v)}
-                            className={cn(
-                                "px-4 py-2 text-xs uppercase tracking-widest border rounded-savron transition-all",
-                                view === v
-                                    ? "bg-savron-green border border-savron-green-light/20 text-white"
-                                    : "text-savron-silver border-white/5 hover:text-white"
-                            )}
-                        >
-                            {v}
-                        </button>
-                    ))}
                 </div>
             </div>
+
+            <CalendarNavBar
+                view={view}
+                onViewChange={setView}
+                selectedDate={selectedDate}
+                onDateChange={setSelectedDate}
+                views={['day', 'week']}
+                skipSundays
+            />
 
             {/* Booking Links */}
             {barber.booking_links && barber.booking_links.length > 0 && (
@@ -258,35 +243,6 @@ export default function AdminBarberCalendarPage() {
                         </span>
                     )}
                 </div>
-            )}
-
-            {/* Date Navigation */}
-            <div className="flex items-center justify-between bg-savron-grey border border-white/5 rounded-savron p-4">
-                <button onClick={() => navigate(-1)} className="p-2 text-savron-silver hover:text-white transition-colors">
-                    <ChevronLeft className="w-5 h-5" />
-                </button>
-                <div className="text-center">
-                    <p className="text-white font-heading text-lg uppercase tracking-wider">
-                        {view === 'day'
-                            ? format(selectedDate, 'EEEE, MMMM d')
-                            : `${format(weekDays[0], 'MMM d')} — ${format(weekDays[6], 'MMM d, yyyy')}`}
-                    </p>
-                    {view === 'day' && isToday(selectedDate) && (
-                        <p className="text-emerald-400 text-[10px] uppercase tracking-widest mt-0.5">Today</p>
-                    )}
-                </div>
-                <button onClick={() => navigate(1)} className="p-2 text-savron-silver hover:text-white transition-colors">
-                    <ChevronRight className="w-5 h-5" />
-                </button>
-            </div>
-
-            {!isToday(selectedDate) && (
-                <button
-                    onClick={() => setSelectedDate(new Date())}
-                    className="text-xs uppercase tracking-widest text-emerald-400 hover:text-emerald-300 transition-colors"
-                >
-                    Jump to Today
-                </button>
             )}
 
             {/* Legend */}

@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    format, addDays, subDays, isToday, isSameMonth,
+    format, isToday, isSameMonth,
     startOfWeek, endOfWeek, eachDayOfInterval,
-    startOfMonth, endOfMonth, addWeeks, subWeeks, addMonths, subMonths,
+    startOfMonth, endOfMonth,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, RefreshCw, Wifi, X, UserCheck, UserX, RotateCcw, Phone, Scissors, Menu, LayoutDashboard, Users, CreditCard, Mail, MonitorPlay, Ban, Camera, Upload, ClipboardList, Plus, Filter, Calendar, AtSign, DollarSign, Pencil, Trash2, Languages } from 'lucide-react';
+import { RefreshCw, Wifi, X, UserCheck, UserX, RotateCcw, Phone, Scissors, Menu, LayoutDashboard, Users, CreditCard, Mail, MonitorPlay, Ban, Camera, Upload, ClipboardList, Plus, Filter, Calendar, AtSign, DollarSign, Pencil, Trash2, Languages } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -18,6 +18,7 @@ import {
     timeToMins, formatTimeCompact, parseDurationMins, itemsInSlot,
 } from '@/lib/calendar-timeline';
 import TimelineDayGrid, { bookingToTimelineEvent, isoRangeToTimelineEvent, type TimelineEvent } from '@/components/calendar/TimelineDayGrid';
+import CalendarNavBar from '@/components/calendar/CalendarNavBar';
 import { useServices } from '@/lib/use-services';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 import EditBookingModal from '@/components/crm/EditBookingModal';
@@ -277,41 +278,6 @@ function HostDashboardInner() {
         }
         setUploadingPhoto(false);
     };
-
-    // Navigation
-    const prev = () => {
-        if (view === 'day')   setSelectedDate(d => subDays(d, 1));
-        if (view === 'week')  setSelectedDate(d => subWeeks(d, 1));
-        if (view === 'month') setSelectedDate(d => subMonths(d, 1));
-    };
-    const next = () => {
-        if (view === 'day')   setSelectedDate(d => addDays(d, 1));
-        if (view === 'week')  setSelectedDate(d => addWeeks(d, 1));
-        if (view === 'month') setSelectedDate(d => addMonths(d, 1));
-    };
-
-    // Header labels
-    const headingLabel = (() => {
-        if (view === 'day')   return isToday(selectedDate) ? 'Today' : format(selectedDate, 'EEEE');
-        if (view === 'week') {
-            const ws = startOfWeek(selectedDate, { weekStartsOn: 1 });
-            const we = endOfWeek(selectedDate, { weekStartsOn: 1 });
-            return format(ws, 'MMM') === format(we, 'MMM')
-                ? format(ws, 'MMMM yyyy')
-                : `${format(ws, 'MMM')} – ${format(we, 'MMM yyyy')}`;
-        }
-        return format(selectedDate, 'MMMM yyyy');
-    })();
-
-    const subLabel = (() => {
-        if (view === 'day')   return format(selectedDate, 'MMMM d, yyyy');
-        if (view === 'week') {
-            const ws = startOfWeek(selectedDate, { weekStartsOn: 1 });
-            const we = endOfWeek(selectedDate, { weekStartsOn: 1 });
-            return `${format(ws, 'MMM d')} – ${format(we, 'MMM d')}`;
-        }
-        return `${bookings.length} booking${bookings.length !== 1 ? 's' : ''}`;
-    })();
 
     // Data helpers — range-based bucketing for week view (day view uses proportional timeline).
     const bookingsForBarberTime = (barberId: string, slotIdx: number) => {
@@ -624,37 +590,19 @@ function HostDashboardInner() {
                 </div>
             </header>
 
-            {/* ── Row 2: date nav + view toggle ── */}
-            <div className="bg-savron-grey border-b border-white/[0.04] px-6 py-2 flex items-center justify-between shrink-0 relative">
-                <div className="flex-1"></div> {/* Spacer to allow absolute centering */}
-                
-                {/* Centered Date Nav */}
-                <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-                    <button onClick={prev} className="p-1.5 text-savron-silver hover:text-white transition-colors"><ChevronLeft className="w-4 h-4" /></button>
-                    <div className="text-center min-w-[148px]">
-                        <p className="text-white font-heading uppercase tracking-widest text-sm leading-none">{headingLabel}</p>
-                        <p className="text-savron-silver/50 text-[10px] uppercase tracking-widest mt-0.5">{subLabel}</p>
-                    </div>
-                    <button onClick={next} className="p-1.5 text-savron-silver hover:text-white transition-colors"><ChevronRight className="w-4 h-4" /></button>
-                    {!isToday(selectedDate) && (
-                        <button onClick={() => setSelectedDate(new Date())}
-                            className="ml-1 text-[10px] uppercase tracking-widest text-emerald-400 border border-savron-green-light/20 hover:bg-savron-green/10 transition-colors px-2.5 py-1 rounded-savron">
-                            {t('host.today')}
-                        </button>
-                    )}
-                </div>
-
-                <div className="flex border border-white/10 rounded-savron overflow-hidden z-10">
-                    {(['day', 'week', 'month'] as CalView[]).map(v => (
-                        <button key={v} onClick={() => setView(v)}
-                            className={cn("px-3 py-1.5 text-[10px] uppercase tracking-widest transition-all",
-                                view === v ? "bg-savron-green text-white border border-savron-green-light/20" : "text-savron-silver hover:text-white hover:bg-white/5"
-                            )}>
-                            {t(`host.${v}`) || v}
-                        </button>
-                    ))}
-                </div>
-            </div>
+            <CalendarNavBar
+                view={view}
+                onViewChange={setView}
+                selectedDate={selectedDate}
+                onDateChange={setSelectedDate}
+                todayLabel={t('host.today')}
+                viewLabels={{
+                    day: t('host.day'),
+                    week: t('host.week'),
+                    month: t('host.month'),
+                }}
+                className="rounded-none border-x-0 border-t-0 shrink-0"
+            />
 
             {/* ── Day summary strip (day view only) ── */}
             {view === 'day' && !loading && (

@@ -4,15 +4,16 @@ import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase';
 import { motion } from 'framer-motion';
 import {
-    format, addDays, subDays, addWeeks, subWeeks,
+    format,
     startOfWeek, endOfWeek, eachDayOfInterval,
-    isToday, isSunday,
+    isToday,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, RefreshCw, ExternalLink } from 'lucide-react';
+import { RefreshCw, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Barber, Booking } from '@/lib/types';
 import { TIME_SLOTS, serviceBlockStyle } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
+import CalendarNavBar from '@/components/calendar/CalendarNavBar';
 
 type CalView = 'day' | 'week';
 
@@ -107,16 +108,6 @@ export default function BarberCalendarPage() {
         return eachDayOfInterval({ start, end });
     }, [selectedDate]);
 
-    const navigate = (dir: -1 | 1) => {
-        if (view === 'day') {
-            let next = dir === 1 ? addDays(selectedDate, 1) : subDays(selectedDate, 1);
-            if (isSunday(next)) next = dir === 1 ? addDays(next, 1) : subDays(next, 1);
-            setSelectedDate(next);
-        } else {
-            setSelectedDate(dir === 1 ? addWeeks(selectedDate, 1) : subWeeks(selectedDate, 1));
-        }
-    };
-
     const bookingsForDate = (dateStr: string) =>
         bookings.filter(b => b.date === dateStr);
 
@@ -187,22 +178,17 @@ export default function BarberCalendarPage() {
                             <ExternalLink className="w-3 h-3" /> Connect Google Calendar
                         </a>
                     )}
-                    {(['day', 'week'] as const).map(v => (
-                        <button
-                            key={v}
-                            onClick={() => setView(v)}
-                            className={cn(
-                                "px-4 py-2 text-xs uppercase tracking-widest border rounded-savron transition-all",
-                                view === v
-                                    ? "bg-savron-green border border-savron-green-light/20 text-white"
-                                    : "text-savron-silver border-white/5 hover:text-white"
-                            )}
-                        >
-                            {v}
-                        </button>
-                    ))}
                 </div>
             </div>
+
+            <CalendarNavBar
+                view={view}
+                onViewChange={setView}
+                selectedDate={selectedDate}
+                onDateChange={setSelectedDate}
+                views={['day', 'week']}
+                skipSundays
+            />
 
             {/* Working hours banner */}
             {workingHours && view === 'day' && (
@@ -224,36 +210,6 @@ export default function BarberCalendarPage() {
                         </span>
                     )}
                 </div>
-            )}
-
-            {/* Date Navigation */}
-            <div className="flex items-center justify-between bg-savron-grey border border-white/5 rounded-savron p-4">
-                <button onClick={() => navigate(-1)} className="p-2 text-savron-silver hover:text-white transition-colors">
-                    <ChevronLeft className="w-5 h-5" />
-                </button>
-                <div className="text-center">
-                    <p className="text-white font-heading text-lg uppercase tracking-wider">
-                        {view === 'day'
-                            ? format(selectedDate, 'EEEE, MMMM d')
-                            : `${format(weekDays[0], 'MMM d')} — ${format(weekDays[6], 'MMM d, yyyy')}`}
-                    </p>
-                    {view === 'day' && isToday(selectedDate) && (
-                        <p className="text-emerald-400 text-[10px] uppercase tracking-widest mt-0.5">Today</p>
-                    )}
-                </div>
-                <button onClick={() => navigate(1)} className="p-2 text-savron-silver hover:text-white transition-colors">
-                    <ChevronRight className="w-5 h-5" />
-                </button>
-            </div>
-
-            {/* Today button */}
-            {!isToday(selectedDate) && (
-                <button
-                    onClick={() => setSelectedDate(new Date())}
-                    className="text-xs uppercase tracking-widest text-emerald-400 hover:text-emerald-300 transition-colors"
-                >
-                    Jump to Today
-                </button>
             )}
 
             {/* Legend */}

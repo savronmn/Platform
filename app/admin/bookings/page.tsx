@@ -3,15 +3,16 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import {
-    ChevronLeft, ChevronRight, Calendar, UserPlus, Pencil,
+    Calendar, UserPlus, Pencil,
     CheckCircle2, XCircle, Clock, Filter, RefreshCw, Users
 } from 'lucide-react';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth,
+import { format, startOfMonth, endOfMonth,
          startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay,
          parseISO } from 'date-fns';
 import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import type { Booking, Barber } from '@/lib/types';
+import CalendarNavBar from '@/components/calendar/CalendarNavBar';
 
 const WalkInModal    = dynamic(() => import('@/components/crm/WalkInModal'),     { ssr: false });
 const EditBookingModal = dynamic(() => import('@/components/crm/EditBookingModal'), { ssr: false });
@@ -204,24 +205,17 @@ export default function BookingsPage() {
 
                 {/* ── Calendar ── */}
                 <div className="flex flex-col flex-1 card-savron min-w-0 overflow-hidden">
-                    {/* Month nav */}
-                    <div className="flex items-center justify-between px-2 pb-4 shrink-0">
-                        <button
-                            onClick={() => setCurrentMonth(m => subMonths(m, 1))}
-                            className="p-1.5 rounded-lg hover:bg-white/10 text-savron-silver hover:text-white transition-colors"
-                        >
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <h2 className="font-heading text-sm uppercase tracking-widest text-white">
-                            {format(currentMonth, 'MMMM yyyy')}
-                        </h2>
-                        <button
-                            onClick={() => setCurrentMonth(m => addMonths(m, 1))}
-                            className="p-1.5 rounded-lg hover:bg-white/10 text-savron-silver hover:text-white transition-colors"
-                        >
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
-                    </div>
+                    <CalendarNavBar
+                        view="month"
+                        onViewChange={() => {}}
+                        selectedDate={selectedDay}
+                        onDateChange={date => {
+                            setSelectedDay(date);
+                            setCurrentMonth(startOfMonth(date));
+                        }}
+                        views={[]}
+                        className="mb-4 border-0 bg-transparent p-0 shadow-none"
+                    />
 
                     {/* Day labels */}
                     <div className="grid grid-cols-7 mb-1 shrink-0">
@@ -250,16 +244,16 @@ export default function BookingsPage() {
                                     onClick={() => setSelectedDay(day)}
                                     className={cn(
                                         "flex flex-col items-start p-1.5 rounded-lg text-left transition-all min-h-[60px] relative",
-                                        isCurrentMo ? "hover:bg-white/[0.05]" : "opacity-30",
-                                        isSelected  ? "bg-white/[0.08] ring-1 ring-savron-green/40" : "",
-                                        isToday && !isSelected ? "ring-1 ring-white/20" : ""
+                                        isCurrentMo ? "hover:bg-savron-blue/5" : "opacity-30",
+                                        isSelected && "bg-savron-blue/10 ring-1 ring-savron-blue/35",
                                     )}
                                 >
-                                    {/* Day number */}
                                     <span className={cn(
-                                        "text-[11px] font-mono leading-none mb-1",
-                                        isToday    ? "text-savron-green font-bold" : "text-savron-silver",
-                                        isSelected ? "text-white" : ""
+                                        "text-[11px] font-mono leading-none mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full",
+                                        isToday && !isSelected && "bg-savron-blue/15 text-savron-blue-light font-bold",
+                                        isToday && isSelected && "bg-savron-blue text-white font-bold",
+                                        !isToday && isSelected && "text-white",
+                                        !isToday && !isSelected && (isCurrentMo ? "text-savron-cream/75" : "text-savron-silver"),
                                     )}>
                                         {format(day, 'd')}
                                     </span>
