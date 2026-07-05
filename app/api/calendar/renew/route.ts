@@ -1,7 +1,7 @@
-// POST /api/calendar/renew
+// GET|POST /api/calendar/renew
 // Re-registers Google Calendar webhook watches for all connected barbers.
-// Google watches expire after 30 days — call this on a weekly cron.
-// Protected by CRON_SECRET header.
+// Google watches expire after 30 days — called by Vercel cron weekly.
+// Auth: CRON_SECRET via Authorization Bearer header (Vercel) or x-cron-secret header.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -14,18 +14,20 @@ import {
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-export async function POST(req: NextRequest) {
-    const secret = req.headers.get('x-cron-secret');
-    if (secret !== process.env.CRON_SECRET) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+function verifyCronSecret(req: NextRequest): boolean {
+    const bearer = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+    const headerSecret = req.headers.get('x-cron-secret');
+    const secret = bearer ?? headerSecret;
+    return !!process.env.CRON_SECRET && secret === process.env.CRON_SECRET;
+}
 
+async function handleRenew() {
     const supabase = getAdmin();
     const appUrl = process.env.NEXT_PUBLIC_APP_URL
-        ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://savron.com');
+        ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://savronmn.com');
 
     const { data: barbers } = await supabase
         .from('barbers')
@@ -57,10 +59,25 @@ export async function POST(req: NextRequest) {
             }).eq('id', barber.id);
 
             results.push({ id: barber.id, name: barber.name, status: 'renewed' });
-        } catch (err: any) {
-            results.push({ id: barber.id, name: barber.name, status: `error: ${err.message}` });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            results.push({ id: barber.id, name: barber.name, status: `error: ${message}` });
         }
     }
 
     return NextResponse.json({ renewed: results.filter(r => r.status === 'renewed').length, results });
+}
+
+export async function GET(req: NextRequest) {
+    if (!verifyCronSecret(req)) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    return handleRenew();
+}
+
+export async function POST(req: NextRequest) {
+    if (!verifyCronSecret(req)) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    return handleRenew();
 }

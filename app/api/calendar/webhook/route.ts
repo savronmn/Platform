@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getValidAccessToken, getChangedEvents } from '@/lib/google-calendar';
+import { cancelBooking } from '@/lib/cancel-booking';
 
 export async function POST(req: NextRequest) {
     const channelId = req.headers.get('x-goog-channel-id');
@@ -15,61 +16,71 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ received: true });
     }
 
-    // 1. Load Admin Supabase client (bypasses RLS for backend operation)
     const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // 2. Find the Barber associated with this specific channel
     const { data: barber } = await supabase
         .from('barbers')
         .select('*')
         .eq('google_channel_id', channelId)
         .single();
 
-    if (!barber || !barber.google_sync_token) {
-        console.warn(`Webhook received for unknown or unsynced channel ID: ${channelId}`);
-        return NextResponse.json({ error: 'Barber not found or missing sync token' }, { status: 404 });
+    if (!barber) {
+        console.error(`[calendar/webhook] Unknown channel ID: ${channelId} — sync channel may have expired`);
+        return NextResponse.json({ error: 'Barber not found for channel' }, { status: 404 });
+    }
+
+    if (!barber.google_sync_token) {
+        console.error(`[calendar/webhook] Barber ${barber.name} (${barber.id}) has no sync token — calendar deletions will not sync`);
+        return NextResponse.json({
+            error: 'Missing sync token',
+            barberId: barber.id,
+            barberName: barber.name,
+            syncUnhealthy: true,
+        }, { status: 503 });
     }
 
     try {
-        // 3. Fetch changed events since our last syncToken
         const accessToken = await getValidAccessToken(barber.google_calendar_tokens);
         const { events, nextSyncToken } = await getChangedEvents(
-            accessToken, 
-            barber.google_calendar_id, 
-            barber.google_sync_token
+            accessToken,
+            barber.google_calendar_id,
+            barber.google_sync_token,
         );
 
-        // 4. Process deletions
         let cancelledCount = 0;
         for (const event of events) {
-            // Google marks deleted instances as 'cancelled'
             if (event.status === 'cancelled') {
-                const { error } = await supabase
+                const { data: booking } = await supabase
                     .from('bookings')
-                    .update({ status: 'cancelled' })
-                    .eq('google_event_id', event.id);
-                
-                if (!error) cancelledCount++;
+                    .select('id, status')
+                    .eq('google_event_id', event.id)
+                    .maybeSingle();
+
+                if (booking && booking.status !== 'cancelled') {
+                    // GCal event already deleted — skip calendar delete, send cancellation email
+                    const result = await cancelBooking(booking.id, { skipCalendar: true });
+                    if (result.success) cancelledCount++;
+                }
             }
         }
 
-        // 5. Save the new sync token so the next webhook only gets newer delta changes
         await supabase
             .from('barbers')
             .update({ google_sync_token: nextSyncToken })
             .eq('id', barber.id);
-        
-        return NextResponse.json({ 
-            success: true, 
+
+        return NextResponse.json({
+            success: true,
             eventsProcessed: events.length,
-            bookingsCancelled: cancelledCount 
+            bookingsCancelled: cancelledCount,
         });
 
-    } catch (err: any) {
-        console.error('Webhook processing error:', err.message || err);
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error('[calendar/webhook] Processing error:', message);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }

@@ -20,7 +20,7 @@ import {
 import TimelineDayGrid, { bookingToTimelineEvent, isoRangeToTimelineEvent, type TimelineEvent } from '@/components/calendar/TimelineDayGrid';
 import CalendarNavBar from '@/components/calendar/CalendarNavBar';
 import { useServices } from '@/lib/use-services';
-import { triggerPostBooking } from '@/lib/confirm-booking';
+import { triggerPostBooking, triggerCancelBooking } from '@/lib/confirm-booking';
 import EditBookingModal from '@/components/crm/EditBookingModal';
 import { LanguageProvider, useLanguage } from '@/lib/language-context';
 
@@ -73,6 +73,7 @@ function HostDashboardInner() {
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(true);
     const [realtimeConnected, setRealtimeConnected] = useState(false);
+    const [syncHealthWarning, setSyncHealthWarning] = useState<string | null>(null);
 
     // Appointment detail modal
     const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
@@ -170,26 +171,40 @@ function HostDashboardInner() {
         return () => { supabase.removeChannel(channel); };
     }, [rangeStart, rangeEnd, fetchBookings]);
 
+    useEffect(() => {
+        fetch('/api/calendar/sync-health')
+            .then(r => r.json())
+            .then(data => {
+                if (data.count > 0) {
+                    const names = data.unhealthy.map((b: { name: string }) => b.name).join(', ');
+                    setSyncHealthWarning(
+                        `Google Calendar sync is unhealthy for: ${names}. Deletions in Google Calendar may not cancel bookings here until sync is renewed.`,
+                    );
+                }
+            })
+            .catch(() => {});
+    }, []);
+
     // Update a booking's status — optimistic local update + DB write
-    // Sending cancellation ICS when status flips to 'cancelled'
     const updateStatus = async (booking: Booking, status: Booking['status']) => {
         setUpdating(true);
-        await supabase.from('bookings').update({ status }).eq('id', booking.id);
-        setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, status } : b));
-        setActiveBooking(prev => prev?.id === booking.id ? { ...prev, status } : prev);
         if (status === 'cancelled') {
-            fetch('/api/email/cancel', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bookingId: booking.id }),
-            }).catch(() => {/* silent — cancellation is already applied in DB */});
-        }
-        if (status === 'cancelled' || status === 'no_show') {
-            fetch('/api/calendar/sync', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bookingId: booking.id, action: 'delete' }),
-            }).catch(err => console.error('Failed to sync calendar deletion:', err));
+            const result = await triggerCancelBooking(booking.id);
+            if (result.success) {
+                setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, status: 'cancelled' } : b));
+                setActiveBooking(prev => prev?.id === booking.id ? { ...prev, status: 'cancelled' } : prev);
+            }
+        } else {
+            await supabase.from('bookings').update({ status }).eq('id', booking.id);
+            setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, status } : b));
+            setActiveBooking(prev => prev?.id === booking.id ? { ...prev, status } : prev);
+            if (status === 'no_show') {
+                fetch('/api/calendar/sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bookingId: booking.id, action: 'delete' }),
+                }).catch(err => console.error('Failed to sync calendar deletion:', err));
+            }
         }
         setUpdating(false);
     };
@@ -589,6 +604,12 @@ function HostDashboardInner() {
                     </button>
                 </div>
             </header>
+
+            {syncHealthWarning && (
+                <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2.5 text-amber-400 text-[11px] uppercase tracking-widest shrink-0">
+                    {syncHealthWarning}
+                </div>
+            )}
 
             <CalendarNavBar
                 view={view}

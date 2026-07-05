@@ -16,3 +16,19 @@ export async function triggerPostBooking(bookingId: string): Promise<void> {
     ]);
     // allSettled — failures are silent so booking is never blocked
 }
+
+/** Cancel a booking via the shared API (email + calendar delete). */
+export async function triggerCancelBooking(bookingId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        const res = await fetch('/api/bookings/cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookingId }),
+        });
+        const data = await res.json();
+        if (!res.ok) return { success: false, error: data.error ?? 'Cancellation failed' };
+        return { success: true };
+    } catch {
+        return { success: false, error: 'Network error' };
+    }
+}

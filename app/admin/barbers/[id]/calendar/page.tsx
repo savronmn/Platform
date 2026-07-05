@@ -190,6 +190,12 @@ export default function AdminBarberCalendarPage() {
                 </div>
             </div>
 
+            {barber.google_calendar_id && (!barber.google_sync_token || !barber.google_channel_id) && (
+                <div className="px-4 py-3 border border-amber-500/20 bg-amber-500/5 rounded-savron text-amber-400 text-xs uppercase tracking-widest">
+                    Calendar sync channel is missing or expired for {barber.name}. Deleting events in Google Calendar will not cancel bookings here until sync is renewed.
+                </div>
+            )}
+
             <CalendarNavBar
                 view={view}
                 onViewChange={setView}

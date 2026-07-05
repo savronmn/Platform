@@ -8,14 +8,17 @@ import { cn } from '@/lib/utils';
 interface QRScannerModalProps {
     open: boolean;
     onClose: () => void;
+    onScanSuccess?: (subscriber: ScannedSubscriber) => void;
 }
 
 type ScanState = 'scanning' | 'loading' | 'success' | 'error';
 
 interface ScannedSubscriber {
+    id: string;
     name: string;
     email: string;
     visit_count: number;
+    last_visit_at?: string;
 }
 
 function getTier(visits: number): { label: string; color: string } {
@@ -24,7 +27,7 @@ function getTier(visits: number): { label: string; color: string } {
     return { label: 'Standard', color: 'text-savron-silver' };
 }
 
-export default function QRScannerModal({ open, onClose }: QRScannerModalProps) {
+export default function QRScannerModal({ open, onClose, onScanSuccess }: QRScannerModalProps) {
     const [scanState, setScanState] = useState<ScanState>('scanning');
     const [subscriber, setSubscriber] = useState<ScannedSubscriber | null>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -70,6 +73,7 @@ export default function QRScannerModal({ open, onClose }: QRScannerModalProps) {
                         if (res.ok && data.success) {
                             setSubscriber(data.subscriber);
                             setScanState('success');
+                            onScanSuccess?.(data.subscriber);
                             autoResetRef.current = setTimeout(() => resetToScan(), 5000);
                         } else {
                             setErrorMsg(data.error || 'Pass not found');
