@@ -12,12 +12,12 @@ import {
 } from '@/lib/calendar-nav';
 import MiniMonthPicker from '@/components/calendar/MiniMonthPicker';
 
-interface CalendarNavBarProps {
-    view: CalendarView;
-    onViewChange: (view: CalendarView) => void;
+interface CalendarNavBarProps<V extends CalendarView = CalendarView> {
+    view: V;
+    onViewChange: (view: V) => void;
     selectedDate: Date;
     onDateChange: (date: Date) => void;
-    views?: CalendarView[];
+    views?: readonly V[];
     weekStartsOn?: 0 | 1;
     skipSundays?: boolean;
     todayLabel?: string;
@@ -26,21 +26,21 @@ interface CalendarNavBarProps {
     enableKeyboard?: boolean;
 }
 
-const DEFAULT_VIEWS: CalendarView[] = ['day', 'week', 'month'];
+const DEFAULT_VIEWS = ['day', 'week', 'month'] as const satisfies readonly CalendarView[];
 
-export default function CalendarNavBar({
+export default function CalendarNavBar<V extends CalendarView = CalendarView>({
     view,
     onViewChange,
     selectedDate,
     onDateChange,
-    views = DEFAULT_VIEWS,
+    views = DEFAULT_VIEWS as unknown as readonly V[],
     weekStartsOn = 1,
     skipSundays = false,
     todayLabel = 'Today',
     viewLabels,
     className,
     enableKeyboard = true,
-}: CalendarNavBarProps) {
+}: CalendarNavBarProps<V>) {
     const [pickerOpen, setPickerOpen] = useState(false);
     const pickerRef = useRef<HTMLDivElement>(null);
     const onToday = isToday(selectedDate);

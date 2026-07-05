@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import {
     format,
     startOfWeek, endOfWeek, eachDayOfInterval,
-    isToday,
+    isToday, isSunday,
 } from 'date-fns';
 import { RefreshCw, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -186,7 +186,7 @@ export default function BarberCalendarPage() {
                 onViewChange={setView}
                 selectedDate={selectedDate}
                 onDateChange={setSelectedDate}
-                views={['day', 'week']}
+                views={['day', 'week'] as const}
                 skipSundays
             />
 
