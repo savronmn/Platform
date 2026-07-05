@@ -1,10 +1,18 @@
 import { HOST_TIME_SLOTS } from './services-data';
 
-/** Height in px of each 45-minute grid row in calendar day views. */
-export const CALENDAR_ROW_HEIGHT_PX = 36;
+/** Target vertical space per hour on the day timeline (px). */
+export const CALENDAR_HOUR_HEIGHT_PX = 250;
 
 /** Interval between HOST_TIME_SLOTS entries (minutes). */
 export const CALENDAR_SLOT_INTERVAL_MINS = 45;
+
+/** Height in px of each grid row — derived so each hour spans CALENDAR_HOUR_HEIGHT_PX. */
+export const CALENDAR_ROW_HEIGHT_PX = Math.round(
+    CALENDAR_HOUR_HEIGHT_PX * (CALENDAR_SLOT_INTERVAL_MINS / 60),
+);
+
+/** Minimum rendered block height so short appointments stay readable. */
+export const CALENDAR_MIN_EVENT_HEIGHT_PX = Math.round(CALENDAR_HOUR_HEIGHT_PX * (15 / 60));
 
 /** Convert a 12-hour time string ("10:00 AM") to minutes since midnight. */
 export function timeToMins(timeStr: string): number {
@@ -75,7 +83,7 @@ export function getTimelineLayout(startMins: number, durationMins: number): Time
     const { startMins: gridStart, totalMins, totalHeightPx } = getCalendarGridBounds();
     const clampedStart = Math.max(startMins, gridStart);
     const topPx = ((clampedStart - gridStart) / totalMins) * totalHeightPx;
-    const heightPx = Math.max((durationMins / totalMins) * totalHeightPx, 18);
+    const heightPx = Math.max((durationMins / totalMins) * totalHeightPx, CALENDAR_MIN_EVENT_HEIGHT_PX);
     return { topPx, heightPx };
 }
 

@@ -8,6 +8,7 @@ import {
     getCalendarGridBounds,
     getTimelineLayout,
     timeToMins,
+    parseDurationMins,
 } from '@/lib/calendar-timeline';
 
 export interface TimelineEvent {
@@ -40,22 +41,22 @@ export default function TimelineDayGrid({
     getEventsForColumn,
     renderEvent,
     renderColumnBackground,
-    timeLabelWidth = 'w-14 sm:w-20',
-    columnWidth = 'w-40 sm:w-52',
+    timeLabelWidth = 'w-20 sm:w-24',
+    columnWidth = 'min-w-[300px] sm:min-w-[360px]',
 }: TimelineDayGridProps) {
     const { totalHeightPx } = getCalendarGridBounds();
 
     return (
-        <div className="min-w-max">
+        <div className="min-w-max bg-savron-black">
             {/* Column headers */}
-            <div className="flex border-b border-white/5 bg-savron-grey sticky top-0 z-10">
-                <div className={cn(timeLabelWidth, 'shrink-0 p-2 sm:p-4 border-r border-white/5')}>
-                    <span className="text-[10px] uppercase tracking-widest text-savron-silver/40">Time</span>
+            <div className="flex border-b border-white/10 bg-savron-grey sticky top-0 z-10 shadow-lg shadow-black/20">
+                <div className={cn(timeLabelWidth, 'shrink-0 p-3 sm:p-4 border-r border-white/10 sticky left-0 z-20 bg-savron-grey')}>
+                    <span className="text-[10px] uppercase tracking-widest text-savron-silver/50">Time</span>
                 </div>
                 {columns.map(col => (
                     <div
                         key={col.id}
-                        className={cn(columnWidth, 'shrink-0 p-3 sm:p-4 border-r border-white/5')}
+                        className={cn(columnWidth, 'shrink-0 p-3 sm:p-4 border-r border-white/10')}
                     >
                         {col.header}
                     </div>
@@ -64,53 +65,71 @@ export default function TimelineDayGrid({
 
             {/* Timeline body */}
             <div className="flex">
-                {/* Time labels */}
-                <div className={cn(timeLabelWidth, 'shrink-0 border-r border-white/5 relative')}
+                {/* Time labels — show hour marks prominently */}
+                <div
+                    className={cn(timeLabelWidth, 'shrink-0 border-r border-white/10 relative sticky left-0 z-10 bg-savron-black')}
                     style={{ height: totalHeightPx }}
                 >
-                    {HOST_TIME_SLOTS.map((time, i) => (
-                        <div
-                            key={time}
-                            className="absolute left-0 right-0 px-2 flex items-start"
-                            style={{ top: i * CALENDAR_ROW_HEIGHT_PX, height: CALENDAR_ROW_HEIGHT_PX }}
-                        >
-                            <span className="text-savron-silver/50 text-[9px] font-mono whitespace-nowrap -mt-1.5">
-                                {time}
-                            </span>
-                        </div>
-                    ))}
+                    {HOST_TIME_SLOTS.map((time, i) => {
+                        const isHour = time.includes(':00 ');
+                        return (
+                            <div
+                                key={time}
+                                className="absolute left-0 right-0 px-3 flex items-start"
+                                style={{ top: i * CALENDAR_ROW_HEIGHT_PX, height: CALENDAR_ROW_HEIGHT_PX }}
+                            >
+                                {isHour ? (
+                                    <span className="text-savron-silver/80 text-xs font-mono whitespace-nowrap leading-none -mt-1">
+                                        {time}
+                                    </span>
+                                ) : (
+                                    <span className="text-savron-silver/30 text-[10px] font-mono whitespace-nowrap leading-none -mt-0.5">
+                                        {time.replace(':00 ', ' ')}
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
 
                 {/* Event columns */}
                 {columns.map(col => (
                     <div
                         key={col.id}
-                        className={cn(columnWidth, 'shrink-0 border-r border-white/5 relative')}
+                        className={cn(columnWidth, 'shrink-0 border-r border-white/10 relative bg-savron-black')}
                         style={{ height: totalHeightPx }}
                     >
                         {/* Grid lines */}
-                        {HOST_TIME_SLOTS.map((time, i) => (
-                            <div
-                                key={time}
-                                className={cn(
-                                    'absolute left-0 right-0 border-b border-white/[0.05]',
-                                    i % 2 !== 0 && 'bg-white/[0.01]',
-                                )}
-                                style={{ top: i * CALENDAR_ROW_HEIGHT_PX, height: CALENDAR_ROW_HEIGHT_PX }}
-                            />
-                        ))}
+                        {HOST_TIME_SLOTS.map((time, i) => {
+                            const isHour = time.includes(':00 ');
+                            return (
+                                <div
+                                    key={time}
+                                    className={cn(
+                                        'absolute left-0 right-0 border-b',
+                                        isHour ? 'border-white/10' : 'border-white/[0.05]',
+                                        i % 2 !== 0 && 'bg-white/[0.015]',
+                                    )}
+                                    style={{ top: i * CALENDAR_ROW_HEIGHT_PX, height: CALENDAR_ROW_HEIGHT_PX }}
+                                />
+                            );
+                        })}
 
-                        {/* Optional background overlays */}
                         {renderColumnBackground?.(col.id)}
 
-                        {/* Events positioned proportionally */}
                         {getEventsForColumn(col.id).map(event => {
                             const layout = getTimelineLayout(event.startMins, event.durationMins);
+                            if (layout.heightPx <= 0) return null;
                             return (
                                 <div
                                     key={event.id}
-                                    className="absolute left-0.5 right-0.5 z-[1] overflow-hidden"
-                                    style={{ top: layout.topPx, height: layout.heightPx }}
+                                    className="absolute z-[1] overflow-hidden px-1.5"
+                                    style={{
+                                        top: layout.topPx,
+                                        height: layout.heightPx,
+                                        left: 0,
+                                        right: 0,
+                                    }}
                                 >
                                     {renderEvent(event, col.id, layout)}
                                 </div>
@@ -132,11 +151,7 @@ export function bookingToTimelineEvent(
     return {
         id,
         startMins: timeToMins(time),
-        durationMins: (() => {
-            if (!duration) return 45;
-            const match = duration.match(/(\d+)/);
-            return match ? parseInt(match[1], 10) : 45;
-        })(),
+        durationMins: parseDurationMins(duration),
     };
 }
 

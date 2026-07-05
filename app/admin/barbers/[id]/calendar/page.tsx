@@ -270,7 +270,7 @@ export default function AdminBarberCalendarPage() {
                                 <p className="text-white text-xs font-heading uppercase tracking-widest">{barber.name}</p>
                             ),
                         }]}
-                        columnWidth="flex-1 min-w-[280px]"
+                        columnWidth="flex-1 min-w-[360px]"
                         getEventsForColumn={() => dayTimelineEvents}
                         renderColumnBackground={() => {
                             if (!daySchedule || isDayOff) return null;
@@ -300,25 +300,41 @@ export default function AdminBarberCalendarPage() {
                             }
                             return overlays;
                         }}
-                        renderEvent={(event) => {
+                        renderEvent={(event, _columnId, layout) => {
                             const item = dayTimelineMap.get(event.id);
                             if (!item) return null;
+                            const tight = layout.heightPx < 80;
+                            const roomy = layout.heightPx >= 140;
                             if (item.kind === 'booking') {
                                 const booking = item.b;
                                 return (
                                     <div
-                                        className="h-full rounded-savron border p-2 text-xs overflow-hidden flex flex-col justify-center"
+                                        className={cn(
+                                            'h-full rounded-lg border overflow-hidden flex flex-col justify-center shadow-lg shadow-black/20',
+                                            tight ? 'px-3 py-2' : 'p-3',
+                                        )}
                                         style={serviceBlockStyle(serviceColorMap[booking.service])}
                                     >
-                                        <p className="text-white text-sm font-medium truncate">{booking.client_name || 'Walk-in'}</p>
-                                        <p className="opacity-70 truncate">{booking.service} · {booking.duration}</p>
-                                        <p className="opacity-60 text-[10px] font-mono">{booking.time}</p>
+                                        <p className="text-white text-sm font-semibold truncate">{booking.client_name || 'Walk-in'}</p>
+                                        {!tight && (
+                                            <p className="opacity-85 truncate text-xs mt-0.5">{booking.service} · {booking.duration}</p>
+                                        )}
+                                        <p className={cn('opacity-70 font-mono truncate', tight ? 'text-[10px] mt-0.5' : 'text-[11px] mt-1')}>
+                                            {booking.time}
+                                        </p>
+                                        {roomy && booking.client_phone && (
+                                            <p className="opacity-60 text-[10px] truncate mt-1">{booking.client_phone}</p>
+                                        )}
                                     </div>
                                 );
                             }
                             return (
-                                <div className="h-full rounded-savron border p-2 text-xs overflow-hidden flex items-center bg-blue-500/10 border-blue-500/25 text-blue-300/80">
-                                    <span className="uppercase tracking-widest text-[10px]">External (Google Calendar)</span>
+                                <div className={cn(
+                                    'h-full rounded-lg border overflow-hidden flex flex-col justify-center bg-blue-950/90 border-blue-400/60 text-blue-100 shadow-lg shadow-black/20',
+                                    tight ? 'px-3 py-2' : 'p-3',
+                                )}>
+                                    <span className="font-semibold text-white truncate text-sm">External calendar</span>
+                                    {!tight && <span className="text-blue-200/75 text-[10px] mt-0.5">Google Calendar</span>}
                                 </div>
                             );
                         }}

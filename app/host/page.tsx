@@ -15,7 +15,7 @@ import Link from 'next/link';
 import type { Barber, Booking } from '@/lib/types';
 import { HOST_TIME_SLOTS, serviceBlockStyle } from '@/lib/services-data';
 import {
-    timeToMins, formatTimeCompact, parseDurationMins, itemsInSlot,
+    timeToMins, formatTimeCompact, parseDurationMins, itemsInSlot, CALENDAR_ROW_HEIGHT_PX,
 } from '@/lib/calendar-timeline';
 import TimelineDayGrid, { bookingToTimelineEvent, isoRangeToTimelineEvent, type TimelineEvent } from '@/components/calendar/TimelineDayGrid';
 import CalendarNavBar from '@/components/calendar/CalendarNavBar';
@@ -793,30 +793,41 @@ function HostDashboardInner() {
                                         </div>
                                     ),
                                 }))}
+                                columnWidth="w-[calc(100vw-6rem)] sm:min-w-[360px]"
                                 getEventsForColumn={dayTimelineEventsForBarber}
-                                renderEvent={(event) => {
+                                renderEvent={(event, _columnId, layout) => {
                                     const item = dayTimelineMap.get(event.id);
                                     if (!item) return null;
+                                    const tight = layout.heightPx < 80;
+                                    const roomy = layout.heightPx >= 140;
                                     if (item.kind === 'booking') {
                                         const b = item.b;
                                         const { className: colorClass, style: colorStyle } = svcColor(b.service, b.status === 'cancelled');
                                         return (
                                             <motion.div
-                                                initial={{ opacity: 0, scale: 0.96 }}
+                                                initial={{ opacity: 0, scale: 0.98 }}
                                                 animate={{ opacity: 1, scale: 1 }}
                                                 onClick={e => { e.stopPropagation(); setActiveBooking(b); }}
                                                 className={cn(
-                                                    'h-full rounded-savron border cursor-pointer transition-opacity hover:opacity-80 p-1.5 text-[10px] space-y-0.5 overflow-hidden',
+                                                    'h-full rounded-lg border cursor-pointer transition-all hover:brightness-110 overflow-hidden flex flex-col justify-center shadow-lg shadow-black/20',
+                                                    tight ? 'px-3 py-2 text-[11px]' : 'p-3 text-xs',
                                                     colorClass,
                                                 )}
                                                 style={colorStyle}
                                             >
-                                                <div className="flex items-center justify-between gap-1">
-                                                    <span className="font-medium truncate">{b.client_name ?? 'Walk-in'}</span>
-                                                    <div className={cn('w-1.5 h-1.5 rounded-full shrink-0', statusDot(b.status))} />
+                                                <div className="flex items-center justify-between gap-2 min-w-0">
+                                                    <span className="font-semibold text-white truncate">{b.client_name ?? 'Walk-in'}</span>
+                                                    <div className={cn('w-2 h-2 rounded-full shrink-0', statusDot(b.status))} />
                                                 </div>
-                                                <p className="opacity-70 truncate">{b.service}</p>
-                                                {b.time && <p className="opacity-60 text-[9px] font-mono">{b.time}</p>}
+                                                {!tight && (
+                                                    <p className="opacity-85 truncate mt-0.5">{b.service}{b.duration ? ` · ${b.duration}` : ''}</p>
+                                                )}
+                                                <p className={cn('font-mono opacity-75 truncate', tight ? 'text-[10px] mt-0.5' : 'text-[11px] mt-1')}>
+                                                    {formatTimeCompact(b.time)}
+                                                </p>
+                                                {roomy && b.client_phone && (
+                                                    <p className="opacity-60 text-[10px] font-mono truncate mt-1">{b.client_phone}</p>
+                                                )}
                                             </motion.div>
                                         );
                                     }
@@ -825,13 +836,19 @@ function HostDashboardInner() {
                                     return (
                                         <div
                                             onClick={ev => { ev.stopPropagation(); setActiveExternal(e); }}
-                                            className="h-full rounded-savron border cursor-pointer transition-opacity hover:opacity-80 p-1.5 text-[10px] space-y-0.5 overflow-hidden bg-violet-500/10 border-violet-500/25 text-violet-300"
+                                            className={cn(
+                                                'h-full rounded-lg border cursor-pointer transition-all hover:brightness-110 overflow-hidden flex flex-col justify-center bg-violet-950/90 border-violet-400/60 text-violet-100 shadow-lg shadow-black/20',
+                                                tight ? 'px-3 py-2 text-[11px]' : 'p-3 text-xs',
+                                            )}
                                         >
-                                            <div className="flex items-center justify-between gap-1">
-                                                <span className="font-medium truncate">{displayName}</span>
-                                                <span className="text-[8px] uppercase tracking-widest opacity-50 shrink-0">GCal</span>
+                                            <div className="flex items-center justify-between gap-2 min-w-0">
+                                                <span className="font-semibold text-white truncate">{displayName || 'External event'}</span>
+                                                <span className="text-[9px] uppercase tracking-widest text-violet-200/70 shrink-0">GCal</span>
                                             </div>
-                                            <p className="opacity-50 truncate text-[9px]">{e.time}</p>
+                                            {!tight && <p className="text-violet-200/75 text-[10px] truncate mt-0.5">{e.barberName}</p>}
+                                            <p className={cn('font-mono text-violet-200/80 truncate', tight ? 'text-[10px] mt-0.5' : 'text-[11px] mt-1')}>
+                                                {formatTimeCompact(e.time)}
+                                            </p>
                                         </div>
                                     );
                                 }}
@@ -872,8 +889,11 @@ function HostDashboardInner() {
                                             <span className="text-savron-silver/50 text-[9px] font-mono whitespace-nowrap">{time}</span>
                                         </div>
                                         {weekDays.map(day => (
-                                            <div key={day.toISOString()}
-                                                className={cn("w-36 sm:w-44 shrink-0 px-1 py-0.5 border-r border-white/5 min-h-[36px]", isToday(day) && "bg-savron-green/[0.03]")}>
+                                            <div
+                                                key={day.toISOString()}
+                                                className={cn("w-36 sm:w-44 shrink-0 px-1 py-0.5 border-r border-white/5", isToday(day) && "bg-savron-green/[0.03]")}
+                                                style={{ minHeight: CALENDAR_ROW_HEIGHT_PX }}
+                                            >
                                                 {bookingsForDayTime(day, i).map(b => <Pill key={b.id} b={b} compact />)}
                                                 {externalForDayTime(day, i).map(e => <ExternalPill key={e.id} e={e} compact />)}
                                             </div>
