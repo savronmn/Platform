@@ -2,13 +2,15 @@
 
 import { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
-import { HOST_TIME_SLOTS } from '@/lib/services-data';
 import {
-    CALENDAR_ROW_HEIGHT_PX,
     getCalendarGridBounds,
+    getTimelineGridLines,
     getTimelineLayout,
-    timeToMins,
+    isoToMins,
+    minsToPx,
+    minsToTime12,
     parseDurationMins,
+    timeToMins,
 } from '@/lib/calendar-timeline';
 
 export interface TimelineEvent {
@@ -34,7 +36,7 @@ interface TimelineDayGridProps {
 
 /**
  * Shared proportional day-view timeline grid used by host and admin barber calendars.
- * Events are positioned by actual start time and duration, not snapped to discrete rows.
+ * Events are positioned by actual start time and duration on a linear px-per-minute scale.
  */
 export default function TimelineDayGrid({
     columns,
@@ -44,7 +46,8 @@ export default function TimelineDayGrid({
     timeLabelWidth = 'w-20 sm:w-24',
     columnWidth = 'min-w-[300px] sm:min-w-[360px]',
 }: TimelineDayGridProps) {
-    const { totalHeightPx } = getCalendarGridBounds();
+    const { totalHeightPx, startMins } = getCalendarGridBounds();
+    const gridLines = getTimelineGridLines();
 
     return (
         <div className="min-w-max bg-savron-black">
@@ -65,31 +68,28 @@ export default function TimelineDayGrid({
 
             {/* Timeline body */}
             <div className="flex">
-                {/* Time labels — show hour marks prominently */}
+                {/* Time labels at exact hour / half-hour positions */}
                 <div
                     className={cn(timeLabelWidth, 'shrink-0 border-r border-white/10 relative sticky left-0 z-10 bg-savron-black')}
                     style={{ height: totalHeightPx }}
                 >
-                    {HOST_TIME_SLOTS.map((time, i) => {
-                        const isHour = time.includes(':00 ');
-                        return (
-                            <div
-                                key={time}
-                                className="absolute left-0 right-0 px-3 flex items-start"
-                                style={{ top: i * CALENDAR_ROW_HEIGHT_PX, height: CALENDAR_ROW_HEIGHT_PX }}
-                            >
-                                {isHour ? (
-                                    <span className="text-savron-silver/80 text-xs font-mono whitespace-nowrap leading-none -mt-1">
-                                        {time}
-                                    </span>
-                                ) : (
-                                    <span className="text-savron-silver/30 text-[10px] font-mono whitespace-nowrap leading-none -mt-0.5">
-                                        {time.replace(':00 ', ' ')}
-                                    </span>
-                                )}
-                            </div>
-                        );
-                    })}
+                    {gridLines.map(({ mins, isHour }) => (
+                        <div
+                            key={mins}
+                            className="absolute left-0 right-0 px-3 flex items-start pointer-events-none"
+                            style={{ top: minsToPx(mins, startMins) }}
+                        >
+                            {isHour ? (
+                                <span className="text-savron-silver/80 text-xs font-mono whitespace-nowrap leading-none -mt-1">
+                                    {minsToTime12(mins)}
+                                </span>
+                            ) : (
+                                <span className="text-savron-silver/25 text-[10px] font-mono whitespace-nowrap leading-none -mt-0.5">
+                                    {minsToTime12(mins).replace(':00 ', ' ')}
+                                </span>
+                            )}
+                        </div>
+                    ))}
                 </div>
 
                 {/* Event columns */}
@@ -99,21 +99,17 @@ export default function TimelineDayGrid({
                         className={cn(columnWidth, 'shrink-0 border-r border-white/10 relative bg-savron-black')}
                         style={{ height: totalHeightPx }}
                     >
-                        {/* Grid lines */}
-                        {HOST_TIME_SLOTS.map((time, i) => {
-                            const isHour = time.includes(':00 ');
-                            return (
-                                <div
-                                    key={time}
-                                    className={cn(
-                                        'absolute left-0 right-0 border-b',
-                                        isHour ? 'border-white/10' : 'border-white/[0.05]',
-                                        i % 2 !== 0 && 'bg-white/[0.015]',
-                                    )}
-                                    style={{ top: i * CALENDAR_ROW_HEIGHT_PX, height: CALENDAR_ROW_HEIGHT_PX }}
-                                />
-                            );
-                        })}
+                        {/* Grid lines at exact time positions */}
+                        {gridLines.map(({ mins, isHour }) => (
+                            <div
+                                key={mins}
+                                className={cn(
+                                    'absolute left-0 right-0 border-b',
+                                    isHour ? 'border-white/10' : 'border-white/[0.04]',
+                                )}
+                                style={{ top: minsToPx(mins, startMins) }}
+                            />
+                        ))}
 
                         {renderColumnBackground?.(col.id)}
 
@@ -155,11 +151,13 @@ export function bookingToTimelineEvent(
     };
 }
 
-/** Helper to build a TimelineEvent from ISO start/end strings. */
+/** Helper to build a TimelineEvent from ISO start/end strings (timezone-safe). */
 export function isoRangeToTimelineEvent(id: string, startIso: string, endIso: string): TimelineEvent {
-    const start = new Date(startIso);
-    const end = new Date(endIso);
-    const startMins = start.getHours() * 60 + start.getMinutes();
-    const durationMins = Math.max(15, Math.round((end.getTime() - start.getTime()) / 60000));
-    return { id, startMins, durationMins };
+    const startMins = isoToMins(startIso);
+    const endMins = isoToMins(endIso);
+    let durationMins = endMins - startMins;
+    if (durationMins <= 0) {
+        durationMins = Math.max(15, Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000));
+    }
+    return { id, startMins, durationMins: Math.max(15, durationMins) };
 }

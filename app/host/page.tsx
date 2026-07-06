@@ -15,7 +15,8 @@ import Link from 'next/link';
 import type { Barber, Booking } from '@/lib/types';
 import { HOST_TIME_SLOTS, serviceBlockStyle } from '@/lib/services-data';
 import {
-    timeToMins, formatTimeCompact, parseDurationMins, itemsInSlot, CALENDAR_ROW_HEIGHT_PX,
+    timeToMins, formatTimeCompact, formatTimeRange, parseDurationMins, itemsInHour,
+    CALENDAR_HOUR_HEIGHT_PX, minsToTime12, getCalendarHourStarts,
 } from '@/lib/calendar-timeline';
 import TimelineDayGrid, { bookingToTimelineEvent, isoRangeToTimelineEvent, type TimelineEvent } from '@/components/calendar/TimelineDayGrid';
 import CalendarNavBar from '@/components/calendar/CalendarNavBar';
@@ -294,20 +295,12 @@ function HostDashboardInner() {
         setUploadingPhoto(false);
     };
 
-    // Data helpers — range-based bucketing for week view (day view uses proportional timeline).
-    const bookingsForBarberTime = (barberId: string, slotIdx: number) => {
-        const d = format(selectedDate, 'yyyy-MM-dd');
-        return itemsInSlot(
-            bookings.filter(b => b.barber_id === barberId && b.date === d),
-            slotIdx,
-            b => timeToMins(b.time),
-        );
-    };
-    const bookingsForDayTime = (day: Date, slotIdx: number) => {
+    // Data helpers — hour-based bucketing for week view (day view uses proportional timeline).
+    const bookingsForDayHour = (day: Date, hourMins: number) => {
         const d = format(day, 'yyyy-MM-dd');
-        return itemsInSlot(
+        return itemsInHour(
             bookings.filter(b => b.date === d && isBookingVisible(b)),
-            slotIdx,
+            hourMins,
             b => timeToMins(b.time),
         );
     };
@@ -381,19 +374,11 @@ function HostDashboardInner() {
     const isExternalVisible = (e: ExternalEvent) =>
         filteredBarberIds.size === 0 || filteredBarberIds.has(e.barberId);
 
-    const externalForBarberTime = (barberId: string, slotIdx: number) => {
-        const d = format(selectedDate, 'yyyy-MM-dd');
-        return itemsInSlot(
-            deduplicatedExternal.filter(e => e.barberId === barberId && e.date === d),
-            slotIdx,
-            e => timeToMins(e.time),
-        );
-    };
-    const externalForDayTime = (day: Date, slotIdx: number) => {
+    const externalForDayHour = (day: Date, hourMins: number) => {
         const d = format(day, 'yyyy-MM-dd');
-        return itemsInSlot(
+        return itemsInHour(
             deduplicatedExternal.filter(e => e.date === d && isExternalVisible(e)),
-            slotIdx,
+            hourMins,
             e => timeToMins(e.time),
         );
     };
@@ -823,7 +808,7 @@ function HostDashboardInner() {
                                                     <p className="opacity-85 truncate mt-0.5">{b.service}{b.duration ? ` · ${b.duration}` : ''}</p>
                                                 )}
                                                 <p className={cn('font-mono opacity-75 truncate', tight ? 'text-[10px] mt-0.5' : 'text-[11px] mt-1')}>
-                                                    {formatTimeCompact(b.time)}
+                                                    {formatTimeRange(b.time, event.durationMins)}
                                                 </p>
                                                 {roomy && b.client_phone && (
                                                     <p className="opacity-60 text-[10px] font-mono truncate mt-1">{b.client_phone}</p>
@@ -847,7 +832,7 @@ function HostDashboardInner() {
                                             </div>
                                             {!tight && <p className="text-violet-200/75 text-[10px] truncate mt-0.5">{e.barberName}</p>}
                                             <p className={cn('font-mono text-violet-200/80 truncate', tight ? 'text-[10px] mt-0.5' : 'text-[11px] mt-1')}>
-                                                {formatTimeCompact(e.time)}
+                                                {formatTimeRange(e.time, event.durationMins)}
                                             </p>
                                         </div>
                                     );
@@ -880,22 +865,19 @@ function HostDashboardInner() {
                                     })}
                                 </div>
 
-                                {HOST_TIME_SLOTS.map((time, i) => (
-                                    <div key={i} className={cn(
-                                        "flex border-b border-white/[0.05]",
-                                        i % 2 !== 0 && "bg-white/[0.01]"
-                                    )}>
-                                        <div className="w-14 sm:w-20 shrink-0 px-2 py-1.5 border-r border-white/5 flex items-center">
-                                            <span className="text-savron-silver/50 text-[9px] font-mono whitespace-nowrap">{time}</span>
+                                {getCalendarHourStarts().map(hourMins => (
+                                    <div key={hourMins} className="flex border-b border-white/[0.05]">
+                                        <div className="w-14 sm:w-20 shrink-0 px-2 py-1.5 border-r border-white/5 flex items-start">
+                                            <span className="text-savron-silver/60 text-[10px] font-mono whitespace-nowrap">{minsToTime12(hourMins)}</span>
                                         </div>
                                         {weekDays.map(day => (
                                             <div
                                                 key={day.toISOString()}
                                                 className={cn("w-36 sm:w-44 shrink-0 px-1 py-0.5 border-r border-white/5", isToday(day) && "bg-savron-green/[0.03]")}
-                                                style={{ minHeight: CALENDAR_ROW_HEIGHT_PX }}
+                                                style={{ minHeight: CALENDAR_HOUR_HEIGHT_PX }}
                                             >
-                                                {bookingsForDayTime(day, i).map(b => <Pill key={b.id} b={b} compact />)}
-                                                {externalForDayTime(day, i).map(e => <ExternalPill key={e.id} e={e} compact />)}
+                                                {bookingsForDayHour(day, hourMins).map(b => <Pill key={b.id} b={b} compact />)}
+                                                {externalForDayHour(day, hourMins).map(e => <ExternalPill key={e.id} e={e} compact />)}
                                             </div>
                                         ))}
                                     </div>
