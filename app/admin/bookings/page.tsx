@@ -232,6 +232,12 @@ export default function BookingsPage() {
                 </div>
             </div>
 
+            {statusError && (
+                <div className="px-4 py-2 border border-red-500/20 bg-red-500/10 rounded-savron text-red-400 text-xs shrink-0">
+                    {statusError}
+                </div>
+            )}
+
             {/* ── Main grid: Calendar + Day panel ── */}
             <div className="flex gap-4 flex-1 min-h-0">
 
