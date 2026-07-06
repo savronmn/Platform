@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 interface QRScannerModalProps {
     open: boolean;
     onClose: () => void;
-    onScanSuccess?: (subscriber: ScannedSubscriber) => void;
+    onScanSuccess?: (subscriber: ScannedSubscriber, meta?: { google_wallet_updated?: boolean }) => void;
 }
 
 type ScanState = 'scanning' | 'loading' | 'success' | 'error';
@@ -73,7 +73,9 @@ export default function QRScannerModal({ open, onClose, onScanSuccess }: QRScann
                         if (res.ok && data.success) {
                             setSubscriber(data.subscriber);
                             setScanState('success');
-                            onScanSuccess?.(data.subscriber);
+                            onScanSuccess?.(data.subscriber, {
+                                google_wallet_updated: data.google_wallet_updated,
+                            });
                             autoResetRef.current = setTimeout(() => resetToScan(), 5000);
                         } else {
                             setErrorMsg(data.error || 'Pass not found');

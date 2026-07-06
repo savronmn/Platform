@@ -187,14 +187,17 @@ export default function MembershipPage() {
             <QRScannerModal
                 open={showScanner}
                 onClose={() => setShowScanner(false)}
-                onScanSuccess={(sub) => {
+                onScanSuccess={(sub, meta) => {
                     setSubscribers(prev =>
                         prev.map(s => s.id === sub.id
                             ? { ...s, visit_count: sub.visit_count, last_visit_at: sub.last_visit_at ?? new Date().toISOString() }
                             : s
                         )
                     );
-                    showToast(`Visit recorded — ${sub.name} now has ${sub.visit_count} visit${sub.visit_count === 1 ? '' : 's'}.`);
+                    showToast(
+                        `Visit recorded — ${sub.name} now has ${sub.visit_count} visit${sub.visit_count === 1 ? '' : 's'}.` +
+                        (meta?.google_wallet_updated ? ' Google Wallet updated.' : ' Google Wallet did not update automatically.')
+                    );
                 }}
             />
             {/* Toast */}
