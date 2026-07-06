@@ -214,7 +214,7 @@ export default function BookingsPage() {
                             setCurrentMonth(startOfMonth(date));
                         }}
                         views={[]}
-                        className="mb-4 border-0 bg-transparent p-0 shadow-none"
+                        className="mb-4 shrink-0"
                     />
 
                     {/* Day labels */}

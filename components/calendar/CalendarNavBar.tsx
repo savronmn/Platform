@@ -101,12 +101,12 @@ export default function CalendarNavBar<V extends CalendarView = CalendarView>({
     return (
         <div
             className={cn(
-                'flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between',
+                'flex flex-col items-center gap-3',
                 'bg-savron-grey border border-savron-blue/20 savron-grid-surface rounded-savron px-3 py-2.5 sm:px-4',
                 className,
             )}
         >
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center justify-center gap-2 flex-wrap w-full">
                 <button
                     type="button"
                     onClick={goToday}
@@ -144,7 +144,7 @@ export default function CalendarNavBar<V extends CalendarView = CalendarView>({
                     <button
                         type="button"
                         onClick={() => setPickerOpen(open => !open)}
-                        className="flex items-center gap-2 min-w-0 px-2 py-1.5 rounded-savron hover:bg-savron-blue/10 transition-colors text-left group"
+                        className="flex items-center gap-2 min-w-0 px-2 py-1.5 rounded-savron hover:bg-savron-blue/10 transition-colors text-center group"
                         aria-expanded={pickerOpen}
                         aria-haspopup="dialog"
                     >
@@ -173,7 +173,7 @@ export default function CalendarNavBar<V extends CalendarView = CalendarView>({
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: -6, scale: 0.98 }}
                                 transition={{ duration: 0.16 }}
-                                className="absolute left-0 top-full mt-2 z-50 rounded-savron border border-savron-blue/25 bg-savron-charcoal shadow-2xl shadow-black/40 overflow-hidden"
+                                className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 rounded-savron border border-savron-blue/25 bg-savron-charcoal shadow-2xl shadow-black/40 overflow-hidden"
                             >
                                 <MiniMonthPicker
                                     selectedDate={selectedDate}
@@ -190,7 +190,7 @@ export default function CalendarNavBar<V extends CalendarView = CalendarView>({
             </div>
 
             {views.length > 1 && (
-                <div className="flex self-end sm:self-auto rounded-full border border-savron-blue/20 bg-savron-black/40 p-1">
+                <div className="flex justify-center rounded-full border border-savron-blue/20 bg-savron-black/40 p-1">
                     {views.map(v => (
                         <button
                             key={v}

@@ -1,7 +1,7 @@
 import { HOST_TIME_SLOTS } from './services-data';
 
 /** Target vertical space per hour on the day timeline (px). */
-export const CALENDAR_HOUR_HEIGHT_PX = 250;
+export const CALENDAR_HOUR_HEIGHT_PX = 150;
 
 /** Interval between HOST_TIME_SLOTS entries (minutes). */
 export const CALENDAR_SLOT_INTERVAL_MINS = 45;
