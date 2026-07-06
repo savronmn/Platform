@@ -58,7 +58,14 @@ export default function MemberBookingsPage() {
         const result = await triggerCancelBooking(booking.id);
         if (result.success) {
             setBookings(prev => prev.map(b =>
-                b.id === booking.id ? { ...b, status: 'cancelled' } : b
+                b.barber_id === booking.barber_id &&
+                b.date === booking.date &&
+                b.time === booking.time &&
+                b.status === 'confirmed'
+                    ? { ...b, status: 'cancelled' }
+                    : b.id === booking.id
+                        ? { ...b, status: 'cancelled' }
+                        : b
             ));
             setExpandedId(null);
         } else {

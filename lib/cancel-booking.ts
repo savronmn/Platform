@@ -54,6 +54,18 @@ export async function cancelBooking(
         return { success: false, bookingId, error: updateError.message };
     }
 
+    // Cancel duplicate confirmed rows at the same slot (GCal sync can create twins)
+    if (booking.barber_id && booking.date && booking.time) {
+        await supabase
+            .from('bookings')
+            .update({ status: 'cancelled' })
+            .eq('barber_id', booking.barber_id)
+            .eq('date', booking.date)
+            .eq('time', booking.time)
+            .eq('status', 'confirmed')
+            .neq('id', bookingId);
+    }
+
     let emailSent = false;
     let calendarDeleted = false;
 

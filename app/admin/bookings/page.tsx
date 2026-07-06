@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import type { Booking, Barber } from '@/lib/types';
 import CalendarNavBar from '@/components/calendar/CalendarNavBar';
+import { triggerCancelBooking } from '@/lib/confirm-booking';
 
 const WalkInModal    = dynamic(() => import('@/components/crm/WalkInModal'),     { ssr: false });
 const EditBookingModal = dynamic(() => import('@/components/crm/EditBookingModal'), { ssr: false });
@@ -59,6 +60,8 @@ export default function BookingsPage() {
     const [editBooking,    setEditBooking]    = useState<Booking | null>(null);
     const [showCancelled,  setShowCancelled]  = useState(false);
     const [barberFilter,   setBarberFilter]   = useState<string>('all');
+    const [statusError,    setStatusError]    = useState<string | null>(null);
+    const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
 
     // ── fetch ────────────────────────────────────────────────────────────────
     const fetchAll = useCallback(async () => {
@@ -130,9 +133,38 @@ export default function BookingsPage() {
     }
 
     async function quickStatus(booking: Booking, status: Booking['status']) {
-        const { data } = await supabase
+        if (status === 'cancelled' && booking.status === 'confirmed') {
+            setStatusUpdatingId(booking.id);
+            setStatusError(null);
+            const result = await triggerCancelBooking(booking.id);
+            if (result.success) {
+                setBookings(prev => prev.map(b =>
+                    b.barber_id === booking.barber_id &&
+                    b.date === booking.date &&
+                    b.time === booking.time &&
+                    b.status === 'confirmed'
+                        ? { ...b, status: 'cancelled' as const }
+                        : b.id === booking.id
+                            ? { ...b, status: 'cancelled' as const }
+                            : b
+                ));
+            } else {
+                setStatusError(result.error ?? 'Could not cancel appointment');
+            }
+            setStatusUpdatingId(null);
+            return;
+        }
+
+        const { data, error } = await supabase
             .from('bookings').update({ status }).eq('id', booking.id).select().single();
-        if (data) handleBookingSaved(data as Booking);
+        if (error) {
+            setStatusError(error.message);
+            return;
+        }
+        if (data) {
+            setStatusError(null);
+            handleBookingSaved(data as Booking);
+        }
     }
 
     // ── render ────────────────────────────────────────────────────────────────
@@ -335,6 +367,7 @@ export default function BookingsPage() {
                                     booking={booking}
                                     onEdit={() => setEditBooking(booking)}
                                     onStatusChange={status => quickStatus(booking, status)}
+                                    isUpdating={statusUpdatingId === booking.id}
                                 />
                             ))
                         )}
@@ -364,9 +397,10 @@ interface AppointmentCardProps {
     booking: Booking;
     onEdit: () => void;
     onStatusChange: (s: Booking['status']) => void;
+    isUpdating?: boolean;
 }
 
-function AppointmentCard({ booking, onEdit, onStatusChange }: AppointmentCardProps) {
+function AppointmentCard({ booking, onEdit, onStatusChange, isUpdating }: AppointmentCardProps) {
     const cfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.confirmed;
 
     return (
@@ -439,9 +473,10 @@ function AppointmentCard({ booking, onEdit, onStatusChange }: AppointmentCardPro
                         </button>
                         <button
                             onClick={() => onStatusChange('cancelled')}
-                            className="flex items-center gap-1 px-2 py-1 text-[9px] uppercase tracking-widest bg-red-500/5 hover:bg-red-500/10 border border-red-500/15 rounded text-red-400/70 hover:text-red-400 transition-all"
+                            disabled={isUpdating}
+                            className="flex items-center gap-1 px-2 py-1 text-[9px] uppercase tracking-widest bg-red-500/5 hover:bg-red-500/10 border border-red-500/15 rounded text-red-400/70 hover:text-red-400 transition-all disabled:opacity-50"
                         >
-                            <XCircle className="w-2.5 h-2.5" /> Cancel
+                            <XCircle className="w-2.5 h-2.5" /> {isUpdating ? 'Cancelling…' : 'Cancel'}
                         </button>
                     </>
                 )}

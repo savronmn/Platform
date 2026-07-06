@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Calendar, Clock, User, CheckCircle, AlertTriangle, Copy, Check, Link2, Link2Off } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Barber, Booking } from '@/lib/types';
+import { triggerCancelBooking } from '@/lib/confirm-booking';
 
 export default function BarberDashboard() {
     const supabase = createClient();
@@ -67,9 +68,16 @@ export default function BarberDashboard() {
     const upcomingCount = bookings.filter(b => b.date >= today && b.status === 'confirmed').length;
 
     const handleStatusUpdate = async (id: string, status: string) => {
+        if (status === 'cancelled') {
+            const result = await triggerCancelBooking(id);
+            if (result.success) {
+                setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' as Booking['status'] } : b));
+            }
+            return;
+        }
         await supabase.from('bookings').update({ status }).eq('id', id);
         setBookings(prev => prev.map(b => b.id === id ? { ...b, status: status as Booking['status'] } : b));
-        if (status === 'cancelled' || status === 'no_show') {
+        if (status === 'no_show') {
             fetch('/api/calendar/sync', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

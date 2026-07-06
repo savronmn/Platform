@@ -117,13 +117,18 @@ export async function deleteCalendarEvent(
     calendarId: string,
     eventId: string
 ): Promise<void> {
-    await fetch(
+    const res = await fetch(
         `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
         {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${accessToken}` },
         }
     );
+    // 404 = already deleted — treat as success
+    if (!res.ok && res.status !== 404) {
+        const detail = await res.text().catch(() => '');
+        throw new Error(`Failed to delete calendar event (${res.status}): ${detail}`);
+    }
 }
 
 // Parse a time string like "10:00 AM" + date "2026-04-01" into an ISO string (CT)

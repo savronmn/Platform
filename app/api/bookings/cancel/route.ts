@@ -48,13 +48,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: barberRecord } = await supabaseAdmin
-        .from('barbers')
-        .select('id')
-        .eq('auth_id', user.id)
-        .maybeSingle();
+    const [{ data: barberRecord }, { data: adminRole }] = await Promise.all([
+        supabaseAdmin.from('barbers').select('id').eq('auth_id', user.id).maybeSingle(),
+        supabaseAdmin.from('user_roles').select('role').eq('auth_id', user.id).eq('role', 'admin').maybeSingle(),
+    ]);
 
-    const isStaff = !!barberRecord;
+    const isStaff = !!barberRecord || !!adminRole;
 
     if (!isStaff) {
         // Client must own this booking
@@ -62,10 +61,12 @@ export async function POST(request: NextRequest) {
             .from('clients')
             .select('id')
             .eq('auth_id', user.id)
-            .single();
+            .maybeSingle();
 
         const ownsByClientId = client && booking.client_id === client.id;
-        const ownsByEmail = booking.client_email && booking.client_email === user.email;
+        const userEmail = user.email?.toLowerCase();
+        const bookingEmail = booking.client_email?.toLowerCase();
+        const ownsByEmail = !!(userEmail && bookingEmail && bookingEmail === userEmail);
 
         if (!ownsByClientId && !ownsByEmail) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

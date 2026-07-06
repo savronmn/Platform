@@ -100,6 +100,7 @@ function HostDashboardInner() {
     });
     const [quickSubmitting, setQuickSubmitting] = useState(false);
     const [quickError, setQuickError] = useState<string | null>(null);
+    const [cancelError, setCancelError] = useState<string | null>(null);
 
     // Barber filter (empty set = show all)
     const [filteredBarberIds, setFilteredBarberIds] = useState<Set<string>>(new Set());
@@ -188,11 +189,33 @@ function HostDashboardInner() {
     // Update a booking's status — optimistic local update + DB write
     const updateStatus = async (booking: Booking, status: Booking['status']) => {
         setUpdating(true);
+        setCancelError(null);
         if (status === 'cancelled') {
             const result = await triggerCancelBooking(booking.id);
             if (result.success) {
-                setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, status: 'cancelled' } : b));
-                setActiveBooking(prev => prev?.id === booking.id ? { ...prev, status: 'cancelled' } : prev);
+                setBookings(prev => prev.map(b =>
+                    b.barber_id === booking.barber_id &&
+                    b.date === booking.date &&
+                    b.time === booking.time &&
+                    b.status === 'confirmed'
+                        ? { ...b, status: 'cancelled' }
+                        : b.id === booking.id
+                            ? { ...b, status: 'cancelled' }
+                            : b
+                ));
+                setActiveBooking(prev =>
+                    prev?.barber_id === booking.barber_id &&
+                    prev?.date === booking.date &&
+                    prev?.time === booking.time &&
+                    prev?.status === 'confirmed'
+                        ? { ...prev, status: 'cancelled' }
+                        : prev?.id === booking.id
+                            ? { ...prev, status: 'cancelled' }
+                            : prev
+                );
+                await fetchExternalEvents();
+            } else {
+                setCancelError(result.error ?? 'Could not cancel appointment');
             }
         } else {
             await supabase.from('bookings').update({ status }).eq('id', booking.id);
@@ -318,7 +341,7 @@ function HostDashboardInner() {
 
     const formatTime = formatTimeCompact;
 
-    // Deduplicate: hide GCal events that overlap with a platform booking
+    // Deduplicate: hide GCal events that overlap with an active platform booking
     // (same barber + date, event time within 22 mins of booking time).
     const deduplicatedExternal = useMemo(() => {
         return externalEvents.filter(e => {
@@ -326,6 +349,7 @@ function HostDashboardInner() {
             return !bookings.some(b =>
                 b.barber_id === e.barberId &&
                 b.date === e.date &&
+                ['confirmed', 'completed', 'no_show'].includes(b.status) &&
                 Math.abs(timeToMins(b.time) - eMins) <= 22
             );
         });
@@ -608,6 +632,11 @@ function HostDashboardInner() {
             {syncHealthWarning && (
                 <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2.5 text-amber-400 text-[11px] uppercase tracking-widest shrink-0">
                     {syncHealthWarning}
+                </div>
+            )}
+            {cancelError && (
+                <div className="bg-red-500/10 border-b border-red-500/20 px-6 py-2.5 text-red-400 text-[11px] uppercase tracking-widest shrink-0">
+                    {cancelError}
                 </div>
             )}
 
