@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import type { Barber, Booking } from '@/lib/types';
 import { serviceBlockStyle } from '@/lib/services-data';
 import {
-    formatTimeCompact, time24ToMins, getCalendarGridBounds, getTimelineLayout,
+    formatTimeCompact, formatTimeRange, time24ToMins, getCalendarGridBounds, getTimelineLayout,
 } from '@/lib/calendar-timeline';
 import TimelineDayGrid, { bookingToTimelineEvent, isoRangeToTimelineEvent, type TimelineEvent } from '@/components/calendar/TimelineDayGrid';
 import CalendarNavBar from '@/components/calendar/CalendarNavBar';
@@ -342,7 +342,7 @@ export default function AdminBarberCalendarPage() {
                                             <p className="opacity-85 truncate text-xs mt-0.5">{booking.service} · {booking.duration}</p>
                                         )}
                                         <p className={cn('opacity-70 font-mono truncate', tight ? 'text-[10px] mt-0.5' : 'text-[11px] mt-1')}>
-                                            {formatTimeCompact(booking.time)}
+                                            {formatTimeRange(booking.time, event.durationMins)}
                                         </p>
                                         {roomy && booking.client_phone && (
                                             <p className="opacity-60 text-[10px] truncate mt-1">{booking.client_phone}</p>

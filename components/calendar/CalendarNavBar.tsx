@@ -24,6 +24,8 @@ interface CalendarNavBarProps<V extends CalendarView = CalendarView> {
     viewLabels?: Partial<Record<CalendarView, string>>;
     className?: string;
     enableKeyboard?: boolean;
+    /** Larger typography and kiosk-style centered layout for host view. */
+    variant?: 'default' | 'host';
 }
 
 const DEFAULT_VIEWS = ['day', 'week', 'month'] as const satisfies readonly CalendarView[];
@@ -40,7 +42,9 @@ export default function CalendarNavBar<V extends CalendarView = CalendarView>({
     viewLabels,
     className,
     enableKeyboard = true,
+    variant = 'default',
 }: CalendarNavBarProps<V>) {
+    const isHost = variant === 'host';
     const [pickerOpen, setPickerOpen] = useState(false);
     const pickerRef = useRef<HTMLDivElement>(null);
     const onToday = isToday(selectedDate);
@@ -98,116 +102,138 @@ export default function CalendarNavBar<V extends CalendarView = CalendarView>({
 
     const labelForView = (v: CalendarView) => viewLabels?.[v] ?? v;
 
+    const todayButtonClass = cn(
+        'shrink-0 rounded-full uppercase tracking-widest font-semibold border transition-all',
+        isHost ? 'px-5 py-2.5 text-sm' : 'px-3.5 py-2 text-[11px] font-medium',
+        onToday
+            ? 'border-savron-blue/15 text-savron-silver/40 cursor-default'
+            : 'border-savron-blue/40 text-white hover:bg-savron-blue/15 hover:text-white',
+    );
+
+    const navButtonClass = cn(
+        'rounded-full text-savron-silver hover:text-white hover:bg-savron-blue/15 transition-colors',
+        isHost ? 'p-3' : 'p-2',
+    );
+
+    const chevronClass = isHost ? 'w-5 h-5' : 'w-4 h-4';
+
+    const dateNavCluster = (
+        <div
+            className={cn(
+                'flex items-center justify-center gap-2 sm:gap-3 flex-wrap',
+                isHost && 'rounded-full border border-white/15 bg-savron-black/50 px-4 py-2 shadow-lg shadow-black/20',
+            )}
+        >
+            <button type="button" onClick={goToday} disabled={onToday} className={todayButtonClass}>
+                {todayLabel}
+            </button>
+
+            <div className="flex items-center shrink-0">
+                <button type="button" onClick={goPrev} className={navButtonClass} aria-label="Previous">
+                    <ChevronLeft className={chevronClass} />
+                </button>
+                <button type="button" onClick={goNext} className={navButtonClass} aria-label="Next">
+                    <ChevronRight className={chevronClass} />
+                </button>
+            </div>
+
+            <div className="relative min-w-0" ref={pickerRef}>
+                <button
+                    type="button"
+                    onClick={() => setPickerOpen(open => !open)}
+                    className={cn(
+                        'flex items-center gap-2 min-w-0 rounded-savron hover:bg-savron-blue/10 transition-colors text-center group',
+                        isHost ? 'px-3 py-2' : 'px-2 py-1.5',
+                    )}
+                    aria-expanded={pickerOpen}
+                    aria-haspopup="dialog"
+                >
+                    <div className="min-w-0">
+                        <p className={cn(
+                            'text-white font-heading uppercase tracking-wider truncate',
+                            isHost ? 'text-lg sm:text-xl' : 'text-sm sm:text-base',
+                        )}>
+                            {primary}
+                        </p>
+                        {secondary && (
+                            <p className={cn(
+                                'uppercase tracking-widest truncate',
+                                isHost ? 'text-savron-cream/70 text-xs sm:text-sm' : 'text-savron-cream/45 text-[10px]',
+                            )}>
+                                {secondary}
+                            </p>
+                        )}
+                    </div>
+                    <ChevronDown
+                        className={cn(
+                            'shrink-0 text-savron-silver/70 transition-transform',
+                            isHost ? 'w-5 h-5' : 'w-4 h-4',
+                            pickerOpen && 'rotate-180 text-savron-blue-light',
+                        )}
+                    />
+                </button>
+
+                <AnimatePresence>
+                    {pickerOpen && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                            transition={{ duration: 0.16 }}
+                            className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 rounded-savron border border-savron-blue/25 bg-savron-charcoal shadow-2xl shadow-black/40 overflow-hidden"
+                        >
+                            <MiniMonthPicker
+                                selectedDate={selectedDate}
+                                weekStartsOn={weekStartsOn === 1 ? 1 : 0}
+                                onSelect={date => {
+                                    onDateChange(date);
+                                    setPickerOpen(false);
+                                }}
+                            />
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+        </div>
+    );
+
+    const viewToggles = views.length > 1 && (
+        <div className={cn(
+            'flex justify-center rounded-full border bg-savron-black/40 p-1',
+            isHost ? 'border-white/15 gap-1' : 'border-savron-blue/20',
+        )}>
+            {views.map(v => (
+                <button
+                    key={v}
+                    type="button"
+                    onClick={() => onViewChange(v)}
+                    className={cn(
+                        'rounded-full uppercase tracking-widest transition-all font-semibold',
+                        isHost ? 'px-5 py-2 text-xs sm:text-sm' : 'px-3.5 py-1.5 text-[10px]',
+                        view === v
+                            ? 'bg-savron-blue text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
+                            : 'text-savron-silver hover:text-white hover:bg-savron-blue/10',
+                    )}
+                >
+                    {labelForView(v)}
+                </button>
+            ))}
+        </div>
+    );
+
     return (
         <div
             className={cn(
-                'flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between',
-                'bg-savron-grey border border-savron-blue/20 savron-grid-surface rounded-savron px-3 py-2.5 sm:px-4',
+                'flex flex-col items-center w-full',
+                isHost ? 'gap-4 py-4' : 'gap-3 py-2.5',
+                'bg-savron-grey border border-savron-blue/20 savron-grid-surface rounded-savron px-3 sm:px-4',
                 className,
             )}
         >
-            <div className="flex items-center gap-2 min-w-0">
-                <button
-                    type="button"
-                    onClick={goToday}
-                    disabled={onToday}
-                    className={cn(
-                        'shrink-0 px-3.5 py-2 rounded-full text-[11px] uppercase tracking-widest font-medium border transition-all',
-                        onToday
-                            ? 'border-savron-blue/15 text-savron-silver/40 cursor-default'
-                            : 'border-savron-blue/30 text-savron-cream/80 hover:bg-savron-blue/10 hover:text-white',
-                    )}
-                >
-                    {todayLabel}
-                </button>
-
-                <div className="flex items-center shrink-0">
-                    <button
-                        type="button"
-                        onClick={goPrev}
-                        className="p-2 rounded-full text-savron-silver hover:text-white hover:bg-savron-blue/10 transition-colors"
-                        aria-label="Previous"
-                    >
-                        <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={goNext}
-                        className="p-2 rounded-full text-savron-silver hover:text-white hover:bg-savron-blue/10 transition-colors"
-                        aria-label="Next"
-                    >
-                        <ChevronRight className="w-4 h-4" />
-                    </button>
-                </div>
-
-                <div className="relative min-w-0" ref={pickerRef}>
-                    <button
-                        type="button"
-                        onClick={() => setPickerOpen(open => !open)}
-                        className="flex items-center gap-2 min-w-0 px-2 py-1.5 rounded-savron hover:bg-savron-blue/10 transition-colors text-left group"
-                        aria-expanded={pickerOpen}
-                        aria-haspopup="dialog"
-                    >
-                        <div className="min-w-0">
-                            <p className="text-white font-heading text-sm sm:text-base uppercase tracking-wider truncate">
-                                {primary}
-                            </p>
-                            {secondary && (
-                                <p className="text-savron-cream/45 text-[10px] uppercase tracking-widest truncate">
-                                    {secondary}
-                                </p>
-                            )}
-                        </div>
-                        <ChevronDown
-                            className={cn(
-                                'w-4 h-4 shrink-0 text-savron-silver/50 transition-transform',
-                                pickerOpen && 'rotate-180 text-savron-blue-light',
-                            )}
-                        />
-                    </button>
-
-                    <AnimatePresence>
-                        {pickerOpen && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                                transition={{ duration: 0.16 }}
-                                className="absolute left-0 top-full mt-2 z-50 rounded-savron border border-savron-blue/25 bg-savron-charcoal shadow-2xl shadow-black/40 overflow-hidden"
-                            >
-                                <MiniMonthPicker
-                                    selectedDate={selectedDate}
-                                    weekStartsOn={weekStartsOn === 1 ? 1 : 0}
-                                    onSelect={date => {
-                                        onDateChange(date);
-                                        setPickerOpen(false);
-                                    }}
-                                />
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
+            <div className="w-full flex justify-center">
+                {dateNavCluster}
             </div>
-
-            {views.length > 1 && (
-                <div className="flex self-end sm:self-auto rounded-full border border-savron-blue/20 bg-savron-black/40 p-1">
-                    {views.map(v => (
-                        <button
-                            key={v}
-                            type="button"
-                            onClick={() => onViewChange(v)}
-                            className={cn(
-                                'px-3.5 py-1.5 rounded-full text-[10px] uppercase tracking-widest transition-all',
-                                view === v
-                                    ? 'bg-savron-blue text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
-                                    : 'text-savron-silver hover:text-white hover:bg-savron-blue/10',
-                            )}
-                        >
-                            {labelForView(v)}
-                        </button>
-                    ))}
-                </div>
-            )}
+            {viewToggles}
         </div>
     );
 }

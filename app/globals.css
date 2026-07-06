@@ -26,6 +26,19 @@ body {
 }
 
 /* === html5-qrcode overrides — hide default chrome, fill container === */
+#qr-reader-element {
+  position: relative !important;
+  overflow: hidden !important;
+}
+#qr-reader-element > div,
+#qr-reader-element__scan_region,
+#qr-reader-element__dashboard_section {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+}
 #qr-reader-element video {
   width: 100% !important;
   height: 100% !important;
