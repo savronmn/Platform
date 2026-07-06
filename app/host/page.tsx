@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -8,7 +9,7 @@ import {
     startOfWeek, endOfWeek, eachDayOfInterval,
     startOfMonth, endOfMonth,
 } from 'date-fns';
-import { RefreshCw, Wifi, X, UserCheck, UserX, RotateCcw, Phone, Scissors, Menu, LayoutDashboard, Users, CreditCard, Mail, MonitorPlay, Ban, Camera, Upload, ClipboardList, Plus, Filter, Calendar, AtSign, DollarSign, Pencil, Trash2, Languages } from 'lucide-react';
+import { RefreshCw, Wifi, X, UserCheck, UserX, RotateCcw, Phone, Scissors, Menu, LayoutDashboard, Users, CreditCard, Mail, MonitorPlay, Ban, Camera, Upload, ClipboardList, Plus, Filter, Calendar, AtSign, DollarSign, Pencil, Trash2, Languages, ScanLine } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -24,6 +25,8 @@ import { useServices } from '@/lib/use-services';
 import { triggerPostBooking, triggerCancelBooking } from '@/lib/confirm-booking';
 import EditBookingModal from '@/components/crm/EditBookingModal';
 import { LanguageProvider, useLanguage } from '@/lib/language-context';
+
+const QRScannerModal = dynamic(() => import('@/components/qr/QRScannerModal'), { ssr: false });
 
 const NAV_ITEMS = [
     { label: 'Dashboard',      href: '/admin',                icon: LayoutDashboard },
@@ -95,6 +98,7 @@ function HostDashboardInner() {
 
     // Quick-Add walk-in
     const [showQuickAdd, setShowQuickAdd] = useState(false);
+    const [showScanner, setShowScanner] = useState(false);
     const [quickFormDate, setQuickFormDate] = useState(new Date());
     const [quickForm, setQuickForm] = useState({
         clientName: '', clientPhone: '', clientEmail: '', service: '', barberId: '', time: '',
@@ -511,7 +515,7 @@ function HostDashboardInner() {
                 onClick={ev => { ev.stopPropagation(); setActiveExternal(e); }}
                 className={cn(
                     "rounded-savron border cursor-pointer transition-opacity hover:opacity-80 mb-1",
-                    compact ? "p-1.5 text-[10px] space-y-0.5" : "p-2.5 text-xs space-y-1",
+                    compact ? "p-2 text-xs space-y-0.5" : "p-2.5 text-xs space-y-1",
                     "bg-violet-500/10 border-violet-500/25 text-violet-300"
                 )}
             >
@@ -536,7 +540,7 @@ function HostDashboardInner() {
             onClick={e => { e.stopPropagation(); setActiveBooking(b); }}
             className={cn(
                 "rounded-savron border cursor-pointer transition-opacity hover:opacity-80 mb-1",
-                compact ? "p-1.5 text-[10px] space-y-0.5" : "p-2.5 text-xs space-y-1",
+                compact ? "p-2 text-xs space-y-0.5" : "p-2.5 text-xs space-y-1",
                 colorClass
             )}
             style={colorStyle}
@@ -549,7 +553,7 @@ function HostDashboardInner() {
             {!compact && b.time       && <p className="opacity-60 text-[10px] font-mono">{b.time}</p>}
             {!compact && b.duration   && <p className="opacity-50 text-[10px]">{b.duration}</p>}
             {!compact && b.client_phone && <p className="opacity-50 text-[10px] font-mono">{b.client_phone}</p>}
-            {compact  && b.time       && <p className="opacity-50 text-[9px] font-mono">{formatTime(b.time)}</p>}
+            {compact  && b.time       && <p className="opacity-70 text-[11px] font-mono font-medium">{formatTime(b.time)}</p>}
         </motion.div>
     );
     };
@@ -580,6 +584,12 @@ function HostDashboardInner() {
                     <div className="text-center hidden sm:block"><p className="text-blue-400 font-mono text-lg">{completed}</p><p className="text-savron-silver text-[10px] uppercase tracking-widest">{t('host.done')}</p></div>
                     <div className="text-center hidden sm:block"><p className="text-red-400 font-mono text-lg">{noShow}</p><p className="text-savron-silver text-[10px] uppercase tracking-widest">{t('host.no_show')}</p></div>
                     <button onClick={fetchBookings} className="p-2 text-savron-silver hover:text-white transition-colors"><RefreshCw className="w-4 h-4" /></button>
+                    <button
+                        onClick={() => setShowScanner(true)}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-white/5 text-savron-silver border border-white/15 text-[10px] uppercase tracking-widest rounded-savron hover:text-white hover:border-white/30 transition-all"
+                    >
+                        <ScanLine className="w-3.5 h-3.5" /> Scan ePass
+                    </button>
                     {/* Quick-Add walk-in */}
                     <button
                         onClick={() => { setQuickFormDate(new Date()); setShowQuickAdd(true); }}
@@ -589,6 +599,8 @@ function HostDashboardInner() {
                     </button>
                 </div>
             </header>
+
+            <QRScannerModal open={showScanner} onClose={() => setShowScanner(false)} />
 
             {syncHealthWarning && (
                 <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2.5 text-amber-400 text-[11px] uppercase tracking-widest shrink-0">
@@ -607,6 +619,7 @@ function HostDashboardInner() {
                     week: t('host.week'),
                     month: t('host.month'),
                 }}
+                variant="host"
                 className="rounded-none border-x-0 border-t-0 shrink-0"
             />
 
@@ -764,16 +777,17 @@ function HostDashboardInner() {
                     {view === 'day' && (
                         <div className="flex-1 overflow-auto">
                             <TimelineDayGrid
+                                emphasized
                                 columns={visibleBarbers.map(barber => ({
                                     id: barber.id,
                                     header: (
                                         <div className="flex items-center gap-2 sm:gap-3">
-                                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden bg-savron-black relative shrink-0">
+                                            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden bg-savron-black relative shrink-0">
                                                 {barber.image_url && <Image src={barber.image_url} alt={barber.name} fill className="object-cover grayscale" />}
                                             </div>
                                             <div className="min-w-0">
-                                                <p className="text-white text-[10px] sm:text-xs font-heading uppercase tracking-widest leading-none truncate">{barber.name}</p>
-                                                <p className="text-savron-silver text-[9px] sm:text-[10px] mt-0.5 truncate">{barber.role}</p>
+                                                <p className="text-white text-xs sm:text-sm font-heading uppercase tracking-widest leading-none truncate">{barber.name}</p>
+                                                <p className="text-savron-silver/80 text-[10px] sm:text-xs mt-0.5 truncate">{barber.role}</p>
                                             </div>
                                         </div>
                                     ),
@@ -783,8 +797,8 @@ function HostDashboardInner() {
                                 renderEvent={(event, _columnId, layout) => {
                                     const item = dayTimelineMap.get(event.id);
                                     if (!item) return null;
-                                    const tight = layout.heightPx < 80;
-                                    const roomy = layout.heightPx >= 140;
+                                    const tight = layout.heightPx < 90;
+                                    const roomy = layout.heightPx >= 150;
                                     if (item.kind === 'booking') {
                                         const b = item.b;
                                         const { className: colorClass, style: colorStyle } = svcColor(b.service, b.status === 'cancelled');
@@ -795,7 +809,7 @@ function HostDashboardInner() {
                                                 onClick={e => { e.stopPropagation(); setActiveBooking(b); }}
                                                 className={cn(
                                                     'h-full rounded-lg border cursor-pointer transition-all hover:brightness-110 overflow-hidden flex flex-col justify-center shadow-lg shadow-black/20',
-                                                    tight ? 'px-3 py-2 text-[11px]' : 'p-3 text-xs',
+                                                    tight ? 'px-3 py-2 text-xs' : 'p-3 text-sm',
                                                     colorClass,
                                                 )}
                                                 style={colorStyle}
@@ -807,7 +821,7 @@ function HostDashboardInner() {
                                                 {!tight && (
                                                     <p className="opacity-85 truncate mt-0.5">{b.service}{b.duration ? ` · ${b.duration}` : ''}</p>
                                                 )}
-                                                <p className={cn('font-mono opacity-75 truncate', tight ? 'text-[10px] mt-0.5' : 'text-[11px] mt-1')}>
+                                                <p className={cn('font-mono font-medium truncate', tight ? 'text-[11px] mt-0.5 opacity-90' : 'text-xs sm:text-sm mt-1 opacity-90')}>
                                                     {formatTimeRange(b.time, event.durationMins)}
                                                 </p>
                                                 {roomy && b.client_phone && (
@@ -823,7 +837,7 @@ function HostDashboardInner() {
                                             onClick={ev => { ev.stopPropagation(); setActiveExternal(e); }}
                                             className={cn(
                                                 'h-full rounded-lg border cursor-pointer transition-all hover:brightness-110 overflow-hidden flex flex-col justify-center bg-violet-950/90 border-violet-400/60 text-violet-100 shadow-lg shadow-black/20',
-                                                tight ? 'px-3 py-2 text-[11px]' : 'p-3 text-xs',
+                                                tight ? 'px-3 py-2 text-xs' : 'p-3 text-sm',
                                             )}
                                         >
                                             <div className="flex items-center justify-between gap-2 min-w-0">
@@ -831,7 +845,7 @@ function HostDashboardInner() {
                                                 <span className="text-[9px] uppercase tracking-widest text-violet-200/70 shrink-0">GCal</span>
                                             </div>
                                             {!tight && <p className="text-violet-200/75 text-[10px] truncate mt-0.5">{e.barberName}</p>}
-                                            <p className={cn('font-mono text-violet-200/80 truncate', tight ? 'text-[10px] mt-0.5' : 'text-[11px] mt-1')}>
+                                            <p className={cn('font-mono font-medium truncate', tight ? 'text-[11px] mt-0.5 opacity-90' : 'text-xs sm:text-sm mt-1 opacity-90')}>
                                                 {formatTimeRange(e.time, event.durationMins)}
                                             </p>
                                         </div>
@@ -847,28 +861,28 @@ function HostDashboardInner() {
                     {view === 'week' && (
                         <div className="flex-1 overflow-auto">
                             <div className="min-w-max">
-                                <div className="flex border-b border-white/5 bg-savron-grey sticky top-0 z-10">
-                                    <div className="w-14 sm:w-20 shrink-0 p-2 sm:p-4 border-r border-white/5">
-                                        <span className="text-[10px] uppercase tracking-widest text-savron-silver/40">Time</span>
+                                <div className="flex border-b border-white/10 bg-savron-grey sticky top-0 z-10">
+                                    <div className="w-20 sm:w-28 shrink-0 p-2 sm:p-4 border-r border-white/10">
+                                        <span className="text-xs uppercase tracking-widest text-savron-silver/90 font-semibold">Time</span>
                                     </div>
                                     {weekDays.map(day => {
                                         const count = bookingsForDay(day).length + externalForDay(day).length;
                                         return (
                                             <div key={day.toISOString()}
                                                 onClick={() => { setSelectedDate(day); setView('day'); }}
-                                                className={cn("w-36 sm:w-44 shrink-0 p-2 sm:p-3 border-r border-white/5 text-center cursor-pointer hover:bg-white/5 transition-colors", isToday(day) && "bg-savron-green/5")}>
-                                                <p className={cn("text-[10px] sm:text-xs font-heading uppercase tracking-widest", isToday(day) ? "text-savron-green" : "text-white")}>{format(day, 'EEE')}</p>
-                                                <p className={cn("text-base sm:text-lg font-mono", isToday(day) ? "text-savron-green" : "text-savron-silver/70")}>{format(day, 'd')}</p>
-                                                {count > 0 && <span className="text-[9px] text-savron-silver/40 uppercase tracking-widest">{count} appt{count !== 1 ? 's' : ''}</span>}
+                                                className={cn("w-36 sm:w-44 shrink-0 p-2 sm:p-3 border-r border-white/10 text-center cursor-pointer hover:bg-white/5 transition-colors", isToday(day) && "bg-savron-green/5")}>
+                                                <p className={cn("text-xs sm:text-sm font-heading uppercase tracking-widest", isToday(day) ? "text-savron-green" : "text-white")}>{format(day, 'EEE')}</p>
+                                                <p className={cn("text-lg sm:text-xl font-mono font-semibold", isToday(day) ? "text-savron-green" : "text-savron-silver/80")}>{format(day, 'd')}</p>
+                                                {count > 0 && <span className="text-[10px] sm:text-xs text-savron-silver/60 uppercase tracking-widest">{count} appt{count !== 1 ? 's' : ''}</span>}
                                             </div>
                                         );
                                     })}
                                 </div>
 
                                 {getCalendarHourStarts().map(hourMins => (
-                                    <div key={hourMins} className="flex border-b border-white/[0.05]">
-                                        <div className="w-14 sm:w-20 shrink-0 px-2 py-1.5 border-r border-white/5 flex items-start">
-                                            <span className="text-savron-silver/60 text-[10px] font-mono whitespace-nowrap">{minsToTime12(hourMins)}</span>
+                                    <div key={hourMins} className="flex border-b border-white/10">
+                                        <div className="w-20 sm:w-28 shrink-0 px-3 py-2 border-r border-white/10 flex items-start">
+                                            <span className="text-savron-silver/90 text-sm sm:text-base font-mono font-semibold whitespace-nowrap">{minsToTime12(hourMins)}</span>
                                         </div>
                                         {weekDays.map(day => (
                                             <div
@@ -893,7 +907,7 @@ function HostDashboardInner() {
                         <div className="flex-1 overflow-auto p-6">
                             <div className="grid grid-cols-7 mb-1">
                                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
-                                    <div key={d} className="text-center py-2 text-[10px] uppercase tracking-widest text-savron-silver/40">{d}</div>
+                                    <div key={d} className="text-center py-2 text-xs uppercase tracking-widest text-savron-silver/80 font-semibold">{d}</div>
                                 ))}
                             </div>
                             <div className="grid grid-cols-7 gap-px bg-white/5 border border-white/5 rounded-savron overflow-hidden">

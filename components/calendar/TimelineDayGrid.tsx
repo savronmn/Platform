@@ -32,6 +32,8 @@ interface TimelineDayGridProps {
     renderColumnBackground?: (columnId: string) => ReactNode;
     timeLabelWidth?: string;
     columnWidth?: string;
+    /** Larger, higher-contrast labels for host / kiosk displays. */
+    emphasized?: boolean;
 }
 
 /**
@@ -43,18 +45,23 @@ export default function TimelineDayGrid({
     getEventsForColumn,
     renderEvent,
     renderColumnBackground,
-    timeLabelWidth = 'w-20 sm:w-24',
+    timeLabelWidth,
     columnWidth = 'min-w-[300px] sm:min-w-[360px]',
+    emphasized = false,
 }: TimelineDayGridProps) {
     const { totalHeightPx, startMins } = getCalendarGridBounds();
     const gridLines = getTimelineGridLines();
+    const resolvedTimeLabelWidth = timeLabelWidth ?? (emphasized ? 'w-28 sm:w-32' : 'w-20 sm:w-24');
 
     return (
         <div className="min-w-max bg-savron-black">
             {/* Column headers */}
             <div className="flex border-b border-white/10 bg-savron-grey sticky top-0 z-10 shadow-lg shadow-black/20">
-                <div className={cn(timeLabelWidth, 'shrink-0 p-3 sm:p-4 border-r border-white/10 sticky left-0 z-20 bg-savron-grey')}>
-                    <span className="text-[10px] uppercase tracking-widest text-savron-silver/50">Time</span>
+                <div className={cn(resolvedTimeLabelWidth, 'shrink-0 p-3 sm:p-4 border-r border-white/10 sticky left-0 z-20 bg-savron-grey')}>
+                    <span className={cn(
+                        'uppercase tracking-widest font-semibold',
+                        emphasized ? 'text-xs text-savron-silver/90' : 'text-[10px] text-savron-silver/50',
+                    )}>Time</span>
                 </div>
                 {columns.map(col => (
                     <div
@@ -70,7 +77,7 @@ export default function TimelineDayGrid({
             <div className="flex">
                 {/* Time labels at exact hour / half-hour positions */}
                 <div
-                    className={cn(timeLabelWidth, 'shrink-0 border-r border-white/10 relative sticky left-0 z-10 bg-savron-black')}
+                    className={cn(resolvedTimeLabelWidth, 'shrink-0 border-r border-white/10 relative sticky left-0 z-10 bg-savron-black')}
                     style={{ height: totalHeightPx }}
                 >
                     {gridLines.map(({ mins, isHour }) => (
@@ -80,11 +87,17 @@ export default function TimelineDayGrid({
                             style={{ top: minsToPx(mins, startMins) }}
                         >
                             {isHour ? (
-                                <span className="text-savron-silver/80 text-xs font-mono whitespace-nowrap leading-none -mt-1">
+                                <span className={cn(
+                                    'font-mono whitespace-nowrap leading-none -mt-1 font-semibold',
+                                    emphasized ? 'text-sm sm:text-base text-white' : 'text-xs text-savron-silver/80',
+                                )}>
                                     {minsToTime12(mins)}
                                 </span>
                             ) : (
-                                <span className="text-savron-silver/25 text-[10px] font-mono whitespace-nowrap leading-none -mt-0.5">
+                                <span className={cn(
+                                    'font-mono whitespace-nowrap leading-none -mt-0.5',
+                                    emphasized ? 'text-xs sm:text-sm text-savron-silver/75' : 'text-[10px] text-savron-silver/25',
+                                )}>
                                     {minsToTime12(mins).replace(':00 ', ' ')}
                                 </span>
                             )}
@@ -105,7 +118,9 @@ export default function TimelineDayGrid({
                                 key={mins}
                                 className={cn(
                                     'absolute left-0 right-0 border-b',
-                                    isHour ? 'border-white/10' : 'border-white/[0.04]',
+                                    isHour
+                                        ? emphasized ? 'border-white/25' : 'border-white/10'
+                                        : emphasized ? 'border-white/[0.12]' : 'border-white/[0.04]',
                                 )}
                                 style={{ top: minsToPx(mins, startMins) }}
                             />
