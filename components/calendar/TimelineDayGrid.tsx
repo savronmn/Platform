@@ -5,14 +5,31 @@ import { cn } from '@/lib/utils';
 import {
     getCalendarGridBounds,
     getTimelineGridLines,
-    getTimelineLayout,
     getTimelineOverlapLayouts,
-    minsToPx,
     minsToTime12,
     isoToMins,
     parseDurationMins,
     timeToMins,
+    CALENDAR_PX_PER_MIN,
+    CALENDAR_MIN_EVENT_HEIGHT_PX,
 } from '@/lib/calendar-timeline';
+
+function layoutAtScale(
+    startMins: number,
+    durationMins: number,
+    gridStart: number,
+    gridEnd: number,
+    pxPerMin: number,
+    minHeightPx: number,
+): { topPx: number; heightPx: number } {
+    const eventEnd = startMins + durationMins;
+    const visibleStart = Math.max(startMins, gridStart);
+    const visibleEnd = Math.min(eventEnd, gridEnd);
+    if (visibleEnd <= visibleStart) return { topPx: 0, heightPx: 0 };
+    const topPx = (visibleStart - gridStart) * pxPerMin;
+    const heightPx = Math.max((visibleEnd - visibleStart) * pxPerMin, minHeightPx);
+    return { topPx, heightPx };
+}
 
 export interface TimelineEvent {
     id: string;
@@ -35,6 +52,8 @@ interface TimelineDayGridProps {
     columnWidth?: string;
     /** Larger, higher-contrast labels for host / kiosk displays. */
     emphasized?: boolean;
+    /** Override px-per-hour scale (e.g. HOST_CALENDAR_HOUR_HEIGHT_PX on /host). */
+    hourHeightPx?: number;
 }
 
 /**
@@ -49,16 +68,23 @@ export default function TimelineDayGrid({
     timeLabelWidth,
     columnWidth = 'min-w-[300px] sm:min-w-[360px]',
     emphasized = false,
+    hourHeightPx,
 }: TimelineDayGridProps) {
-    const { totalHeightPx, startMins } = getCalendarGridBounds();
+    const { startMins, endMins } = getCalendarGridBounds();
+    const pxPerMin = hourHeightPx ? hourHeightPx / 60 : CALENDAR_PX_PER_MIN;
+    const minEventHeightPx = hourHeightPx
+        ? Math.round(hourHeightPx * (15 / 60))
+        : CALENDAR_MIN_EVENT_HEIGHT_PX;
+    const totalHeightPx = (endMins - startMins) * pxPerMin;
     const gridLines = getTimelineGridLines();
-    const resolvedTimeLabelWidth = timeLabelWidth ?? (emphasized ? 'w-28 sm:w-32' : 'w-20 sm:w-24');
+    const resolvedTimeLabelWidth = timeLabelWidth ?? (emphasized ? 'w-24 sm:w-28' : 'w-20 sm:w-24');
+    const minsToLocalPx = (mins: number) => (mins - startMins) * pxPerMin;
 
     return (
         <div className="min-w-max bg-savron-black savron-grid-surface">
             {/* Column headers */}
             <div className="flex border-b border-savron-blue/20 bg-savron-grey sticky top-0 z-10 shadow-lg shadow-black/20">
-                <div className={cn(resolvedTimeLabelWidth, 'shrink-0 p-3 sm:p-4 border-r border-savron-blue/15 sticky left-0 z-20 bg-savron-grey savron-grid-surface')}>
+                <div className={cn(resolvedTimeLabelWidth, 'shrink-0 p-2 sm:p-2.5 border-r border-savron-blue/15 sticky left-0 z-20 bg-savron-grey savron-grid-surface')}>
                     <span className={cn(
                         'uppercase tracking-widest font-semibold',
                         emphasized ? 'text-xs text-savron-silver/90' : 'text-[10px] text-savron-silver/40',
@@ -67,7 +93,7 @@ export default function TimelineDayGrid({
                 {columns.map(col => (
                     <div
                         key={col.id}
-                        className={cn(columnWidth, 'shrink-0 p-3 sm:p-4 border-r border-savron-blue/15')}
+                        className={cn(columnWidth, 'shrink-0 p-2 sm:p-2.5 border-r border-savron-blue/15')}
                     >
                         {col.header}
                     </div>
@@ -85,12 +111,12 @@ export default function TimelineDayGrid({
                         <div
                             key={mins}
                             className="absolute left-0 right-0 px-3 flex items-start pointer-events-none"
-                            style={{ top: minsToPx(mins, startMins) }}
+                            style={{ top: minsToLocalPx(mins) }}
                         >
                             {isHour ? (
                                 <span className={cn(
                                     'font-mono whitespace-nowrap leading-none -mt-1 font-semibold',
-                                    emphasized ? 'text-sm sm:text-base text-white' : 'text-xs text-savron-silver/80',
+                                    emphasized ? 'text-xs text-white' : 'text-xs text-savron-silver/80',
                                 )}>
                                     {minsToTime12(mins)}
                                 </span>
@@ -116,7 +142,7 @@ export default function TimelineDayGrid({
                                         ? emphasized ? 'border-savron-blue/25' : 'border-savron-blue/20'
                                         : emphasized ? 'border-savron-blue/[0.04]' : 'border-savron-blue/[0.05]',
                                 )}
-                                style={{ top: minsToPx(mins, startMins) }}
+                                style={{ top: minsToLocalPx(mins) }}
                             />
                         ))}
 
@@ -128,7 +154,14 @@ export default function TimelineDayGrid({
                             const overlapLayouts = getTimelineOverlapLayouts(events);
 
                             return events.map(event => {
-                                const layout = getTimelineLayout(event.startMins, event.durationMins);
+                                const layout = layoutAtScale(
+                                    event.startMins,
+                                    event.durationMins,
+                                    startMins,
+                                    endMins,
+                                    pxPerMin,
+                                    minEventHeightPx,
+                                );
                                 if (layout.heightPx <= 0) return null;
                                 const overlap = overlapLayouts.get(event.id) ?? { lane: 0, laneCount: 1 };
                                 const gutterPx = 6;

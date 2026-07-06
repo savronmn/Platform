@@ -3,6 +3,9 @@ import { HOST_TIME_SLOTS } from './services-data';
 /** Target vertical space per hour on the day timeline (px). */
 export const CALENDAR_HOUR_HEIGHT_PX = 220;
 
+/** Compact scale for /host kiosk — ~50px shorter 45-min appointment blocks. */
+export const HOST_CALENDAR_HOUR_HEIGHT_PX = 155;
+
 /** Pixels per minute — linear time scale for exact event placement. */
 export const CALENDAR_PX_PER_MIN = CALENDAR_HOUR_HEIGHT_PX / 60;
 

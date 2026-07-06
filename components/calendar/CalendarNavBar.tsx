@@ -104,7 +104,7 @@ export default function CalendarNavBar<V extends CalendarView = CalendarView>({
 
     const todayButtonClass = cn(
         'shrink-0 rounded-full uppercase tracking-widest font-semibold border transition-all',
-        isHost ? 'px-5 py-2.5 text-sm' : 'px-3.5 py-2 text-[11px] font-medium',
+        isHost ? 'px-2.5 py-1 text-[10px]' : 'px-3.5 py-2 text-[11px] font-medium',
         onToday
             ? 'border-savron-blue/15 text-savron-silver/40 cursor-default'
             : 'border-savron-blue/40 text-white hover:bg-savron-blue/15 hover:text-white',
@@ -112,16 +112,16 @@ export default function CalendarNavBar<V extends CalendarView = CalendarView>({
 
     const navButtonClass = cn(
         'rounded-full text-savron-silver hover:text-white hover:bg-savron-blue/15 transition-colors',
-        isHost ? 'p-3' : 'p-2',
+        isHost ? 'p-1.5' : 'p-2',
     );
 
-    const chevronClass = isHost ? 'w-5 h-5' : 'w-4 h-4';
+    const chevronClass = isHost ? 'w-4 h-4' : 'w-4 h-4';
 
     const dateNavCluster = (
         <div
             className={cn(
                 'flex items-center justify-center gap-2 sm:gap-3 flex-wrap',
-                isHost && 'rounded-full border border-white/15 bg-savron-black/50 px-4 py-2 shadow-lg shadow-black/20',
+                isHost && 'rounded-full border border-white/15 bg-savron-black/50 px-2.5 py-1 shadow-lg shadow-black/20',
             )}
         >
             <button type="button" onClick={goToday} disabled={onToday} className={todayButtonClass}>
@@ -143,7 +143,7 @@ export default function CalendarNavBar<V extends CalendarView = CalendarView>({
                     onClick={() => setPickerOpen(open => !open)}
                     className={cn(
                         'flex items-center gap-2 min-w-0 rounded-savron hover:bg-savron-blue/10 transition-colors text-center group',
-                        isHost ? 'px-3 py-2' : 'px-2 py-1.5',
+                        isHost ? 'px-2 py-1' : 'px-2 py-1.5',
                     )}
                     aria-expanded={pickerOpen}
                     aria-haspopup="dialog"
@@ -151,14 +151,14 @@ export default function CalendarNavBar<V extends CalendarView = CalendarView>({
                     <div className="min-w-0">
                         <p className={cn(
                             'text-white font-heading uppercase tracking-wider truncate',
-                            isHost ? 'text-lg sm:text-xl' : 'text-sm sm:text-base',
+                            isHost ? 'text-sm sm:text-base' : 'text-sm sm:text-base',
                         )}>
                             {primary}
                         </p>
                         {secondary && (
                             <p className={cn(
                                 'uppercase tracking-widest truncate',
-                                isHost ? 'text-savron-cream/70 text-xs sm:text-sm' : 'text-savron-cream/45 text-[10px]',
+                                isHost ? 'text-savron-cream/70 text-[10px]' : 'text-savron-cream/45 text-[10px]',
                             )}>
                                 {secondary}
                             </p>
@@ -167,7 +167,7 @@ export default function CalendarNavBar<V extends CalendarView = CalendarView>({
                     <ChevronDown
                         className={cn(
                             'shrink-0 text-savron-silver/70 transition-transform',
-                            isHost ? 'w-5 h-5' : 'w-4 h-4',
+                            isHost ? 'w-4 h-4' : 'w-4 h-4',
                             pickerOpen && 'rotate-180 text-savron-blue-light',
                         )}
                     />
@@ -209,7 +209,7 @@ export default function CalendarNavBar<V extends CalendarView = CalendarView>({
                     onClick={() => onViewChange(v)}
                     className={cn(
                         'rounded-full uppercase tracking-widest transition-all font-semibold',
-                        isHost ? 'px-5 py-2 text-xs sm:text-sm' : 'px-3.5 py-1.5 text-[10px]',
+                        isHost ? 'px-2.5 py-1 text-[10px]' : 'px-3.5 py-1.5 text-[10px]',
                         view === v
                             ? 'bg-savron-blue text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
                             : 'text-savron-silver hover:text-white hover:bg-savron-blue/10',
@@ -225,7 +225,7 @@ export default function CalendarNavBar<V extends CalendarView = CalendarView>({
         <div
             className={cn(
                 'flex flex-col items-center w-full',
-                isHost ? 'gap-4 py-4' : 'gap-3 py-2.5',
+                isHost ? 'gap-2 py-2' : 'gap-3 py-2.5',
                 'bg-savron-grey border border-savron-blue/20 savron-grid-surface rounded-savron px-3 sm:px-4',
                 className,
             )}
