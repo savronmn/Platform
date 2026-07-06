@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import type { Barber, Booking } from '@/lib/types';
 import { serviceBlockStyle } from '@/lib/services-data';
 import {
-    time24ToMins, getCalendarGridBounds, getTimelineLayout,
+    formatTimeCompact, time24ToMins, getCalendarGridBounds, getTimelineLayout,
 } from '@/lib/calendar-timeline';
 import TimelineDayGrid, { bookingToTimelineEvent, isoRangeToTimelineEvent, type TimelineEvent } from '@/components/calendar/TimelineDayGrid';
 import CalendarNavBar from '@/components/calendar/CalendarNavBar';
@@ -130,6 +130,19 @@ export default function AdminBarberCalendarPage() {
         return events;
     }, [dayTimelineMap]);
 
+    const bookingTimelineMap = useMemo(() => {
+        const map = new Map<string, Booking>();
+        for (const booking of bookings) {
+            map.set(`b-${booking.id}`, booking);
+        }
+        return map;
+    }, [bookings]);
+
+    const timelineEventsForDate = (dateStr: string): TimelineEvent[] =>
+        bookingsForDate(dateStr).map(booking =>
+            bookingToTimelineEvent(`b-${booking.id}`, booking.time, booking.duration)
+        );
+
     const getScheduleForDate = (date: Date): { open: string; close: string } | null => {
         if (!workingHours) return null;
         const dayKey = DAY_KEYS[date.getDay()];
@@ -148,11 +161,19 @@ export default function AdminBarberCalendarPage() {
 
     const daySchedule = getScheduleForDate(selectedDate);
     const isDayOff = workingHours !== null && daySchedule === null;
+    const timelineServiceStyle = (service: string): Record<string, string> => {
+        const base = serviceBlockStyle(serviceColorMap[service]);
+        return {
+            ...base,
+            backgroundColor: String(base.backgroundColor).replace(/0\.12\)$/, '0.28)'),
+            borderColor: String(base.borderColor).replace(/0\.38\)$/, '0.85)'),
+        };
+    };
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="admin-page">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="admin-header">
                 <div className="flex items-center gap-3">
                     <Link
                         href="/admin/barbers"
@@ -161,10 +182,11 @@ export default function AdminBarberCalendarPage() {
                         <ArrowLeft className="w-4 h-4" />
                     </Link>
                     <div>
-                        <h1 className="font-heading text-2xl uppercase tracking-widest text-white">
+                        <p className="admin-kicker">Calendar</p>
+                        <h1 className="font-heading text-3xl md:text-4xl uppercase tracking-wider text-white">
                             {barber.name}&rsquo;s Calendar
                         </h1>
-                        <p className="text-savron-silver/40 text-[10px] uppercase tracking-widest mt-0.5">Host View</p>
+                        <p className="admin-subtitle">Host View</p>
                     </div>
                 </div>
                 <div className="flex gap-2 items-center flex-wrap">
@@ -177,8 +199,8 @@ export default function AdminBarberCalendarPage() {
                         <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin")} />
                     </button>
                     {barber.google_calendar_id ? (
-                        <span className="text-[10px] uppercase tracking-widest text-emerald-400 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                        <span className="text-[10px] uppercase tracking-widest text-accent-blue flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-savron-blue-light inline-block" />
                             Google Calendar synced
                         </span>
                     ) : (
@@ -207,7 +229,7 @@ export default function AdminBarberCalendarPage() {
 
             {/* Booking Links */}
             {barber.booking_links && barber.booking_links.length > 0 && (
-                <div className="bg-savron-grey border border-white/5 rounded-savron p-4">
+                <div className="card-savron">
                     <div className="flex items-center gap-2 mb-3">
                         <Link2 className="w-3.5 h-3.5 text-savron-silver/50" />
                         <span className="text-[10px] uppercase tracking-widest text-savron-silver/50">Personal Booking Links ({barber.booking_links.length})</span>
@@ -235,7 +257,7 @@ export default function AdminBarberCalendarPage() {
                     "flex items-center justify-between px-4 py-3 border rounded-savron text-xs",
                     isDayOff
                         ? "border-amber-500/20 bg-amber-500/5 text-amber-400/70"
-                        : "border-savron-green-light/20 bg-savron-green/10 text-emerald-400"
+                        : "border-savron-green-light/20 bg-savron-green/10 text-accent-blue"
                 )}>
                     <span className="uppercase tracking-widest">
                         {isDayOff
@@ -313,14 +335,14 @@ export default function AdminBarberCalendarPage() {
                                             'h-full rounded-lg border overflow-hidden flex flex-col justify-center shadow-lg shadow-black/20',
                                             tight ? 'px-3 py-2' : 'p-3',
                                         )}
-                                        style={serviceBlockStyle(serviceColorMap[booking.service])}
+                                        style={timelineServiceStyle(booking.service)}
                                     >
                                         <p className="text-white text-sm font-semibold truncate">{booking.client_name || 'Walk-in'}</p>
                                         {!tight && (
                                             <p className="opacity-85 truncate text-xs mt-0.5">{booking.service} · {booking.duration}</p>
                                         )}
                                         <p className={cn('opacity-70 font-mono truncate', tight ? 'text-[10px] mt-0.5' : 'text-[11px] mt-1')}>
-                                            {booking.time}
+                                            {formatTimeCompact(booking.time)}
                                         </p>
                                         {roomy && booking.client_phone && (
                                             <p className="opacity-60 text-[10px] truncate mt-1">{booking.client_phone}</p>
@@ -328,13 +350,14 @@ export default function AdminBarberCalendarPage() {
                                     </div>
                                 );
                             }
+                            const gcalTime = formatTimeCompact(new Date(item.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }));
                             return (
                                 <div className={cn(
                                     'h-full rounded-lg border overflow-hidden flex flex-col justify-center bg-blue-950/90 border-blue-400/60 text-blue-100 shadow-lg shadow-black/20',
                                     tight ? 'px-3 py-2' : 'p-3',
                                 )}>
                                     <span className="font-semibold text-white truncate text-sm">External calendar</span>
-                                    {!tight && <span className="text-blue-200/75 text-[10px] mt-0.5">Google Calendar</span>}
+                                    {!tight && <span className="text-blue-200/75 text-[10px] mt-0.5">{gcalTime}</span>}
                                 </div>
                             );
                         }}
@@ -344,61 +367,56 @@ export default function AdminBarberCalendarPage() {
 
             {/* Week View */}
             {view === 'week' && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                    {weekDays.filter(d => !isSunday(d)).map(day => {
-                        const dateStr = format(day, 'yyyy-MM-dd');
-                        const dayBookings = bookingsForDate(dateStr);
-                        const sched = getScheduleForDate(day);
-                        const dayOff = workingHours !== null && sched === null;
-                        return (
-                            <div
-                                key={dateStr}
-                                onClick={() => { setSelectedDate(day); setView('day'); }}
-                                className={cn(
-                                    "bg-savron-grey border rounded-savron p-4 cursor-pointer transition-all hover:border-white/20",
-                                    dayOff
-                                        ? "border-white/[0.03] opacity-50"
-                                        : isToday(day)
-                                            ? "border-savron-green/30"
-                                            : "border-white/5"
-                                )}
-                            >
-                                <div className="flex items-center justify-between mb-3">
-                                    <p className={cn(
-                                        "text-xs uppercase tracking-widest font-heading",
-                                        isToday(day) ? "text-emerald-400" : "text-savron-silver"
-                                    )}>
-                                        {format(day, 'EEE')}
-                                    </p>
-                                    <p className={cn(
-                                        "text-lg font-heading",
-                                        isToday(day) ? "text-white" : "text-savron-silver/60"
-                                    )}>
-                                        {format(day, 'd')}
-                                    </p>
+                <div className="overflow-auto border border-white/5 rounded-savron">
+                    <TimelineDayGrid
+                        columns={weekDays.filter(d => !isSunday(d)).map(day => {
+                            const dateStr = format(day, 'yyyy-MM-dd');
+                            const sched = getScheduleForDate(day);
+                            const dayOff = workingHours !== null && sched === null;
+                            return {
+                                id: dateStr,
+                                header: (
+                                    <button
+                                        onClick={() => { setSelectedDate(day); setView('day'); }}
+                                        className={cn('w-full rounded-savron p-1 text-center hover:bg-white/5 transition-colors', isToday(day) && 'bg-savron-green/5')}
+                                    >
+                                        <p className={cn('text-xs uppercase tracking-widest font-heading', isToday(day) ? 'text-accent-blue' : 'text-savron-silver')}>
+                                            {format(day, 'EEE')}
+                                        </p>
+                                        <p className={cn('text-lg font-heading', isToday(day) ? 'text-white' : 'text-savron-silver/60')}>
+                                            {format(day, 'd')}
+                                        </p>
+                                        {dayOff ? (
+                                            <p className="text-savron-silver/20 text-[9px] uppercase tracking-widest">Day off</p>
+                                        ) : sched ? (
+                                            <p className="text-savron-silver/30 text-[9px]">{sched.open} – {sched.close}</p>
+                                        ) : null}
+                                    </button>
+                                ),
+                            };
+                        })}
+                        columnWidth="min-w-[220px] sm:min-w-[260px]"
+                        getEventsForColumn={timelineEventsForDate}
+                        renderEvent={(event) => {
+                            const booking = bookingTimelineMap.get(event.id);
+                            if (!booking) return null;
+                            const tight = event.durationMins <= 30;
+                            return (
+                                <div
+                                    onClick={() => { setSelectedDate(new Date(`${booking.date}T12:00:00`)); setView('day'); }}
+                                    className={cn(
+                                        'h-full rounded-lg border text-xs overflow-hidden flex flex-col justify-center cursor-pointer shadow-xl shadow-black/25',
+                                        tight ? 'px-3 py-2' : 'p-3',
+                                    )}
+                                    style={timelineServiceStyle(booking.service)}
+                                >
+                                    <p className="font-mono text-[10px] uppercase tracking-wider opacity-80">{formatTimeCompact(booking.time)}</p>
+                                    <p className="text-white font-semibold truncate">{booking.client_name || 'Walk-in'}</p>
+                                    {!tight && <p className="opacity-85 truncate">{booking.service}</p>}
                                 </div>
-                                {dayOff ? (
-                                    <p className="text-savron-silver/20 text-[10px] uppercase tracking-widest">Day off</p>
-                                ) : sched ? (
-                                    <p className="text-savron-silver/30 text-[9px] mb-2">{sched.open} – {sched.close}</p>
-                                ) : null}
-                                {dayBookings.length === 0 ? (
-                                    <p className="text-savron-silver/20 text-[10px] uppercase tracking-widest">No bookings</p>
-                                ) : (
-                                    <div className="space-y-1.5">
-                                        {dayBookings.slice(0, 4).map(b => (
-                                            <div key={b.id} className="text-[10px] text-savron-silver truncate">
-                                                <span className="text-white/60 font-mono">{b.time}</span> {b.client_name?.split(' ')[0] || 'Walk-in'}
-                                            </div>
-                                        ))}
-                                        {dayBookings.length > 4 && (
-                                            <p className="text-savron-silver/30 text-[10px]">+{dayBookings.length - 4} more</p>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
+                            );
+                        }}
+                    />
                 </div>
             )}
         </motion.div>

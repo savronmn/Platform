@@ -121,15 +121,16 @@ export default function CommunicationsPage() {
     }
 
     return (
-        <div className="space-y-6 entry-fade">
-            <div className="flex items-center justify-between flex-wrap gap-4 shrink-0 mb-8">
+        <div className="admin-page">
+            <div className="admin-header">
                 <div>
-                    <h1 className="font-heading text-3xl uppercase tracking-widest text-white">Communications</h1>
-                    <p className="text-savron-silver text-sm uppercase tracking-wider mt-1">
+                    <p className="admin-kicker">Campaigns</p>
+                    <h1 className="admin-title">Communications</h1>
+                    <p className="admin-subtitle">
                         Send mass emails to clients and subscribers via Brevo
                     </p>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-savron">
+                <div className="flex items-center gap-2 px-5 py-3 bg-white/5 border border-white/10 rounded-savron">
                     <Users size={14} className="text-savron-silver" />
                     <span className="text-[10px] uppercase tracking-widest text-white">
                         {activeRecipients.length} Target Recipients
@@ -138,14 +139,14 @@ export default function CommunicationsPage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 card-savron border border-white/10 bg-savron-grey/50">
+                <div className="lg:col-span-2 card-savron">
                     <form onSubmit={handleSend} className="space-y-6">
                         <AnimatePresence>
                             {status === 'success' && (
                                 <motion.div 
                                     initial={{ opacity: 0, height: 0 }} 
                                     animate={{ opacity: 1, height: 'auto' }} 
-                                    className="bg-green-500/10 border border-green-500/20 text-green-400 p-4 rounded-savron flex items-center gap-3"
+                                    className="bg-savron-blue/10 border border-savron-blue/20 text-accent-blue p-4 rounded-savron flex items-center gap-3"
                                 >
                                     <CheckCircle2 size={16} />
                                     <span className="text-xs uppercase tracking-widest">Campaign sent successfully via Brevo!</span>
@@ -194,7 +195,7 @@ export default function CommunicationsPage() {
                                 required 
                                 value={subject}
                                 onChange={e => setSubject(e.target.value)}
-                                className="w-full bg-black/30 border border-white/10 text-white placeholder-white/25 px-4 py-3 text-sm font-light tracking-wide focus:outline-none focus:border-savron-green/50 transition-colors rounded-savron"
+                                className="input-savron"
                                 placeholder="E.g. Special Holiday Offer from SAVRON"
                             />
                         </div>
@@ -206,7 +207,7 @@ export default function CommunicationsPage() {
                                 value={content}
                                 onChange={e => setContent(e.target.value)}
                                 rows={10}
-                                className="w-full bg-black/30 border border-white/10 text-white placeholder-white/25 px-4 py-3 text-sm font-light tracking-wide focus:outline-none focus:border-savron-green/50 transition-colors rounded-savron resize-none"
+                                className="input-savron resize-none"
                                 placeholder="Type your message here..."
                             />
                         </div>
@@ -223,7 +224,7 @@ export default function CommunicationsPage() {
                 </div>
 
                 <div className="space-y-6">
-                    <div className="card-savron border border-white/10 bg-savron-grey/50">
+                    <div className="card-savron">
                         <div className="flex items-center gap-3 mb-4">
                             <Mail className="text-savron-silver w-4 h-4" />
                             <h3 className="text-xs uppercase tracking-widest text-white">Brevo Integration</h3>

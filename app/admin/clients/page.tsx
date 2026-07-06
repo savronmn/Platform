@@ -212,12 +212,13 @@ export default function ClientsPage() {
     const allSelected = filteredClients.length > 0 && selectedIds.size === filteredClients.length;
 
     return (
-        <div className="space-y-6 entry-fade">
+        <div className="admin-page">
             {/* Header */}
-            <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="admin-header">
                 <div>
-                    <h1 className="font-heading text-3xl uppercase tracking-widest text-white">Clients</h1>
-                    <p className="text-savron-silver text-sm uppercase tracking-wider mt-1">CRM · {filteredClients.length} clients</p>
+                    <p className="admin-kicker">CRM</p>
+                    <h1 className="admin-title">Clients</h1>
+                    <p className="admin-subtitle">{filteredClients.length} clients</p>
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
                     {selectedIds.size > 0 && (
@@ -225,7 +226,7 @@ export default function ClientsPage() {
                             <div className="relative">
                                 <button
                                     onClick={() => setShowTierMove(v => !v)}
-                                    className="flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-widest bg-white/5 text-savron-silver border border-white/10 rounded-savron hover:text-white hover:border-white/20 transition-all"
+                                    className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest bg-white/5 text-savron-silver border border-white/10 rounded-savron hover:text-white hover:border-white/20 transition-all"
                                 >
                                     Move {selectedIds.size} <ChevronDown className="w-3 h-3" />
                                 </button>
@@ -251,7 +252,7 @@ export default function ClientsPage() {
                             </div>
                             <button
                                 onClick={() => setShowCampaign(true)}
-                                className="flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-widest bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-savron hover:bg-blue-500/30 transition-all"
+                                className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-savron hover:bg-blue-500/30 transition-all"
                             >
                                 <Mail className="w-4 h-4" /> Email {selectedIds.size}
                             </button>
@@ -259,7 +260,7 @@ export default function ClientsPage() {
                     )}
                     <button
                         onClick={() => setShowAdd(true)}
-                        className="flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all"
+                        className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all glow-blue"
                     >
                         <Plus className="w-4 h-4" /> Add Client
                     </button>
@@ -267,7 +268,7 @@ export default function ClientsPage() {
             </div>
 
             {/* Search + Filters */}
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="card-savron flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-savron-silver/50" />
                     <input
@@ -312,20 +313,20 @@ export default function ClientsPage() {
                     <div className="w-6 h-6 border-2 border-savron-green/30 border-t-savron-green rounded-full animate-spin" />
                 </div>
             ) : (
-                <div className="card-savron overflow-x-auto">
+                <div className="card-savron overflow-x-auto p-0">
                     <table className="w-full text-left">
                         <thead>
                             <tr className="border-b border-white/5">
-                                <th className="p-3 w-10">
+                                <th className="px-4 py-4 w-10">
                                     <input type="checkbox" checked={allSelected} onChange={selectAllFiltered} className="accent-savron-green w-3.5 h-3.5" />
                                 </th>
-                                <th className="p-3 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Name</th>
-                                <th className="p-3 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal hidden sm:table-cell">Email</th>
-                                <th className="p-3 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal hidden sm:table-cell">Phone</th>
-                                <th className="p-3 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Last Visit</th>
-                                <th className="p-3 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal hidden md:table-cell">Visits</th>
-                                <th className="p-3 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Tier</th>
-                                <th className="p-3 w-10"></th>
+                                <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Name</th>
+                                <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal hidden sm:table-cell">Email</th>
+                                <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal hidden sm:table-cell">Phone</th>
+                                <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Last Visit</th>
+                                <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal hidden md:table-cell">Visits</th>
+                                <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Tier</th>
+                                <th className="px-4 py-4 w-10"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -337,10 +338,10 @@ export default function ClientsPage() {
                                         className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors cursor-pointer group"
                                         onClick={() => { setSelected(c); setEditData(c); setEditing(false); setChargeResult(null); }}
                                     >
-                                        <td className="p-3" onClick={e => e.stopPropagation()}>
+                                        <td className="px-4 py-4" onClick={e => e.stopPropagation()}>
                                             <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => toggleSelect(c.id)} className="accent-savron-green w-3.5 h-3.5" />
                                         </td>
-                                        <td className="p-3 text-white text-sm font-medium">
+                                        <td className="px-4 py-4 text-white text-sm font-medium">
                                             <div>{c.name}</div>
                                             {c.email && (
                                                 <div className="text-[10px] text-savron-silver/50 sm:hidden mt-0.5 max-w-[140px] truncate">
@@ -348,12 +349,12 @@ export default function ClientsPage() {
                                                 </div>
                                             )}
                                         </td>
-                                        <td className="p-3 text-savron-silver text-sm hidden sm:table-cell">{c.email || '—'}</td>
-                                        <td className="p-3 text-savron-silver text-sm font-mono hidden sm:table-cell">{c.phone || '—'}</td>
+                                        <td className="px-4 py-4 text-savron-silver text-sm hidden sm:table-cell">{c.email || '—'}</td>
+                                        <td className="px-4 py-4 text-savron-silver text-sm font-mono hidden sm:table-cell">{c.phone || '—'}</td>
                                         <td className={cn("p-3 text-sm", visit.color)}>{visit.text}</td>
-                                        <td className="p-3 text-white text-sm font-mono hidden md:table-cell">{c.visit_count}</td>
-                                        <td className="p-3"><StatusBadge status={c.membership_status} /></td>
-                                        <td className="p-3" onClick={e => e.stopPropagation()}>
+                                        <td className="px-4 py-4 text-white text-sm font-mono hidden md:table-cell">{c.visit_count}</td>
+                                        <td className="px-4 py-4"><StatusBadge status={c.membership_status} /></td>
+                                        <td className="px-4 py-4" onClick={e => e.stopPropagation()}>
                                             <button
                                                 onClick={() => setShowDelete(c.id)}
                                                 className="opacity-0 group-hover:opacity-100 p-1.5 text-savron-silver/50 hover:text-red-400 hover:bg-red-500/10 rounded transition-all"
@@ -683,7 +684,7 @@ export default function ClientsPage() {
                                 )}
 
                                 {campaignResult && (
-                                    <div className={cn("p-4 border rounded-savron text-sm", campaignResult.failed > 0 ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-300" : "border-savron-green/30 bg-savron-green/10 text-emerald-400")}>
+                                    <div className={cn("p-4 border rounded-savron text-sm", campaignResult.failed > 0 ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-300" : "border-savron-green/30 bg-savron-green/10 text-accent-blue")}>
                                         ✅ {campaignResult.sent} sent{campaignResult.failed > 0 ? ` · ❌ ${campaignResult.failed} failed` : ''}
                                     </div>
                                 )}

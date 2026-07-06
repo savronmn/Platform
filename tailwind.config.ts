@@ -13,10 +13,13 @@ const config: Config = {
                 'savron-grey': '#0e0e0e',
                 'savron-charcoal': '#1a1a1a',
                 'savron-concrete': '#262626',
+                'savron-blue': '#125470',
+                'savron-blue-light': '#1A6A8A',
                 'savron-green': '#125470',
                 'savron-green-light': '#1A6A8A',
-                'savron-silver': '#C8C8C8',       // lifted from #A3A3A3 → better contrast
-                'savron-silver-muted': '#787878',  // lifted from #525252
+                'savron-cream': '#e8e4dc',
+                'savron-silver': '#C8C8C8',
+                'savron-silver-muted': '#787878',
                 'savron-white': '#FFFFFF',
             },
             fontFamily: {

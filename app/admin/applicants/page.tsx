@@ -11,7 +11,7 @@ import type { Applicant } from '@/lib/types';
 const STATUS_STYLES: Record<Applicant['status'], string> = {
     pending:   'bg-amber-500/10 text-amber-400 border-amber-500/20',
     interview: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    approved:  'bg-savron-green/10 text-emerald-400 border-savron-green/20',
+    approved:  'bg-savron-green/10 text-accent-blue border-savron-green/20',
     rejected:  'bg-red-500/10 text-red-400 border-red-500/20',
 };
 
@@ -82,13 +82,14 @@ export default function AdminApplicantsPage() {
     }
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="admin-page">
 
             {/* Header */}
-            <div className="flex items-start justify-between flex-wrap gap-4">
+            <div className="admin-header">
                 <div>
-                    <h1 className="font-heading text-3xl uppercase tracking-widest text-white">Hiring Pipeline</h1>
-                    <p className="text-savron-silver text-sm mt-1">
+                    <p className="admin-kicker">Talent</p>
+                    <h1 className="admin-title">Hiring Pipeline</h1>
+                    <p className="admin-subtitle">
                         {visibleApplicants.length} application{visibleApplicants.length !== 1 ? 's' : ''} shown
                     </p>
                 </div>
@@ -108,14 +109,14 @@ export default function AdminApplicantsPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-5 lg:gap-6">
                 {STATUS_OPTIONS.map(s => (
-                    <div key={s} className="bg-savron-grey border border-white/5 rounded-savron p-4">
+                    <div key={s} className="card-savron py-5">
                         <p className="text-[10px] uppercase tracking-widest text-savron-silver/50 mb-1">{s}</p>
                         <p className={cn("text-2xl font-mono font-bold",
                             s === 'pending'   ? 'text-amber-400' :
                             s === 'interview' ? 'text-blue-400' :
-                            s === 'approved'  ? 'text-emerald-400' : 'text-red-400'
+                            s === 'approved'  ? 'text-accent-blue' : 'text-red-400'
                         )}>{counts[s]}</p>
                     </div>
                 ))}
@@ -123,11 +124,11 @@ export default function AdminApplicantsPage() {
 
             {/* Applicant list */}
             {visibleApplicants.length === 0 ? (
-                <p className="text-savron-silver/60 text-sm">
+                <div className="card-savron text-center py-16 text-savron-silver/60 text-sm">
                     {applicants.length === 0 ? 'No applications yet.' : 'No active applications. Toggle "Show Archived" to view past ones.'}
-                </p>
+                </div>
             ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                     {visibleApplicants.map(a => (
                         <motion.div
                             key={a.id}
@@ -136,7 +137,7 @@ export default function AdminApplicantsPage() {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.96 }}
                             onClick={() => setSelectedApplicant(a)}
-                            className="bg-savron-grey border border-white/5 rounded-savron p-5 cursor-pointer hover:border-white/10 hover:bg-white/[0.01] transition-all"
+                            className="card-savron cursor-pointer hover:border-white/15 hover:bg-white/[0.025] transition-all"
                         >
                             <div className="flex items-start justify-between gap-4 flex-wrap">
                                 {/* Left: identity */}
@@ -267,7 +268,7 @@ export default function AdminApplicantsPage() {
                             initial={{ opacity: 0, scale: 0.95, y: 8 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-savron-grey border border-white/10 rounded-savron p-6 w-full max-w-sm shadow-2xl"
+                            className="glass-panel-strong rounded-savron p-6 w-full max-w-sm shadow-2xl"
                             onClick={e => e.stopPropagation()}
                         >
                             <div className="flex items-start justify-between mb-4">
@@ -313,7 +314,7 @@ export default function AdminApplicantsPage() {
                             initial={{ opacity: 0, scale: 0.95, y: 12 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 12 }}
-                            className="bg-savron-grey border border-white/10 rounded-savron p-6 md:p-8 w-full max-w-2xl shadow-2xl overflow-y-auto max-h-[90vh] space-y-6 scrollbar-thin"
+                            className="glass-panel-strong rounded-savron p-6 md:p-8 w-full max-w-2xl shadow-2xl overflow-y-auto max-h-[90vh] space-y-6 scrollbar-thin"
                             onClick={e => e.stopPropagation()}
                         >
                             {/* Header */}
@@ -343,13 +344,13 @@ export default function AdminApplicantsPage() {
                                         <div className="space-y-1.5 text-sm text-white">
                                             <div className="flex items-center">
                                                 <span className="text-savron-silver/60 text-xs inline-block w-20 shrink-0">Email:</span>
-                                                <a href={`mailto:${selectedApplicant.email}`} className="text-emerald-400 hover:text-emerald-300 hover:underline truncate">
+                                                <a href={`mailto:${selectedApplicant.email}`} className="text-accent-blue hover:text-savron-cream hover:underline truncate">
                                                     {selectedApplicant.email}
                                                 </a>
                                             </div>
                                             <div className="flex items-center">
                                                 <span className="text-savron-silver/60 text-xs inline-block w-20 shrink-0">Phone:</span>
-                                                <a href={`tel:${selectedApplicant.phone}`} className="text-emerald-400 hover:text-emerald-300 hover:underline">
+                                                <a href={`tel:${selectedApplicant.phone}`} className="text-accent-blue hover:text-savron-cream hover:underline">
                                                     {selectedApplicant.phone}
                                                 </a>
                                             </div>
@@ -360,7 +361,7 @@ export default function AdminApplicantsPage() {
                                                         href={`https://instagram.com/${selectedApplicant.ig_handle.replace(/^@/, '')}`}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="text-emerald-400 hover:text-emerald-300 hover:underline inline-flex items-center gap-1"
+                                                        className="text-accent-blue hover:text-savron-cream hover:underline inline-flex items-center gap-1"
                                                     >
                                                         {selectedApplicant.ig_handle} <ExternalLink className="w-3 h-3" />
                                                     </a>
@@ -420,7 +421,7 @@ export default function AdminApplicantsPage() {
                                                 href={selectedApplicant.video_url}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="text-[10px] text-emerald-400 hover:text-emerald-300 hover:underline flex items-center justify-end gap-1 uppercase tracking-widest font-mono"
+                                                className="text-[10px] text-accent-blue hover:text-savron-cream hover:underline flex items-center justify-end gap-1 uppercase tracking-widest font-mono"
                                             >
                                                 Open video in tab <ExternalLink className="w-3 h-3" />
                                             </a>

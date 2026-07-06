@@ -160,8 +160,12 @@ export default function BarberBookingPage() {
                         className="flex flex-col md:flex-row items-center md:items-start gap-8"
                     >
                         <div className="w-28 h-28 rounded-full overflow-hidden bg-savron-grey border-2 border-savron-green/30 relative shrink-0">
-                            {barber.image_url && (
-                                <Image src={barber.image_url} alt={barber.name} fill className="object-cover" />
+                            {barber.image_url ? (
+                                <Image src={barber.image_url} alt={barber.name} fill sizes="112px" className="object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-4xl font-heading text-savron-silver/50">
+                                    {barber.name.charAt(0)}
+                                </div>
                             )}
                         </div>
                         <div className="text-center md:text-left space-y-3">
@@ -245,7 +249,7 @@ export default function BarberBookingPage() {
                                 <motion.div key="service" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-3">
                                     <h2 className="text-xl font-heading text-white uppercase tracking-widest mb-6">Select Service</h2>
                                     {services.filter(s =>
-                                        !barber.services_offered || barber.services_offered.includes(s.name)
+                                        !barber.services_offered?.length || barber.services_offered.includes(s.name)
                                     ).map(service => (
                                         <div
                                             key={service.id}
@@ -257,6 +261,9 @@ export default function BarberBookingPage() {
                                         >
                                             <div>
                                                 <h3 className="text-white font-medium uppercase tracking-wide text-sm">{service.name}</h3>
+                                                {service.description && (
+                                                    <p className="text-savron-silver/50 text-xs mt-1 leading-relaxed max-w-md">{service.description}</p>
+                                                )}
                                                 <p className="text-savron-silver text-xs mt-1 flex items-center gap-2">
                                                     <Clock className="w-3 h-3" /> {service.duration}
                                                 </p>

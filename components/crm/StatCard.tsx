@@ -20,13 +20,13 @@ export default function StatCard({ label, value, change, icon, sub, alert, class
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
             className={cn(
-                "card-savron flex flex-col gap-3",
+                "card-savron flex flex-col gap-4",
                 alert && "border-red-500/20 bg-red-500/5",
                 className
             )}
         >
             <div className="flex items-center justify-between">
-                <span className="text-savron-silver text-[11px] uppercase tracking-widest font-medium">{label}</span>
+                <span className="text-savron-silver/70 text-[11px] uppercase tracking-widest font-medium">{label}</span>
                 {icon && <span className={cn("text-savron-silver/70", alert && "text-red-400/80")}>{icon}</span>}
             </div>
             <div className="flex items-end gap-3">
@@ -34,13 +34,13 @@ export default function StatCard({ label, value, change, icon, sub, alert, class
                 {change && (
                     <span className={cn(
                         "text-xs uppercase tracking-wider mb-1.5",
-                        change.startsWith('+') ? "text-green-400" : "text-red-400"
+                        change.startsWith('+') ? "text-savron-blue-light" : "text-red-400"
                     )}>
                         {change}
                     </span>
                 )}
             </div>
-            {sub && <p className="text-savron-silver/70 text-[11px] uppercase tracking-wider -mt-1">{sub}</p>}
+            {sub && <p className="text-savron-silver/60 text-[11px] uppercase tracking-wider -mt-1 leading-relaxed">{sub}</p>}
         </motion.div>
     );
 }

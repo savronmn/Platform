@@ -153,7 +153,7 @@ export default function QRScannerModal({ open, onClose, onScanSuccess }: QRScann
                         {/* Header */}
                         <div className="flex items-center justify-between p-5 border-b border-white/5">
                             <div className="flex items-center gap-2">
-                                <ScanLine className="w-4 h-4 text-emerald-400" />
+                                <ScanLine className="w-4 h-4 text-accent-blue" />
                                 <h3 className="font-heading text-white uppercase tracking-wider text-sm">Scan ePass</h3>
                             </div>
                             <button
@@ -190,13 +190,13 @@ export default function QRScannerModal({ open, onClose, onScanSuccess }: QRScann
                             {scanState === 'success' && subscriber && tier && (
                                 <div className="space-y-5">
                                     <div className="flex flex-col items-center py-4 gap-3">
-                                        <CheckCircle className="w-10 h-10 text-emerald-400" />
+                                        <CheckCircle className="w-10 h-10 text-accent-blue" />
                                         <div className="text-center">
                                             <p className="text-white font-heading text-2xl uppercase tracking-wider">{subscriber.name}</p>
                                             <p className={cn("text-xs uppercase tracking-widest mt-1", tier.color)}>{tier.label}</p>
                                         </div>
                                         <div className="bg-savron-charcoal border border-white/10 rounded-savron px-8 py-4 text-center">
-                                            <p className="text-emerald-400 font-mono text-4xl font-bold">{subscriber.visit_count}</p>
+                                            <p className="text-accent-blue font-mono text-4xl font-bold">{subscriber.visit_count}</p>
                                             <p className="text-savron-silver/50 text-[10px] uppercase tracking-widest mt-1">
                                                 Visit{subscriber.visit_count !== 1 ? 's' : ''} total
                                             </p>

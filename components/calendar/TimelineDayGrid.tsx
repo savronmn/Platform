@@ -7,8 +7,9 @@ import {
     CALENDAR_ROW_HEIGHT_PX,
     getCalendarGridBounds,
     getTimelineLayout,
-    timeToMins,
+    getTimelineOverlapLayouts,
     parseDurationMins,
+    timeToMins,
 } from '@/lib/calendar-timeline';
 
 export interface TimelineEvent {
@@ -47,16 +48,16 @@ export default function TimelineDayGrid({
     const { totalHeightPx } = getCalendarGridBounds();
 
     return (
-        <div className="min-w-max bg-savron-black">
+        <div className="min-w-max bg-savron-black savron-grid-surface">
             {/* Column headers */}
-            <div className="flex border-b border-white/10 bg-savron-grey sticky top-0 z-10 shadow-lg shadow-black/20">
-                <div className={cn(timeLabelWidth, 'shrink-0 p-3 sm:p-4 border-r border-white/10 sticky left-0 z-20 bg-savron-grey')}>
-                    <span className="text-[10px] uppercase tracking-widest text-savron-silver/50">Time</span>
+            <div className="flex border-b border-savron-blue/20 bg-savron-grey sticky top-0 z-10 shadow-lg shadow-black/20">
+                <div className={cn(timeLabelWidth, 'shrink-0 p-3 sm:p-4 border-r border-savron-blue/15 sticky left-0 z-20 bg-savron-grey savron-grid-surface')}>
+                    <span className="text-[10px] uppercase tracking-widest text-savron-silver/40">Time</span>
                 </div>
                 {columns.map(col => (
                     <div
                         key={col.id}
-                        className={cn(columnWidth, 'shrink-0 p-3 sm:p-4 border-r border-white/10')}
+                        className={cn(columnWidth, 'shrink-0 p-3 sm:p-4 border-r border-savron-blue/15')}
                     >
                         {col.header}
                     </div>
@@ -67,7 +68,7 @@ export default function TimelineDayGrid({
             <div className="flex">
                 {/* Time labels — show hour marks prominently */}
                 <div
-                    className={cn(timeLabelWidth, 'shrink-0 border-r border-white/10 relative sticky left-0 z-10 bg-savron-black')}
+                    className={cn(timeLabelWidth, 'shrink-0 border-r border-savron-blue/15 relative sticky left-0 z-10 bg-savron-black savron-grid-surface')}
                     style={{ height: totalHeightPx }}
                 >
                     {HOST_TIME_SLOTS.map((time, i) => {
@@ -96,7 +97,7 @@ export default function TimelineDayGrid({
                 {columns.map(col => (
                     <div
                         key={col.id}
-                        className={cn(columnWidth, 'shrink-0 border-r border-white/10 relative bg-savron-black')}
+                        className={cn(columnWidth, 'shrink-0 border-r border-savron-blue/15 relative bg-savron-black savron-grid-surface')}
                         style={{ height: totalHeightPx }}
                     >
                         {/* Grid lines */}
@@ -107,8 +108,8 @@ export default function TimelineDayGrid({
                                     key={time}
                                     className={cn(
                                         'absolute left-0 right-0 border-b',
-                                        isHour ? 'border-white/10' : 'border-white/[0.05]',
-                                        i % 2 !== 0 && 'bg-white/[0.015]',
+                                        isHour ? 'border-savron-blue/20' : 'border-savron-blue/10',
+                                        i % 2 !== 0 && 'bg-savron-blue/[0.03]',
                                     )}
                                     style={{ top: i * CALENDAR_ROW_HEIGHT_PX, height: CALENDAR_ROW_HEIGHT_PX }}
                                 />
@@ -117,24 +118,33 @@ export default function TimelineDayGrid({
 
                         {renderColumnBackground?.(col.id)}
 
-                        {getEventsForColumn(col.id).map(event => {
-                            const layout = getTimelineLayout(event.startMins, event.durationMins);
-                            if (layout.heightPx <= 0) return null;
-                            return (
-                                <div
-                                    key={event.id}
-                                    className="absolute z-[1] overflow-hidden px-1.5"
-                                    style={{
-                                        top: layout.topPx,
-                                        height: layout.heightPx,
-                                        left: 0,
-                                        right: 0,
-                                    }}
-                                >
-                                    {renderEvent(event, col.id, layout)}
-                                </div>
-                            );
-                        })}
+                        {/* Events positioned proportionally with overlap lanes */}
+                        {(() => {
+                            const events = getEventsForColumn(col.id).sort((a, b) => a.startMins - b.startMins || a.id.localeCompare(b.id));
+                            const overlapLayouts = getTimelineOverlapLayouts(events);
+
+                            return events.map(event => {
+                                const layout = getTimelineLayout(event.startMins, event.durationMins);
+                                if (layout.heightPx <= 0) return null;
+                                const overlap = overlapLayouts.get(event.id) ?? { lane: 0, laneCount: 1 };
+                                const gutterPx = 6;
+                                const widthPercent = 100 / overlap.laneCount;
+                                return (
+                                    <div
+                                        key={event.id}
+                                        className="absolute z-[1] overflow-hidden"
+                                        style={{
+                                            top: layout.topPx,
+                                            height: layout.heightPx,
+                                            left: `calc(${overlap.lane * widthPercent}% + ${gutterPx}px)`,
+                                            width: `calc(${widthPercent}% - ${gutterPx + 4}px)`,
+                                        }}
+                                    >
+                                        {renderEvent(event, col.id, layout)}
+                                    </div>
+                                );
+                            });
+                        })()}
                     </div>
                 ))}
             </div>
@@ -157,9 +167,11 @@ export function bookingToTimelineEvent(
 
 /** Helper to build a TimelineEvent from ISO start/end strings. */
 export function isoRangeToTimelineEvent(id: string, startIso: string, endIso: string): TimelineEvent {
-    const start = new Date(startIso);
+    const [, timePart = '00:00'] = startIso.split('T');
+    const [hour = '0', minute = '0'] = timePart.split(':');
     const end = new Date(endIso);
-    const startMins = start.getHours() * 60 + start.getMinutes();
+    const start = new Date(startIso);
+    const startMins = Number(hour) * 60 + Number(minute);
     const durationMins = Math.max(15, Math.round((end.getTime() - start.getTime()) / 60000));
     return { id, startMins, durationMins };
 }

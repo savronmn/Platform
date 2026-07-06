@@ -8,7 +8,7 @@ import {
     startOfWeek, endOfWeek, eachDayOfInterval,
     startOfMonth, endOfMonth,
 } from 'date-fns';
-import { RefreshCw, Wifi, X, UserCheck, UserX, RotateCcw, Phone, Scissors, Menu, LayoutDashboard, Users, CreditCard, Mail, MonitorPlay, Ban, Camera, Upload, ClipboardList, Plus, Filter, Calendar, AtSign, DollarSign, Pencil, Trash2, Languages } from 'lucide-react';
+import { RefreshCw, Wifi, X, UserCheck, UserX, RotateCcw, Phone, Scissors, Menu, LayoutDashboard, Users, CreditCard, Mail, MonitorPlay, Ban, Camera, Upload, ClipboardList, Plus, Filter, Calendar, AtSign, DollarSign, Pencil, Trash2, Languages, Layers, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -27,10 +27,13 @@ import { LanguageProvider, useLanguage } from '@/lib/language-context';
 const NAV_ITEMS = [
     { label: 'Dashboard',      href: '/admin',                icon: LayoutDashboard },
     { label: 'Host View',      href: '/host',                 icon: MonitorPlay },
+    { label: 'Bookings',       href: '/admin/bookings',       icon: Calendar },
+    { label: 'Requests',       href: '/admin/requests',       icon: Inbox },
     { label: 'Barbers',        href: '/admin/barbers',        icon: Scissors },
     { label: 'Clients',        href: '/admin/clients',        icon: Users },
     { label: 'Membership',     href: '/admin/membership',     icon: CreditCard },
     { label: 'Communications', href: '/admin/communications', icon: Mail },
+    { label: 'Services',       href: '/admin/services',       icon: Layers },
     { label: 'Hiring',         href: '/admin/applicants',     icon: ClipboardList },
 ];
 
@@ -79,6 +82,7 @@ function HostDashboardInner() {
     const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
     const [updating, setUpdating] = useState(false);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
+    const [clientPhotoError, setClientPhotoError] = useState<string | null>(null);
 
     // Edit + delete
     const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
@@ -141,6 +145,7 @@ function HostDashboardInner() {
             .gte('date', rangeStart)
             .lte('date', rangeEnd)
             .in('status', ['confirmed', 'completed', 'no_show', 'cancelled'])
+            .order('date')
             .order('time');
         setBookings(data ?? []);
     }, [rangeStart, rangeEnd]);
@@ -299,6 +304,7 @@ function HostDashboardInner() {
 
     const uploadClientPhoto = async (booking: Booking, file: File) => {
         setUploadingPhoto(true);
+        setClientPhotoError(null);
         try {
             const ext = file.name.split('.').pop();
             const path = `client-photos/${booking.id}.${ext}`;
@@ -313,6 +319,7 @@ function HostDashboardInner() {
             setActiveBooking(updated);
         } catch (err) {
             console.error('Photo upload failed:', err);
+            setClientPhotoError('Photo upload failed. Please try a different image.');
         }
         setUploadingPhoto(false);
     };
@@ -340,6 +347,11 @@ function HostDashboardInner() {
     };
 
     const formatTime = formatTimeCompact;
+
+    const externalDurationMins = (e: ExternalEvent): number => {
+        const duration = Math.round((new Date(e.end).getTime() - new Date(e.start).getTime()) / 60000);
+        return Number.isFinite(duration) && duration > 0 ? duration : 45;
+    };
 
     // Deduplicate: hide GCal events that overlap with an active platform booking
     // (same barber + date, event time within 22 mins of booking time).
@@ -372,7 +384,7 @@ function HostDashboardInner() {
         deduplicatedExternal.some(e => {
             if (e.barberId !== barberId || e.date !== dateStr) return false;
             const eStart = timeToMins(e.time);
-            const eEnd   = eStart + 45;
+            const eEnd   = eStart + externalDurationMins(e);
             return slotMins >= eStart && slotMins < eEnd;
         });
 
@@ -451,6 +463,32 @@ function HostDashboardInner() {
         });
         return events;
     };
+
+    const timelineItemMap = useMemo(() => {
+        const map = new Map<string, DayTimelineItem>();
+        for (const b of bookings.filter(isBookingVisible)) {
+            map.set(`b-${b.id}`, { kind: 'booking', b });
+        }
+        for (const e of deduplicatedExternal.filter(isExternalVisible)) {
+            map.set(`e-${e.id}`, { kind: 'external', e });
+        }
+        return map;
+    }, [bookings, deduplicatedExternal, filteredBarberIds]);
+
+    const timelineEventsForDay = (dayKey: string): TimelineEvent[] => {
+        const events: TimelineEvent[] = [];
+        timelineItemMap.forEach((item, id) => {
+            if (item.kind === 'booking') {
+                if (item.b.date !== dayKey) return;
+                events.push(bookingToTimelineEvent(id, item.b.time, item.b.duration));
+            } else {
+                if (item.e.date !== dayKey) return;
+                events.push(isoRangeToTimelineEvent(id, item.e.start, item.e.end));
+            }
+        });
+        return events;
+    };
+
     const externalForDay = (day: Date) => {
         const d = format(day, 'yyyy-MM-dd');
         return deduplicatedExternal.filter(e => e.date === d && isExternalVisible(e));
@@ -460,6 +498,14 @@ function HostDashboardInner() {
         cancelled
             ? { className: 'bg-white/5 border-white/10 text-white/25 line-through' }
             : { className: '', style: serviceBlockStyle(serviceColorMap[s]) };
+    const timelineServiceStyle = (s: string): Record<string, string> => {
+        const base = serviceBlockStyle(serviceColorMap[s]);
+        return {
+            ...base,
+            backgroundColor: String(base.backgroundColor).replace(/0\.12\)$/, '0.28)'),
+            borderColor: String(base.borderColor).replace(/0\.38\)$/, '0.85)'),
+        };
+    };
     const statusDot = (s: Booking['status']) =>
         s === 'confirmed' ? 'bg-savron-green' :
         s === 'completed' ? 'bg-blue-400' :
@@ -593,11 +639,72 @@ function HostDashboardInner() {
     );
     };
 
+    const renderTimelineEvent = (
+        event: TimelineEvent,
+        layout: { heightPx: number },
+        itemMap: Map<string, DayTimelineItem>,
+        compact = false,
+    ) => {
+        const item = itemMap.get(event.id);
+        if (!item) return null;
+        const tight = layout.heightPx < 58;
+        const roomy = layout.heightPx >= 86;
+
+        if (item.kind === 'booking') {
+            const b = item.b;
+            const { className: colorClass } = svcColor(b.service, b.status === 'cancelled');
+            return (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.96 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    onClick={e => { e.stopPropagation(); setActiveBooking(b); }}
+                    className={cn(
+                        'h-full rounded-lg border cursor-pointer transition-all hover:brightness-110 overflow-hidden shadow-xl shadow-black/25 backdrop-blur-sm',
+                        tight ? 'px-3 py-2 text-[11px]' : 'p-3 text-xs space-y-1',
+                        compact && 'text-[11px]',
+                        colorClass,
+                    )}
+                    style={timelineServiceStyle(b.service)}
+                >
+                    <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-[10px] uppercase tracking-wider opacity-80 shrink-0">
+                            {formatTime(b.time)}
+                        </span>
+                        <div className={cn('w-1.5 h-1.5 rounded-full shrink-0', statusDot(b.status))} />
+                    </div>
+                    <p className="font-semibold text-white truncate">{b.client_name ?? 'Walk-in'}</p>
+                    {!tight && <p className="opacity-85 truncate">{compact ? (b.barber_name ?? b.service) : b.service}</p>}
+                    {roomy && b.duration && <p className="opacity-60 text-[10px]">{b.duration}</p>}
+                </motion.div>
+            );
+        }
+
+        const e = item.e;
+        const displayName = e.clientName ?? e.attendee ?? e.summary.replace(/^✂️\s*/, '').split(/[—–-]/)[0].trim();
+        return (
+            <div
+                onClick={ev => { ev.stopPropagation(); setActiveExternal(e); }}
+                className={cn(
+                    'h-full rounded-lg border cursor-pointer transition-all hover:brightness-110 overflow-hidden bg-violet-950/95 border-violet-400/75 text-violet-100 shadow-xl shadow-black/25',
+                    tight ? 'px-3 py-2 text-[11px]' : 'p-3 text-xs space-y-1',
+                    compact && 'text-[11px]',
+                )}
+            >
+                <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-violet-200/80 shrink-0">{formatTime(e.time)}</span>
+                    <span className="text-[8px] uppercase tracking-widest text-violet-200/60 shrink-0">GCal</span>
+                </div>
+                <p className="font-semibold text-white truncate">{displayName || 'External event'}</p>
+                {!tight && <p className="text-violet-200/75 truncate text-[10px]">{!compact ? e.barberName : 'External calendar'}</p>}
+            </div>
+        );
+    };
+
     return (
-        <div className="min-h-screen bg-savron-black flex flex-col">
+        <div className="min-h-screen bg-savron-black savron-grid-bg flex flex-col">
 
             {/* ── Row 1: main bar ── */}
-            <header className="bg-savron-grey border-b border-white/5 px-6 py-3 flex items-center justify-between shrink-0 gap-4">
+            <header className="bg-savron-grey border-b border-savron-blue/20 savron-grid-surface px-6 py-3 flex items-center justify-between shrink-0 gap-4">
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setShowNav(true)}
@@ -607,8 +714,8 @@ function HostDashboardInner() {
                     </button>
                     <h1 className="font-heading text-xl uppercase tracking-widest text-white">{t('host.title')}</h1>
                     <div className="flex items-center gap-1.5">
-                        <Wifi className={cn("w-3 h-3", realtimeConnected ? "text-emerald-400" : "text-savron-silver/40")} />
-                        <span className={cn("text-[10px] uppercase tracking-widest", realtimeConnected ? "text-emerald-400" : "text-savron-silver/40")}>
+                        <Wifi className={cn("w-3 h-3", realtimeConnected ? "text-accent-blue" : "text-savron-silver/40")} />
+                        <span className={cn("text-[10px] uppercase tracking-widest", realtimeConnected ? "text-accent-blue" : "text-savron-silver/40")}>
                             {realtimeConnected ? t('host.live') : t('host.connecting')}
                         </span>
                     </div>
@@ -661,14 +768,14 @@ function HostDashboardInner() {
                     {/* Progress bar */}
                     <div className="flex-1 min-w-[120px] max-w-xs h-1.5 bg-white/5 rounded-full overflow-hidden hidden sm:block">
                         <div
-                            className="h-full bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full transition-all duration-500"
+                            className="h-full bg-gradient-to-r from-savron-blue-light to-savron-blue rounded-full transition-all duration-500"
                             style={{ width: totalToday > 0 ? `${Math.round(((completed + noShow + cancelled) / totalToday) * 100)}%` : '0%' }}
                         />
                     </div>
                     <div className="flex items-center gap-4 shrink-0">
                         <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest">
-                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
-                            <span className="text-emerald-400 font-mono">{confirmed}</span>
+                            <span className="w-2 h-2 rounded-full bg-savron-blue-light animate-pulse inline-block" />
+                            <span className="text-accent-blue font-mono">{confirmed}</span>
                             <span className="text-savron-silver/40">{t('host.waiting')}</span>
                         </span>
                         <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest">
@@ -719,11 +826,13 @@ function HostDashboardInner() {
                                     : "border-white/10 text-savron-silver/60 hover:text-white"
                             )}
                         >
-                            {b.image_url && (
-                                <div className="w-4 h-4 rounded-full overflow-hidden relative">
-                                    <Image src={b.image_url} alt={b.name} fill className="object-cover" />
-                                </div>
-                            )}
+                            <div className="w-4 h-4 rounded-full overflow-hidden relative bg-savron-grey flex items-center justify-center">
+                                {b.image_url ? (
+                                    <Image src={b.image_url} alt={b.name} fill sizes="16px" className="object-cover" />
+                                ) : (
+                                    <span className="text-[8px] font-heading text-savron-silver/60">{b.name.charAt(0)}</span>
+                                )}
+                            </div>
                             {b.name.split(' ')[0]}
                         </button>
                     ))}
@@ -813,7 +922,13 @@ function HostDashboardInner() {
                                     header: (
                                         <div className="flex items-center gap-2 sm:gap-3">
                                             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden bg-savron-black relative shrink-0">
-                                                {barber.image_url && <Image src={barber.image_url} alt={barber.name} fill className="object-cover grayscale" />}
+                                                {barber.image_url ? (
+                                                    <Image src={barber.image_url} alt={barber.name} fill sizes="32px" className="object-cover grayscale" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-[10px] font-heading text-savron-silver/60">
+                                                        {barber.name.charAt(0)}
+                                                    </div>
+                                                )}
                                             </div>
                                             <div className="min-w-0">
                                                 <p className="text-white text-[10px] sm:text-xs font-heading uppercase tracking-widest leading-none truncate">{barber.name}</p>
@@ -890,46 +1005,28 @@ function HostDashboardInner() {
                     ══════════════════════════════════════ */}
                     {view === 'week' && (
                         <div className="flex-1 overflow-auto">
-                            <div className="min-w-max">
-                                <div className="flex border-b border-white/5 bg-savron-grey sticky top-0 z-10">
-                                    <div className="w-14 sm:w-20 shrink-0 p-2 sm:p-4 border-r border-white/5">
-                                        <span className="text-[10px] uppercase tracking-widest text-savron-silver/40">Time</span>
-                                    </div>
-                                    {weekDays.map(day => {
-                                        const count = bookingsForDay(day).length + externalForDay(day).length;
-                                        return (
-                                            <div key={day.toISOString()}
+                            <TimelineDayGrid
+                                columns={weekDays.map(day => {
+                                    const dayKey = format(day, 'yyyy-MM-dd');
+                                    const count = bookingsForDay(day).length + externalForDay(day).length;
+                                    return {
+                                        id: dayKey,
+                                        header: (
+                                            <button
                                                 onClick={() => { setSelectedDate(day); setView('day'); }}
-                                                className={cn("w-36 sm:w-44 shrink-0 p-2 sm:p-3 border-r border-white/5 text-center cursor-pointer hover:bg-white/5 transition-colors", isToday(day) && "bg-savron-green/5")}>
-                                                <p className={cn("text-[10px] sm:text-xs font-heading uppercase tracking-widest", isToday(day) ? "text-savron-green" : "text-white")}>{format(day, 'EEE')}</p>
-                                                <p className={cn("text-base sm:text-lg font-mono", isToday(day) ? "text-savron-green" : "text-savron-silver/70")}>{format(day, 'd')}</p>
-                                                {count > 0 && <span className="text-[9px] text-savron-silver/40 uppercase tracking-widest">{count} appt{count !== 1 ? 's' : ''}</span>}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                {HOST_TIME_SLOTS.map((time, i) => (
-                                    <div key={i} className={cn(
-                                        "flex border-b border-white/[0.05]",
-                                        i % 2 !== 0 && "bg-white/[0.01]"
-                                    )}>
-                                        <div className="w-14 sm:w-20 shrink-0 px-2 py-1.5 border-r border-white/5 flex items-center">
-                                            <span className="text-savron-silver/50 text-[9px] font-mono whitespace-nowrap">{time}</span>
-                                        </div>
-                                        {weekDays.map(day => (
-                                            <div
-                                                key={day.toISOString()}
-                                                className={cn("w-36 sm:w-44 shrink-0 px-1 py-0.5 border-r border-white/5", isToday(day) && "bg-savron-green/[0.03]")}
-                                                style={{ minHeight: CALENDAR_ROW_HEIGHT_PX }}
+                                                className={cn('w-full text-center rounded-savron p-1 hover:bg-white/5 transition-colors', isToday(day) && 'bg-savron-green/5')}
                                             >
-                                                {bookingsForDayTime(day, i).map(b => <Pill key={b.id} b={b} compact />)}
-                                                {externalForDayTime(day, i).map(e => <ExternalPill key={e.id} e={e} compact />)}
-                                            </div>
-                                        ))}
-                                    </div>
-                                ))}
-                            </div>
+                                                <p className={cn('text-[10px] sm:text-xs font-heading uppercase tracking-widest', isToday(day) ? 'text-savron-green' : 'text-white')}>{format(day, 'EEE')}</p>
+                                                <p className={cn('text-base sm:text-lg font-mono', isToday(day) ? 'text-savron-green' : 'text-savron-silver/70')}>{format(day, 'd')}</p>
+                                                {count > 0 && <span className="text-[9px] text-savron-silver/40 uppercase tracking-widest">{count} appt{count !== 1 ? 's' : ''}</span>}
+                                            </button>
+                                        ),
+                                    };
+                                })}
+                                columnWidth="min-w-[220px] sm:min-w-[260px]"
+                                getEventsForColumn={timelineEventsForDay}
+                                renderEvent={(event, _columnId, layout) => renderTimelineEvent(event, layout, timelineItemMap, true)}
+                            />
                         </div>
                     )}
 
@@ -953,7 +1050,10 @@ function HostDashboardInner() {
                                     const allItems = [
                                         ...dayBookings.map(b => ({ type: 'booking' as const, b })),
                                         ...dayExternal.map(e => ({ type: 'external' as const, e })),
-                                    ];
+                                    ].sort((a, b) =>
+                                        timeToMins(a.type === 'booking' ? a.b.time : a.e.time) -
+                                        timeToMins(b.type === 'booking' ? b.b.time : b.e.time)
+                                    );
                                     return (
                                         <div key={day.toISOString()}
                                             onClick={() => { setSelectedDate(day); setView('day'); }}
@@ -1032,7 +1132,7 @@ function HostDashboardInner() {
                                         {activeBooking.client_name ?? 'Walk-in'}
                                     </h2>
                                 </div>
-                                <button onClick={() => { setActiveBooking(null); setConfirmDelete(false); }}
+                                <button onClick={() => { setActiveBooking(null); setConfirmDelete(false); setClientPhotoError(null); }}
                                     className="text-savron-silver hover:text-white transition-colors p-1 -mr-1 -mt-1">
                                     <X className="w-5 h-5" />
                                 </button>
@@ -1104,7 +1204,7 @@ function HostDashboardInner() {
                                         />
                                         {activeBooking.client_photo_url ? (
                                             <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white/10 group-hover:border-savron-green/40 transition-all">
-                                                <Image src={activeBooking.client_photo_url} alt="Client" fill className="object-cover" />
+                                                <Image src={activeBooking.client_photo_url} alt="Client" fill sizes="64px" className="object-cover" />
                                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                     {uploadingPhoto
                                                         ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -1119,6 +1219,9 @@ function HostDashboardInner() {
                                             </div>
                                         )}
                                     </label>
+                                    {clientPhotoError && (
+                                        <p className="mt-2 text-[11px] text-red-400">{clientPhotoError}</p>
+                                    )}
                                 </div>
 
                                 {/* ── Track This Visit ── */}
@@ -1202,7 +1305,7 @@ function HostDashboardInner() {
                                     <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5 mt-1">
                                         <button
                                             onClick={() => { setEditingBooking(activeBooking); setActiveBooking(null); }}
-                                            className="flex items-center justify-center gap-2 py-2.5 text-[11px] uppercase tracking-widest font-medium bg-savron-green/15 hover:bg-savron-green/25 text-emerald-400 hover:text-emerald-300 border border-savron-green/30 hover:border-savron-green/50 rounded-savron transition-all"
+                                            className="flex items-center justify-center gap-2 py-2.5 text-[11px] uppercase tracking-widest font-medium bg-savron-green/15 hover:bg-savron-green/25 text-accent-blue hover:text-savron-cream border border-savron-green/30 hover:border-savron-green/50 rounded-savron transition-all"
                                         >
                                             <Pencil className="w-3.5 h-3.5" /> {t('host.edit')}
                                         </button>

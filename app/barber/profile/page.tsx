@@ -199,7 +199,7 @@ export default function BarberProfilePage() {
                 <div className="flex items-center gap-6">
                     <div className="w-24 h-24 rounded-full overflow-hidden bg-savron-black border-2 border-savron-green/30 relative shrink-0">
                         {barber.image_url ? (
-                            <Image src={barber.image_url} alt={barber.name} fill className="object-cover" />
+                            <Image src={barber.image_url} alt={barber.name} fill sizes="96px" className="object-cover" />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-savron-silver/70 text-3xl font-heading">
                                 {barber.name.charAt(0)}
@@ -292,7 +292,7 @@ export default function BarberProfilePage() {
                                 <Image src={url} alt="Portfolio" fill className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" />
                                 <button
                                     onClick={() => removePortfolioImage(url)}
-                                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/80"
+                                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 backdrop-blur-md flex items-center justify-center text-white opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity hover:bg-red-500/80"
                                     aria-label="Remove image"
                                 >
                                     <X className="w-3.5 h-3.5" />

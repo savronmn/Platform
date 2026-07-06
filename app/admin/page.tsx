@@ -189,27 +189,28 @@ export default function AdminDashboard() {
     try { todayStr = format(new Date(), 'EEEE, MMMM d'); } catch {}
 
     return (
-        <div className="space-y-8 entry-fade">
+        <div className="admin-page">
             {/* Header */}
-            <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="admin-header">
                 <div>
-                    <h1 className="font-heading text-3xl uppercase tracking-widest text-white">Dashboard</h1>
-                    <p className="text-savron-silver text-sm uppercase tracking-wider mt-1">{todayStr}</p>
+                    <p className="admin-kicker">Overview</p>
+                    <h1 className="admin-title">Dashboard</h1>
+                    <p className="admin-subtitle">{todayStr}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                     <button
                         onClick={() => setShowWalkIn(true)}
-                        className="flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-widest bg-white/5 text-savron-silver border border-white/10 rounded-savron hover:text-white hover:border-white/20 transition-all"
+                        className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest bg-white/[0.05] text-savron-silver border border-white/[0.08] rounded-savron hover:text-white hover:border-white/20 transition-all"
                     >
                         <UserPlus className="w-3.5 h-3.5" /> Walk-in
                     </button>
                     <button
                         onClick={() => setShowScanner(true)}
-                        className="flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all"
+                        className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all glow-blue"
                     >
                         <ScanLine className="w-3.5 h-3.5" /> Scan ePass
                     </button>
-                    <Link href="/admin/bookings" className="flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-widest bg-white/5 text-savron-silver border border-white/10 rounded-savron hover:text-white hover:border-white/20 transition-all">
+                    <Link href="/admin/bookings" className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest bg-white/[0.05] text-savron-silver border border-white/[0.08] rounded-savron hover:text-white hover:border-white/20 transition-all">
                         <Calendar className="w-3.5 h-3.5" /> View Calendar
                     </Link>
                 </div>
@@ -220,8 +221,8 @@ export default function AdminDashboard() {
 
             {/* Empty State / Demo Data Seeder Banner */}
             {stats.clients === 0 && stats.totalBookings === 0 && (
-                <div className="bg-savron-green/20 border border-savron-green-light/35 rounded-savron p-6 mb-8 text-center space-y-4">
-                    <h3 className="font-heading text-lg text-emerald-400 uppercase tracking-widest">Database Empty</h3>
+                <div className="card-savron border-savron-green-light/30 bg-savron-green/10 text-center space-y-4">
+                    <h3 className="font-heading text-lg text-accent-blue uppercase tracking-widest">Database Empty</h3>
                     <p className="text-savron-silver text-sm max-w-md mx-auto">
                         Your SAVRON CRM is currently empty. Click the button below to automatically populate the database with mock barbers, clients, and appointments to preview the dashboard.
                     </p>
@@ -242,7 +243,7 @@ export default function AdminDashboard() {
             )}
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
                 <StatCard
                     label="Today's Appointments"
                     value={stats.todayBookings}
@@ -303,13 +304,13 @@ export default function AdminDashboard() {
                     label="Barbers Active"
                     value={stats.activeBarbers}
                     icon={<Scissors className="w-4 h-4" />}
-                    sub={<Link href="/admin/barbers" className="text-emerald-400 hover:text-emerald-300 hover:underline">Manage team</Link>}
+                    sub={<Link href="/admin/barbers" className="text-accent-blue hover:text-savron-cream hover:underline">Manage team</Link>}
                 />
                 <StatCard
                     label="Pending Applications"
                     value={stats.pendingApplicants}
                     icon={<ClipboardList className="w-4 h-4" />}
-                    sub={<Link href="/admin/applicants" className="text-emerald-400 hover:text-emerald-300 hover:underline">View pipeline</Link>}
+                    sub={<Link href="/admin/applicants" className="text-accent-blue hover:text-savron-cream hover:underline">View pipeline</Link>}
                     alert={stats.pendingApplicants > 0}
                 />
             </div>
@@ -321,7 +322,7 @@ export default function AdminDashboard() {
                         <h2 className="font-heading text-lg uppercase tracking-widest text-white">Today&apos;s Schedule</h2>
                         <p className="text-savron-silver/75 text-[11px] uppercase tracking-widest mt-0.5">{stats.todayBookings} appointment{stats.todayBookings !== 1 ? 's' : ''}</p>
                     </div>
-                    <Link href="/admin/bookings" className="text-xs uppercase tracking-widest text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors">
+                    <Link href="/admin/bookings" className="text-xs uppercase tracking-widest text-accent-blue hover:text-savron-cream flex items-center gap-1 transition-colors">
                         Full View <ArrowRight className="w-3 h-3" />
                     </Link>
                 </div>
@@ -330,15 +331,15 @@ export default function AdminDashboard() {
                     <div className="py-10 text-center">
                         <Calendar className="w-8 h-8 text-savron-silver/20 mx-auto mb-3" />
                         <p className="text-savron-silver/50 text-sm uppercase tracking-wider">No appointments scheduled today</p>
-                        <Link href="/admin/bookings" className="mt-3 inline-block text-xs text-emerald-400 hover:text-emerald-300 uppercase tracking-widest hover:underline">Add walk-in →</Link>
+                        <Link href="/admin/bookings" className="mt-3 inline-block text-xs text-accent-blue hover:text-savron-cream uppercase tracking-widest hover:underline">Add walk-in →</Link>
                     </div>
                 ) : (
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                         {todaySchedule.map((b) => (
-                            <div key={b.id} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors rounded-lg px-2 -mx-2">
+                            <div key={b.id} className="flex items-center justify-between py-4 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.025] transition-colors rounded-lg px-3 -mx-3">
                                 <div className="flex items-center gap-4">
                                     <div className="w-20 shrink-0 text-right">
-                                        <span className="font-mono text-sm text-emerald-400 block">{b.time}</span>
+                                        <span className="font-mono text-sm text-accent-blue block">{b.time}</span>
                                     </div>
                                     <div>
                                         <p className="text-white text-sm font-medium">{b.client_name || 'Walk-in'}</p>
@@ -360,16 +361,16 @@ export default function AdminDashboard() {
                 <div className="card-savron relative overflow-hidden">
                     <div className="flex items-center justify-between mb-5">
                         <h2 className="font-heading text-lg uppercase tracking-widest text-white">Upcoming This Week</h2>
-                        <Link href="/admin/bookings" className="text-xs uppercase tracking-widest text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors">
+                        <Link href="/admin/bookings" className="text-xs uppercase tracking-widest text-accent-blue hover:text-savron-cream flex items-center gap-1 transition-colors">
                             Calendar <ArrowRight className="w-3 h-3" />
                         </Link>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                         {upcomingSchedule.map((b) => {
                             let dateLabel = b.date;
                             try { dateLabel = format(new Date(b.date + 'T12:00:00'), 'EEE, MMM d'); } catch {}
                             return (
-                                <div key={b.id} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors rounded-lg px-2 -mx-2">
+                                <div key={b.id} className="flex items-center justify-between py-4 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.025] transition-colors rounded-lg px-3 -mx-3">
                                     <div className="flex items-center gap-4">
                                         <div className="w-28 shrink-0">
                                             <span className="font-mono text-sm text-white block">{b.time}</span>
@@ -389,7 +390,7 @@ export default function AdminDashboard() {
             )}
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
                 {[
                     { label: 'Bookings',   href: '/admin/bookings',   icon: Calendar,      desc: 'Calendar & walk-ins', badge: 0 },
                     { label: 'Clients',    href: '/admin/clients',    icon: Users,         desc: 'CRM & campaigns',     badge: 0 },
@@ -403,14 +404,14 @@ export default function AdminDashboard() {
                     <Link
                         key={item.href}
                         href={item.href}
-                        className="card-savron hover:border-savron-green/20 hover:bg-white/[0.04] transition-all group p-4 text-center space-y-2 relative"
+                        className="card-savron hover:border-savron-green/20 hover:bg-white/[0.04] transition-all group p-5 md:p-6 text-center space-y-3 relative"
                     >
                         {item.badge > 0 && (
                             <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-amber-500 text-[9px] text-white flex items-center justify-center font-bold">
                                 {item.badge}
                             </span>
                         )}
-                        <item.icon className="w-5 h-5 text-savron-silver group-hover:text-emerald-400 transition-colors mx-auto" />
+                        <item.icon className="w-5 h-5 text-savron-silver group-hover:text-accent-blue transition-colors mx-auto" />
                         <p className="text-white text-xs uppercase tracking-widest font-heading">{item.label}</p>
                         <p className="text-savron-silver/75 text-[11px] uppercase tracking-widest">{item.desc}</p>
                     </Link>

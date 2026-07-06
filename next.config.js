@@ -1,4 +1,14 @@
 /** @type {import('next').NextConfig} */
+const supabaseHostname = (() => {
+    try {
+        return process.env.NEXT_PUBLIC_SUPABASE_URL
+            ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
+            : 'joakpktzdroizxtrqkrl.supabase.co';
+    } catch {
+        return 'joakpktzdroizxtrqkrl.supabase.co';
+    }
+})();
+
 const nextConfig = {
     images: {
         remotePatterns: [
@@ -8,7 +18,7 @@ const nextConfig = {
             },
             {
                 protocol: 'https',
-                hostname: 'joakpktzdroizxtrqkrl.supabase.co',
+                hostname: supabaseHostname,
                 pathname: '/storage/v1/object/public/**',
             },
         ],

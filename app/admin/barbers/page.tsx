@@ -60,6 +60,7 @@ export default function AdminBarbersPage() {
     const [workingHours, setWorkingHours] = useState<WorkingHours>({});
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [photoError, setPhotoError] = useState<string | null>(null);
 
     useEffect(() => {
         async function load() {
@@ -73,6 +74,7 @@ export default function AdminBarbersPage() {
     const openSettings = (barber: Barber, tab: 'profile' | 'services' | 'schedule' = 'profile') => {
         setSettingsBarber(barber);
         setActiveTab(tab);
+        setPhotoError(null);
         setLicenseInput(barber.license_number ?? '');
         // Extract handle from full URL or bare handle
         const raw = barber.instagram_url ?? '';
@@ -95,7 +97,7 @@ export default function AdminBarbersPage() {
         setSaved(false);
     };
 
-    const closeSettings = () => { setSettingsBarber(null); setSaved(false); };
+    const closeSettings = () => { setSettingsBarber(null); setSaved(false); setPhotoError(null); };
 
     const toggleService = (name: string) =>
         setServicesOffered(prev =>
@@ -189,17 +191,18 @@ export default function AdminBarbersPage() {
 
     return (
         <>
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="admin-page">
 
             {/* Header */}
-            <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="admin-header">
                 <div>
-                    <h1 className="font-heading text-3xl uppercase tracking-widest text-white">Barbers</h1>
-                    <p className="text-savron-silver text-sm mt-1">{active.length} active · {pending.length} pending approval</p>
+                    <p className="admin-kicker">Team</p>
+                    <h1 className="admin-title">Barbers</h1>
+                    <p className="admin-subtitle">{active.length} active · {pending.length} pending approval</p>
                 </div>
                 <button
                     onClick={copyRegistrationLink}
-                    className="flex items-center gap-2 px-4 py-2.5 border border-white/10 text-[10px] uppercase tracking-widest text-savron-silver hover:text-white hover:border-white/25 transition-all"
+                    className="flex items-center gap-2 px-5 py-3 border border-white/10 rounded-savron text-[10px] uppercase tracking-widest text-savron-silver hover:text-white hover:border-white/25 transition-all"
                 >
                     {copiedReg ? <Check className="w-3 h-3 text-savron-green" /> : <LinkIcon className="w-3 h-3" />}
                     {copiedReg ? 'Link Copied!' : 'Copy Registration Link'}
@@ -209,17 +212,22 @@ export default function AdminBarbersPage() {
             {/* Pending approvals */}
             {pending.length > 0 && (
                 <div>
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-amber-400/70 mb-4 flex items-center gap-2">
+                    <p className="text-[10px] uppercase tracking-[0.3em] text-amber-400/70 mb-5 flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-400/70 inline-block" />
                         Pending Approval ({pending.length})
                     </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
                         {pending.map(barber => (
-                            <div key={barber.id} className="bg-savron-grey border border-amber-500/15 rounded-savron p-5 space-y-4">
+                            <div key={barber.id} className="card-savron border-amber-500/15 space-y-4">
                                 <div className="flex items-start gap-3">
                                     <div className="w-12 h-12 rounded-full overflow-hidden bg-savron-charcoal border border-white/10 relative shrink-0">
-                                        {barber.image_url && <Image src={barber.image_url} alt={barber.name} fill className="object-cover" />}
-                                        {!barber.image_url && <Scissors className="w-4 h-4 text-white/20 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
+                                        {barber.image_url ? (
+                                            <Image src={barber.image_url} alt={barber.name} fill sizes="48px" className="object-cover" />
+                                        ) : (
+                                            <span className="absolute inset-0 flex items-center justify-center text-sm font-heading text-white/30">
+                                                {barber.name.charAt(0)}
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <h3 className="text-white font-heading uppercase tracking-wider text-sm">{barber.name}</h3>
@@ -260,28 +268,31 @@ export default function AdminBarbersPage() {
             {/* Active barbers */}
             <div>
                 {pending.length > 0 && (
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-savron-silver/70 mb-4">Active Team</p>
+                    <p className="text-[10px] uppercase tracking-[0.3em] text-savron-silver/70 mb-5">Active Team</p>
                 )}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
                     {active.map(barber => (
-                        <div key={barber.id} className="bg-savron-grey border border-white/5 rounded-savron p-6 space-y-4">
+                        <div key={barber.id} className="card-savron space-y-5">
                             <div className="flex items-start gap-4">
                                 <button
                                     onClick={() => openSettings(barber, 'profile')}
                                     className="relative w-16 h-16 rounded-full overflow-hidden bg-savron-charcoal border border-white/10 shrink-0 group"
                                     title="Edit profile photo"
                                 >
-                                    {barber.image_url
-                                        ? <Image src={barber.image_url} alt={barber.name} fill className="object-cover" />
-                                        : <Scissors className="w-5 h-5 text-white/20 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                                    }
+                                    {barber.image_url ? (
+                                        <Image src={barber.image_url} alt={barber.name} fill sizes="64px" className="object-cover" />
+                                    ) : (
+                                        <span className="absolute inset-0 flex items-center justify-center text-lg font-heading text-white/30">
+                                            {barber.name.charAt(0)}
+                                        </span>
+                                    )}
                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                         <Camera className="w-4 h-4 text-white" />
                                     </div>
                                 </button>
                                 <div className="flex-1 min-w-0">
                                     <h3 className="text-white font-heading uppercase tracking-wider">{barber.name}</h3>
-                                    <p className="text-emerald-400 text-xs uppercase tracking-widest">{barber.role}</p>
+                                    <p className="text-accent-blue text-xs uppercase tracking-widest">{barber.role}</p>
                                     {barber.email && <p className="text-savron-silver/50 text-xs mt-1 truncate">{barber.email}</p>}
                                     {barber.license_number && (
                                         <p className="text-savron-silver/70 text-[10px] mt-0.5 flex items-center gap-1">
@@ -308,7 +319,7 @@ export default function AdminBarbersPage() {
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-2 border-t border-white/5 gap-3">
                                 <button
                                     onClick={() => toggleActive(barber)}
-                                    className="flex items-center gap-2 text-xs uppercase tracking-wider transition-all text-emerald-400 hover:text-emerald-300 font-medium"
+                                    className="flex items-center gap-2 text-xs uppercase tracking-wider transition-all text-accent-blue hover:text-savron-cream font-medium"
                                 >
                                     <ToggleRight className="w-4 h-4" /> Active
                                 </button>
@@ -360,7 +371,7 @@ export default function AdminBarbersPage() {
                 >
                     <motion.div
                         initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95 }}
-                        className="bg-savron-grey border border-red-500/20 rounded-savron p-6 max-w-sm w-full shadow-2xl"
+                        className="glass-panel-strong border-red-500/20 rounded-savron p-6 max-w-sm w-full shadow-2xl"
                         onClick={e => e.stopPropagation()}
                     >
                         <h3 className="font-heading text-lg text-white uppercase tracking-wider mb-2">Archive Barber?</h3>
@@ -398,16 +409,19 @@ export default function AdminBarbersPage() {
                     <motion.aside
                         initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
                         transition={{ type: 'tween', duration: 0.22 }}
-                        className="fixed top-0 right-0 h-full w-full max-w-md bg-savron-grey border-l border-white/10 z-50 flex flex-col overflow-hidden shadow-2xl"
+                        className="fixed top-0 right-0 h-full w-full max-w-md glass-panel-strong border-l border-white/10 z-50 flex flex-col overflow-hidden shadow-2xl"
                     >
                         {/* Panel header */}
                         <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-savron-charcoal border border-white/10 relative shrink-0">
-                                    {settingsBarber.image_url
-                                        ? <Image src={settingsBarber.image_url} alt={settingsBarber.name} fill className="object-cover" />
-                                        : <User className="w-4 h-4 text-white/20 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                                    }
+                                    {settingsBarber.image_url ? (
+                                        <Image src={settingsBarber.image_url} alt={settingsBarber.name} fill sizes="40px" className="object-cover" />
+                                    ) : (
+                                        <span className="absolute inset-0 flex items-center justify-center text-xs font-heading text-white/30">
+                                            {settingsBarber.name.charAt(0)}
+                                        </span>
+                                    )}
                                 </div>
                                 <div>
                                     <p className="text-[10px] uppercase tracking-[0.3em] text-savron-silver/50 mb-0.5">Barber Settings</p>
@@ -455,7 +469,7 @@ export default function AdminBarbersPage() {
                                             <div className="relative w-24 h-24">
                                                 <div className="w-24 h-24 rounded-full overflow-hidden bg-savron-charcoal border border-white/10 relative">
                                                     {settingsBarber.image_url
-                                                        ? <Image src={settingsBarber.image_url} alt={settingsBarber.name} fill className="object-cover" />
+                                                        ? <Image src={settingsBarber.image_url} alt={settingsBarber.name} fill sizes="96px" className="object-cover" />
                                                         : <User className="w-8 h-8 text-white/20 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                                                     }
                                                 </div>
@@ -474,27 +488,53 @@ export default function AdminBarbersPage() {
                                                 onChange={async (e) => {
                                                     const file = e.currentTarget.files?.[0];
                                                     if (!file) return;
+                                                    setPhotoError(null);
                                                     try {
                                                         const ext = file.name.split('.').pop();
-                                                        const path = `barber-photos/${settingsBarber.id}.${ext}`;
+                                                        const path = `${settingsBarber.id}/profile/${Date.now()}.${ext}`;
                                                         const { error: upErr } = await supabase.storage
-                                                            .from('barbers')
+                                                            .from('barber-portfolios')
                                                             .upload(path, file, { upsert: true, contentType: file.type });
                                                         if (upErr) throw upErr;
-                                                        const { data: { publicUrl } } = supabase.storage.from('barbers').getPublicUrl(path);
+                                                        const { data: { publicUrl } } = supabase.storage.from('barber-portfolios').getPublicUrl(path);
                                                         await supabase.from('barbers').update({ image_url: publicUrl }).eq('id', settingsBarber.id);
                                                         setSettingsBarber(prev => prev ? { ...prev, image_url: publicUrl } : prev);
                                                         setBarbers(prev => prev.map(b => b.id === settingsBarber.id ? { ...b, image_url: publicUrl } : b));
                                                     } catch (err) {
                                                         console.error('Photo upload failed:', err);
+                                                        setPhotoError('Photo upload failed. Please try a different image or check storage settings.');
+                                                        e.currentTarget.value = '';
                                                     }
                                                 }}
                                             />
                                             <label htmlFor="photo-upload" className="px-6 py-2.5 text-[11px] uppercase tracking-widest bg-savron-green/10 text-savron-green border border-savron-green/30 hover:bg-savron-green/20 rounded-savron cursor-pointer transition-all font-medium">
                                                 {settingsBarber.image_url ? 'Change Photo' : 'Upload Photo'}
                                             </label>
+                                            {photoError && (
+                                                <p className="text-red-400 text-[11px] text-center max-w-xs">{photoError}</p>
+                                            )}
                                         </div>
                                     </div>
+
+                                    {(settingsBarber.portfolio_images?.length ?? 0) > 0 && (
+                                        <div>
+                                            <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-3">
+                                                Portfolio Photos
+                                            </label>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {settingsBarber.portfolio_images!.slice(0, 6).map((url, i) => (
+                                                    <div key={`${url}-${i}`} className="relative aspect-square rounded-savron overflow-hidden bg-savron-charcoal border border-white/10">
+                                                        <Image src={url} alt={`${settingsBarber.name} portfolio ${i + 1}`} fill sizes="96px" className="object-cover" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {settingsBarber.portfolio_images!.length > 6 && (
+                                                <p className="text-savron-silver/40 text-[10px] mt-2">
+                                                    +{settingsBarber.portfolio_images!.length - 6} more in barber profile
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* License number */}
                                     <div>
@@ -605,7 +645,7 @@ export default function AdminBarbersPage() {
                                                             className="flex items-center gap-1.5 text-xs transition-colors"
                                                         >
                                                             {isOn
-                                                                ? <><ToggleRight className="w-5 h-5 text-emerald-400" /><span className="text-emerald-400 uppercase tracking-widest text-[10px]">Open</span></>
+                                                                ? <><ToggleRight className="w-5 h-5 text-accent-blue" /><span className="text-accent-blue uppercase tracking-widest text-[10px]">Open</span></>
                                                                 : <><ToggleLeft className="w-5 h-5 text-savron-silver/30" /><span className="text-savron-silver/30 uppercase tracking-widest text-[10px]">Off</span></>
                                                             }
                                                         </button>
@@ -656,7 +696,7 @@ export default function AdminBarbersPage() {
                                 className={cn(
                                     "w-full flex items-center justify-center gap-2 py-3 text-[11px] uppercase tracking-widest font-medium rounded-savron transition-all disabled:opacity-50",
                                     saved
-                                        ? "bg-savron-green/20 text-emerald-400 border border-savron-green/35"
+                                        ? "bg-savron-green/20 text-accent-blue border border-savron-green/35"
                                         : "bg-savron-green text-white border border-savron-green-light/20 hover:bg-savron-green-light"
                                 )}
                             >
