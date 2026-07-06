@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from '@/lib/utils';
-import { format, addDays, isToday, isSunday } from 'date-fns';
+import { format, addDays, isToday } from 'date-fns';
 import { TIME_SLOTS } from '@/lib/services-data';
 import { isSlotInPast } from '@/lib/time-helpers';
 
@@ -13,13 +13,13 @@ interface DatePickerProps {
 
 export function DatePicker({ selected, onChange, daysAhead = 21 }: DatePickerProps) {
     const today = new Date();
-    // Build available days — skip Sundays (shop closed) and skip today if all slots passed
+    // Build available days — skip today if all slots passed
     const days: Date[] = [];
     let cursor = new Date(today);
     while (days.length < daysAhead) {
         const isToday_ = isToday(cursor);
         const allSlotsPast = isToday_ && TIME_SLOTS.every((t) => isSlotInPast(cursor, t, 5));
-        if (!isSunday(cursor) && !allSlotsPast) days.push(new Date(cursor));
+        if (!allSlotsPast) days.push(new Date(cursor));
         cursor = addDays(cursor, 1);
     }
 

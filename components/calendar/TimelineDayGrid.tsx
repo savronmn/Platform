@@ -94,14 +94,7 @@ export default function TimelineDayGrid({
                                 )}>
                                     {minsToTime12(mins)}
                                 </span>
-                            ) : (
-                                <span className={cn(
-                                    'font-mono whitespace-nowrap leading-none -mt-0.5',
-                                    emphasized ? 'text-xs sm:text-sm text-savron-silver/75' : 'text-[10px] text-savron-silver/25',
-                                )}>
-                                    {minsToTime12(mins).replace(':00 ', ' ')}
-                                </span>
-                            )}
+                            ) : null}
                         </div>
                     ))}
                 </div>
@@ -121,7 +114,7 @@ export default function TimelineDayGrid({
                                     'absolute left-0 right-0 border-b',
                                     isHour
                                         ? emphasized ? 'border-savron-blue/25' : 'border-savron-blue/20'
-                                        : emphasized ? 'border-savron-blue/12' : 'border-savron-blue/10',
+                                        : emphasized ? 'border-savron-blue/[0.04]' : 'border-savron-blue/[0.05]',
                                 )}
                                 style={{ top: minsToPx(mins, startMins) }}
                             />

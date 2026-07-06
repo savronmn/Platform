@@ -23,8 +23,17 @@ interface DaySchedule {
 }
 type WorkingHours = Partial<Record<DayKey, DaySchedule | null>>;
 
-// Default shop hours
-const DEFAULT_HOURS: DaySchedule = { open: '10:00', close: '19:00' };
+// Default shop hours (Google Business listing)
+const DEFAULT_WEEKDAY: DaySchedule = { open: '10:00', close: '19:00' };
+const DEFAULT_HOURS: WorkingHours = {
+    Mon: DEFAULT_WEEKDAY,
+    Tue: DEFAULT_WEEKDAY,
+    Wed: DEFAULT_WEEKDAY,
+    Thu: DEFAULT_WEEKDAY,
+    Fri: DEFAULT_WEEKDAY,
+    Sat: { open: '09:00', close: '16:30' },
+    Sun: { open: '09:00', close: '14:00' },
+};
 
 // ─── Time options for dropdowns (30-min increments 7am–10pm) ──────────────────
 const TIME_OPTIONS: string[] = [];
@@ -83,15 +92,11 @@ export default function AdminBarbersPage() {
             : raw.replace(/^@/, '');
         setInstagramInput(handle);
         setServicesOffered(barber.services_offered ?? services.map(s => s.name));
-        // Parse working_hours — default Mon–Sat open if not set
+        // Parse working_hours — default to canonical shop hours if not set
         const wh: WorkingHours = barber.working_hours as WorkingHours ?? {};
         const defaults: WorkingHours = {};
         for (const day of DAYS) {
-            if (day === 'Sun') {
-                defaults[day] = wh[day] !== undefined ? wh[day] : null; // Sun off by default
-            } else {
-                defaults[day] = wh[day] !== undefined ? wh[day] : { ...DEFAULT_HOURS };
-            }
+            defaults[day] = wh[day] !== undefined ? wh[day] : (DEFAULT_HOURS[day] ?? null);
         }
         setWorkingHours(defaults);
         setSaved(false);
@@ -107,7 +112,7 @@ export default function AdminBarbersPage() {
     const toggleDay = (day: DayKey) => {
         setWorkingHours(prev => ({
             ...prev,
-            [day]: prev[day] ? null : { ...DEFAULT_HOURS },
+            [day]: prev[day] ? null : { ...(DEFAULT_HOURS[day] ?? DEFAULT_WEEKDAY) },
         }));
         setSaved(false);
     };
@@ -115,7 +120,7 @@ export default function AdminBarbersPage() {
     const setDayTime = (day: DayKey, field: 'open' | 'close', value: string) => {
         setWorkingHours(prev => ({
             ...prev,
-            [day]: { ...(prev[day] ?? DEFAULT_HOURS), [field]: value },
+            [day]: { ...(prev[day] ?? DEFAULT_HOURS[day] ?? DEFAULT_WEEKDAY), [field]: value },
         }));
         setSaved(false);
     };

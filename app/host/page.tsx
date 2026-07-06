@@ -14,10 +14,11 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Barber, Booking } from '@/lib/types';
-import { HOST_TIME_SLOTS, serviceBlockStyle } from '@/lib/services-data';
+import { HOST_TIME_SLOTS, serviceBlockStyle, getShopScheduleForDate, formatScheduleRange } from '@/lib/services-data';
 import {
     timeToMins, formatTimeCompact, formatTimeRange, parseDurationMins, itemsInHour,
     CALENDAR_HOUR_HEIGHT_PX, minsToTime12, getCalendarHourStarts,
+    getCalendarGridBounds, getTimelineLayout, time24ToMins,
 } from '@/lib/calendar-timeline';
 import TimelineDayGrid, { bookingToTimelineEvent, isoRangeToTimelineEvent, type TimelineEvent } from '@/components/calendar/TimelineDayGrid';
 import CalendarNavBar from '@/components/calendar/CalendarNavBar';
@@ -483,6 +484,37 @@ function HostDashboardInner() {
         return deduplicatedExternal.filter(e => e.date === d && isExternalVisible(e));
     };
 
+    const daySchedule = useMemo(() => getShopScheduleForDate(selectedDate), [selectedDate]);
+
+    const renderOutsideHoursBackground = () => {
+        if (!daySchedule) return null;
+        const { startMins: gridStart, endMins: gridEnd } = getCalendarGridBounds();
+        const openMins = time24ToMins(daySchedule.open);
+        const closeMins = time24ToMins(daySchedule.close);
+        const overlays: React.ReactNode[] = [];
+        if (openMins > gridStart) {
+            const layout = getTimelineLayout(gridStart, openMins - gridStart);
+            overlays.push(
+                <div
+                    key="before-hours"
+                    className="absolute left-0 right-0 bg-savron-black/55 pointer-events-none z-0"
+                    style={{ top: layout.topPx, height: layout.heightPx }}
+                />,
+            );
+        }
+        if (closeMins < gridEnd) {
+            const layout = getTimelineLayout(closeMins, gridEnd - closeMins);
+            overlays.push(
+                <div
+                    key="after-hours"
+                    className="absolute left-0 right-0 bg-savron-black/55 pointer-events-none z-0"
+                    style={{ top: layout.topPx, height: layout.heightPx }}
+                />,
+            );
+        }
+        return overlays;
+    };
+
     const svcColor = (s: string, cancelled = false): { className: string; style?: Record<string, string> } =>
         cancelled
             ? { className: 'bg-white/5 border-white/10 text-white/25 line-through' }
@@ -762,6 +794,11 @@ function HostDashboardInner() {
             {/* ── Day summary strip (day view only) ── */}
             {view === 'day' && !loading && (
                 <div className="bg-savron-black border-b border-white/[0.04] px-6 py-2 flex items-center gap-6 shrink-0 overflow-x-auto">
+                    {daySchedule && (
+                        <span className="text-[10px] uppercase tracking-widest text-savron-green shrink-0 font-medium">
+                            Open {formatScheduleRange(daySchedule)}
+                        </span>
+                    )}
                     <span className="text-[10px] uppercase tracking-widest text-savron-silver/40 shrink-0">{t('host.today_progress')}</span>
                     {/* Progress bar */}
                     <div className="flex-1 min-w-[120px] max-w-xs h-1.5 bg-white/5 rounded-full overflow-hidden hidden sm:block">
@@ -937,6 +974,7 @@ function HostDashboardInner() {
                                     ),
                                 }))}
                                 columnWidth="w-[calc(100vw-6rem)] sm:min-w-[360px]"
+                                renderColumnBackground={renderOutsideHoursBackground}
                                 getEventsForColumn={dayTimelineEventsForBarber}
                                 renderEvent={(event, _columnId, layout) => {
                                     const item = dayTimelineMap.get(event.id);

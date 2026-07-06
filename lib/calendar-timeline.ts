@@ -1,7 +1,7 @@
 import { HOST_TIME_SLOTS } from './services-data';
 
 /** Target vertical space per hour on the day timeline (px). */
-export const CALENDAR_HOUR_HEIGHT_PX = 250;
+export const CALENDAR_HOUR_HEIGHT_PX = 220;
 
 /** Pixels per minute — linear time scale for exact event placement. */
 export const CALENDAR_PX_PER_MIN = CALENDAR_HOUR_HEIGHT_PX / 60;
@@ -28,8 +28,8 @@ export function timeToMins(timeStr: string): number {
 }
 
 /** Shop day bounds for the host timeline (minutes since midnight). */
-export const CALENDAR_GRID_OPEN_MINS = timeToMins(HOST_TIME_SLOTS[0]);
-export const CALENDAR_GRID_CLOSE_MINS = 21 * 60; // 9:00 PM
+export const CALENDAR_GRID_OPEN_MINS = 9 * 60;  // 9:00 AM — earliest shop open (Sat/Sun)
+export const CALENDAR_GRID_CLOSE_MINS = 19 * 60; // 7:00 PM — latest weekday close
 
 /** Convert a 24-hour time string ("10:00") to minutes since midnight. */
 export function time24ToMins(t: string): number {

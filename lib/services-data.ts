@@ -90,14 +90,53 @@ export function serviceBlockStyle(colorStr: string | null | undefined): Record<s
     };
 }
 
-// Shop time slots — kept as fallback when a barber has no working_hours set
-export const TIME_SLOTS = [
-    "10:00 AM", "10:45 AM", "11:30 AM",
-    "1:00 PM",  "1:45 PM",  "2:30 PM",  "3:15 PM", "4:00 PM",
-];
+// Shop hours (Google Business listing)
+export type ShopDayKey = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
+export type DaySchedule = { open: string; close: string };
 
-// 45-min grid for host calendar (8 AM – 9 PM). Starts at 8 AM to cover early slots.
-export const HOST_TIME_SLOTS = generateTimeSlots('08:00', '21:00', 45);
+/** Canonical SAVRON shop hours — Mon–Fri 10–7, Sat 9–4:30, Sun 9–2 */
+export const SHOP_WORKING_HOURS: Record<ShopDayKey, DaySchedule | null> = {
+    Mon: { open: '10:00', close: '19:00' },
+    Tue: { open: '10:00', close: '19:00' },
+    Wed: { open: '10:00', close: '19:00' },
+    Thu: { open: '10:00', close: '19:00' },
+    Fri: { open: '10:00', close: '19:00' },
+    Sat: { open: '09:00', close: '16:30' },
+    Sun: { open: '09:00', close: '14:00' },
+};
+
+/** Calendar grid spans earliest open → latest close across the week (9 AM – 7 PM). */
+export const SHOP_GRID_OPEN = '09:00';
+export const SHOP_GRID_CLOSE = '19:00';
+
+function format24to12Short(t: string): string {
+    const [hStr, mStr] = t.split(':');
+    let h = parseInt(hStr, 10);
+    const m = parseInt(mStr, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    if (h > 12) h -= 12;
+    if (h === 0) h = 12;
+    return m === 0 ? `${h} ${ampm}` : `${h}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+export function formatScheduleRange(schedule: DaySchedule): string {
+    return `${format24to12Short(schedule.open)} – ${format24to12Short(schedule.close)}`;
+}
+
+export function getShopDayKey(date: Date): ShopDayKey {
+    const keys: ShopDayKey[] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return keys[date.getDay()];
+}
+
+export function getShopScheduleForDate(date: Date): DaySchedule | null {
+    return SHOP_WORKING_HOURS[getShopDayKey(date)];
+}
+
+// Shop time slots — weekday fallback when a barber has no working_hours set
+export const TIME_SLOTS = generateTimeSlots('10:00', '19:00', 45);
+
+// Host calendar grid: 9 AM – 7 PM (covers full weekly schedule without dead space)
+export const HOST_TIME_SLOTS = generateTimeSlots(SHOP_GRID_OPEN, SHOP_GRID_CLOSE, 45);
 
 // Generate 12h-format time slots from 24h open/close strings (e.g. "10:00", "19:00")
 export function generateTimeSlots(open: string, close: string, intervalMin = 45): string[] {

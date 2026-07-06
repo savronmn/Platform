@@ -1,8 +1,8 @@
 // Shared time-slot utilities for the booking flow.
 // Centralized so both BookingFlow and AsapBookingFlow stay consistent.
 
-import { format, addDays, isSunday } from 'date-fns';
-import { TIME_SLOTS } from './services-data';
+import { format, addDays } from 'date-fns';
+import { TIME_SLOTS, getShopScheduleForDate, generateTimeSlots } from './services-data';
 
 // Central Time (-05:00). TODO: replace with proper TZ handling (date-fns-tz) for DST safety.
 const TZ_OFFSET = '-05:00';
@@ -21,15 +21,16 @@ export function isSlotInPast(date: Date, timeStr: string, bufferMinutes = 0): bo
     return slotMs <= Date.now() + bufferMinutes * 60000;
 }
 
-// Returns the first date where at least one TIME_SLOT is still in the future.
-// Skips Sundays (shop closed).
+// Returns the first date where at least one bookable slot is still in the future.
 export function nextBookableDate(from: Date = new Date()): Date {
     let cursor = new Date(from);
     for (let i = 0; i < 14; i++) {
-        if (!isSunday(cursor)) {
-            const hasFutureSlot = TIME_SLOTS.some((t) => !isSlotInPast(cursor, t, 5));
-            if (hasFutureSlot) return cursor;
-        }
+        const schedule = getShopScheduleForDate(cursor);
+        const slots = schedule
+            ? generateTimeSlots(schedule.open, schedule.close, 45)
+            : TIME_SLOTS;
+        const hasFutureSlot = slots.some((t) => !isSlotInPast(cursor, t, 5));
+        if (hasFutureSlot) return cursor;
         cursor = addDays(cursor, 1);
     }
     return cursor;
