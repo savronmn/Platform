@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
 import { createClient } from '@/lib/supabase';
+import { SHOP_ADDRESS, SHOP_MAPS_URL } from '@/lib/shop';
 
 type PageState = 'email' | 'otp' | 'profile' | 'not_found';
 
@@ -52,6 +53,32 @@ export default function EPassPage() {
         }
     }, []);
 
+    // Refresh from DB whenever the pass page becomes visible (tab switch, app reopen)
+    useEffect(() => {
+        if (pageState !== 'profile' || !subscriber?.email) return;
+
+        const refresh = () => {
+            if (document.visibilityState === 'visible') {
+                loadProfile(subscriber.email, { quiet: true });
+            }
+        };
+
+        document.addEventListener('visibilitychange', refresh);
+        window.addEventListener('focus', refresh);
+
+        const interval = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                loadProfile(subscriber.email, { quiet: true });
+            }
+        }, 15000);
+
+        return () => {
+            document.removeEventListener('visibilitychange', refresh);
+            window.removeEventListener('focus', refresh);
+            clearInterval(interval);
+        };
+    }, [pageState, subscriber?.email]);
+
     // Realtime: listen for visit_count updates on the subscriber row
     useEffect(() => {
         if (!subscriber?.email) return;
@@ -76,8 +103,20 @@ export default function EPassPage() {
         return () => { supabase.removeChannel(channel); };
     }, [subscriber?.email]);
 
-    async function loadProfile(userEmail: string) {
-        setLoading(true);
+    async function syncGoogleWallet(userEmail: string) {
+        try {
+            await fetch('/api/wallet/sync-google', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: userEmail }),
+            });
+        } catch {
+            // Non-fatal — web pass still shows live DB data
+        }
+    }
+
+    async function loadProfile(userEmail: string, options?: { quiet?: boolean }) {
+        if (!options?.quiet) setLoading(true);
         try {
             const QRCode = (await import('qrcode')).default;
             const res = await fetch('/api/epass/verify-session', {
@@ -95,6 +134,7 @@ export default function EPassPage() {
                 });
                 setQrDataUrl(url);
                 setPageState('profile');
+                void syncGoogleWallet(userEmail);
             } else {
                 localStorage.removeItem(SESSION_KEY);
                 setPageState('email');
@@ -103,7 +143,7 @@ export default function EPassPage() {
             localStorage.removeItem(SESSION_KEY);
             setPageState('email');
         } finally {
-            setLoading(false);
+            if (!options?.quiet) setLoading(false);
         }
     }
 
@@ -158,6 +198,7 @@ export default function EPassPage() {
         setQrDataUrl(url);
         setPageState('profile');
         setLoading(false);
+        void syncGoogleWallet(data.subscriber.email);
     }
 
     function handleOtpDigit(index: number, value: string) {
@@ -349,6 +390,14 @@ export default function EPassPage() {
                             <p className="text-center text-savron-silver/30 text-[10px] uppercase tracking-widest">
                                 Show this to your barber at check-in
                             </p>
+                            <a
+                                href={SHOP_MAPS_URL}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-center text-savron-silver/40 hover:text-savron-silver text-[10px] tracking-wide transition-colors"
+                            >
+                                {SHOP_ADDRESS}
+                            </a>
                         </div>
 
                         {/* Sign out */}
