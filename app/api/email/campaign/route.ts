@@ -7,6 +7,10 @@ import { createClient } from '@supabase/supabase-js';
 import { getMissYouTemplate, getSpecialOfferTemplate, getCustomTemplate } from '@/lib/email-templates';
 
 export async function POST(request: NextRequest) {
+    if (!process.env.RESEND_API_KEY) {
+        return NextResponse.json({ error: 'Email service not configured' }, { status: 503 });
+    }
+
     const supabaseAdmin = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!

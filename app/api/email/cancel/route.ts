@@ -67,6 +67,10 @@ function buildCancelIcs(booking: any, barberName: string, barberEmail: string | 
 }
 
 export async function POST(request: NextRequest) {
+    if (!process.env.RESEND_API_KEY) {
+        return NextResponse.json({ error: 'Email service not configured' }, { status: 503 });
+    }
+
     const supabaseAdmin = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -160,6 +164,8 @@ export async function POST(request: NextRequest) {
         })
     ));
 
-    const failures = results.filter(r => r.status === 'rejected').length;
+    const failures = results.filter(r =>
+        r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok)
+    ).length;
     return NextResponse.json({ success: failures === 0, sent: results.length - failures, failed: failures });
 }

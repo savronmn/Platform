@@ -125,7 +125,14 @@ export default function TimelineDayGrid({
                                 )}>
                                     {minsToTime12(mins)}
                                 </span>
-                            ) : null}
+                            ) : (
+                                <span className={cn(
+                                    'font-mono whitespace-nowrap leading-none -mt-1',
+                                    emphasized ? 'text-[10px] text-white/50' : 'text-[10px] text-white/50',
+                                )}>
+                                    :30
+                                </span>
+                            )}
                         </div>
                     ))}
                 </div>
