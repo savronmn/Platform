@@ -13,7 +13,7 @@ import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
-import { isSlotInPast, nextBookableDate } from '@/lib/time-helpers';
+import { isSlotInPast, nextBookableDate, slotConflictsWithBusy } from '@/lib/time-helpers';
 import BarberPortfolioGallery from './BarberPortfolioGallery';
 
 const nullBarber = { auth_id: null, bio: null, phone: null, email: null, instagram_url: null, license_number: null, services_offered: null, google_calendar_id: null, google_calendar_tokens: null, google_sync_token: null, google_channel_id: null, google_resource_id: null, working_hours: null, portfolio_images: null, booking_links: null, created_at: '' };
@@ -120,27 +120,10 @@ const BookingFlow = () => {
     const isBarberOffToday = selectedPro?.working_hours !== null && availableSlots.length === 0;
 
     const isSlotBusy = (timeStr: string) => {
-        // Past times are always disabled (with 5-min buffer for the current slot)
         if (isSlotInPast(selectedDate, timeStr, 5)) return true;
-
-        if (loadingBusy) return true; // Disable until loaded
+        if (loadingBusy) return true;
         if (busySlots.length === 0) return false;
-
-        const dateStr = format(selectedDate, 'yyyy-MM-dd');
-        const [timePart, meridiem] = timeStr.split(' ');
-        let [hours, minutes] = timePart.split(':').map(Number);
-        if (meridiem === 'PM' && hours !== 12) hours += 12;
-        if (meridiem === 'AM' && hours === 12) hours = 0;
-
-        // Use fixed offset matching Central Time (-05:00) to align with Google Calendar Helper
-        const slotStart = new Date(`${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00-05:00`).getTime();
-        const slotEnd = slotStart + (totalDurationMin || 45) * 60000;
-
-        return busySlots.some(busy => {
-            const bStart = new Date(busy.start).getTime();
-            const bEnd = new Date(busy.end).getTime();
-            return slotStart < bEnd && slotEnd > bStart;
-        });
+        return slotConflictsWithBusy(selectedDate, timeStr, totalDurationMin || 45, busySlots);
     };
 
     const handleConfirm = async () => {

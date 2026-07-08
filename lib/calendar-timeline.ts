@@ -215,6 +215,18 @@ export function getTimelineOverlapLayouts<T extends { id: string; startMins: num
     return layouts;
 }
 
+/** Whether two minute ranges overlap. Back-to-back appointments do not overlap (zero buffer). */
+export function rangesOverlapMins(
+    aStartMins: number,
+    aDurationMins: number,
+    bStartMins: number,
+    bDurationMins: number,
+): boolean {
+    const aEnd = aStartMins + aDurationMins;
+    const bEnd = bStartMins + bDurationMins;
+    return aStartMins < bEnd && aEnd > bStartMins;
+}
+
 /** Whether an event overlaps a slot range [lo, hi). */
 export function eventOverlapsSlot(
     eventStartMins: number,
@@ -222,8 +234,7 @@ export function eventOverlapsSlot(
     slotLoMins: number,
     slotHiMins: number,
 ): boolean {
-    const eventEnd = eventStartMins + eventDurationMins;
-    return eventStartMins < slotHiMins && eventEnd > slotLoMins;
+    return rangesOverlapMins(eventStartMins, eventDurationMins, slotLoMins, slotHiMins - slotLoMins);
 }
 
 /** Precomputed minute values for each HOST_TIME_SLOTS entry. */

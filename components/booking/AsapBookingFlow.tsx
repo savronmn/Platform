@@ -13,7 +13,7 @@ import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
-import { isSlotInPast, nextBookableDate } from '@/lib/time-helpers';
+import { isSlotInPast, nextBookableDate, slotConflictsWithBusy } from '@/lib/time-helpers';
 
 export default function AsapBookingFlow() {
     const supabase = createClient();
@@ -69,14 +69,7 @@ export default function AsapBookingFlow() {
         if (busySlots.length === 0) return false;
         const service = services.find(s => s.id === selectedService);
         const durationMin = service?.durationMin ?? 45;
-        const dateStr = format(selectedDate, 'yyyy-MM-dd');
-        const [timePart, meridiem] = timeStr.split(' ');
-        let [hours, minutes] = timePart.split(':').map(Number);
-        if (meridiem === 'PM' && hours !== 12) hours += 12;
-        if (meridiem === 'AM' && hours === 12) hours = 0;
-        const slotStart = new Date(`${dateStr}T${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00-05:00`).getTime();
-        const slotEnd = slotStart + durationMin * 60000;
-        return busySlots.some(b => slotStart < new Date(b.end).getTime() && slotEnd > new Date(b.start).getTime());
+        return slotConflictsWithBusy(selectedDate, timeStr, durationMin, busySlots);
     };
 
     // Find any barber who is NOT already booked at the selected date + time AND has no Google Calendar conflict
@@ -107,12 +100,6 @@ export default function AsapBookingFlow() {
         // 2. Also filter out barbers with Google Calendar conflicts
         const service = services.find(s => s.id === selectedService);
         const durationMin = service?.durationMin ?? 45;
-        const [timePart, meridiem] = (selectedTime || '').split(' ');
-        let [hours, minutes] = timePart?.split(':').map(Number) ?? [0, 0];
-        if (meridiem === 'PM' && hours !== 12) hours += 12;
-        if (meridiem === 'AM' && hours === 12) hours = 0;
-        const slotStart = new Date(`${dateStr}T${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00-05:00`).getTime();
-        const slotEnd = slotStart + durationMin * 60000;
 
         const calAvailable: Barber[] = [];
         await Promise.all(dbAvailable.map(async (barber) => {
@@ -120,9 +107,9 @@ export default function AsapBookingFlow() {
                 const res = await fetch(`/api/calendar/busy?barberId=${barber.id}&date=${dateStr}`);
                 if (!res.ok) { calAvailable.push(barber); return; }
                 const { busy } = await res.json() as { busy: { start: string; end: string }[] };
-                const hasConflict = (busy || []).some(
-                    b => slotStart < new Date(b.end).getTime() && slotEnd > new Date(b.start).getTime()
-                );
+                const hasConflict = selectedTime
+                    ? slotConflictsWithBusy(selectedDate, selectedTime, durationMin, busy || [])
+                    : false;
                 if (!hasConflict) calAvailable.push(barber);
             } catch {
                 // If the API fails, assume available so booking is never blocked

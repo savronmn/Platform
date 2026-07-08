@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getValidAccessToken, getBusySlots, toIsoString, type CalendarToken } from '@/lib/google-calendar';
+import { getValidAccessToken, getEventBusySlots, toIsoString, type CalendarToken } from '@/lib/google-calendar';
 import { parseDurationMins, timeToMins } from '@/lib/calendar-timeline';
 
 const getAdmin = () => createClient(
@@ -70,7 +70,8 @@ export async function GET(request: NextRequest) {
         const timeMin = `${date}T00:00:00-05:00`;
         const timeMax = `${date}T23:59:59-05:00`;
 
-        const gcalBusy = await getBusySlots(accessToken, calendarId, timeMin, timeMax);
+        // Use exact event times — freeBusy pads appointments with Google Calendar buffer time.
+        const gcalBusy = await getEventBusySlots(accessToken, calendarId, timeMin, timeMax);
 
         return NextResponse.json({ busy: [...gcalBusy, ...dbBusy], workingHours });
     } catch (err) {

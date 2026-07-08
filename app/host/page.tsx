@@ -20,6 +20,7 @@ import {
     CALENDAR_HOUR_HEIGHT_PX, minsToTime12, getCalendarHourStarts,
     getCalendarGridBounds, time24ToMins,
     HOST_CALENDAR_HOUR_HEIGHT_PX,
+    rangesOverlapMins,
 } from '@/lib/calendar-timeline';
 import TimelineDayGrid, { bookingToTimelineEvent, isoRangeToTimelineEvent, type TimelineEvent } from '@/components/calendar/TimelineDayGrid';
 import CalendarNavBar from '@/components/calendar/CalendarNavBar';
@@ -372,23 +373,23 @@ function HostDashboardInner() {
 
     const bookingDurationMins = (b: Booking): number => parseDurationMins(b.duration);
 
-    // Slot availability helpers — blocks a slot if any active booking or GCal event
-    // for the selected barber overlaps with it (accounting for duration).
-    const slotTakenByBooking = (barberId: string, dateStr: string, slotMins: number): boolean =>
+    const quickAddDurationMins = useMemo(() => {
+        const svc = services.find(s => s.name === quickForm.service);
+        return svc?.durationMin ?? 45;
+    }, [quickForm.service, services]);
+
+    // Slot availability — zero buffer between appointments; back-to-back bookings are allowed.
+    const slotTakenByBooking = (barberId: string, dateStr: string, slotMins: number, durationMins: number): boolean =>
         bookings.some(b => {
             if (b.barber_id !== barberId || b.date !== dateStr) return false;
             if (!['confirmed', 'completed', 'no_show'].includes(b.status)) return false;
-            const bStart = timeToMins(b.time);
-            const bEnd   = bStart + bookingDurationMins(b);
-            return slotMins >= bStart && slotMins < bEnd;
+            return rangesOverlapMins(slotMins, durationMins, timeToMins(b.time), bookingDurationMins(b));
         });
 
-    const slotTakenByExternal = (barberId: string, dateStr: string, slotMins: number): boolean =>
+    const slotTakenByExternal = (barberId: string, dateStr: string, slotMins: number, durationMins: number): boolean =>
         deduplicatedExternal.some(e => {
             if (e.barberId !== barberId || e.date !== dateStr) return false;
-            const eStart = timeToMins(e.time);
-            const eEnd   = eStart + externalDurationMins(e);
-            return slotMins >= eStart && slotMins < eEnd;
+            return rangesOverlapMins(slotMins, durationMins, timeToMins(e.time), externalDurationMins(e));
         });
 
     // Quick-Add slot availability — excludes past, booked (all active statuses), and GCal-occupied slots
@@ -404,13 +405,13 @@ function HostDashboardInner() {
             if (isViewingToday && slotMins <= nowMins) return { slot, status: 'past' as const };
             if (quickForm.barberId) {
                 const taken =
-                    slotTakenByBooking(quickForm.barberId, dateStr, slotMins) ||
-                    slotTakenByExternal(quickForm.barberId, dateStr, slotMins);
+                    slotTakenByBooking(quickForm.barberId, dateStr, slotMins, quickAddDurationMins) ||
+                    slotTakenByExternal(quickForm.barberId, dateStr, slotMins, quickAddDurationMins);
                 if (taken) return { slot, status: 'taken' as const };
             }
             return { slot, status: 'available' as const };
         });
-    }, [quickFormDate, quickForm.barberId, bookings, deduplicatedExternal]);
+    }, [quickFormDate, quickForm.barberId, quickForm.service, quickAddDurationMins, bookings, deduplicatedExternal]);
 
     const availableTimeSlots = allTimeSlotsWithStatus
         .filter(s => s.status === 'available')
@@ -1532,7 +1533,7 @@ function HostDashboardInner() {
                                     <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">Service *</label>
                                     <select
                                         value={quickForm.service}
-                                        onChange={e => setQuickForm(f => ({ ...f, service: e.target.value }))}
+                                        onChange={e => setQuickForm(f => ({ ...f, service: e.target.value, time: '' }))}
                                         className="input-savron"
                                     >
                                         <option value="">Select service…</option>

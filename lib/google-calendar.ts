@@ -143,35 +143,48 @@ export function toIsoString(date: string, time: string): string {
     return `${date}T${hh}:${mm}:00-05:00`;
 }
 
-// Get busy slots via freeBusy endpoint
-export async function getBusySlots(
+// Get busy slots from actual calendar events (exact start/end — no Google buffer padding).
+export async function getEventBusySlots(
     accessToken: string,
     calendarId: string,
-    timeMin: string, // ISO string
-    timeMax: string  // ISO string
+    timeMin: string,
+    timeMax: string,
 ): Promise<{ start: string; end: string }[]> {
-    const res = await fetch(`${GOOGLE_CALENDAR_BASE}/freeBusy`, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            timeMin,
-            timeMax,
-            items: [{ id: calendarId }],
-        }),
+    const url = new URL(`${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events`);
+    url.searchParams.set('timeMin', timeMin);
+    url.searchParams.set('timeMax', timeMax);
+    url.searchParams.set('singleEvents', 'true');
+    url.searchParams.set('orderBy', 'startTime');
+    url.searchParams.set('maxResults', '250');
+
+    const res = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        next: { revalidate: 0 },
     });
 
     if (!res.ok) {
         const err = await res.text();
-        console.error('Failed to fetch freeBusy:', err);
-        throw new Error('Failed to fetch freeBusy');
+        console.error('Failed to fetch calendar events for busy:', err);
+        throw new Error('Failed to fetch calendar events for busy');
     }
 
     const data = await res.json();
-    const busyArr = data.calendars?.[calendarId]?.busy || [];
-    return busyArr as { start: string; end: string }[];
+    return ((data.items ?? []) as Array<{ status?: string; start?: { dateTime?: string }; end?: { dateTime?: string } }>)
+        .filter(e => e.status !== 'cancelled' && e.start?.dateTime)
+        .map(e => ({
+            start: e.start!.dateTime!,
+            end: (e.end?.dateTime ?? e.start!.dateTime!) as string,
+        }));
+}
+
+/** @deprecated Use getEventBusySlots — freeBusy includes Google Calendar buffer time between appointments. */
+export async function getBusySlots(
+    accessToken: string,
+    calendarId: string,
+    timeMin: string,
+    timeMax: string,
+): Promise<{ start: string; end: string }[]> {
+    return getEventBusySlots(accessToken, calendarId, timeMin, timeMax);
 }
 
 // Watch a calendar for changes (webhooks)

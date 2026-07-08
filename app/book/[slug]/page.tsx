@@ -14,7 +14,7 @@ import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { DatePicker } from '@/components/booking/DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
-import { isSlotInPast, nextBookableDate } from '@/lib/time-helpers';
+import { isSlotInPast, nextBookableDate, slotConflictsWithBusy } from '@/lib/time-helpers';
 import BarberPortfolioGallery from '@/components/booking/BarberPortfolioGallery';
 
 export default function BarberBookingPage() {
@@ -74,14 +74,7 @@ export default function BarberBookingPage() {
         if (busySlots.length === 0) return false;
         const service = services.find(s => s.id === selectedService);
         const durationMin = service?.durationMin ?? 45;
-        const dateStr = format(selectedDate, 'yyyy-MM-dd');
-        const [timePart, meridiem] = timeStr.split(' ');
-        let [hours, minutes] = timePart.split(':').map(Number);
-        if (meridiem === 'PM' && hours !== 12) hours += 12;
-        if (meridiem === 'AM' && hours === 12) hours = 0;
-        const slotStart = new Date(`${dateStr}T${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00-05:00`).getTime();
-        const slotEnd = slotStart + durationMin * 60000;
-        return busySlots.some(b => slotStart < new Date(b.end).getTime() && slotEnd > new Date(b.start).getTime());
+        return slotConflictsWithBusy(selectedDate, timeStr, durationMin, busySlots);
     };
 
     useEffect(() => {
