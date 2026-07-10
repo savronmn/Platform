@@ -95,6 +95,10 @@ export async function sendCancellationEmails(
 
     const barberName = booking.barbers?.name ?? booking.barber_name ?? 'Your barber';
     const barberEmail = booking.barbers?.email ?? null;
+    const missingRecipients = [
+        !booking.client_email ? 'client' : null,
+        !barberEmail ? 'barber' : null,
+    ].filter((recipient): recipient is string => Boolean(recipient));
     const recipients = Array.from(new Set(
         [booking.client_email, barberEmail, BARBERSHOP_EMAIL].filter(
             (email): email is string => Boolean(email),
@@ -167,10 +171,15 @@ export async function sendCancellationEmails(
     }));
 
     const failed = results.filter(result => result.status === 'rejected').length;
+    const errors: string[] = [];
+    if (failed) errors.push(`Failed to send ${failed} cancellation email(s)`);
+    if (missingRecipients.length) {
+        errors.push(`No email address is saved for the ${missingRecipients.join(' and ')}`);
+    }
     return {
-        success: failed === 0,
+        success: failed === 0 && missingRecipients.length === 0,
         sent: results.length - failed,
         failed,
-        error: failed ? `Failed to send ${failed} cancellation email(s)` : undefined,
+        error: errors.length ? errors.join('. ') : undefined,
     };
 }
