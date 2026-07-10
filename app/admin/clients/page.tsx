@@ -296,7 +296,7 @@ export default function ClientsPage() {
                                     <tr
                                         key={c.id}
                                         className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors cursor-pointer group"
-                                        onClick={() => { setSelected(c); setEditData(c); setEditing(false); setChargeResult(null); }}
+                                        onClick={() => { setSelected(c); setEditData(c); setEditing(false); }}
                                     >
                                         <td className="px-4 py-4" onClick={e => e.stopPropagation()}>
                                             <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => toggleSelect(c.id)} className="accent-savron-green w-3.5 h-3.5" />
@@ -339,7 +339,7 @@ export default function ClientsPage() {
                     <motion.div
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                         className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-                        onClick={() => { setSelected(null); setEditing(false); setShowCharge(false); }}
+                        onClick={() => { setSelected(null); setEditing(false); }}
                     >
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
