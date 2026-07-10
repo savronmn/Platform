@@ -118,7 +118,7 @@ export async function deleteCalendarEvent(
     eventId: string
 ): Promise<void> {
     const res = await fetch(
-        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
+        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}?sendUpdates=all`,
         {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${accessToken}` },
@@ -260,4 +260,20 @@ export async function getChangedEvents(
     } while (pageToken);
     
     return { events, nextSyncToken };
+}
+
+export async function getCalendarEvent(
+    accessToken: string,
+    calendarId: string,
+    eventId: string,
+): Promise<{ id?: string; status?: string; attendees?: Array<{ email?: string; responseStatus?: string; organizer?: boolean }> }> {
+    const res = await fetch(
+        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        throw new Error(`Failed to fetch calendar event (${res.status}): ${detail}`);
+    }
+    return res.json();
 }

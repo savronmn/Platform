@@ -33,6 +33,8 @@ export default function AdminLoginPage() {
             return;
         }
 
+        await fetch('/api/admin/ensure-role', { method: 'POST' });
+
         router.push('/admin');
         router.refresh();
     };

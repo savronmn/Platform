@@ -58,6 +58,7 @@ type ExternalEvent = {
     date: string;
     time: string;
     htmlLink: string | null;
+    bookingId: string | null;
     source: 'google';
 };
 
@@ -113,6 +114,7 @@ function HostDashboardInner() {
     const [quickSubmitting, setQuickSubmitting] = useState(false);
     const [quickError, setQuickError] = useState<string | null>(null);
     const [cancelError, setCancelError] = useState<string | null>(null);
+    const [cancellingExternalId, setCancellingExternalId] = useState<string | null>(null);
 
     // Barber filter (empty set = show all)
     const [filteredBarberIds, setFilteredBarberIds] = useState<Set<string>>(new Set());
@@ -206,6 +208,7 @@ function HostDashboardInner() {
         if (status === 'cancelled') {
             const result = await triggerCancelBooking(booking.id);
             if (result.success) {
+                await fetchBookings();
                 setBookings(prev => prev.map(b =>
                     b.barber_id === booking.barber_id &&
                     b.date === booking.date &&
@@ -258,10 +261,38 @@ function HostDashboardInner() {
             return;
         }
         setBookings(prev => prev.filter(b => b.id !== booking.id));
+        await fetchBookings();
+        await fetchExternalEvents();
         setCancelError(result.warning ?? null);
         setDeletingId(null);
         setConfirmDelete(false);
         setActiveBooking(null);
+    };
+
+    const cancelExternalEvent = async (event: ExternalEvent) => {
+        setCancellingExternalId(event.id);
+        setCancelError(null);
+        try {
+            const res = await fetch('/api/calendar/events/cancel', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ googleEventId: event.id, barberId: event.barberId }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setCancelError(data.error ?? 'Could not cancel calendar event');
+                return;
+            }
+            setExternalEvents(prev => prev.filter(item => item.id !== event.id));
+            setActiveExternal(null);
+            await fetchBookings();
+            await fetchExternalEvents();
+            setCancelError(data.warning ?? null);
+        } catch {
+            setCancelError('Could not cancel calendar event');
+        } finally {
+            setCancellingExternalId(null);
+        }
     };
 
 
@@ -1445,6 +1476,15 @@ function HostDashboardInner() {
                                         setBookings(prev => [...prev, b]);
                                         setActiveExternal(null);
                                     }} />
+                                    <button
+                                        onClick={() => cancelExternalEvent(activeExternal)}
+                                        disabled={cancellingExternalId === activeExternal.id}
+                                        className="flex items-center justify-center gap-2 w-full py-2.5 text-[11px] uppercase tracking-widest font-medium bg-white/5 text-red-400 border border-red-500/20 rounded-savron hover:bg-red-500/10 transition-all disabled:opacity-50"
+                                    >
+                                        {cancellingExternalId === activeExternal.id
+                                            ? <div className="w-4 h-4 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                                            : <><Ban className="w-4 h-4" /> {t('host.cancel_appt')}</>}
+                                    </button>
                                 </div>
 
                                 {/* Open in Google Calendar */}

@@ -125,6 +125,26 @@ export async function GET(req: NextRequest) {
 
     if (!barbers?.length) return NextResponse.json([]);
 
+    const barberIds = barbers.map(barber => barber.id);
+    const { data: linkedBookings } = await supabase
+        .from('bookings')
+        .select('id, google_event_id, barber_id, status')
+        .in('barber_id', barberIds)
+        .gte('date', dateStart)
+        .lte('date', dateEnd)
+        .not('google_event_id', 'is', null);
+
+    const linkedEventIds = new Set(
+        (linkedBookings ?? [])
+            .filter(booking => booking.status === 'confirmed' && booking.google_event_id)
+            .map(booking => booking.google_event_id as string),
+    );
+    const bookingByEventId = new Map(
+        (linkedBookings ?? [])
+            .filter(booking => booking.google_event_id)
+            .map(booking => [booking.google_event_id as string, booking.id as string]),
+    );
+
     const timeMin = `${dateStart}T00:00:00-05:00`;
     const timeMax = `${dateEnd}T23:59:59-05:00`;
 
@@ -145,6 +165,7 @@ export async function GET(req: NextRequest) {
 
             const mapped = events
                 .filter((e) => e.status !== 'cancelled' && e.start?.dateTime)
+                .filter((e) => !linkedEventIds.has(e.id as string))
                 .map((e) => {
                     const clientName = extractClientName(e);
                     return {
@@ -159,6 +180,7 @@ export async function GET(req: NextRequest) {
                         end: (e.end?.dateTime ?? e.start.dateTime) as string,
                         date: (e.start.dateTime as string).slice(0, 10),
                         time: isoToTimeSlot(e.start.dateTime as string),
+                        bookingId: bookingByEventId.get(e.id as string) ?? null,
                         // htmlLink is the canonical Google Calendar URL to view/edit this event
                         htmlLink: (e.htmlLink as string | undefined) ?? null,
                         source: 'google' as const,

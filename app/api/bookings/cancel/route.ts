@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createServerSupabase } from '@/lib/supabase-server';
 import { cancelBooking } from '@/lib/cancel-booking';
+import { resolveBookingActor } from '@/lib/booking-auth';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -47,33 +48,19 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const [{ data: barberRecord }, { data: adminRole }] = await Promise.all([
-        supabaseAdmin.from('barbers').select('id').eq('auth_id', user.id).maybeSingle(),
-        supabaseAdmin.from('user_roles').select('role').eq('auth_id', user.id).eq('role', 'admin').maybeSingle(),
-    ]);
-
-    const isStaff = !!barberRecord || !!adminRole;
+    const { isStaff, ownsBooking } = await resolveBookingActor(
+        supabaseAdmin,
+        user.id,
+        user.email,
+        booking,
+    );
 
     if (hardDelete && !isStaff) {
         return NextResponse.json({ error: 'Only staff can delete bookings' }, { status: 403 });
     }
 
-    if (!isStaff) {
-        // Client must own this booking
-        const { data: client } = await supabaseAdmin
-            .from('clients')
-            .select('id')
-            .eq('auth_id', user.id)
-            .maybeSingle();
-
-        const ownsByClientId = client && booking.client_id === client.id;
-        const userEmail = user.email?.toLowerCase();
-        const bookingEmail = booking.client_email?.toLowerCase();
-        const ownsByEmail = !!(userEmail && bookingEmail && bookingEmail === userEmail);
-
-        if (!ownsByClientId && !ownsByEmail) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-        }
+    if (!isStaff && !ownsBooking) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const result = await cancelBooking(bookingId);
