@@ -98,10 +98,8 @@ CREATE TABLE bookings (
     duration TEXT DEFAULT '45 min',
     price TEXT,
     status TEXT DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'completed', 'cancelled', 'no_show')),
-    payment_status TEXT DEFAULT 'unpaid',
     notes TEXT,
     google_event_id TEXT,
-    stripe_session_id TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

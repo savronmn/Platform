@@ -1,4 +1,4 @@
--- Test Data Seed for CRM & Stripe Features
+-- Test Data Seed for CRM Features
 -- Run this in your Supabase SQL Editor to test the new dashboard
 
 -- We assume barbers 'marcus-v', 'james-d', and 'leo-r' already exist from initial schema.
@@ -25,18 +25,18 @@ SET last_booking_date = EXCLUDED.last_booking_date,
     membership_status = EXCLUDED.membership_status;
 
 
--- 2. Insert Test Bookings for the calendar and Stripe testing
+-- 2. Insert Test Bookings for calendar testing
 -- We'll link these to the clients we just created
-INSERT INTO bookings (client_name, client_email, service, barber_id, barber_name, date, time, price, status, payment_status)
+INSERT INTO bookings (client_name, client_email, service, barber_id, barber_name, date, time, price, status)
 VALUES
-    -- A booking for today that needs payment (Unpaid)
-    ('Test User 1W', 'test1w@example.com', 'The Signature Cut', (SELECT id FROM barbers WHERE slug = 'marcus-v' LIMIT 1), 'Marcus V.', CURRENT_DATE, '1:00 PM', '$55', 'confirmed', 'unpaid'),
+    -- A booking for today
+    ('Test User 1W', 'test1w@example.com', 'The Signature Cut', (SELECT id FROM barbers WHERE slug = 'marcus-v' LIMIT 1), 'Marcus V.', CURRENT_DATE, '1:00 PM', '$55', 'confirmed'),
     
-    -- A booking for today that is already paid
-    ('Test User 4W', 'test4w@example.com', 'The Executive', (SELECT id FROM barbers WHERE slug = 'james-d' LIMIT 1), 'James D.', CURRENT_DATE, '2:30 PM', '$90', 'confirmed', 'paid'),
+    -- Another booking for today
+    ('Test User 4W', 'test4w@example.com', 'The Executive', (SELECT id FROM barbers WHERE slug = 'james-d' LIMIT 1), 'James D.', CURRENT_DATE, '2:30 PM', '$90', 'confirmed'),
     
     -- A past booking (completed)
-    ('Test User 6W', 'test6w@example.com', 'Beard Sculpting', (SELECT id FROM barbers WHERE slug = 'leo-r' LIMIT 1), 'Leo R.', CURRENT_DATE - 45, '11:00 AM', '$40', 'completed', 'paid'),
+    ('Test User 6W', 'test6w@example.com', 'Beard Sculpting', (SELECT id FROM barbers WHERE slug = 'leo-r' LIMIT 1), 'Leo R.', CURRENT_DATE - 45, '11:00 AM', '$40', 'completed'),
 
     -- A future booking
-    ('VIP User 9W', 'vip9w@example.com', 'Hot Towel Shave', (SELECT id FROM barbers WHERE slug = 'marcus-v' LIMIT 1), 'Marcus V.', CURRENT_DATE + 2, '10:00 AM', '$50', 'confirmed', 'unpaid');
+    ('VIP User 9W', 'vip9w@example.com', 'Hot Towel Shave', (SELECT id FROM barbers WHERE slug = 'marcus-v' LIMIT 1), 'Marcus V.', CURRENT_DATE + 2, '10:00 AM', '$50', 'confirmed');

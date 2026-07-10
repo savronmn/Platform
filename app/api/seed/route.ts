@@ -81,8 +81,7 @@ export async function POST(req: NextRequest) {
                 date: b.date,
                 time: b.time,
                 status: b.status,
-                price: b.price,
-                payment_status: b.status === 'completed' ? 'paid' : 'unpaid'
+                price: b.price
             });
             if (insErr) console.warn("Could not insert mock booking:", insErr.message);
         }

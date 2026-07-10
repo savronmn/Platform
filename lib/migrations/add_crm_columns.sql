@@ -1,9 +1,5 @@
--- Migration: Add CRM and Stripe columns
+-- Migration: Add CRM columns
 -- Run this in your Supabase SQL Editor
-
--- Add payment tracking to bookings
-ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'unpaid';
-ALTER TABLE bookings ADD COLUMN IF NOT EXISTS stripe_session_id TEXT;
 
 -- Add last_booking_date to clients for fast CRM filtering
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_booking_date DATE;

@@ -5,19 +5,13 @@ import { createClient } from '@/lib/supabase';
 import StatusBadge from '@/components/crm/StatusBadge';
 import type { Client } from '@/lib/types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Search, Plus, Trash2, Mail, Edit3, Check, AlertTriangle, CreditCard, DollarSign, ChevronDown } from 'lucide-react';
+import { X, Search, Plus, Trash2, Mail, Edit3, Check, AlertTriangle, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow, differenceInWeeks } from 'date-fns';
 
 type VisitFilter = 'all' | '4_weeks' | '6_weeks' | '8_weeks' | 'vip';
 type CampaignTemplate = 'miss_you' | 'special_offer' | 'custom';
 type MembershipTier = 'standard' | 'inner_circle' | 'vip';
-
-interface ChargeData {
-    amount: string;
-    description: string;
-    mode: 'redirect' | 'link';
-}
 
 export default function ClientsPage() {
     const supabase = createClient();
@@ -46,12 +40,6 @@ export default function ClientsPage() {
     // Bulk tier move
     const [showTierMove, setShowTierMove] = useState(false);
     const [movingTier, setMovingTier] = useState(false);
-
-    // Stripe charge from client modal
-    const [showCharge, setShowCharge] = useState(false);
-    const [chargeData, setChargeData] = useState<ChargeData>({ amount: '', description: 'Barbershop Service', mode: 'redirect' });
-    const [charging, setCharging] = useState(false);
-    const [chargeResult, setChargeResult] = useState<string | null>(null);
 
     useEffect(() => { fetchClients(); }, [search]);
 
@@ -179,34 +167,6 @@ export default function ClientsPage() {
         setSelectedIds(new Set());
         setMovingTier(false);
         fetchClients();
-    }
-
-    async function chargeClient() {
-        if (!selected || !chargeData.amount) return;
-        setCharging(true);
-        setChargeResult(null);
-        try {
-            const res = await fetch('/api/stripe/client-charge', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    clientId: selected.id,
-                    amount: parseFloat(chargeData.amount),
-                    description: chargeData.description,
-                    mode: chargeData.mode,
-                }),
-            });
-            const data = await res.json();
-            if (chargeData.mode === 'redirect' && data.url) {
-                window.open(data.url, '_blank');
-                setShowCharge(false);
-            } else if (chargeData.mode === 'link') {
-                setChargeResult(data.sent ? '✅ Payment link emailed to client' : '✅ Link created (no email on file)');
-            }
-        } catch {
-            setChargeResult('❌ Failed to create charge');
-        }
-        setCharging(false);
     }
 
     const allSelected = filteredClients.length > 0 && selectedIds.size === filteredClients.length;
@@ -467,67 +427,6 @@ export default function ClientsPage() {
 
                             {!editing && (
                                 <>
-                                    {/* Stripe Charge Panel */}
-                                    <AnimatePresence>
-                                        {showCharge && (
-                                            <motion.div
-                                                initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                                                className="overflow-hidden"
-                                            >
-                                                <div className="px-6 pb-4 pt-2 space-y-3 border-t border-white/5 bg-black/10">
-                                                    <p className="text-[10px] uppercase tracking-widest text-savron-silver/50 pt-2">Charge Details</p>
-                                                    <div className="flex gap-2">
-                                                        <div className="relative flex-1">
-                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-savron-silver text-sm">$</span>
-                                                            <input
-                                                                type="number" placeholder="0.00" step="0.01" min="1"
-                                                                value={chargeData.amount}
-                                                                onChange={e => setChargeData(p => ({ ...p, amount: e.target.value }))}
-                                                                className="input-savron pl-7"
-                                                            />
-                                                        </div>
-                                                        <input
-                                                            placeholder="Description"
-                                                            value={chargeData.description}
-                                                            onChange={e => setChargeData(p => ({ ...p, description: e.target.value }))}
-                                                            className="input-savron flex-[2]"
-                                                        />
-                                                    </div>
-                                                    <div className="flex gap-2">
-                                                        <button
-                                                            onClick={() => setChargeData(p => ({ ...p, mode: 'redirect' }))}
-                                                            className={cn("flex-1 py-2 text-[10px] uppercase tracking-widest border rounded-savron transition-all",
-                                                                chargeData.mode === 'redirect' ? "bg-savron-green border border-savron-green-light/20 text-white" : "text-savron-silver border-white/10 hover:border-white/20"
-                                                            )}
-                                                        >
-                                                            <CreditCard className="w-3 h-3 inline mr-1" /> POS Checkout
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setChargeData(p => ({ ...p, mode: 'link' }))}
-                                                            className={cn("flex-1 py-2 text-[10px] uppercase tracking-widest border rounded-savron transition-all",
-                                                                chargeData.mode === 'link' ? "bg-savron-green border border-savron-green-light/20 text-white" : "text-savron-silver border-white/10 hover:border-white/20"
-                                                            )}
-                                                        >
-                                                            <Mail className="w-3 h-3 inline mr-1" /> Email Link
-                                                        </button>
-                                                    </div>
-                                                    {chargeResult && (
-                                                        <p className="text-xs text-savron-silver text-center">{chargeResult}</p>
-                                                    )}
-                                                    <button
-                                                        onClick={chargeClient}
-                                                        disabled={charging || !chargeData.amount}
-                                                        className="w-full py-2.5 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-semibold"
-                                                    >
-                                                        {charging ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (
-                                                            chargeData.mode === 'redirect' ? <><CreditCard className="w-3.5 h-3.5" /> Charge POS</> : <><DollarSign className="w-3.5 h-3.5" /> Send Pay Link</>
-                                                        )}
-                                                    </button>
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-
                                     <div className="p-6 border-t border-white/5 flex justify-between gap-2 flex-wrap">
                                         <button
                                             onClick={() => setShowDelete(selected.id)}
@@ -536,17 +435,6 @@ export default function ClientsPage() {
                                             <Trash2 className="w-3 h-3" /> Delete
                                         </button>
                                         <div className="flex gap-2">
-                                            <button
-                                                onClick={() => { setShowCharge(v => !v); setChargeResult(null); }}
-                                                className={cn(
-                                                    "px-4 py-2 text-xs uppercase tracking-widest border rounded-savron transition-all flex items-center gap-2",
-                                                    showCharge
-                                                        ? "bg-savron-green border border-savron-green-light/20 text-white"
-                                                        : "text-savron-silver border-white/10 hover:text-white hover:border-white/20"
-                                                )}
-                                            >
-                                                <DollarSign className="w-3 h-3" /> Charge
-                                            </button>
                                             <button
                                                 onClick={() => setEditing(true)}
                                                 className="px-4 py-2 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all flex items-center gap-2"

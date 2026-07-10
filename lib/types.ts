@@ -103,10 +103,8 @@ export interface Booking {
     duration: string | null;
     price: string | null;
     status: 'confirmed' | 'completed' | 'cancelled' | 'no_show';
-    payment_status?: string;
     notes: string | null;
     client_photo_url: string | null;
     google_event_id: string | null;
-    stripe_session_id?: string;
     created_at: string;
 }

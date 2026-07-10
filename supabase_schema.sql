@@ -34,8 +34,7 @@
 -- id UUID PK, client_id UUID FK, client_name TEXT, client_email TEXT,
 -- client_phone TEXT, service TEXT, barber_id UUID FK, barber_name TEXT,
 -- date DATE, time TEXT, duration TEXT, price TEXT, status TEXT,
--- notes TEXT, google_event_id TEXT, created_at TIMESTAMPTZ,
--- payment_status TEXT, stripe_session_id TEXT
+-- notes TEXT, google_event_id TEXT, created_at TIMESTAMPTZ
 
 -- services
 -- id UUID PK, name TEXT, duration_minutes INT, price_cents INT,
