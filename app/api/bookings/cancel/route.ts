@@ -34,8 +34,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
-    // Only confirmed bookings can be cancelled via this endpoint
-    if (booking.status !== 'confirmed' && !(hardDelete && booking.status === 'cancelled')) {
+    // Repeated requests for an already-cancelled booking remain idempotent.
+    if (booking.status !== 'confirmed' && booking.status !== 'cancelled') {
         return NextResponse.json({ error: 'Only confirmed bookings can be cancelled' }, { status: 400 });
     }
 
