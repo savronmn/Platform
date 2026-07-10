@@ -68,6 +68,7 @@ export default function MemberBookingsPage() {
                         : b
             ));
             setExpandedId(null);
+            setCancelError(result.warning ?? null);
         } else {
             setCancelError(result.error ?? 'Could not cancel booking');
         }

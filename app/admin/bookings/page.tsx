@@ -148,6 +148,7 @@ export default function BookingsPage() {
                             ? { ...b, status: 'cancelled' as const }
                             : b
                 ));
+                setStatusError(result.warning ?? null);
             } else {
                 setStatusError(result.error ?? 'Could not cancel appointment');
             }

@@ -140,7 +140,7 @@ export default function AsapBookingFlow() {
         const service = services.find((s) => s.id === selectedService);
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
-        const { data: inserted } = await supabase.from('bookings').insert({
+        const { data: inserted, error: insertError } = await supabase.from('bookings').insert({
             client_name: clientName || null,
             client_email: clientEmail || null,
             client_phone: clientPhone || null,
@@ -155,7 +155,15 @@ export default function AsapBookingFlow() {
             notes: clientMessage.trim() || null,
         }).select('id').single();
 
-        if (inserted?.id) triggerPostBooking(inserted.id);
+        if (insertError || !inserted?.id) {
+            setSubmitting(false);
+            alert(insertError?.code === '23505'
+                ? 'That appointment was just booked. Please choose another time.'
+                : 'We could not create your appointment. Please try again.');
+            return;
+        }
+
+        triggerPostBooking(inserted.id);
 
         setSubmitting(false);
         setStep(4);

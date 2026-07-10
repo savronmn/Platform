@@ -13,7 +13,10 @@ const getAdmin = () => createClient(
 );
 
 export async function POST(request: NextRequest) {
-    const { bookingId } = await request.json() as { bookingId?: string };
+    const { bookingId, hardDelete = false } = await request.json() as {
+        bookingId?: string;
+        hardDelete?: boolean;
+    };
 
     if (!bookingId) {
         return NextResponse.json({ error: 'Missing bookingId' }, { status: 400 });
@@ -31,12 +34,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
-    if (booking.status === 'cancelled') {
-        return NextResponse.json({ success: true, alreadyCancelled: true });
-    }
-
     // Only confirmed bookings can be cancelled via this endpoint
-    if (booking.status !== 'confirmed') {
+    if (booking.status !== 'confirmed' && !(hardDelete && booking.status === 'cancelled')) {
         return NextResponse.json({ error: 'Only confirmed bookings can be cancelled' }, { status: 400 });
     }
 
@@ -54,6 +53,10 @@ export async function POST(request: NextRequest) {
     ]);
 
     const isStaff = !!barberRecord || !!adminRole;
+
+    if (hardDelete && !isStaff) {
+        return NextResponse.json({ error: 'Only staff can delete bookings' }, { status: 403 });
+    }
 
     if (!isStaff) {
         // Client must own this booking
@@ -79,9 +82,32 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: result.error ?? 'Cancellation failed' }, { status: 500 });
     }
 
+    // Keep a cancelled tombstone when Google cleanup failed. The busy-slot API
+    // uses its event ID to ignore the orphan, guaranteeing immediate availability.
+    const shouldDelete = hardDelete && result.calendarDeleted !== false;
+    if (shouldDelete) {
+        const { error: deleteError } = await supabaseAdmin
+            .from('bookings')
+            .delete()
+            .eq('id', bookingId)
+            .eq('status', 'cancelled');
+        if (deleteError) {
+            return NextResponse.json(
+                {
+                    error: `Appointment was cancelled, but could not be deleted: ${deleteError.message}`,
+                    cancelled: true,
+                    warning: result.warning,
+                },
+                { status: 500 },
+            );
+        }
+    }
+
     return NextResponse.json({
         success: true,
+        deleted: shouldDelete,
         emailSent: result.emailSent,
         calendarDeleted: result.calendarDeleted,
+        warning: result.warning,
     });
 }

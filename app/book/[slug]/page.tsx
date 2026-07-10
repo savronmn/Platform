@@ -91,7 +91,7 @@ export default function BarberBookingPage() {
         const service = services.find(s => s.id === selectedService);
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
-        const { data: inserted } = await supabase.from('bookings').insert({
+        const { data: inserted, error: insertError } = await supabase.from('bookings').insert({
             client_name: clientName,
             client_email: clientEmail,
             client_phone: clientPhone,
@@ -106,7 +106,15 @@ export default function BarberBookingPage() {
             notes: clientMessage.trim() || null,
         }).select('id').single();
 
-        if (inserted?.id) triggerPostBooking(inserted.id);
+        if (insertError || !inserted?.id) {
+            setSubmitting(false);
+            alert(insertError?.code === '23505'
+                ? 'That appointment was just booked. Please choose another time.'
+                : 'We could not create your appointment. Please try again.');
+            return;
+        }
+
+        triggerPostBooking(inserted.id);
 
         setSubmitting(false);
         setStep(4);

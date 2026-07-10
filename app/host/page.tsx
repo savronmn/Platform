@@ -227,6 +227,7 @@ function HostDashboardInner() {
                             : prev
                 );
                 await fetchExternalEvents();
+                setCancelError(result.warning ?? null);
             } else {
                 setCancelError(result.error ?? 'Could not cancel appointment');
             }
@@ -245,20 +246,19 @@ function HostDashboardInner() {
         setUpdating(false);
     };
 
-    // Hard-delete a booking from DB + sync calendar (GCal delete must run before DB row is removed)
+    // Staff deletion uses the shared cancellation workflow first so both parties
+    // are notified and every associated calendar event is removed.
     const deleteBooking = async (booking: Booking) => {
         setDeletingId(booking.id);
-        try {
-            await fetch('/api/calendar/sync', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bookingId: booking.id, action: 'delete' }),
-            });
-        } catch (err) {
-            console.error('Failed to delete Google Calendar event:', err);
+        setCancelError(null);
+        const result = await triggerCancelBooking(booking.id, { hardDelete: true });
+        if (!result.success) {
+            setCancelError(result.error ?? 'Could not delete appointment');
+            setDeletingId(null);
+            return;
         }
-        await supabase.from('bookings').delete().eq('id', booking.id);
         setBookings(prev => prev.filter(b => b.id !== booking.id));
+        setCancelError(result.warning ?? null);
         setDeletingId(null);
         setConfirmDelete(false);
         setActiveBooking(null);

@@ -149,7 +149,7 @@ export async function getEventBusySlots(
     calendarId: string,
     timeMin: string,
     timeMax: string,
-): Promise<{ start: string; end: string }[]> {
+): Promise<{ id?: string; start: string; end: string }[]> {
     const url = new URL(`${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events`);
     url.searchParams.set('timeMin', timeMin);
     url.searchParams.set('timeMax', timeMax);
@@ -169,9 +169,10 @@ export async function getEventBusySlots(
     }
 
     const data = await res.json();
-    return ((data.items ?? []) as Array<{ status?: string; start?: { dateTime?: string }; end?: { dateTime?: string } }>)
+    return ((data.items ?? []) as Array<{ id?: string; status?: string; start?: { dateTime?: string }; end?: { dateTime?: string } }>)
         .filter(e => e.status !== 'cancelled' && e.start?.dateTime)
         .map(e => ({
+            id: e.id,
             start: e.start!.dateTime!,
             end: (e.end?.dateTime ?? e.start!.dateTime!) as string,
         }));

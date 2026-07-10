@@ -44,10 +44,9 @@ export async function GET(request: NextRequest) {
             .single(),
         supabaseAdmin
             .from('bookings')
-            .select('time, duration')
+            .select('time, duration, status, google_event_id')
             .eq('barber_id', barberId)
-            .eq('date', date)
-            .eq('status', 'confirmed'),
+            .eq('date', date),
     ]);
 
     if (!barber) {
@@ -55,7 +54,14 @@ export async function GET(request: NextRequest) {
     }
 
     const workingHours = barber.working_hours ?? null;
-    const dbBusy = (dbBookings ?? []).map(b => bookingToBusySlot(date, b.time, b.duration));
+    const dbBusy = (dbBookings ?? [])
+        .filter(booking => booking.status === 'confirmed')
+        .map(booking => bookingToBusySlot(date, booking.time, booking.duration));
+    const linkedGoogleEventIds = new Set(
+        (dbBookings ?? [])
+            .map(booking => booking.google_event_id)
+            .filter((id): id is string => Boolean(id)),
+    );
 
     const tokens = barber.google_calendar_tokens as CalendarToken | null;
     const calendarId = barber.google_calendar_id;
@@ -71,7 +77,12 @@ export async function GET(request: NextRequest) {
         const timeMax = `${date}T23:59:59-05:00`;
 
         // Use exact event times — freeBusy pads appointments with Google Calendar buffer time.
-        const gcalBusy = await getEventBusySlots(accessToken, calendarId, timeMin, timeMax);
+        // DB rows are canonical for app-created events. Excluding their linked
+        // Google events avoids double blocks and immediately ignores an orphaned
+        // event when calendar cleanup after cancellation temporarily fails.
+        const gcalBusy = (await getEventBusySlots(accessToken, calendarId, timeMin, timeMax))
+            .filter(slot => !slot.id || !linkedGoogleEventIds.has(slot.id))
+            .map(({ start, end }) => ({ start, end }));
 
         return NextResponse.json({ busy: [...gcalBusy, ...dbBusy], workingHours });
     } catch (err) {

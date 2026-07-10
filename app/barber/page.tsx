@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, User, CheckCircle, AlertTriangle, Copy, Check, Link2, Link2Off } from 'lucide-react';
+import { Calendar, Clock, User, CheckCircle, AlertTriangle, Copy, Check, Link2, Link2Off, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Barber, Booking } from '@/lib/types';
 import { triggerCancelBooking } from '@/lib/confirm-booking';
@@ -17,6 +17,7 @@ export default function BarberDashboard() {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'today' | 'upcoming' | 'past'>('today');
     const [copied, setCopied] = useState(false);
+    const [cancelError, setCancelError] = useState<string | null>(null);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -69,9 +70,13 @@ export default function BarberDashboard() {
 
     const handleStatusUpdate = async (id: string, status: string) => {
         if (status === 'cancelled') {
+            setCancelError(null);
             const result = await triggerCancelBooking(id);
             if (result.success) {
                 setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' as Booking['status'] } : b));
+                setCancelError(result.warning ?? null);
+            } else {
+                setCancelError(result.error ?? 'Could not cancel appointment');
             }
             return;
         }
@@ -166,6 +171,12 @@ export default function BarberDashboard() {
             )}
 
             {/* Stats */}
+            {cancelError && (
+                <div className="px-4 py-3 border border-amber-500/20 bg-amber-500/10 rounded-savron text-amber-300 text-sm">
+                    {cancelError}
+                </div>
+            )}
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
                     { label: "Today", value: todayCount, icon: Calendar, color: "text-blue-400" },
@@ -229,6 +240,10 @@ export default function BarberDashboard() {
                                         </button>
                                         <button onClick={() => handleStatusUpdate(booking.id, 'no_show')} className="px-3 py-1 bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 rounded-savron text-xs uppercase tracking-wider hover:bg-yellow-500/20 transition-all">
                                             No Show
+                                        </button>
+                                        <button onClick={() => handleStatusUpdate(booking.id, 'cancelled')} className="flex items-center gap-1 px-3 py-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded-savron text-xs uppercase tracking-wider hover:bg-red-500/20 transition-all">
+                                            <XCircle className="w-3 h-3" />
+                                            Cancel
                                         </button>
                                     </>
                                 )}

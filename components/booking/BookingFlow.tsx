@@ -154,13 +154,21 @@ const BookingFlow = () => {
 
         if (insertError) {
             console.error('[BookingFlow] Insert error:', insertError);
+            setSubmitting(false);
+            alert(insertError.code === '23505'
+                ? 'That appointment was just booked. Please choose another time.'
+                : 'We could not create your appointment. Please try again.');
+            return;
         }
 
         if (inserted?.id) {
             console.log('[BookingFlow] Booking created:', inserted.id, '— triggering email + calendar sync');
             triggerPostBooking(inserted.id);
         } else {
-            console.warn('[BookingFlow] Booking insert returned no ID — email will NOT be sent. Error:', insertError);
+            console.warn('[BookingFlow] Booking insert returned no ID — email will NOT be sent.');
+            setSubmitting(false);
+            alert('We could not confirm your appointment. Please try again.');
+            return;
         }
 
         setSubmitting(false);
