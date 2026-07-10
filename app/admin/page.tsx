@@ -1,17 +1,30 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase';
 import StatCard from '@/components/crm/StatCard';
-import { Users, Calendar, DollarSign, Clock, ArrowRight, TrendingUp, Scissors, UserCheck, ClipboardList, Layers, ScanLine, Inbox, UserPlus } from 'lucide-react';
-import type { Booking, Client } from '@/lib/types';
-import { format, addDays } from 'date-fns';
+import StatDetailModal, { buildStatDetailData, type StatKey, type StatDetailData } from '@/components/crm/StatDetailModal';
+import { Users, Calendar, DollarSign, Clock, ArrowRight, TrendingUp, Scissors, UserCheck, ClipboardList, Layers, ScanLine, Inbox, UserPlus, PhoneCall } from 'lucide-react';
+import type { Booking, Client, Barber, Applicant } from '@/lib/types';
+import { format, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 const QRScannerModal = dynamic(() => import('@/components/qr/QRScannerModal'), { ssr: false });
 const WalkInModal = dynamic(() => import('@/components/crm/WalkInModal'), { ssr: false });
+
+const EMPTY_DETAIL_DATA: StatDetailData = {
+    todaySchedule: [],
+    upcomingSchedule: [],
+    dueClients: [],
+    allClients: [],
+    activeBarbers: [],
+    pendingApplicants: [],
+    recentCancellations: [],
+    serviceBreakdown: [],
+    revenueByMonth: [],
+};
 
 export default function AdminDashboard() {
     const supabase = createClient();
@@ -30,9 +43,13 @@ export default function AdminDashboard() {
         topService: '—',
         totalBookings: 0,
         totalAppointments: 0,
+        recentCancellations: 0,
     });
     const [todaySchedule, setTodaySchedule] = useState<Booking[]>([]);
     const [upcomingSchedule, setUpcomingSchedule] = useState<Booking[]>([]);
+    const [detailData, setDetailData] = useState<StatDetailData>(EMPTY_DETAIL_DATA);
+    const [dueCutoff, setDueCutoff] = useState('');
+    const [activeStat, setActiveStat] = useState<StatKey | null>(null);
     const [loading, setLoading] = useState(true);
     const [showScanner, setShowScanner] = useState(false);
     const [showWalkIn, setShowWalkIn] = useState(false);
@@ -41,20 +58,20 @@ export default function AdminDashboard() {
     async function fetchData() {
         try {
             const todayStr = format(new Date(), 'yyyy-MM-dd');
-            const nextWeekStr = format(addDays(new Date(), 7), 'yyyy-MM-dd');
+            const thirtyDaysAgo = format(subDays(new Date(), 30), 'yyyy-MM-dd');
             const sixWeeksAgo = new Date();
             sixWeeksAgo.setDate(sixWeeksAgo.getDate() - 42);
             const cutoff = format(sixWeeksAgo, 'yyyy-MM-dd');
+            setDueCutoff(cutoff);
 
-            const [clientsRes, todayBookingsRes, upcomingRes, applicantsRes, barbersRes, allBookingsRes] = await Promise.all([
+            const [clientsRes, todayBookingsRes, upcomingRes, applicantsRes, barbersRes, allBookingsRes, cancelledRes] = await Promise.all([
                 supabase.from('clients').select('*'),
                 supabase.from('bookings').select('*').eq('date', todayStr).order('time', { ascending: true }),
-                // Upcoming: all future confirmed (no date cap — full pipeline)
                 supabase.from('bookings').select('*').gt('date', todayStr).eq('status', 'confirmed').order('date', { ascending: true }).order('time', { ascending: true }).limit(50),
-                supabase.from('applicants').select('id').eq('status', 'pending'),
+                supabase.from('applicants').select('*').eq('status', 'pending').order('created_at', { ascending: false }),
                 supabase.from('barbers').select('*'),
-                // All bookings with price/service — used for revenue + totals
-                supabase.from('bookings').select('price, status, service, date'),
+                supabase.from('bookings').select('*').order('created_at', { ascending: false }),
+                supabase.from('bookings').select('*').in('status', ['cancelled', 'no_show']).gte('date', thirtyDaysAgo).order('date', { ascending: false }).order('time', { ascending: false }).limit(50),
             ]);
 
             if (clientsRes.error) throw new Error(`Clients: ${clientsRes.error.message}`);
@@ -65,14 +82,14 @@ export default function AdminDashboard() {
             const allClients: Client[] = clientsRes.data ?? [];
             const todayAll: Booking[] = todayBookingsRes.data ?? [];
             const upcoming: Booking[] = upcomingRes.data ?? [];
-            const allBarbers = barbersRes.data ?? [];
-            const allBookings = allBookingsRes.data ?? [];
+            const allBarbers: Barber[] = barbersRes.data ?? [];
+            const allBookings: Booking[] = allBookingsRes.data ?? [];
+            const recentCancelled: Booking[] = cancelledRes.data ?? [];
+            const pendingApplicants: Applicant[] = applicantsRes.data ?? [];
 
-            // Today: confirmed + completed are both real appointments
             const todayActive = todayAll.filter(b => ['confirmed', 'completed'].includes(b.status));
             const todayCompleted = todayAll.filter(b => b.status === 'completed');
 
-            // Today revenue: all non-cancelled today (confirmed bookings have a price too)
             const todayRevenue = todayActive.reduce((sum, b) => {
                 const priceStr = String(b.price || '$0');
                 const price = parseFloat(priceStr.replace(/[^0-9.]/g, ''));
@@ -81,14 +98,12 @@ export default function AdminDashboard() {
 
             const weeklyBookings = upcoming.length;
 
-            const dueClients = allClients.filter(c =>
+            const dueClientsCount = allClients.filter(c =>
                 !c.last_booking_date || c.last_booking_date < cutoff
             ).length;
 
-            const activeBarbers = allBarbers.filter(b => b.active).length;
+            const activeBarbersCount = allBarbers.filter(b => b.active).length;
 
-            // All-time: count confirmed + completed (real bookings made through the web)
-            // Exclude cancelled and no_show from revenue and appointment totals
             const activeBookings = allBookings.filter(b =>
                 b.status === 'confirmed' || b.status === 'completed'
             );
@@ -101,7 +116,6 @@ export default function AdminDashboard() {
 
             const avgTicket = activeBookings.length > 0 ? totalRevenue / activeBookings.length : 0;
 
-            // Popular service across all real bookings
             const serviceCounts: Record<string, number> = {};
             activeBookings.forEach(b => {
                 if (b.service) serviceCounts[b.service] = (serviceCounts[b.service] || 0) + 1;
@@ -119,20 +133,31 @@ export default function AdminDashboard() {
                 clients: allClients.length,
                 weeklyBookings,
                 todayBookings: todayActive.length,
-                dueClients,
+                dueClients: dueClientsCount,
                 todayRevenue,
                 todayCompleted: todayCompleted.length,
-                pendingApplicants: applicantsRes.data?.length ?? 0,
-                activeBarbers,
+                pendingApplicants: pendingApplicants.length,
+                activeBarbers: activeBarbersCount,
                 totalRevenue,
                 avgTicket,
                 topService,
                 totalBookings: allBookings.length,
                 totalAppointments: activeBookings.length,
+                recentCancellations: recentCancelled.length,
             });
 
             setTodaySchedule(todayActive);
-            setUpcomingSchedule(upcoming.slice(0, 8));
+            setUpcomingSchedule(upcoming);
+            setDetailData(buildStatDetailData(
+                allClients,
+                todayActive,
+                upcoming,
+                allBookings,
+                allBarbers,
+                pendingApplicants,
+                recentCancelled,
+                cutoff,
+            ));
             setDebugError(null);
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Failed to fetch data';
@@ -146,6 +171,99 @@ export default function AdminDashboard() {
     useEffect(() => {
         fetchData();
     }, []);
+
+    const openStat = (key: StatKey) => setActiveStat(key);
+
+    const statCards = useMemo(() => [
+        {
+            key: 'todayAppointments' as StatKey,
+            label: "Today's Appointments",
+            value: stats.todayBookings,
+            icon: <Calendar className="w-4 h-4" />,
+            sub: `${stats.todayCompleted} completed · ${stats.todayBookings - stats.todayCompleted} confirmed`,
+        },
+        {
+            key: 'todayRevenue' as StatKey,
+            label: "Today's Revenue",
+            value: `$${stats.todayRevenue.toFixed(0)}`,
+            icon: <DollarSign className="w-4 h-4" />,
+            sub: 'confirmed + completed today',
+        },
+        {
+            key: 'pipeline' as StatKey,
+            label: 'Pipeline (Upcoming)',
+            value: stats.weeklyBookings,
+            icon: <TrendingUp className="w-4 h-4" />,
+            sub: 'confirmed future bookings',
+        },
+        {
+            key: 'recentCancellations' as StatKey,
+            label: 'Recent Cancellations',
+            value: stats.recentCancellations,
+            icon: <PhoneCall className="w-4 h-4" />,
+            sub: 'last 30 days — call to reschedule',
+            alert: stats.recentCancellations > 0,
+        },
+        {
+            key: 'totalRevenue' as StatKey,
+            label: 'All-Time Revenue',
+            value: `$${stats.totalRevenue.toLocaleString()}`,
+            icon: <DollarSign className="w-4 h-4" />,
+            sub: 'confirmed + completed',
+        },
+        {
+            key: 'totalAppointments' as StatKey,
+            label: 'Total Appointments',
+            value: stats.totalAppointments,
+            icon: <Calendar className="w-4 h-4" />,
+            sub: 'all bookings made through web',
+        },
+        {
+            key: 'avgTicket' as StatKey,
+            label: 'Avg Ticket Value',
+            value: `$${stats.avgTicket.toFixed(2)}`,
+            icon: <TrendingUp className="w-4 h-4" />,
+            sub: 'per active booking',
+        },
+        {
+            key: 'topService' as StatKey,
+            label: 'Popular Service',
+            value: stats.topService,
+            icon: <Scissors className="w-4 h-4" />,
+            sub: 'most booked all-time',
+            className: 'truncate',
+        },
+        {
+            key: 'totalClients' as StatKey,
+            label: 'Total Clients',
+            value: stats.clients,
+            icon: <Users className="w-4 h-4" />,
+            sub: 'in CRM',
+        },
+        {
+            key: 'dueForVisit' as StatKey,
+            label: 'Due for Visit',
+            value: stats.dueClients,
+            icon: <Clock className="w-4 h-4" />,
+            sub: '6+ weeks since last visit',
+            alert: stats.dueClients > 0,
+        },
+        {
+            key: 'barbersActive' as StatKey,
+            label: 'Barbers Active',
+            value: stats.activeBarbers,
+            icon: <Scissors className="w-4 h-4" />,
+            sub: 'tap to view team',
+        },
+        {
+            key: 'pendingApplicants' as StatKey,
+            label: 'Pending Applications',
+            value: stats.pendingApplicants,
+            icon: <ClipboardList className="w-4 h-4" />,
+            sub: 'tap to review applicants',
+            alert: stats.pendingApplicants > 0,
+        },
+    ], [stats]);
 
     const handleSeed = async () => {
         setSeeding(true);
@@ -218,6 +336,12 @@ export default function AdminDashboard() {
 
             <QRScannerModal open={showScanner} onClose={() => setShowScanner(false)} />
             <WalkInModal open={showWalkIn} onClose={() => setShowWalkIn(false)} onBooked={fetchData} />
+            <StatDetailModal
+                statKey={activeStat}
+                data={detailData}
+                cutoff={dueCutoff}
+                onClose={() => setActiveStat(null)}
+            />
 
             {/* Empty State / Demo Data Seeder Banner */}
             {stats.clients === 0 && stats.totalBookings === 0 && (
@@ -244,75 +368,18 @@ export default function AdminDashboard() {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
-                <StatCard
-                    label="Today's Appointments"
-                    value={stats.todayBookings}
-                    icon={<Calendar className="w-4 h-4" />}
-                    sub={`${stats.todayCompleted} completed · ${stats.todayBookings - stats.todayCompleted} confirmed`}
-                />
-                <StatCard
-                    label="Today's Revenue"
-                    value={`$${stats.todayRevenue.toFixed(0)}`}
-                    icon={<DollarSign className="w-4 h-4" />}
-                    sub="confirmed + completed today"
-                />
-                <StatCard
-                    label="Pipeline (Upcoming)"
-                    value={stats.weeklyBookings}
-                    icon={<TrendingUp className="w-4 h-4" />}
-                    sub="confirmed future bookings"
-                />
-                <StatCard
-                    label="All-Time Revenue"
-                    value={`$${stats.totalRevenue.toLocaleString()}`}
-                    icon={<DollarSign className="w-4 h-4" />}
-                    sub="confirmed + completed"
-                />
-                <StatCard
-                    label="Total Appointments"
-                    value={stats.totalAppointments}
-                    icon={<Calendar className="w-4 h-4" />}
-                    sub="all bookings made through web"
-                />
-                <StatCard
-                    label="Avg Ticket Value"
-                    value={`$${stats.avgTicket.toFixed(2)}`}
-                    icon={<TrendingUp className="w-4 h-4" />}
-                    sub="per active booking"
-                />
-                <StatCard
-                    label="Popular Service"
-                    value={stats.topService}
-                    icon={<Scissors className="w-4 h-4" />}
-                    sub="most booked all-time"
-                    className="truncate"
-                />
-                <StatCard
-                    label="Total Clients"
-                    value={stats.clients}
-                    icon={<Users className="w-4 h-4" />}
-                    sub="in CRM"
-                />
-                <StatCard
-                    label="Due for Visit"
-                    value={stats.dueClients}
-                    icon={<Clock className="w-4 h-4" />}
-                    sub="6+ weeks since last visit"
-                    alert={stats.dueClients > 0}
-                />
-                <StatCard
-                    label="Barbers Active"
-                    value={stats.activeBarbers}
-                    icon={<Scissors className="w-4 h-4" />}
-                    sub={<Link href="/admin/barbers" className="text-accent-blue hover:text-savron-cream hover:underline">Manage team</Link>}
-                />
-                <StatCard
-                    label="Pending Applications"
-                    value={stats.pendingApplicants}
-                    icon={<ClipboardList className="w-4 h-4" />}
-                    sub={<Link href="/admin/applicants" className="text-accent-blue hover:text-savron-cream hover:underline">View pipeline</Link>}
-                    alert={stats.pendingApplicants > 0}
-                />
+                {statCards.map(card => (
+                    <StatCard
+                        key={card.key}
+                        label={card.label}
+                        value={card.value}
+                        icon={card.icon}
+                        sub={card.sub}
+                        alert={card.alert}
+                        className={card.className}
+                        onClick={() => openStat(card.key)}
+                    />
+                ))}
             </div>
 
             {/* Today's Schedule */}
@@ -356,17 +423,17 @@ export default function AdminDashboard() {
                 )}
             </div>
 
-            {/* Upcoming (next 7 days) */}
+            {/* Upcoming */}
             {upcomingSchedule.length > 0 && (
                 <div className="card-savron relative overflow-hidden">
                     <div className="flex items-center justify-between mb-5">
-                        <h2 className="font-heading text-lg uppercase tracking-widest text-white">Upcoming This Week</h2>
+                        <h2 className="font-heading text-lg uppercase tracking-widest text-white">Upcoming Bookings</h2>
                         <Link href="/admin/bookings" className="text-xs uppercase tracking-widest text-accent-blue hover:text-savron-cream flex items-center gap-1 transition-colors">
                             Calendar <ArrowRight className="w-3 h-3" />
                         </Link>
                     </div>
                     <div className="space-y-2">
-                        {upcomingSchedule.map((b) => {
+                        {upcomingSchedule.slice(0, 8).map((b) => {
                             let dateLabel = b.date;
                             try { dateLabel = format(new Date(b.date + 'T12:00:00'), 'EEE, MMM d'); } catch {}
                             return (
