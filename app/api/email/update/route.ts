@@ -5,7 +5,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
-import { shopGoogleInviteActive } from '@/lib/booking-email-policy';
 import {
     RESEND_BOOKING_FROM,
     RESEND_BOOKING_FROM_NAME,
@@ -123,9 +122,8 @@ export async function POST(request: NextRequest) {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
-    const { bookingId, shopInviteSent } = await request.json() as {
+    const { bookingId } = await request.json() as {
         bookingId: string;
-        shopInviteSent?: boolean;
     };
 
     if (!bookingId) {
@@ -228,19 +226,17 @@ export async function POST(request: NextRequest) {
                 <td style="padding:16px 20px;">
                   <p style="margin:0 0 8px;color:rgba(255,180,80,0.9);font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:700;">Calendar tip</p>
                   <p style="margin:0;color:rgba(255,255,255,0.75);font-size:12px;line-height:1.7;">
-                    Your calendar invite was updated. Tap <strong style="color:#fff;">Yes</strong> to confirm you can make the new time.
-                    If you need to cancel, tap <em>No</em> on your Google Calendar invite &mdash; that frees the slot and notifies the shop.
+                    Your updated calendar invite is attached (<strong style="color:#fff;">appointment.ics</strong>) from
+                    <strong style="color:#fff;">${SHOP_CALENDAR_DISPLAY_NAME}</strong>
+                    (<strong style="color:#fff;">${SHOP_CALENDAR_EMAIL}</strong>) — open it to refresh the appointment in your calendar.
                   </p>
                   <p style="margin:10px 0 0;color:rgba(255,255,255,0.55);font-size:12px;line-height:1.7;">
-                    You can also reply to this email and we&rsquo;ll help you reschedule.
+                    Need to cancel? Reply to this email and we&rsquo;ll help.
                   </p>
                 </td>
               </tr>
             </table>
 
-            <p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
-              Your calendar invite has been updated with the new details above.
-            </p>
             <p style="margin:0;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
               We&rsquo;ll see you soon.
             </p>
@@ -259,18 +255,12 @@ export async function POST(request: NextRequest) {
 </body>
 </html>`;
 
-    const shopInviteActive = shopGoogleInviteActive({
-        shopInviteSent,
-        shopGoogleEventId: booking.shop_google_event_id,
-    });
-    const icsString = shopInviteActive ? null : getUpdateIcsString(booking, barberName, barberEmail);
-    const icsAttachment = icsString
-        ? {
-            filename: 'appointment.ics',
-            content: Buffer.from(icsString).toString('base64'),
-            contentType: 'text/calendar; charset=utf-8; method=REQUEST',
-        }
-        : null;
+    const icsString = getUpdateIcsString(booking, barberName, barberEmail);
+    const icsAttachment = {
+        filename: 'appointment.ics',
+        content: Buffer.from(icsString).toString('base64'),
+        contentType: 'text/calendar; charset=utf-8; method=REQUEST',
+    };
 
     const headers = {
         Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
@@ -288,7 +278,7 @@ export async function POST(request: NextRequest) {
                 to: [booking.client_email],
                 subject: `Your appointment has been updated — ${booking.time}, ${dateFormatted}`,
                 html: htmlBody,
-                ...(icsAttachment ? { attachments: [icsAttachment] } : {}),
+                attachments: [icsAttachment],
             }),
         })
     );
@@ -307,7 +297,7 @@ export async function POST(request: NextRequest) {
                     to: [barberEmail],
                     subject: `Updated booking: ${booking.client_name || 'Walk-in'} — ${booking.time}, ${dateFormatted}`,
                     html: barberHtml,
-                    ...(icsAttachment ? { attachments: [icsAttachment] } : {}),
+                    attachments: [icsAttachment],
                 }),
             })
         );

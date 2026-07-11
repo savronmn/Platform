@@ -13,7 +13,7 @@ async function logSideEffectFailure(label: string, res: Response | undefined): P
 }
 
 export async function triggerPostBooking(bookingId: string): Promise<void> {
-    // Calendar first, then Resend confirmation — two channels, one calendar owner (savronmn@gmail.com).
+    // Calendar sync (silent on shop GCal), then one Resend email with .ics for the client.
     const calendarRes = await fetch('/api/calendar/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -24,20 +24,10 @@ export async function triggerPostBooking(bookingId: string): Promise<void> {
     });
     await logSideEffectFailure('calendar sync', calendarRes);
 
-    let shopInviteSent = false;
-    if (calendarRes?.ok) {
-        try {
-            const data = await calendarRes.json() as { shopEventId?: string | null };
-            shopInviteSent = !!data.shopEventId;
-        } catch {
-            // Email route will re-check booking.shop_google_event_id from DB.
-        }
-    }
-
     const emailRes = await fetch('/api/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId, shopInviteSent }),
+        body: JSON.stringify({ bookingId }),
     }).catch((err) => {
         console.error('[post-booking] confirmation email network error:', err);
         return undefined;
@@ -71,20 +61,10 @@ export async function triggerPostEditBooking(
     });
     await logSideEffectFailure('calendar update', calendarRes);
 
-    let shopInviteSent = false;
-    if (calendarRes?.ok) {
-        try {
-            const data = await calendarRes.json() as { shopEventId?: string | null };
-            shopInviteSent = !!data.shopEventId;
-        } catch {
-            // Email route will re-check booking.shop_google_event_id from DB.
-        }
-    }
-
     const emailRes = await fetch('/api/email/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId, shopInviteSent }),
+        body: JSON.stringify({ bookingId }),
     }).catch((err) => {
         console.error('[post-edit] update email network error:', err);
         return undefined;

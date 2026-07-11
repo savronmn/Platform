@@ -1,5 +1,4 @@
 import { format } from 'date-fns';
-import { shopGoogleInviteActive } from '@/lib/booking-email-policy';
 import {
     RESEND_BOOKING_FROM,
     RESEND_BOOKING_FROM_NAME,
@@ -98,10 +97,7 @@ export async function sendCancellationEmails(
 
     const barberName = booking.barbers?.name ?? booking.barber_name ?? 'Your barber';
     const barberEmail = booking.barbers?.email ?? null;
-    const shopInviteActive = shopGoogleInviteActive({
-        shopGoogleEventId: booking.shop_google_event_id,
-    });
-    const ics = shopInviteActive ? null : buildCancelIcs(booking, barberName, barberEmail);
+    const ics = buildCancelIcs(booking, barberName, barberEmail);
 
     const recipientEmails = Array.from(new Set(
         [booking.client_email, barberEmail].filter((email): email is string => Boolean(email)),
@@ -124,9 +120,7 @@ export async function sendCancellationEmails(
         }
     })();
 
-    const calendarNote = shopInviteActive
-        ? `Your Google Calendar invitation from <strong style="color:#fff;">${SHOP_CALENDAR_EMAIL}</strong> (SAVRON) has been cancelled automatically.`
-        : 'Your calendar has been updated automatically.';
+    const calendarNote = 'Your attached calendar invite has been cancelled — the appointment is removed from your calendar.';
 
     const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
@@ -173,13 +167,11 @@ export async function sendCancellationEmails(
                 to: [to],
                 subject: `Cancelled: ${booking.service} — ${dateFormatted}, ${booking.time}`,
                 html,
-                ...(ics ? {
-                    attachments: [{
-                        filename: 'appointment-cancel.ics',
-                        content: Buffer.from(ics).toString('base64'),
-                        contentType: 'text/calendar; charset=utf-8; method=CANCEL',
-                    }],
-                } : {}),
+                attachments: [{
+                    filename: 'appointment-cancel.ics',
+                    content: Buffer.from(ics).toString('base64'),
+                    contentType: 'text/calendar; charset=utf-8; method=CANCEL',
+                }],
             }),
         });
         if (!response.ok) {
