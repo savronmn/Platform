@@ -102,22 +102,19 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <div className="min-h-screen bg-savron-black savron-grid-bg flex flex-col lg:flex-row relative overflow-hidden">
+        <div className="min-h-screen bg-savron-black savron-grid-bg flex flex-col lg:flex-row relative overflow-x-hidden">
             {/* Mobile Top Header */}
-            <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-savron-grey/95 border-b border-savron-blue/20 savron-grid-surface flex items-center justify-between px-6 z-30">
+            <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-savron-grey/95 border-b border-savron-blue/20 savron-grid-surface flex items-center justify-between px-4 z-30">
                 <Link href="/admin" className="relative w-24 h-6 block">
                     <Image src="/logo.png" alt="SAVRON" fill className="object-contain object-left" priority />
                 </Link>
-                <div className="flex items-center gap-3">
-                    <span className="text-savron-cream/40 text-[9px] uppercase tracking-widest font-medium">{t('nav.business_os')}</span>
-                    <button
-                        onClick={() => setIsDrawerOpen(true)}
-                        className="p-2 text-savron-silver hover:text-white transition-colors focus:outline-none"
-                        aria-label="Open Menu"
-                    >
-                        <Menu className="w-5 h-5" />
-                    </button>
-                </div>
+                <button
+                    onClick={() => setIsDrawerOpen(true)}
+                    className="admin-icon-btn text-savron-silver hover:text-white focus:outline-none"
+                    aria-label="Open Menu"
+                >
+                    <Menu className="w-5 h-5" />
+                </button>
             </header>
 
             {/* Desktop Sidebar */}
@@ -148,7 +145,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                             animate={{ x: 0 }}
                             exit={{ x: '-100%' }}
                             transition={{ type: 'tween', duration: 0.25 }}
-                            className="lg:hidden fixed top-0 left-0 bottom-0 w-72 bg-savron-grey border-r border-savron-blue/20 savron-grid-surface z-50 flex flex-col"
+                            className="lg:hidden fixed top-0 left-0 bottom-0 w-[min(18rem,85vw)] bg-savron-grey border-r border-savron-blue/20 savron-grid-surface z-50 flex flex-col"
                         >
                             <div className="p-6 border-b border-savron-blue/15 flex items-center justify-between">
                                 <div>
@@ -159,7 +156,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                                 </div>
                                 <button
                                     onClick={() => setIsDrawerOpen(false)}
-                                    className="p-2 text-savron-silver hover:text-white transition-colors"
+                                    className="admin-icon-btn text-savron-silver hover:text-white"
                                     aria-label="Close Menu"
                                 >
                                     <X className="w-4 h-4" />
@@ -172,7 +169,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             </AnimatePresence>
 
             {/* Main Content */}
-            <main className="relative z-10 flex-1 lg:ml-72 pt-20 lg:pt-12 px-6 md:px-10 lg:px-12 xl:px-16 pb-10 lg:pb-14 flex flex-col">
+            <main className="relative z-10 flex-1 lg:ml-72 pt-20 lg:pt-12 px-4 sm:px-6 md:px-10 lg:px-12 xl:px-16 pb-10 lg:pb-14 flex flex-col min-w-0">
                 <div className="w-full max-w-7xl mx-auto flex-1">
                     {children}
                 </div>

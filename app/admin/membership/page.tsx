@@ -7,6 +7,7 @@ import type { EmailSubscriber } from '@/lib/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, UserCheck, Clock, Send, Plus, RefreshCw, UserPlus, X, Minus, Trash2, ScanLine } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const QRScannerModal = dynamic(() => import('@/components/qr/QRScannerModal'), { ssr: false });
 
@@ -207,15 +208,12 @@ export default function MembershipPage() {
                         initial={{ opacity: 0, y: -16 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -16 }}
-                        style={{
-                            position: 'fixed', top: 24, right: 24, zIndex: 9999,
-                            background: toast.type === 'success' ? 'rgba(18,84,112,0.95)' : 'rgba(60,20,20,0.95)',
-                            border: `1px solid ${toast.type === 'success' ? 'rgba(26,106,138,0.3)' : 'rgba(200,80,80,0.2)'}`,
-                            color: toast.type === 'success' ? 'rgba(160,210,230,0.9)' : 'rgba(220,130,130,0.9)',
-                            padding: '14px 20px', maxWidth: 380,
-                            fontSize: 12, fontWeight: 300, letterSpacing: '0.05em',
-                            backdropFilter: 'blur(12px)',
-                        }}
+                        className={cn(
+                            "fixed top-20 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-sm z-[9999] px-4 py-3.5 text-xs font-light tracking-wide backdrop-blur-md rounded-savron border",
+                            toast.type === 'success'
+                                ? "bg-savron-green/95 border-savron-blue/30 text-accent-blue"
+                                : "bg-red-950/95 border-red-500/20 text-red-300"
+                        )}
                     >
                         {toast.text}
                     </motion.div>
@@ -457,38 +455,38 @@ export default function MembershipPage() {
                                             <span className="text-2xl font-light text-white font-heading block mt-0.5">{subscriber.visit_count}</span>
                                         </div>
                                     </div>
-                                    <div className="flex items-center justify-between gap-2 pt-3.5 border-t border-white/5">
+                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3.5 border-t border-white/5">
                                         <div className="flex items-center gap-2 flex-wrap">
                                             <button
                                                 onClick={() => removeVisit(subscriber)}
                                                 disabled={actionLoading === `remove-visit-${subscriber.id}` || subscriber.visit_count <= 0}
-                                                className="flex items-center justify-center w-8 h-8 text-white/50 border border-white/[0.1] rounded-full hover:border-yellow-500/40 hover:text-yellow-400 hover:bg-yellow-500/10 transition-all disabled:opacity-40"
+                                                className="admin-icon-btn text-white/50 border border-white/[0.1] rounded-full hover:border-yellow-500/40 hover:text-yellow-400 hover:bg-yellow-500/10 transition-all disabled:opacity-40"
                                             >
-                                                <Minus size={11} />
+                                                <Minus size={14} />
                                             </button>
                                             <button
                                                 onClick={() => recordVisit(subscriber)}
                                                 disabled={actionLoading === `visit-${subscriber.id}`}
-                                                className="flex items-center gap-1.5 px-3 py-2 text-[9px] uppercase tracking-[0.2em] text-white/50 border border-white/[0.1] hover:border-savron-green/40 hover:text-accent-blue hover:bg-savron-green/10 transition-all disabled:opacity-40"
+                                                className="admin-action-btn text-white/50 border border-white/[0.1] hover:border-savron-green/40 hover:text-accent-blue hover:bg-savron-green/10 transition-all disabled:opacity-40 flex-1 sm:flex-none"
                                             >
-                                                <Plus size={10} />
+                                                <Plus size={12} />
                                                 {actionLoading === `visit-${subscriber.id}` ? '…' : 'Visit'}
                                             </button>
                                             <button
                                                 onClick={() => sendUpdatedPass(subscriber)}
                                                 disabled={actionLoading === `pass-${subscriber.id}`}
-                                                className="flex items-center gap-1.5 px-3 py-2 text-[9px] uppercase tracking-[0.2em] text-white/50 border border-white/[0.1] hover:border-white/25 hover:text-white transition-all disabled:opacity-40"
+                                                className="admin-action-btn text-white/50 border border-white/[0.1] hover:border-white/25 hover:text-white transition-all disabled:opacity-40 flex-1 sm:flex-none"
                                             >
-                                                <Send size={10} />
+                                                <Send size={12} />
                                                 {actionLoading === `pass-${subscriber.id}` ? '…' : 'Pass'}
                                             </button>
                                         </div>
                                         <button
                                             onClick={() => deleteMember(subscriber)}
                                             disabled={actionLoading === `delete-${subscriber.id}`}
-                                            className="flex items-center justify-center w-8 h-8 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all disabled:opacity-40"
+                                            className="admin-icon-btn text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all disabled:opacity-40 self-end sm:self-auto"
                                         >
-                                            <Trash2 size={13} />
+                                            <Trash2 size={14} />
                                         </button>
                                     </div>
                                 </div>

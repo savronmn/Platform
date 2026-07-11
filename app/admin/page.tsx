@@ -315,7 +315,7 @@ export default function AdminDashboard() {
                     <h1 className="admin-title">Dashboard</h1>
                     <p className="admin-subtitle">{todayStr}</p>
                 </div>
-                <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
                     <button
                         onClick={() => setShowWalkIn(true)}
                         className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest bg-white/[0.05] text-savron-silver border border-white/[0.08] rounded-savron hover:text-white hover:border-white/20 transition-all"
@@ -403,17 +403,17 @@ export default function AdminDashboard() {
                 ) : (
                     <div className="space-y-2">
                         {todaySchedule.map((b) => (
-                            <div key={b.id} className="flex items-center justify-between py-4 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.025] transition-colors rounded-lg px-3 -mx-3">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-20 shrink-0 text-right">
+                            <div key={b.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-4 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.025] transition-colors rounded-lg px-3 -mx-3">
+                                <div className="flex items-center gap-4 min-w-0">
+                                    <div className="w-16 sm:w-20 shrink-0 sm:text-right">
                                         <span className="font-mono text-sm text-accent-blue block">{b.time}</span>
                                     </div>
-                                    <div>
-                                        <p className="text-white text-sm font-medium">{b.client_name || 'Walk-in'}</p>
-                                        <p className="text-savron-silver text-xs">{b.service} · {b.barber_name}</p>
+                                    <div className="min-w-0">
+                                        <p className="text-white text-sm font-medium truncate">{b.client_name || 'Walk-in'}</p>
+                                        <p className="text-savron-silver text-xs truncate">{b.service} · {b.barber_name}</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3 pl-20 sm:pl-0 shrink-0">
                                     <span className="text-savron-silver font-mono text-sm">{b.price}</span>
                                     <div className={cn("w-2 h-2 rounded-full", statusDot(b.status))} />
                                 </div>
@@ -437,18 +437,18 @@ export default function AdminDashboard() {
                             let dateLabel = b.date;
                             try { dateLabel = format(new Date(b.date + 'T12:00:00'), 'EEE, MMM d'); } catch {}
                             return (
-                                <div key={b.id} className="flex items-center justify-between py-4 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.025] transition-colors rounded-lg px-3 -mx-3">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-28 shrink-0">
+                                <div key={b.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-4 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.025] transition-colors rounded-lg px-3 -mx-3">
+                                    <div className="flex items-center gap-4 min-w-0">
+                                        <div className="w-24 sm:w-28 shrink-0">
                                             <span className="font-mono text-sm text-white block">{b.time}</span>
                                             <span className="text-[11px] uppercase tracking-widest text-savron-silver/75 block">{dateLabel}</span>
                                         </div>
-                                        <div>
-                                            <p className="text-white text-sm font-medium">{b.client_name || 'Walk-in'}</p>
-                                            <p className="text-savron-silver text-xs">{b.service} · {b.barber_name}</p>
+                                        <div className="min-w-0">
+                                            <p className="text-white text-sm font-medium truncate">{b.client_name || 'Walk-in'}</p>
+                                            <p className="text-savron-silver text-xs truncate">{b.service} · {b.barber_name}</p>
                                         </div>
                                     </div>
-                                    <span className="text-savron-silver font-mono text-sm">{b.price}</span>
+                                    <span className="text-savron-silver font-mono text-sm pl-28 sm:pl-0 shrink-0">{b.price}</span>
                                 </div>
                             );
                         })}
