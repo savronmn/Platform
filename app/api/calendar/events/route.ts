@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getValidAccessToken, type CalendarToken } from '@/lib/google-calendar';
 import { processDeclinedCalendarEvents } from '@/lib/process-calendar-declines';
+import { requireStaff } from '@/lib/staff-auth';
 import {
     eventHasClientCalendarCancellationSignal,
     extractClientNameFromEvent,
@@ -59,6 +60,11 @@ function extractClientName(e: { summary?: string; attendees?: Array<{ email?: st
 }
 
 export async function GET(req: NextRequest) {
+    const staff = await requireStaff();
+    if (!staff.ok) {
+        return NextResponse.json({ error: staff.error }, { status: staff.status });
+    }
+
     const { searchParams } = req.nextUrl;
     const dateStart = searchParams.get('dateStart');
     const dateEnd = searchParams.get('dateEnd');

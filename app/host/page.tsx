@@ -28,6 +28,7 @@ import { useServices } from '@/lib/use-services';
 import { triggerPostBooking, triggerCancelBooking } from '@/lib/confirm-booking';
 import EditBookingModal from '@/components/crm/EditBookingModal';
 import { LanguageProvider, useLanguage } from '@/lib/language-context';
+import { slotConflictsWithBusy } from '@/lib/time-helpers';
 
 const QRScannerModal = dynamic(() => import('@/components/qr/QRScannerModal'), { ssr: false });
 
@@ -162,7 +163,9 @@ function HostDashboardInner() {
 
     const fetchExternalEvents = useCallback(async () => {
         try {
-            const res = await fetch(`/api/calendar/events?dateStart=${rangeStart}&dateEnd=${rangeEnd}`);
+            const res = await fetch(`/api/calendar/events?dateStart=${rangeStart}&dateEnd=${rangeEnd}`, {
+                credentials: 'include',
+            });
             if (res.ok) setExternalEvents(await res.json());
         } catch { /* silent — platform bookings still show */ }
     }, [rangeStart, rangeEnd]);
@@ -333,6 +336,20 @@ function HostDashboardInner() {
         setQuickSubmitting(true);
         setQuickError(null);
         const dateStr = format(quickFormDate, 'yyyy-MM-dd');
+
+        try {
+            const busyRes = await fetch(`/api/calendar/busy?barberId=${quickForm.barberId}&date=${dateStr}`);
+            if (busyRes.ok) {
+                const { busy } = await busyRes.json() as { busy?: { start: string; end: string }[] };
+                if (slotConflictsWithBusy(quickFormDate, quickForm.time, quickAddDurationMins, busy ?? [])) {
+                    setQuickError('That slot is no longer available. Please choose a different time.');
+                    setQuickSubmitting(false);
+                    return;
+                }
+            }
+        } catch {
+            // Fall through — DB unique index is the final guard.
+        }
 
         // Race-condition guard: re-check availability fresh from DB right before inserting
         const { data: conflictCheck } = await supabase

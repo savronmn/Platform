@@ -40,7 +40,7 @@ async function listEvents(
     return (data.items ?? []) as CalendarSyncEvent[];
 }
 
-async function notifyStaffOfCalendarAction(params: {
+export async function notifyStaffOfCalendarAction(params: {
     reason: CalendarCancellationReason;
     booking: {
         id: string;
@@ -100,12 +100,13 @@ async function notifyStaffOfCalendarAction(params: {
     }
 }
 
-async function processEventsForBarber(
+/** Process a batch of changed calendar events (webhook or sweep). */
+export async function processCalendarEventChanges(
     supabase: SupabaseClient,
     barberId: string | null,
     barberName: string | null,
     events: CalendarSyncEvent[],
-    seenEventIds: Set<string>,
+    seenEventIds: Set<string> = new Set(),
 ): Promise<{ cancelled: number; reasons: string[] }> {
     let cancelled = 0;
     const reasons: string[] = [];
@@ -168,7 +169,7 @@ export async function processDeclinedCalendarEvents(
                 await Promise.all(idsToFetch.map(calendarId => listEvents(accessToken, calendarId, timeMin, timeMax)))
             ).flat();
 
-            const shopResult = await processEventsForBarber(supabase, null, 'Savron Shop', events, seenEventIds);
+            const shopResult = await processCalendarEventChanges(supabase, null, 'Savron Shop', events, seenEventIds);
             cancelled += shopResult.cancelled;
             reasons.push(...shopResult.reasons);
         } catch (err) {
@@ -187,7 +188,7 @@ export async function processDeclinedCalendarEvents(
             await Promise.all(idsToFetch.map(calendarId => listEvents(accessToken, calendarId, timeMin, timeMax)))
         ).flat();
 
-        const result = await processEventsForBarber(supabase, barber.id, barber.name, events, seenEventIds);
+        const result = await processCalendarEventChanges(supabase, barber.id, barber.name, events, seenEventIds);
         cancelled += result.cancelled;
         reasons.push(...result.reasons);
     }

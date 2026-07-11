@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForTokens, getValidAccessToken, getInitialSyncToken, watchCalendar } from '@/lib/google-calendar';
 import { createClient } from '@supabase/supabase-js';
+import { saveShopWebhookState } from '@/lib/shop-calendar';
 
 export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl;
@@ -35,6 +36,25 @@ export async function GET(request: NextRequest) {
                 { key: 'savron_google_calendar_tokens', value: tokens },
                 { key: 'savron_google_calendar_id', value: 'primary' },
             ]);
+
+            try {
+                const accessToken = await getValidAccessToken(tokens);
+                const channelId = crypto.randomUUID();
+                const appUrl = process.env.NEXT_PUBLIC_APP_URL
+                    ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://savronmn.com');
+                const [syncToken, watchRes] = await Promise.all([
+                    getInitialSyncToken(accessToken, 'primary'),
+                    watchCalendar(accessToken, 'primary', channelId, `${appUrl}/api/calendar/webhook-shop`),
+                ]);
+                await saveShopWebhookState({
+                    channel_id: channelId,
+                    resource_id: watchRes.resourceId,
+                    sync_token: syncToken,
+                });
+            } catch (watchErr) {
+                console.error('Failed to setup shop Google Calendar watch:', watchErr);
+            }
+
             return NextResponse.redirect(
                 new URL(`${targetRedirect}?cal_connected=shop`, request.url)
             );

@@ -1,18 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import {
-    getValidAccessToken,
-    getChangedEvents,
-    getInitialSyncToken,
-    getCalendarEvent,
-    watchCalendar,
-    type CalendarToken,
-} from '@/lib/google-calendar';
-import { cancelBooking } from '@/lib/cancel-booking';
-import {
-    findBookingForCalendarEvent,
-    shouldCancelBookingFromCalendarEvent,
-} from '@/lib/calendar-event-sync';
+import { getValidAccessToken, getChangedEvents, getInitialSyncToken, getCalendarEvent, watchCalendar, type CalendarToken } from '@/lib/google-calendar';
+import { processCalendarEventChanges } from '@/lib/process-calendar-declines';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -113,11 +102,9 @@ export async function POST(req: NextRequest) {
         let cancelledCount = 0;
         const reasons: string[] = [];
 
+        const enrichedEvents = [];
         for (const event of events) {
             if (!event.id) continue;
-
-            const booking = await findBookingForCalendarEvent(supabase, barber.id, event);
-            if (!booking) continue;
 
             let eventData = event;
             if (!event.attendees?.length) {
@@ -127,16 +114,17 @@ export async function POST(req: NextRequest) {
                     console.error('[calendar/webhook] Failed to load event attendees:', fetchErr);
                 }
             }
-
-            const action = shouldCancelBookingFromCalendarEvent(eventData, booking);
-            if (!action) continue;
-
-            const result = await cancelBooking(booking.id, { skipCalendar: action.skipCalendar });
-            if (result.success) {
-                cancelledCount++;
-                reasons.push(action.reason);
-            }
+            enrichedEvents.push(eventData);
         }
+
+        const result = await processCalendarEventChanges(
+            supabase,
+            barber.id,
+            barber.name,
+            enrichedEvents,
+        );
+        cancelledCount = result.cancelled;
+        reasons.push(...result.reasons);
 
         await supabase
             .from('barbers')

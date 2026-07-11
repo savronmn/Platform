@@ -117,10 +117,10 @@ export async function sendCancellationEmails(
     })();
 
     const shopConnected = await isShopCalendarConnected();
-    const skipCalendarIcs = shopConnected || !!booking.shop_google_event_id;
+    const skipCalendarIcs = !!booking.shop_google_event_id;
     const ics = skipCalendarIcs ? null : buildCancelIcs(booking, barberName, barberEmail);
 
-    const calendarNote = skipCalendarIcs
+    const calendarNote = (skipCalendarIcs || shopConnected)
         ? `Your Google Calendar invitation from <strong style="color:#fff;">${SHOP_CALENDAR_EMAIL}</strong> has been cancelled automatically.`
         : 'Your calendar has been updated automatically.';
 

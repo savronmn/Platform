@@ -55,6 +55,37 @@ export async function isShopCalendarConnected(): Promise<boolean> {
     return !!tokens;
 }
 
+export interface ShopWebhookState {
+    channel_id: string;
+    resource_id: string;
+    sync_token: string;
+}
+
+const SHOP_WEBHOOK_KEY = 'savron_google_calendar_webhook';
+
+export async function getShopWebhookState(): Promise<ShopWebhookState | null> {
+    const supabase = getAdmin();
+    const { data } = await supabase
+        .from('system_config')
+        .select('value')
+        .eq('key', SHOP_WEBHOOK_KEY)
+        .maybeSingle();
+
+    if (!data?.value || typeof data.value !== 'object') return null;
+    const value = data.value as Partial<ShopWebhookState>;
+    if (!value.channel_id || !value.resource_id || !value.sync_token) return null;
+    return value as ShopWebhookState;
+}
+
+export async function saveShopWebhookState(state: ShopWebhookState): Promise<void> {
+    const supabase = getAdmin();
+    await supabase.from('system_config').upsert({
+        key: SHOP_WEBHOOK_KEY,
+        value: state,
+        updated_at: new Date().toISOString(),
+    });
+}
+
 /** Create/update the Savron shop calendar invite (with client attendee) so Google RSVP works. */
 export async function upsertShopInviteEvent(params: {
     bookingId: string;

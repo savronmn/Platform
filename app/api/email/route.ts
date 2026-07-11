@@ -147,9 +147,9 @@ export async function POST(request: NextRequest) {
   })();
 
   const shopConnected = await isShopCalendarConnected();
-  const shopInviteActive = shopConnected || !!booking.shop_google_event_id;
+  const shopInviteActive = !!booking.shop_google_event_id;
 
-  const calendarNote = shopInviteActive
+  const calendarNote = (shopInviteActive || shopConnected)
     ? `<p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
               Your Google Calendar invitation comes from <strong style="color:#fff;">${SHOP_CALENDAR_EMAIL}</strong>.
               Use <em>Yes</em>, <em>No</em>, or <em>Propose a new time</em> on that invite.

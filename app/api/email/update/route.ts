@@ -257,7 +257,7 @@ export async function POST(request: NextRequest) {
 </html>`;
 
     const shopConnected = await isShopCalendarConnected();
-    const shopInviteActive = shopConnected || !!booking.shop_google_event_id;
+    const shopInviteActive = !!booking.shop_google_event_id;
     const icsString = shopInviteActive ? null : getUpdateIcsString(booking, barberName, barberEmail);
     const icsAttachment = icsString
         ? {
