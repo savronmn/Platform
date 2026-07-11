@@ -154,7 +154,7 @@ function CancelBookingContent() {
                             ) : (
                                 <p className="text-savron-silver/70 text-sm text-center">
                                     {booking.clientFirstName ? `Hi ${booking.clientFirstName}, ` : ''}
-                                    confirm you'd like to cancel this appointment:
+                                    confirm you&apos;d like to cancel this appointment:
                                 </p>
                             )}
 
