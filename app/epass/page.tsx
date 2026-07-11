@@ -53,13 +53,30 @@ export default function EPassPage() {
         }
     }, []);
 
-    // Refresh from DB whenever the pass page becomes visible (tab switch, app reopen)
+    // Live updates when a barber scans this pass (broadcast + polling fallback)
     useEffect(() => {
         if (pageState !== 'profile' || !subscriber?.email) return;
 
+        const normalizedEmail = subscriber.email.trim().toLowerCase();
+
+        const applyVisitUpdate = (visit_count: number, last_visit_at: string | null) => {
+            setSubscriber(prev => prev ? { ...prev, visit_count, last_visit_at } : prev);
+            void syncGoogleWallet(normalizedEmail);
+        };
+
+        const channel = supabase
+            .channel(`epass:${normalizedEmail}`)
+            .on('broadcast', { event: 'visit_update' }, ({ payload }) => {
+                const data = payload as { visit_count?: number; last_visit_at?: string | null };
+                if (typeof data.visit_count === 'number') {
+                    applyVisitUpdate(data.visit_count, data.last_visit_at ?? null);
+                }
+            })
+            .subscribe();
+
         const refresh = () => {
             if (document.visibilityState === 'visible') {
-                loadProfile(subscriber.email, { quiet: true });
+                loadProfile(normalizedEmail, { quiet: true });
             }
         };
 
@@ -68,40 +85,17 @@ export default function EPassPage() {
 
         const interval = setInterval(() => {
             if (document.visibilityState === 'visible') {
-                loadProfile(subscriber.email, { quiet: true });
+                loadProfile(normalizedEmail, { quiet: true });
             }
-        }, 15000);
+        }, 5000);
 
         return () => {
+            supabase.removeChannel(channel);
             document.removeEventListener('visibilitychange', refresh);
             window.removeEventListener('focus', refresh);
             clearInterval(interval);
         };
     }, [pageState, subscriber?.email]);
-
-    // Realtime: listen for visit_count updates on the subscriber row
-    useEffect(() => {
-        if (!subscriber?.email) return;
-
-        const channel = supabase
-            .channel(`epass:${subscriber.email}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'email_subscribers',
-                    filter: `email=eq.${subscriber.email}`,
-                },
-                (payload) => {
-                    const updated = payload.new as Subscriber;
-                    setSubscriber(prev => prev ? { ...prev, visit_count: updated.visit_count, last_visit_at: updated.last_visit_at } : prev);
-                }
-            )
-            .subscribe();
-
-        return () => { supabase.removeChannel(channel); };
-    }, [subscriber?.email]);
 
     async function syncGoogleWallet(userEmail: string) {
         try {

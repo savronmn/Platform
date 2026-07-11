@@ -1,115 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildMembershipEmail } from '@/lib/email-templates';
-import { PKPass } from 'passkit-generator';
 import { v4 as uuidv4 } from 'uuid';
 import { Resend } from 'resend';
-import fs from 'fs';
-import path from 'path';
 import { createClient } from '@supabase/supabase-js';
-import forge from 'node-forge';
 import {
     buildGoogleObjectId,
     buildGoogleSaveUrl,
     createGooglePassObject,
     isGoogleWalletConfigured,
 } from '@/lib/google-wallet';
-
-const WALLET_PRIVATE_KEY = process.env.WALLET_PRIVATE_KEY;
-const WALLET_WWDR_CERT = process.env.WALLET_WWDR_CERT;
-const PASSPHRASE = process.env.WALLET_PASSPHRASE;
-const PASS_TYPE_ID = process.env.PASS_TYPE_ID;
-const TEAM_ID = process.env.TEAM_ID;
+import {
+    generateApplePassBuffer,
+    generateWalletAuthToken,
+    isAppleWalletConfigured,
+} from '@/lib/apple-wallet';
 
 function getSupabaseAdmin() {
     return createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
-}
-
-async function generateApplePass(
-    serialNumber: string,
-    name: string,
-    email: string,
-    visitCount: number
-): Promise<Buffer | null> {
-    if (!WALLET_PRIVATE_KEY || !WALLET_WWDR_CERT || !PASS_TYPE_ID || !TEAM_ID) return null;
-    try {
-        // Decode and parse P12 private key & certificate
-        const p12Buffer = Buffer.from(WALLET_PRIVATE_KEY, 'base64');
-        const p12Der = p12Buffer.toString('binary');
-        const p12Asn1 = forge.asn1.fromDer(p12Der);
-        const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, false, PASSPHRASE);
-
-        const certBags = p12.getBags({ bagType: forge.pki.oids.certBag });
-        const keyBags = p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
-
-        const certBag = certBags[forge.pki.oids.certBag]?.[0];
-        const keyBag = keyBags[forge.pki.oids.pkcs8ShroudedKeyBag]?.[0];
-
-        if (!certBag || !keyBag) {
-            throw new Error('Certificates or private key missing in P12 container');
-        }
-
-        const certPem = forge.pki.certificateToPem(certBag.cert!);
-        const keyPem = forge.pki.privateKeyToPem(keyBag.key!);
-
-        // Decode and parse WWDR certificate from DER to PEM
-        const wwdrCert = Buffer.from(WALLET_WWDR_CERT, 'base64');
-        let wwdrPem = '';
-        if (wwdrCert.toString('utf-8').includes('-----BEGIN CERTIFICATE-----')) {
-            wwdrPem = wwdrCert.toString('utf-8');
-        } else {
-            const wwdrAsn1 = forge.asn1.fromDer(wwdrCert.toString('binary'));
-            const wwdrObj = forge.pki.certificateFromAsn1(wwdrAsn1);
-            wwdrPem = forge.pki.certificateToPem(wwdrObj);
-        }
-
-        const buffers: Record<string, Buffer> = {};
-        const logoPath = path.join(process.cwd(), 'public', 'logo.png');
-        if (fs.existsSync(logoPath)) {
-            const logoBuffer = fs.readFileSync(logoPath);
-            buffers['logo.png'] = logoBuffer;
-            buffers['icon.png'] = logoBuffer;
-        }
-
-        const pass = new PKPass(buffers, {
-            wwdr: wwdrPem,
-            signerCert: certPem,
-            signerKey: keyPem,
-            signerKeyPassphrase: PASSPHRASE || 'dummy',
-        }, {
-            description: 'SAVRON Membership',
-            organizationName: 'SAVRON',
-            passTypeIdentifier: PASS_TYPE_ID,
-            teamIdentifier: TEAM_ID,
-            serialNumber,
-            backgroundColor: 'rgb(20, 20, 18)',
-            labelColor: 'rgb(140, 136, 128)',
-            foregroundColor: 'rgb(232, 228, 220)',
-            logoText: 'SAVRON',
-            userInfo: { email },
-        });
-
-        pass.type = 'storeCard';
-        pass.primaryFields.push({ key: 'tier', label: 'MEMBER', value: 'SAVRON MEMBER' });
-        pass.secondaryFields.push({ key: 'name', label: 'NAME', value: name });
-        pass.auxiliaryFields.push(
-            { key: 'visits', label: 'VISITS', value: visitCount.toString() },
-            { key: 'email', label: 'EMAIL', value: email, textAlignment: 'PKTextAlignmentRight' }
-        );
-        pass.setBarcodes({
-            message: email,
-            format: 'PKBarcodeFormatQR',
-            messageEncoding: 'iso-8859-1',
-            altText: email,
-        });
-
-        return pass.getAsBuffer() as unknown as Buffer;
-    } catch (err) {
-        console.error('Apple pass generation failed:', err);
-        return null;
-    }
 }
 
 export async function POST(req: NextRequest) {
@@ -141,6 +51,7 @@ export async function POST(req: NextRequest) {
 
         const serialNumber = uuidv4();
         const googleObjectId = isGoogleWalletConfigured() ? buildGoogleObjectId() : null;
+        const walletAuthToken = generateWalletAuthToken();
 
         // Save subscriber first
         const { data: insertedSubscriber, error: dbError } = await supabase.from('email_subscribers').insert({
@@ -149,6 +60,7 @@ export async function POST(req: NextRequest) {
             phone: phone?.trim() || null,
             pass_serial_number: serialNumber,
             google_pass_object_id: null,
+            wallet_auth_token: walletAuthToken,
             visit_count: 0,
         }).select('id').single();
 
@@ -168,8 +80,17 @@ export async function POST(req: NextRequest) {
         // Create Google Wallet pass object + generate Apple pass IN PARALLEL for speed
         let googleSaveUrl: string | null = null;
 
+        const subscriberPayload = {
+            name: name.trim(),
+            email: email.toLowerCase().trim(),
+            visit_count: 0,
+            pass_serial_number: serialNumber,
+        };
+
         const [applePassBuffer, googleObjectCreated] = await Promise.all([
-            generateApplePass(serialNumber, name.trim(), email.trim(), 0),
+            isAppleWalletConfigured()
+                ? Promise.resolve(generateApplePassBuffer(subscriberPayload, walletAuthToken))
+                : Promise.resolve(null),
             googleObjectId
                 ? createGooglePassObject(googleObjectId, name.trim(), email.toLowerCase().trim(), 0)
                 : Promise.resolve(false),

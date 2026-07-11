@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { updateGoogleWalletPass } from '@/lib/google-wallet';
+import { syncWalletsAfterCheckin } from '@/lib/wallet-checkin';
 
 function getSupabaseAdmin() {
     return createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
 }
 
@@ -37,25 +37,18 @@ export async function POST(req: NextRequest) {
         }
 
         const newCount = subscriber.visit_count + 1;
+        const lastVisitAt = new Date().toISOString();
 
         const { error: updateErr } = await supabase
             .from('email_subscribers')
-            .update({ visit_count: newCount, last_visit_at: new Date().toISOString() })
+            .update({ visit_count: newCount, last_visit_at: lastVisitAt })
             .eq('id', subscriber.id);
 
         if (updateErr) {
             return NextResponse.json({ error: 'Failed to record visit' }, { status: 500 });
         }
 
-        let googleWalletUpdated = false;
-        if (subscriber.google_pass_object_id) {
-            googleWalletUpdated = await updateGoogleWalletPass(
-                subscriber.google_pass_object_id,
-                subscriber.name,
-                subscriber.email,
-                newCount
-            );
-        }
+        const walletSync = await syncWalletsAfterCheckin(subscriber, newCount, lastVisitAt);
 
         return NextResponse.json({
             success: true,
@@ -64,9 +57,9 @@ export async function POST(req: NextRequest) {
                 name: subscriber.name,
                 email: subscriber.email,
                 visit_count: newCount,
-                last_visit_at: new Date().toISOString(),
+                last_visit_at: lastVisitAt,
             },
-            google_wallet_updated: googleWalletUpdated,
+            ...walletSync,
             google_wallet_object_id: subscriber.google_pass_object_id ?? null,
         });
     } catch (err) {
