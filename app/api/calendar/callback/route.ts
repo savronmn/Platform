@@ -24,11 +24,21 @@ export async function GET(request: NextRequest) {
     try {
         const tokens = await exchangeCodeForTokens(code);
 
-        // Store tokens in barbers table (server-side admin client — bypasses RLS)
         const supabase = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.SUPABASE_SERVICE_ROLE_KEY!
         );
+
+        // Savron shop calendar (savronmn@gmail.com) — used for cleanup + optional shop events
+        if (barberId === 'shop') {
+            await supabase.from('system_config').upsert([
+                { key: 'savron_google_calendar_tokens', value: tokens },
+                { key: 'savron_google_calendar_id', value: 'primary' },
+            ]);
+            return NextResponse.redirect(
+                new URL(`${targetRedirect}?cal_connected=shop`, request.url)
+            );
+        }
 
         // Initialize webhook watch for real-time calendar un-booking
         let syncToken = null;

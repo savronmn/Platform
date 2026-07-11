@@ -9,12 +9,10 @@ import {
     getValidAccessToken,
     createCalendarEvent,
     updateCalendarEvent,
-    deleteCalendarEvent,
-    listAccountCalendarIds,
-    findMatchingCalendarEvents,
     toIsoString,
     type CalendarToken,
 } from '@/lib/google-calendar';
+import { deleteAllBookingCalendarEvents } from '@/lib/booking-calendar-cleanup';
 import { SERVICES } from '@/lib/services-data';
 
 const getAdmin = () => createClient(
@@ -72,65 +70,20 @@ function buildAttendees(_booking: { client_email: string | null }, _barber: Barb
     return [];
 }
 
-async function deleteEventFromBarber(
-    supabaseAdmin: ReturnType<typeof getAdmin>,
-    barberId: string,
+async function removeBookingFromCalendars(
     booking: {
         id: string;
         google_event_id: string | null;
+        barber_id: string | null;
         date: string;
         time: string;
         client_name: string | null;
         client_email: string | null;
         service: string;
     },
-    fallbackDate?: string,
-    fallbackTime?: string,
-): Promise<void> {
-    const { data: oldBarber } = await supabaseAdmin
-        .from('barbers')
-        .select('google_calendar_id, google_calendar_tokens')
-        .eq('id', barberId)
-        .single();
-
-    if (!oldBarber?.google_calendar_tokens || !oldBarber.google_calendar_id) return;
-
-    const accessToken = await getValidAccessToken(oldBarber.google_calendar_tokens as CalendarToken);
-    const calendarIds = await listAccountCalendarIds(accessToken);
-    const idsToSearch = calendarIds.length > 0 ? calendarIds : [oldBarber.google_calendar_id];
-
-    const targets: Array<{ calendarId: string; eventId: string }> = [];
-    const knownEventIds = new Set<string>();
-    if (booking.google_event_id) {
-        knownEventIds.add(booking.google_event_id);
-        for (const calendarId of idsToSearch) {
-            targets.push({ calendarId, eventId: booking.google_event_id });
-        }
-    }
-
-    const matchBooking = {
-        date: fallbackDate ?? booking.date,
-        time: fallbackTime ?? booking.time,
-        client_name: booking.client_name,
-        client_email: booking.client_email,
-        service: booking.service,
-    };
-
-    const fallbackMatches = await findMatchingCalendarEvents(
-        accessToken,
-        idsToSearch,
-        matchBooking,
-        knownEventIds,
-    );
-    targets.push(...fallbackMatches);
-
-    const uniqueTargets = Array.from(
-        new Map(targets.map(target => [`${target.calendarId}:${target.eventId}`, target])).values(),
-    );
-
-    await Promise.all(uniqueTargets.map(target =>
-        deleteCalendarEvent(accessToken, target.calendarId, target.eventId),
-    ));
+    options: { barberId?: string; fallbackDate?: string; fallbackTime?: string } = {},
+) {
+    await deleteAllBookingCalendarEvents(booking, options);
 }
 
 export async function POST(request: NextRequest) {
@@ -161,65 +114,20 @@ export async function POST(request: NextRequest) {
     const barber = booking.barbers as BarberCalendarInfo | null;
 
     if (action === 'delete') {
-        if (!barber?.google_calendar_tokens || !barber.google_calendar_id) {
-            return NextResponse.json({ skipped: true, reason: 'no_calendar_connected' });
-        }
-
-        const accessToken = await getValidAccessToken(barber.google_calendar_tokens);
-        const calendarIds = await listAccountCalendarIds(accessToken);
-        const idsToSearch = calendarIds.length > 0
-            ? calendarIds
-            : [barber.google_calendar_id];
-
-        const targets: Array<{ calendarId: string; eventId: string }> = [];
-        const knownEventIds = new Set<string>();
-        if (booking.google_event_id) {
-            knownEventIds.add(booking.google_event_id);
-            for (const calendarId of idsToSearch) {
-                targets.push({ calendarId, eventId: booking.google_event_id });
-            }
-        }
-
-        const fallbackMatches = await findMatchingCalendarEvents(
-            accessToken,
-            idsToSearch,
-            {
-                date: booking.date,
-                time: booking.time,
-                client_name: booking.client_name,
-                client_email: booking.client_email,
-                service: booking.service,
-            },
-            knownEventIds,
-        );
-        targets.push(...fallbackMatches);
-
-        const uniqueTargets = Array.from(
-            new Map(targets.map(target => [`${target.calendarId}:${target.eventId}`, target])).values(),
-        );
-
-        if (uniqueTargets.length === 0) {
-            return NextResponse.json({ skipped: true, reason: 'no_matching_events' });
-        }
-
-        await Promise.all(uniqueTargets.map(target =>
-            deleteCalendarEvent(accessToken, target.calendarId, target.eventId),
-        ));
+        await removeBookingFromCalendars(booking, { barberId: booking.barber_id ?? undefined });
         await getAdmin().from('bookings').update({ google_event_id: null }).eq('id', bookingId);
-        return NextResponse.json({ success: true, deleted: uniqueTargets.length });
+        return NextResponse.json({ success: true });
     }
 
     if (action === 'update') {
         const barberChanged = previousBarberId && previousBarberId !== booking.barber_id;
 
         if (barberChanged) {
-            await deleteEventFromBarber(
-                supabaseAdmin,
-                previousBarberId,
-                booking,
-                previousDate,
-                previousTime,
-            );
+            await removeBookingFromCalendars(booking, {
+                barberId: previousBarberId,
+                fallbackDate: previousDate,
+                fallbackTime: previousTime,
+            });
             await supabaseAdmin.from('bookings').update({ google_event_id: null }).eq('id', bookingId);
             booking.google_event_id = null;
         }
@@ -237,7 +145,7 @@ export async function POST(request: NextRequest) {
                 accessToken,
                 barber.google_calendar_id,
                 booking.google_event_id,
-                { summary, description, startIso, endIso, attendeeEmails: attendees },
+                { summary, description, startIso, endIso, attendeeEmails: attendees, bookingId: booking.id },
             );
             return NextResponse.json({ success: true, eventId, updated: true });
         }
@@ -248,6 +156,7 @@ export async function POST(request: NextRequest) {
             startIso,
             endIso,
             attendeeEmails: attendees,
+            bookingId: booking.id,
         });
         await supabaseAdmin.from('bookings').update({ google_event_id: eventId }).eq('id', bookingId);
         return NextResponse.json({ success: true, eventId, created: true });
@@ -268,6 +177,7 @@ export async function POST(request: NextRequest) {
         startIso,
         endIso,
         attendeeEmails: attendees,
+        bookingId: booking.id,
     });
 
     await getAdmin().from('bookings').update({ google_event_id: eventId }).eq('id', bookingId);

@@ -1,13 +1,7 @@
 // Server-side booking cancellation — shared by API routes and webhooks.
 
 import { createClient } from '@supabase/supabase-js';
-import {
-    getValidAccessToken,
-    deleteCalendarEvent,
-    listAccountCalendarIds,
-    findMatchingCalendarEvents,
-    type CalendarToken,
-} from '@/lib/google-calendar';
+import { deleteAllBookingCalendarEvents } from '@/lib/booking-calendar-cleanup';
 import { sendCancellationEmails } from '@/lib/cancellation-email';
 
 const getAdmin = () => createClient(
@@ -26,12 +20,13 @@ export interface CancelBookingResult {
 }
 
 /**
- * Cancel a booking: set status, send cancellation email, remove Google Calendar event.
- * Idempotent — repeated calls do not resend email, but retry calendar cleanup.
+ * Cancel a booking: set status, send cancellation email, remove Google Calendar events.
+ * Calendar invites to clients/barbers are cancelled via Resend ICS (METHOD:CANCEL).
+ * Barber + Savron shop GCal busy blocks are deleted via API.
  */
 export async function cancelBooking(
     bookingId: string,
-    options: { skipEmail?: boolean; skipCalendar?: boolean } = {},
+    options: { skipEmail?: boolean; skipCalendar?: boolean; fallbackDate?: string; fallbackTime?: string } = {},
 ): Promise<CancelBookingResult> {
     const supabase = getAdmin();
 
@@ -48,8 +43,6 @@ export async function cancelBooking(
     let alreadyCancelled = booking.status === 'cancelled';
     let cancelledRows: Array<{ id: string; google_event_id: string | null }> = [];
 
-    // Cancel every active twin in one operation. This releases the DB-backed slot
-    // immediately and prevents one duplicate row from keeping it unavailable.
     if (!alreadyCancelled) {
         const updateQuery = supabase
             .from('bookings')
@@ -69,36 +62,15 @@ export async function cancelBooking(
             return { success: false, bookingId, error: updateError.message };
         }
         cancelledRows = data ?? [];
-        // A concurrent request may have completed the cancellation first.
         alreadyCancelled = cancelledRows.length === 0;
     }
 
     let emailSent = false;
-    let calendarDeleted = false;
+    let calendarDeleted = true;
     const warnings: string[] = [];
     const barberRelation = Array.isArray(booking.barbers)
         ? booking.barbers[0] ?? null
         : booking.barbers;
-    let calendarRows = cancelledRows.length
-        ? cancelledRows
-        : [{ id: booking.id, google_event_id: booking.google_event_id }];
-
-    // Include previously-cancelled twins left by older workflows so their orphaned
-    // Google events cannot continue blocking this newly-available slot.
-    if (booking.barber_id && booking.date && booking.time) {
-        const { data: slotRows, error: slotRowsError } = await supabase
-            .from('bookings')
-            .select('id, google_event_id')
-            .eq('barber_id', booking.barber_id)
-            .eq('date', booking.date)
-            .eq('time', booking.time)
-            .eq('status', 'cancelled');
-        if (slotRowsError) {
-            console.error('Failed to load duplicate calendar events:', slotRowsError);
-        } else if (slotRows) {
-            calendarRows = slotRows;
-        }
-    }
 
     if (!options.skipEmail && !alreadyCancelled) {
         try {
@@ -119,86 +91,48 @@ export async function cancelBooking(
     }
 
     if (!options.skipCalendar) {
-        const barber = barberRelation as {
-            google_calendar_id: string | null;
-            google_calendar_tokens: CalendarToken | null;
-        } | null;
+        try {
+            const cleanup = await deleteAllBookingCalendarEvents(
+                {
+                    id: booking.id,
+                    google_event_id: booking.google_event_id,
+                    barber_id: booking.barber_id,
+                    date: options.fallbackDate ?? booking.date,
+                    time: options.fallbackTime ?? booking.time,
+                    client_name: booking.client_name,
+                    client_email: booking.client_email,
+                    service: booking.service,
+                },
+                {
+                    barberId: booking.barber_id,
+                    fallbackDate: options.fallbackDate ?? booking.date,
+                    fallbackTime: options.fallbackTime ?? booking.time,
+                },
+            );
 
-        const knownEventIds = new Set(
-            calendarRows
-                .map(row => row.google_event_id)
-                .filter((id): id is string => Boolean(id)),
-        );
+            calendarDeleted = cleanup.failed === 0;
 
-        if (barber?.google_calendar_tokens && barber.google_calendar_id) {
-            try {
-                const accessToken = await getValidAccessToken(barber.google_calendar_tokens);
-                const calendarIds = await listAccountCalendarIds(accessToken);
-                const idsToSearch = calendarIds.length > 0
-                    ? calendarIds
-                    : [barber.google_calendar_id];
+            const rowIds = cancelledRows.length
+                ? cancelledRows.map(r => r.id)
+                : [booking.id];
 
-                const targets: Array<{ calendarId: string; eventId: string }> = [];
+            await supabase
+                .from('bookings')
+                .update({ google_event_id: null })
+                .in('id', rowIds);
 
-                for (const eventId of Array.from(knownEventIds)) {
-                    for (const calendarId of idsToSearch) {
-                        targets.push({ calendarId, eventId });
-                    }
-                }
-
-                const fallbackMatches = await findMatchingCalendarEvents(
-                    accessToken,
-                    idsToSearch,
-                    {
-                        date: booking.date,
-                        time: booking.time,
-                        client_name: booking.client_name,
-                        client_email: booking.client_email,
-                        service: booking.service,
-                    },
-                    knownEventIds,
+            if (cleanup.failed > 0) {
+                console.error('[cancel-booking] Calendar cleanup partial failure:', cleanup);
+                warnings.push(
+                    'Some Google Calendar events could not be removed. The slot is available in the app; retry cancel or check barber/Savron calendar connection.',
                 );
-                targets.push(...fallbackMatches);
-
-                const uniqueTargets = Array.from(
-                    new Map(targets.map(target => [`${target.calendarId}:${target.eventId}`, target])).values(),
-                );
-
-                if (uniqueTargets.length === 0) {
-                    calendarDeleted = true;
-                } else {
-                    const results = await Promise.allSettled(uniqueTargets.map(async target => {
-                        await deleteCalendarEvent(accessToken, target.calendarId, target.eventId);
-                    }));
-                    const failed = results.filter(result => result.status === 'rejected');
-                    calendarDeleted = failed.length === 0;
-                    if (failed.length > 0) {
-                        failed.forEach(result => {
-                            if (result.status === 'rejected') {
-                                console.error('Failed to delete cancelled calendar event:', result.reason);
-                            }
-                        });
-                        warnings.push('Google Calendar cleanup is incomplete; the database slot is available');
-                    }
-                }
-
-                if (knownEventIds.size > 0) {
-                    await supabase
-                        .from('bookings')
-                        .update({ google_event_id: null })
-                        .in('id', calendarRows.map(row => row.id));
-                }
-            } catch (error) {
-                console.error('Failed to delete cancelled calendar events:', error);
-                calendarDeleted = false;
-                warnings.push('Google Calendar cleanup failed; the database slot is available');
             }
-        } else if (knownEventIds.size > 0) {
+        } catch (error) {
+            console.error('Failed to delete calendar events:', error);
             calendarDeleted = false;
-            warnings.push('Google Calendar is not connected; the database slot is available');
-        } else {
-            // No stored event ID and no calendar connection — nothing to clean up remotely.
-            calendarDeleted = true;
+            warnings.push(
+                'Google Calendar cleanup failed. The slot is available in the app; verify barber and Savron calendars are connected.',
+            );
         }
     }
 
@@ -208,7 +142,7 @@ export async function cancelBooking(
         alreadyCancelled,
         emailSent,
         calendarDeleted,
-        warning: warnings.length ? warnings.join('. ') : undefined,
+        warning: warnings.length ? warnings.join(' ') : undefined,
     };
 }
 

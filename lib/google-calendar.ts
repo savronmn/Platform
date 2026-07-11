@@ -83,6 +83,7 @@ export async function createCalendarEvent(
         startIso: string;  // "2026-04-01T10:00:00-05:00"
         endIso: string;
         attendeeEmails?: string[];
+        bookingId?: string;
     }
 ): Promise<string> {
     const body: Record<string, unknown> = {
@@ -91,6 +92,9 @@ export async function createCalendarEvent(
         start: { dateTime: event.startIso, timeZone: 'America/Chicago' },
         end: { dateTime: event.endIso, timeZone: 'America/Chicago' },
     };
+    if (event.bookingId) {
+        body.extendedProperties = { private: { savronBookingId: event.bookingId } };
+    }
     if (event.attendeeEmails && event.attendeeEmails.length > 0) {
         body.attendees = event.attendeeEmails.map(email => ({ email }));
     }
@@ -124,6 +128,7 @@ export async function updateCalendarEvent(
         startIso: string;
         endIso: string;
         attendeeEmails?: string[];
+        bookingId?: string;
     }
 ): Promise<string> {
     const body: Record<string, unknown> = {
@@ -132,6 +137,9 @@ export async function updateCalendarEvent(
         start: { dateTime: event.startIso, timeZone: 'America/Chicago' },
         end: { dateTime: event.endIso, timeZone: 'America/Chicago' },
     };
+    if (event.bookingId) {
+        body.extendedProperties = { private: { savronBookingId: event.bookingId } };
+    }
     if (event.attendeeEmails && event.attendeeEmails.length > 0) {
         body.attendees = event.attendeeEmails.map(email => ({ email }));
     }
@@ -291,6 +299,37 @@ export async function findMatchingCalendarEvents(
         for (const event of events) {
             if (!event.id || excludeEventIds.has(event.id) || seen.has(event.id)) continue;
             if (!eventMatchesBooking(event, booking)) continue;
+            seen.add(event.id);
+            matches.push({ calendarId, eventId: event.id });
+        }
+    }
+
+    return matches;
+}
+
+/** Find events tagged with savronBookingId across calendars (survives date/barber changes). */
+export async function findEventsByBookingId(
+    accessToken: string,
+    calendarIds: string[],
+    bookingId: string,
+): Promise<Array<{ calendarId: string; eventId: string }>> {
+    const matches: Array<{ calendarId: string; eventId: string }> = [];
+    const seen = new Set<string>();
+
+    for (const calendarId of calendarIds) {
+        const url = new URL(`${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events`);
+        url.searchParams.set('privateExtendedProperty', `savronBookingId=${bookingId}`);
+        url.searchParams.set('maxResults', '20');
+
+        const res = await fetch(url.toString(), {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            next: { revalidate: 0 },
+        });
+        if (!res.ok) continue;
+
+        const data = await res.json();
+        for (const event of (data.items ?? []) as Array<{ id?: string; status?: string }>) {
+            if (!event.id || event.status === 'cancelled' || seen.has(event.id)) continue;
             seen.add(event.id);
             matches.push({ calendarId, eventId: event.id });
         }
