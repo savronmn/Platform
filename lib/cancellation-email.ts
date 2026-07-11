@@ -1,10 +1,9 @@
 import { format } from 'date-fns';
+import { buildBookingIcs } from '@/lib/booking-ics';
 import {
     RESEND_BOOKING_FROM,
     RESEND_BOOKING_FROM_NAME,
     SHOP_ADDRESS,
-    SHOP_CALENDAR_DISPLAY_NAME,
-    SHOP_CALENDAR_EMAIL,
     SHOP_NAME,
 } from '@/lib/shop';
 
@@ -28,64 +27,23 @@ export interface CancellationEmailResult {
     error?: string;
 }
 
-function icsEscape(value: string): string {
-    return String(value || '')
-        .replace(/\\/g, '\\\\')
-        .replace(/,/g, '\\,')
-        .replace(/;/g, '\\;')
-        .replace(/\r?\n/g, '\\n');
-}
-
 function buildCancelIcs(
     booking: CancellationBooking,
     barberName: string,
-    barberEmail: string | null,
 ): string {
-    const [timePart, meridiem] = (booking.time || '12:00 PM').split(' ');
-    let [hours, minutes] = timePart.split(':').map(Number);
-    if (meridiem === 'PM' && hours !== 12) hours += 12;
-    if (meridiem === 'AM' && hours === 12) hours = 0;
-
-    const durationMatch = booking.duration?.match(/\d+/);
-    const durationMin = durationMatch ? parseInt(durationMatch[0], 10) : 45;
-    const startMs = new Date(
-        `${booking.date}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00-05:00`,
-    ).getTime();
-    const endMs = startMs + durationMin * 60_000;
-    const fmt = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-
-    const attendees: string[] = [];
-    if (booking.client_email) {
-        attendees.push(
-            `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;CN=${icsEscape(booking.client_name || 'Guest')}:mailto:${booking.client_email}`,
-        );
-    }
-    if (barberEmail) {
-        attendees.push(
-            `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;CN=${icsEscape(barberName)}:mailto:${barberEmail}`,
-        );
-    }
-
-    return [
-        'BEGIN:VCALENDAR',
-        'VERSION:2.0',
-        'PRODID:-//SAVRON Barbershop & Lounge//Booking System//EN',
-        'CALSCALE:GREGORIAN',
-        'METHOD:CANCEL',
-        'BEGIN:VEVENT',
-        `UID:booking-${booking.id}@savronmn.com`,
-        'SEQUENCE:1',
-        `DTSTAMP:${fmt(Date.now())}`,
-        `DTSTART:${fmt(startMs)}`,
-        `DTEND:${fmt(endMs)}`,
-        `SUMMARY:CANCELLED — ${icsEscape(booking.service)}`,
-        `LOCATION:${icsEscape(`${SHOP_NAME}, ${SHOP_ADDRESS}`)}`,
-        `ORGANIZER;CN=${icsEscape(SHOP_CALENDAR_DISPLAY_NAME)}:mailto:${SHOP_CALENDAR_EMAIL}`,
-        ...attendees,
-        'STATUS:CANCELLED',
-        'END:VEVENT',
-        'END:VCALENDAR',
-    ].join('\r\n');
+    return buildBookingIcs(
+        {
+            id: booking.id,
+            time: booking.time,
+            date: booking.date,
+            duration: booking.duration,
+            service: booking.service,
+            client_name: booking.client_name,
+            notes: null,
+        },
+        barberName,
+        { method: 'CANCEL', sequence: 1 },
+    );
 }
 
 export async function sendCancellationEmails(
@@ -97,7 +55,7 @@ export async function sendCancellationEmails(
 
     const barberName = booking.barbers?.name ?? booking.barber_name ?? 'Your barber';
     const barberEmail = booking.barbers?.email ?? null;
-    const ics = buildCancelIcs(booking, barberName, barberEmail);
+    const ics = buildCancelIcs(booking, barberName);
 
     const recipientEmails = Array.from(new Set(
         [booking.client_email, barberEmail].filter((email): email is string => Boolean(email)),
@@ -164,6 +122,7 @@ export async function sendCancellationEmails(
             },
             body: JSON.stringify({
                 from: `${RESEND_BOOKING_FROM_NAME} <${RESEND_BOOKING_FROM}>`,
+                reply_to: RESEND_BOOKING_FROM,
                 to: [to],
                 subject: `Cancelled: ${booking.service} — ${dateFormatted}, ${booking.time}`,
                 html,

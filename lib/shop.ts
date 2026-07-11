@@ -2,10 +2,7 @@ export const SHOP_NAME = 'SAVRON Barbershop & Lounge';
 
 export const SHOP_ADDRESS = '250 N Third Avenue, Minneapolis, MN 55401';
 
-/** Google Calendar account — real organizer for booking invites (RSVP / decline). */
-export const SHOP_CALENDAR_EMAIL = 'savronmn@gmail.com';
-
-/** Display name on Google Calendar invites (not a person's name). */
+/** Display name on booking/calendar branding (not a person's name). */
 export const SHOP_CALENDAR_DISPLAY_NAME = 'SAVRON';
 
 /** Resend display address for booking confirmation emails (not the calendar organizer). */
@@ -13,6 +10,9 @@ export const RESEND_BOOKING_FROM = 'bookings@savronmn.com';
 
 /** From-name on Resend booking emails (not a person's name). */
 export const RESEND_BOOKING_FROM_NAME = SHOP_CALENDAR_DISPLAY_NAME;
+
+/** Google Calendar account — organizer entity on client .ics (SENT-BY bookings@). */
+export const SHOP_CALENDAR_EMAIL = 'savronmn@gmail.com';
 
 /** Public contact / reply-to style address (not used as calendar organizer). */
 export const SHOP_CONTACT_EMAIL = 'info@savronmn.com';

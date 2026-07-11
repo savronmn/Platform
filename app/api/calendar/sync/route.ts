@@ -19,6 +19,7 @@ import {
 } from '@/lib/google-calendar';
 import { deleteAllBookingCalendarEvents } from '@/lib/booking-calendar-cleanup';
 import { upsertShopInviteEvent } from '@/lib/shop-calendar';
+import { sendBookingConfirmationEmail, sendBookingUpdateEmail } from '@/lib/send-booking-email';
 import { requireStaff } from '@/lib/staff-auth';
 import { SERVICES } from '@/lib/services-data';
 import { SHOP_NAME } from '@/lib/shop';
@@ -127,6 +128,21 @@ async function syncShopInvite(
     return shopEventId;
 }
 
+async function sendClientEmailForAction(
+    bookingId: string,
+    action: 'create' | 'update',
+    options: { skip?: boolean } = {},
+) {
+    if (options.skip) return null;
+    const result = action === 'update'
+        ? await sendBookingUpdateEmail(bookingId)
+        : await sendBookingConfirmationEmail(bookingId);
+    if (!result.success && !result.skipped) {
+        console.error(`[calendar/sync] ${action} email failed:`, result.error);
+    }
+    return result;
+}
+
 export async function POST(request: NextRequest) {
     const { bookingId, action, previousBarberId, previousDate, previousTime } = await request.json() as {
         bookingId: string;
@@ -204,9 +220,11 @@ export async function POST(request: NextRequest) {
         const shopEventId = await syncShopInvite(booking);
 
         if (!barber?.google_calendar_tokens || !barber.google_calendar_id) {
+            const emailResult = await sendClientEmailForAction(bookingId, 'update');
             return NextResponse.json({
                 success: !!shopEventId,
                 shopEventId,
+                emailSent: emailResult?.success ?? false,
                 skipped: !shopEventId ? true : undefined,
                 reason: !shopEventId ? 'no_calendar_connected' : undefined,
             });
@@ -223,7 +241,8 @@ export async function POST(request: NextRequest) {
                 { summary, description, startIso, endIso, attendeeEmails: [], bookingId: booking.id },
                 'none',
             );
-            return NextResponse.json({ success: true, eventId, shopEventId, updated: true });
+            const emailResult = await sendClientEmailForAction(bookingId, 'update');
+            return NextResponse.json({ success: true, eventId, shopEventId, updated: true, emailSent: emailResult?.success ?? false });
         }
 
         const eventId = await createCalendarEvent(
@@ -240,7 +259,8 @@ export async function POST(request: NextRequest) {
             'none',
         );
         await supabaseAdmin.from('bookings').update({ google_event_id: eventId }).eq('id', bookingId);
-        return NextResponse.json({ success: true, eventId, shopEventId, created: true });
+        const emailResult = await sendClientEmailForAction(bookingId, 'update');
+        return NextResponse.json({ success: true, eventId, shopEventId, created: true, emailSent: emailResult?.success ?? false });
     }
 
     // action === 'create'
@@ -259,19 +279,23 @@ export async function POST(request: NextRequest) {
         ?? await syncShopInvite(booking);
 
     if (!barber?.google_calendar_tokens || !barber.google_calendar_id) {
+        const emailResult = await sendClientEmailForAction(bookingId, 'create');
         return NextResponse.json({
             success: !!shopEventId,
             shopEventId,
+            emailSent: emailResult?.success ?? false,
             skipped: !shopEventId ? true : undefined,
             reason: !shopEventId ? 'no_calendar_connected' : undefined,
         });
     }
 
     if (booking.google_event_id) {
+        const emailResult = await sendClientEmailForAction(bookingId, 'create');
         return NextResponse.json({
             success: true,
             eventId: booking.google_event_id,
             shopEventId,
+            emailSent: emailResult?.success ?? false,
         });
     }
 
@@ -323,5 +347,6 @@ export async function POST(request: NextRequest) {
         }
     }
 
-    return NextResponse.json({ success: true, eventId, shopEventId });
+    const emailResult = await sendClientEmailForAction(bookingId, 'create');
+    return NextResponse.json({ success: true, eventId, shopEventId, emailSent: emailResult?.success ?? false });
 }

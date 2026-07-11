@@ -13,7 +13,7 @@ async function logSideEffectFailure(label: string, res: Response | undefined): P
 }
 
 export async function triggerPostBooking(bookingId: string): Promise<void> {
-    // Calendar sync (silent on shop GCal), then one Resend email with .ics for the client.
+    // Server sends Resend email inside calendar sync — one reliable server-side path.
     const calendarRes = await fetch('/api/calendar/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -23,16 +23,6 @@ export async function triggerPostBooking(bookingId: string): Promise<void> {
         return undefined;
     });
     await logSideEffectFailure('calendar sync', calendarRes);
-
-    const emailRes = await fetch('/api/email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId }),
-    }).catch((err) => {
-        console.error('[post-booking] confirmation email network error:', err);
-        return undefined;
-    });
-    await logSideEffectFailure('confirmation email', emailRes);
 }
 
 /** Fire email + calendar sync after a booking is edited. */
@@ -60,16 +50,6 @@ export async function triggerPostEditBooking(
         return undefined;
     });
     await logSideEffectFailure('calendar update', calendarRes);
-
-    const emailRes = await fetch('/api/email/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId }),
-    }).catch((err) => {
-        console.error('[post-edit] update email network error:', err);
-        return undefined;
-    });
-    await logSideEffectFailure('update email', emailRes);
 }
 
 /** Cancel a booking via the shared API (email + calendar delete). */

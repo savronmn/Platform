@@ -106,7 +106,7 @@ export async function createCalendarEvent(
             ...(event.organizerDisplayName ? { displayName: event.organizerDisplayName } : {}),
         };
     }
-    if (event.attendeeEmails && event.attendeeEmails.length > 0) {
+    if (event.attendeeEmails !== undefined) {
         body.attendees = event.attendeeEmails.map(email => ({ email }));
     }
     body.guestsCanModify = false;
@@ -161,7 +161,7 @@ export async function updateCalendarEvent(
             ...(event.organizerDisplayName ? { displayName: event.organizerDisplayName } : {}),
         };
     }
-    if (event.attendeeEmails && event.attendeeEmails.length > 0) {
+    if (event.attendeeEmails !== undefined) {
         body.attendees = event.attendeeEmails.map(email => ({ email }));
     }
     body.guestsCanModify = false;
