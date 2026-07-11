@@ -93,7 +93,7 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
         if (loadingBusy) return true;
         if (busySlots.length === 0) return false;
         const service = services.find(s => s.id === selectedService);
-        const durationMin = (service?.durationMin ?? 45) + (addEyebrows ? 15 : 0);
+        const durationMin = service?.durationMin ?? 45;
         return slotConflictsWithBusy(selectedDate, timeStr, durationMin, busySlots);
     };
 
@@ -128,7 +128,7 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
         if (dbAvailable.length === 0) return null;
 
         // 2. Also filter out barbers with Google Calendar conflicts
-        const durationMin = (selectedSvc?.durationMin ?? 45) + (addEyebrows ? 15 : 0);
+        const durationMin = selectedSvc?.durationMin ?? 45;
 
         const calAvailable: Barber[] = [];
         await Promise.all(dbAvailable.map(async (barber) => {

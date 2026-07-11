@@ -49,7 +49,7 @@ export function EyebrowsAddon({ checked, onChange, visible }: Props) {
                                     Add {EYEBROWS_ADDON.name}
                                 </p>
                                 <p className="text-savron-silver/55 text-sm mt-0.5">
-                                    Brow shaping &amp; cleanup · {EYEBROWS_ADDON.duration}
+                                    Brow shaping &amp; cleanup
                                 </p>
                             </div>
                         </div>

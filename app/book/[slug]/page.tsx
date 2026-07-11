@@ -100,7 +100,7 @@ function BarberBookingContent() {
         if (loadingBusy) return true;
         if (busySlots.length === 0) return false;
         const service = services.find(s => s.id === selectedService);
-        const durationMin = (service?.durationMin ?? 45) + (addEyebrows ? 15 : 0);
+        const durationMin = service?.durationMin ?? 45;
         return slotConflictsWithBusy(selectedDate, timeStr, durationMin, busySlots);
     };
 

@@ -55,12 +55,11 @@ export function bookingTotals(
     durationMin: number,
     includeEyebrows: boolean,
 ): { priceCents: number; durationMin: number; price: string; duration: string } {
-    const totalCents = priceCents + (includeEyebrows ? 1500 : 0);
-    const totalMin = durationMin + (includeEyebrows ? 15 : 0);
+    const totalCents = priceCents + (includeEyebrows ? 1000 : 0);
     return {
         priceCents: totalCents,
-        durationMin: totalMin,
+        durationMin,
         price: `$${totalCents / 100}`,
-        duration: `${totalMin} min`,
+        duration: `${durationMin} min`,
     };
 }

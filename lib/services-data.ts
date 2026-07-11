@@ -19,13 +19,11 @@ export const SERVICES: ServiceItem[] = [
     { id: 5, name: "Beard Sculpting + Hot Towel Shave", duration: "45 min", durationMin: 45, price: "$50", priceCents: 5000, color: "amber",   description: "Straight-razor line up, hot towel ritual, conditioning finish." },
 ];
 
-/** Optional add-on — not listed as a primary service */
+/** Optional add-on — not listed as a primary service; price only, no extra time */
 export const EYEBROWS_ADDON = {
     name: 'Eyebrows',
-    durationMin: 15,
-    priceCents: 1500,
-    price: '$15',
-    duration: '15 min',
+    priceCents: 1000,
+    price: '$10',
 } as const;
 
 // Color map for host dashboard booking blocks
