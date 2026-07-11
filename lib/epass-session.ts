@@ -5,17 +5,13 @@ const COOKIE_NAME = 'epass_session';
 const MAX_AGE_SEC = 60 * 60 * 24 * 30; // 30 days
 
 function sessionSecret(): string {
-    const secret =
-        process.env.EPASS_SESSION_SECRET
-        || process.env.CRON_SECRET
-        || process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!secret) {
-        if (process.env.NODE_ENV === 'production') {
-            throw new Error('EPASS_SESSION_SECRET (or CRON_SECRET) must be configured');
-        }
-        return 'savron-epass-dev-secret';
+    if (process.env.EPASS_SESSION_SECRET) {
+        return process.env.EPASS_SESSION_SECRET;
     }
-    return secret;
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error('EPASS_SESSION_SECRET must be configured');
+    }
+    return process.env.CRON_SECRET || 'savron-epass-dev-secret';
 }
 
 function sign(payload: string): string {

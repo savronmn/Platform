@@ -261,6 +261,9 @@ export async function findBookingForCalendarEvent(
         if (byShopEvent) return byShopEvent;
     }
 
+    // Cancelled Google events without a stored event id must not cancel by slot guesswork.
+    if (event.status === 'cancelled') return null;
+
     const slot = eventSlot(event);
     if (!slot) return null;
 
@@ -276,9 +279,19 @@ export async function findBookingForCalendarEvent(
     }
 
     const { data: slotBookings } = await query;
-
     if (!slotBookings?.length) return null;
-    if (slotBookings.length === 1) return slotBookings[0];
+
+    const eventClientEmail = (event.attendees ?? [])
+        .find(a => !a.organizer && a.email && !SYSTEM_EMAILS.has(a.email.toLowerCase()))
+        ?.email
+        ?.toLowerCase();
+
+    if (eventClientEmail) {
+        const byEmail = slotBookings.find(
+            booking => booking.client_email?.toLowerCase() === eventClientEmail,
+        );
+        if (byEmail) return byEmail;
+    }
 
     const eventClientName = extractClientNameFromEvent(event);
     if (eventClientName) {
@@ -286,5 +299,8 @@ export async function findBookingForCalendarEvent(
         if (matched) return matched;
     }
 
-    return slotBookings[0];
+    // Without barber scope, never guess — wrong booking risk across barbers.
+    if (!barberId) return null;
+    if (slotBookings.length === 1) return slotBookings[0];
+    return null;
 }

@@ -81,7 +81,10 @@ export async function POST(req: NextRequest) {
 
         if (action === 'record_visit') {
             const { data: updated, error: updateError } = await supabase
-                .rpc('increment_subscriber_visit', { p_subscriber_id: subscriber_id });
+                .rpc('increment_subscriber_visit', {
+                    p_subscriber_id: subscriber_id,
+                    p_force: true,
+                });
 
             let newCount: number;
             let lastVisitAt: string;

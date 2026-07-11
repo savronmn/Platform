@@ -64,14 +64,31 @@ export async function POST(req: NextRequest) {
         }
 
         const { data: updated, error: updateErr } = await supabase
-            .rpc('increment_subscriber_visit', { p_subscriber_id: subscriber.id });
+            .rpc('increment_subscriber_visit', {
+                p_subscriber_id: subscriber.id,
+                p_force: false,
+            });
 
         let newCount: number;
         let lastVisitAt: string;
 
-        if (updateErr || !updated) {
+        if (updateErr) {
+            if (updateErr.message?.includes('visit_debounced')) {
+                return NextResponse.json({
+                    success: true,
+                    debounced: true,
+                    subscriber: {
+                        id: subscriber.id,
+                        name: subscriber.name,
+                        email: subscriber.email,
+                        visit_count: subscriber.visit_count,
+                        last_visit_at: subscriber.last_visit_at,
+                    },
+                    google_wallet_object_id: subscriber.google_pass_object_id ?? null,
+                });
+            }
             // Fallback if migration RPC is not applied yet.
-            console.warn('[scan-checkin] RPC unavailable, using atomic-ish update:', updateErr?.message);
+            console.warn('[scan-checkin] RPC unavailable, using atomic-ish update:', updateErr.message);
             newCount = (subscriber.visit_count ?? 0) + 1;
             lastVisitAt = new Date().toISOString();
             const { error: fallbackErr } = await supabase
@@ -82,6 +99,8 @@ export async function POST(req: NextRequest) {
             if (fallbackErr) {
                 return NextResponse.json({ error: 'Failed to record visit' }, { status: 500 });
             }
+        } else if (!updated) {
+            return NextResponse.json({ error: 'Failed to record visit' }, { status: 500 });
         } else {
             const row = Array.isArray(updated) ? updated[0] : updated;
             newCount = row.visit_count;

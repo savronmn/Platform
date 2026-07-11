@@ -5,7 +5,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
-import { isShopCalendarConnected } from '@/lib/shop-calendar';
 
 const BARBERSHOP_EMAIL = 'info@savronmn.com';
 const SHOP_ADDRESS = '250 N Third Avenue, Minneapolis, MN 55401';
@@ -252,7 +251,7 @@ export async function POST(request: NextRequest) {
 </body>
 </html>`;
 
-    const shopInviteActive = await isShopCalendarConnected();
+    const shopInviteActive = !!booking.shop_google_event_id;
     const icsString = shopInviteActive ? null : getUpdateIcsString(booking, barberName, barberEmail);
     const icsAttachment = icsString
         ? {

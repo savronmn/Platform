@@ -107,9 +107,6 @@ async function processEventsForBarber(
     for (const event of events) {
         if (!event.id || seenEventIds.has(event.id)) continue;
         seenEventIds.add(event.id);
-        if (event.status === 'cancelled') {
-            // Still try to match deleted events via stored IDs
-        }
 
         const booking = await findBookingForCalendarEvent(supabase, barberId, event);
         if (!booking) continue;

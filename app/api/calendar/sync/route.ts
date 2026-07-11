@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Missing bookingId or action' }, { status: 400 });
     }
 
-    // Public book flow may create once; edits/deletes require staff.
+    // Public book flow may create once shortly after insert; edits/deletes require staff.
     if (action === 'update' || action === 'delete') {
         const staff = await requireStaff();
         if (!staff.ok) {
@@ -155,6 +155,19 @@ export async function POST(request: NextRequest) {
 
     if (!booking) {
         return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+    }
+
+    if (action === 'create') {
+        const staff = await requireStaff();
+        if (!staff.ok) {
+            const createdAt = booking.created_at ? new Date(booking.created_at).getTime() : 0;
+            const ageMs = Date.now() - createdAt;
+            // Unauthenticated create only allowed within 10 minutes of booking insert
+            // (public BookingFlow immediately after insert).
+            if (!Number.isFinite(createdAt) || ageMs < 0 || ageMs > 10 * 60_000) {
+                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            }
+        }
     }
 
     const barber = booking.barbers as BarberCalendarInfo | null;

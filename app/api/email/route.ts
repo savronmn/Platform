@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
-import { isShopCalendarConnected } from '@/lib/shop-calendar';
 
 const BARBERSHOP_EMAIL = 'info@savronmn.com';
 const SHOP_ADDRESS = '250 N Third Avenue, Minneapolis, MN 55401';
@@ -239,9 +238,8 @@ export async function POST(request: NextRequest) {
 </body>
 </html>`;
 
-  // When shop Google Calendar is connected, Google sends the RSVP invite.
-  // Resend still sends the confirmation email; skip ICS REQUEST to avoid a second invite.
-  const shopInviteActive = await isShopCalendarConnected();
+  // Skip ICS REQUEST only when THIS booking already has a shop Google invite.
+  const shopInviteActive = !!booking.shop_google_event_id;
   const icsString = shopInviteActive ? null : getIcsString(booking, barberName, barberEmail, 'REQUEST');
   const icsAttachment = icsString
     ? {

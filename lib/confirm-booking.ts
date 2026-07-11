@@ -2,19 +2,18 @@
 // Called from BookingFlow and AsapBookingFlow after supabase.insert() succeeds.
 
 export async function triggerPostBooking(bookingId: string): Promise<void> {
-    await Promise.allSettled([
-        fetch('/api/email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bookingId }),
-        }),
-        fetch('/api/calendar/sync', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bookingId, action: 'create' }),
-        }),
-    ]);
-    // allSettled — failures are silent so booking is never blocked
+    // Calendar first so confirmation email can decide whether Google already sent the invite.
+    await fetch('/api/calendar/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId, action: 'create' }),
+    }).catch(() => undefined);
+
+    await fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId }),
+    }).catch(() => undefined);
 }
 
 /** Fire email + calendar sync after a booking is edited. */
@@ -26,24 +25,24 @@ export async function triggerPostEditBooking(
         previousTime?: string;
     } = {},
 ): Promise<void> {
-    await Promise.allSettled([
-        fetch('/api/email/update', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bookingId }),
+    await fetch('/api/calendar/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+            bookingId,
+            action: 'update',
+            previousBarberId: options.previousBarberId ?? undefined,
+            previousDate: options.previousDate,
+            previousTime: options.previousTime,
         }),
-        fetch('/api/calendar/sync', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                bookingId,
-                action: 'update',
-                previousBarberId: options.previousBarberId ?? undefined,
-                previousDate: options.previousDate,
-                previousTime: options.previousTime,
-            }),
-        }),
-    ]);
+    }).catch(() => undefined);
+
+    await fetch('/api/email/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId }),
+    }).catch(() => undefined);
 }
 
 /** Cancel a booking via the shared API (email + calendar delete). */
