@@ -339,9 +339,9 @@ export default function BarberBookingPage() {
                             {/* Step 3: Details */}
                             {step === 3 && (
                                 <motion.div key="details" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
-                                    <h2 className="text-xl font-heading text-white uppercase tracking-widest mb-2">Your Details</h2>
-                                    <div className="bg-savron-black border border-white/10 rounded-savron p-4 space-y-2 text-sm">
-                                        <p className="text-savron-silver text-xs uppercase tracking-widest mb-3">Summary</p>
+                                    <h2 className="text-2xl font-heading text-white uppercase tracking-widest mb-2">Your Details</h2>
+                                    <div className="bg-savron-black border border-white/10 rounded-savron p-5 space-y-3 text-base">
+                                        <p className="text-savron-silver text-sm uppercase tracking-widest mb-3">Summary</p>
                                         <div className="flex justify-between">
                                             <span className="text-savron-silver">Service</span>
                                             <span className="text-white">{services.find(s => s.id === selectedService)?.name}</span>
