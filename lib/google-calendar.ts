@@ -111,6 +111,45 @@ export async function createCalendarEvent(
     return data.id; // Google event ID — store in booking for later updates/deletes
 }
 
+// Update an existing event on the barber's Google Calendar
+export async function updateCalendarEvent(
+    accessToken: string,
+    calendarId: string,
+    eventId: string,
+    event: {
+        summary: string;
+        description?: string;
+        startIso: string;
+        endIso: string;
+        attendeeEmails?: string[];
+    }
+): Promise<string> {
+    const body: Record<string, unknown> = {
+        summary: event.summary,
+        description: event.description,
+        start: { dateTime: event.startIso, timeZone: 'America/Chicago' },
+        end: { dateTime: event.endIso, timeZone: 'America/Chicago' },
+    };
+    if (event.attendeeEmails && event.attendeeEmails.length > 0) {
+        body.attendees = event.attendeeEmails.map(email => ({ email }));
+    }
+
+    const res = await fetch(
+        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=all`,
+        {
+            method: 'PATCH',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+        }
+    );
+    const data = await res.json();
+    if (!data.id) throw new Error('Failed to update calendar event: ' + JSON.stringify(data));
+    return data.id;
+}
+
 // Delete a calendar event (for cancellations)
 export async function deleteCalendarEvent(
     accessToken: string,
