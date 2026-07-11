@@ -4,7 +4,7 @@
 // Body: { bookingId: string, action: "create" | "delete" | "update", previousBarberId?: string, previousDate?: string, previousTime?: string }
 //
 // Invite model:
-// - Savron shop calendar = Google invite with client attendee (RSVP / decline / propose new time)
+// - Savron shop calendar = Google invite with client attendee (RSVP / decline)
 // - Barber calendar = silent busy block (no attendees, no Google invite email)
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -68,8 +68,8 @@ function buildEventPayload(booking: {
         booking.client_email ? `Email: ${booking.client_email}` : '',
         `Price: ${booking.price ?? ''}`,
         '',
-        'Reply Yes / No / Propose a new time on this invite.',
-        'Declining or proposing a new time cancels the booking in SAVRON so the slot frees up.',
+        'Reply Yes or No on this invite.',
+        'Declining cancels the booking in SAVRON so the slot frees up.',
     ].filter(Boolean).join('\n');
 
     return { summary, description, startIso, endIso, durationMin };

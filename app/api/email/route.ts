@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
   const calendarNote = (shopInviteActive || shopConnected)
     ? `<p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
               Your Google Calendar invitation comes from <strong style="color:#fff;">${SHOP_CALENDAR_EMAIL}</strong>.
-              Use <em>Yes</em>, <em>No</em>, or <em>Propose a new time</em> on that invite.
+              Use <em>Yes</em> or <em>No</em> on that invite. Tapping <em>No</em> cancels the appointment.
             </p>`
     : `<p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
               Need to cancel or reschedule? Reply to this email — your calendar invite includes RSVP options.

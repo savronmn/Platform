@@ -54,14 +54,11 @@ export async function notifyStaffOfCalendarAction(params: {
     if (!process.env.RESEND_API_KEY) return;
 
     const reasonLabel =
-        params.reason === 'client_proposed_new_time' ? 'proposed a new time'
-            : params.reason === 'client_declined' ? 'declined the invite'
-                : params.reason === 'event_time_changed' ? 'changed the event time'
-                    : 'removed the calendar event';
+        params.reason === 'client_declined' ? 'declined the invite'
+            : params.reason === 'event_time_changed' ? 'changed the event time'
+                : 'removed the calendar event';
 
-    const subject = params.reason === 'client_proposed_new_time'
-        ? `SAVRON — Client proposed a new time (${params.booking.client_name ?? 'Client'})`
-        : `SAVRON — Appointment cancelled via calendar (${params.booking.client_name ?? 'Client'})`;
+    const subject = `SAVRON — Appointment cancelled via calendar (${params.booking.client_name ?? 'Client'})`;
 
     const html = `
       <p style="font-family:sans-serif;font-size:14px;line-height:1.6;color:#222;">
@@ -76,7 +73,7 @@ export async function notifyStaffOfCalendarAction(params: {
         <li><strong>Booking ID:</strong> ${params.booking.id}</li>
       </ul>
       <p style="font-family:sans-serif;font-size:13px;color:#666;">
-        Google Calendar also emails the organizer when a guest proposes a new time or declines.
+        Google Calendar also emails the organizer when a guest declines.
         The booking has been cancelled in SAVRON so the slot is free again.
       </p>
     `;

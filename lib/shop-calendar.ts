@@ -122,7 +122,7 @@ export async function upsertShopInviteEvent(params: {
     const calendarId = await getShopCalendarId();
     const attendeeEmails = params.clientEmail ? [params.clientEmail] : [];
 
-    // Google invite is the RSVP source of truth (decline / propose new time).
+    // Google invite is the RSVP source of truth (decline only).
     const sendUpdates = attendeeEmails.length > 0 ? 'all' : 'none';
 
     const organizer = {
