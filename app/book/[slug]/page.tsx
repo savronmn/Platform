@@ -17,7 +17,8 @@ import { triggerPostBooking } from '@/lib/confirm-booking';
 import { isSlotInPast, nextBookableDate, slotConflictsWithBusy } from '@/lib/time-helpers';
 import BarberPortfolioGallery from '@/components/booking/BarberPortfolioGallery';
 import { SelectedServiceBanner } from '@/components/booking/SelectedServiceBanner';
-import { resolveServiceFromParam } from '@/lib/booking-utils';
+import { bookingTotals, formatBookingServices, resolveServiceFromParam } from '@/lib/booking-utils';
+import { EyebrowsAddon } from '@/components/booking/EyebrowsAddon';
 
 const STEP_TRANSITION = { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as const };
 
@@ -46,6 +47,7 @@ function BarberBookingContent() {
     const [loadingBusy, setLoadingBusy] = useState(false);
     const [serviceLocked, setServiceLocked] = useState(false);
     const [preselectionApplied, setPreselectionApplied] = useState(false);
+    const [addEyebrows, setAddEyebrows] = useState(false);
 
     useEffect(() => {
         if (preselectionApplied || !preselectedService || services.length === 0) return;
@@ -55,11 +57,14 @@ function BarberBookingContent() {
             if (barberOffers) {
                 setSelectedService(match.id);
                 setServiceLocked(true);
-                setStep(2);
             }
         }
         setPreselectionApplied(true);
     }, [preselectedService, services, barber, preselectionApplied]);
+
+    useEffect(() => {
+        if (selectedService === null) setAddEyebrows(false);
+    }, [selectedService]);
 
     useEffect(() => {
         if (!barber || !selectedDate) return;
@@ -95,7 +100,7 @@ function BarberBookingContent() {
         if (loadingBusy) return true;
         if (busySlots.length === 0) return false;
         const service = services.find(s => s.id === selectedService);
-        const durationMin = service?.durationMin ?? 45;
+        const durationMin = (service?.durationMin ?? 45) + (addEyebrows ? 15 : 0);
         return slotConflictsWithBusy(selectedDate, timeStr, durationMin, busySlots);
     };
 
@@ -111,19 +116,20 @@ function BarberBookingContent() {
     const handleConfirm = async () => {
         setSubmitting(true);
         const service = services.find(s => s.id === selectedService);
+        const totals = bookingTotals(service?.priceCents ?? 0, service?.durationMin ?? 45, addEyebrows);
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
         const { data: inserted, error: insertError } = await supabase.from('bookings').insert({
             client_name: clientName,
             client_email: clientEmail,
             client_phone: clientPhone,
-            service: service?.name || '',
+            service: formatBookingServices(service?.name ? [service.name] : [], addEyebrows),
             barber_id: barber?.id,
             barber_name: barber?.name || '',
             date: dateStr,
             time: selectedTime,
-            duration: service ? `${service.durationMin} min` : '45 min',
-            price: service?.price || '',
+            duration: totals.duration,
+            price: totals.price,
             status: 'confirmed',
             notes: clientMessage.trim() || null,
         }).select('id').single();
@@ -147,6 +153,7 @@ function BarberBookingContent() {
         setSelectedService(null);
         setServiceLocked(false);
         setPreselectionApplied(true);
+        setAddEyebrows(false);
         setSelectedDate(nextBookableDate());
         setSelectedTime(null);
         setClientName('');
@@ -272,6 +279,19 @@ function BarberBookingContent() {
                             {/* Step 1: Service */}
                             {step === 1 && (
                                 <motion.div key="service" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION} className="space-y-3">
+                                    {serviceLocked && selectedService && (() => {
+                                        const svc = services.find(s => s.id === selectedService);
+                                        return svc ? (
+                                            <SelectedServiceBanner
+                                                service={svc}
+                                                onChange={() => {
+                                                    setServiceLocked(false);
+                                                    setSelectedService(null);
+                                                    setAddEyebrows(false);
+                                                }}
+                                            />
+                                        ) : null;
+                                    })()}
                                     <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-widest mb-2">Select Service</h2>
                                     <p className="text-savron-silver text-sm mb-4">Tap a service to continue.</p>
                                     {services.filter(s =>
@@ -303,20 +323,20 @@ function BarberBookingContent() {
                                             </div>
                                         </div>
                                     ))}
+                                    <EyebrowsAddon
+                                        visible={selectedService !== null}
+                                        checked={addEyebrows}
+                                        onChange={setAddEyebrows}
+                                    />
                                 </motion.div>
                             )}
 
                             {/* Step 2: Date + Time */}
                             {step === 2 && (
                                 <motion.div key="datetime" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION} className="space-y-6">
-                                    {serviceLocked && selectedService && (() => {
+                                    {selectedService && (() => {
                                         const svc = services.find(s => s.id === selectedService);
-                                        return svc ? (
-                                            <SelectedServiceBanner
-                                                service={svc}
-                                                onChange={() => { setServiceLocked(false); setStep(1); }}
-                                            />
-                                        ) : null;
+                                        return svc ? <SelectedServiceBanner service={svc} /> : null;
                                     })()}
                                     <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-widest mb-2">Select Date & Time</h2>
                                     <div>
@@ -381,7 +401,14 @@ function BarberBookingContent() {
                                         <p className="text-savron-silver text-sm uppercase tracking-widest mb-3">Summary</p>
                                         <div className="flex justify-between">
                                             <span className="text-savron-silver">Service</span>
-                                            <span className="text-white">{services.find(s => s.id === selectedService)?.name}</span>
+                                            <span className="text-white text-right max-w-[55%]">
+                                                {formatBookingServices(
+                                                    services.find(s => s.id === selectedService)?.name
+                                                        ? [services.find(s => s.id === selectedService)!.name]
+                                                        : [],
+                                                    addEyebrows,
+                                                )}
+                                            </span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-savron-silver">Date</span>
@@ -393,7 +420,13 @@ function BarberBookingContent() {
                                         </div>
                                         <div className="flex justify-between pt-2 border-t border-white/10">
                                             <span className="text-savron-silver font-mono font-bold">Total</span>
-                                            <span className="text-emerald-400 font-mono font-bold">{services.find(s => s.id === selectedService)?.price}</span>
+                                            <span className="text-emerald-400 font-mono font-bold">
+                                                {bookingTotals(
+                                                    services.find(s => s.id === selectedService)?.priceCents ?? 0,
+                                                    services.find(s => s.id === selectedService)?.durationMin ?? 0,
+                                                    addEyebrows,
+                                                ).price}
+                                            </span>
                                         </div>
                                     </div>
                                     <input required placeholder="FULL NAME" value={clientName} onChange={e => setClientName(e.target.value)} className="input-savron" />

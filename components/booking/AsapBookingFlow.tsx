@@ -15,7 +15,8 @@ import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 import { isSlotInPast, nextBookableDate, slotConflictsWithBusy } from '@/lib/time-helpers';
 import { SelectedServiceBanner } from './SelectedServiceBanner';
-import { barberOffersService, resolveServiceFromParam } from '@/lib/booking-utils';
+import { barberOffersService, bookingTotals, formatBookingServices, resolveServiceFromParam } from '@/lib/booking-utils';
+import { EyebrowsAddon } from './EyebrowsAddon';
 
 const STEP_TRANSITION = { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as const };
 
@@ -41,6 +42,7 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
     const [allBarbers, setAllBarbers] = useState<Barber[]>([]);
     const [serviceLocked, setServiceLocked] = useState(false);
     const [preselectionApplied, setPreselectionApplied] = useState(false);
+    const [addEyebrows, setAddEyebrows] = useState(false);
 
     const hasPreselectedService = selectedService !== null && serviceLocked;
     const totalSteps = hasPreselectedService ? 2 : 3;
@@ -91,7 +93,7 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
         if (loadingBusy) return true;
         if (busySlots.length === 0) return false;
         const service = services.find(s => s.id === selectedService);
-        const durationMin = service?.durationMin ?? 45;
+        const durationMin = (service?.durationMin ?? 45) + (addEyebrows ? 15 : 0);
         return slotConflictsWithBusy(selectedDate, timeStr, durationMin, busySlots);
     };
 
@@ -126,7 +128,7 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
         if (dbAvailable.length === 0) return null;
 
         // 2. Also filter out barbers with Google Calendar conflicts
-        const durationMin = selectedSvc?.durationMin ?? 45;
+        const durationMin = (selectedSvc?.durationMin ?? 45) + (addEyebrows ? 15 : 0);
 
         const calAvailable: Barber[] = [];
         await Promise.all(dbAvailable.map(async (barber) => {
@@ -165,19 +167,24 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
         setAssignedBarber(barber);
 
         const service = services.find((s) => s.id === selectedService);
+        const totals = bookingTotals(
+            service?.priceCents ?? 0,
+            service?.durationMin ?? 45,
+            addEyebrows,
+        );
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
         const { data: inserted, error: insertError } = await supabase.from('bookings').insert({
             client_name: clientName || null,
             client_email: clientEmail || null,
             client_phone: clientPhone || null,
-            service: service?.name || '',
+            service: formatBookingServices(service?.name ? [service.name] : [], addEyebrows),
             barber_id: barber.id,
             barber_name: barber.name,
             date: dateStr,
             time: selectedTime,
-            duration: service ? `${service.durationMin} min` : '45 min',
-            price: service?.price || '',
+            duration: totals.duration,
+            price: totals.price,
             status: 'confirmed',
             notes: clientMessage.trim() || null,
         }).select('id').single();
@@ -261,6 +268,12 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
                             </div>
                             <p className="text-savron-silver text-sm">We&apos;ll find the first available barber for you.</p>
 
+                            <EyebrowsAddon
+                                visible={hasPreselectedService && selectedService !== null}
+                                checked={addEyebrows}
+                                onChange={setAddEyebrows}
+                            />
+
                             <div>
                                 <p className="text-[9px] uppercase tracking-[0.18em] text-savron-silver/35 mb-3">Date</p>
                                 <DatePicker
@@ -299,7 +312,9 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
                                     key={service.id}
                                     role="button"
                                     tabIndex={0}
-                                    onClick={() => setSelectedService(service.id)}
+                                    onClick={() => {
+                                        setSelectedService(service.id);
+                                    }}
                                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedService(service.id); } }}
                                     className={cn(
                                         "p-4 border rounded-savron cursor-pointer transition-all duration-300 flex justify-between items-center min-h-[72px] touch-manipulation",
@@ -321,6 +336,11 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
                                 </div>
                             ))}
                         </div>
+                        <EyebrowsAddon
+                            visible={selectedService !== null}
+                            checked={addEyebrows}
+                            onChange={setAddEyebrows}
+                        />
                     </motion.div>
                 )}
 
@@ -340,7 +360,24 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-savron-silver">Service</span>
-                                <span className="text-white">{services.find(s => s.id === selectedService)?.name}</span>
+                                <span className="text-white text-right max-w-[55%]">
+                                    {formatBookingServices(
+                                        services.find(s => s.id === selectedService)?.name
+                                            ? [services.find(s => s.id === selectedService)!.name]
+                                            : [],
+                                        addEyebrows,
+                                    )}
+                                </span>
+                            </div>
+                            <div className="flex justify-between pt-2 border-t border-white/10">
+                                <span className="text-savron-silver">Total</span>
+                                <span className="text-white font-mono">
+                                    {bookingTotals(
+                                        services.find(s => s.id === selectedService)?.priceCents ?? 0,
+                                        services.find(s => s.id === selectedService)?.durationMin ?? 0,
+                                        addEyebrows,
+                                    ).price}
+                                </span>
                             </div>
                             <div className="flex justify-between pt-2 border-t border-white/10">
                                 <span className="text-savron-silver">Barber</span>
@@ -391,6 +428,7 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
                         <Button variant="outline" onClick={() => {
                             setStep(1); setSelectedTime(null); setSelectedService(null);
                             setServiceLocked(false); setPreselectionApplied(true);
+                            setAddEyebrows(false);
                             setSelectedDate(nextBookableDate()); setClientName(''); setClientEmail(''); setClientPhone(''); setClientMessage('');
                             setAssignedBarber(null);
                         }}>

@@ -39,3 +39,28 @@ export function buildBookingUrl(serviceName?: string): string {
     if (!serviceName) return '/booking';
     return `/booking?service=${encodeURIComponent(serviceName)}`;
 }
+
+/** Build the service label stored on bookings, with optional eyebrows add-on. */
+export function formatBookingServices(
+    serviceNames: string[],
+    includeEyebrows: boolean,
+): string {
+    const names = [...serviceNames];
+    if (includeEyebrows) names.push('Eyebrows');
+    return names.join(', ');
+}
+
+export function bookingTotals(
+    priceCents: number,
+    durationMin: number,
+    includeEyebrows: boolean,
+): { priceCents: number; durationMin: number; price: string; duration: string } {
+    const totalCents = priceCents + (includeEyebrows ? 1500 : 0);
+    const totalMin = durationMin + (includeEyebrows ? 15 : 0);
+    return {
+        priceCents: totalCents,
+        durationMin: totalMin,
+        price: `$${totalCents / 100}`,
+        duration: `${totalMin} min`,
+    };
+}

@@ -13,14 +13,14 @@ type Mode = 'choose' | 'asap' | null;
 function BookingPageContent() {
     const searchParams = useSearchParams();
     const preselectedService = searchParams.get('service');
-    const [mode, setMode] = useState<Mode>(null);
+    const [mode, setMode] = useState<Mode>('choose');
 
-    // When arriving from a service on the homepage, default to barber-first flow
+    // When arriving from a service on the homepage, ensure choose-barber flow is active
     useEffect(() => {
-        if (preselectedService && mode === null) {
+        if (preselectedService) {
             setMode('choose');
         }
-    }, [preselectedService, mode]);
+    }, [preselectedService]);
 
     const stepTransition = { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as const };
 
@@ -43,7 +43,12 @@ function BookingPageContent() {
                     )}
                     {mode && preselectedService && (
                         <p className="text-savron-silver/70 text-sm mt-2 max-w-md mx-auto leading-relaxed">
-                            Service selected — pick your barber, then choose a time.
+                            Your service is selected — review the menu, then pick your barber and time.
+                        </p>
+                    )}
+                    {mode && !preselectedService && (
+                        <p className="text-savron-silver/70 text-sm mt-2 max-w-md mx-auto leading-relaxed">
+                            Choose from our full menu below.
                         </p>
                     )}
                 </div>

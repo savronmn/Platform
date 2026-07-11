@@ -19,6 +19,15 @@ export const SERVICES: ServiceItem[] = [
     { id: 5, name: "Beard Sculpting + Hot Towel Shave", duration: "45 min", durationMin: 45, price: "$50", priceCents: 5000, color: "amber",   description: "Straight-razor line up, hot towel ritual, conditioning finish." },
 ];
 
+/** Optional add-on — not listed as a primary service */
+export const EYEBROWS_ADDON = {
+    name: 'Eyebrows',
+    durationMin: 15,
+    priceCents: 1500,
+    price: '$15',
+    duration: '15 min',
+} as const;
+
 // Color map for host dashboard booking blocks
 export const SERVICE_COLORS: Record<string, string> = {
     'Kids Cut':                          'bg-teal-500/20 border-teal-500/40 text-teal-300',
@@ -26,6 +35,7 @@ export const SERVICE_COLORS: Record<string, string> = {
     'Long Styles Haircut':               'bg-indigo-500/20 border-indigo-500/40 text-indigo-300',
     'Beard Sculpting + Hot Towel Shave': 'bg-amber-500/20 border-amber-500/40 text-amber-300',
     'The Executive':                     'bg-blue-500/20 border-blue-500/40 text-blue-300',
+    'Eyebrows':                          'bg-rose-500/20 border-rose-500/40 text-rose-300',
     // Legacy aliases — keep until DB is wiped
     'The Signature Cut': 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300',
     'Beard Sculpting':   'bg-amber-500/20 border-amber-500/40 text-amber-300',
