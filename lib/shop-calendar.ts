@@ -86,6 +86,25 @@ export async function saveShopWebhookState(state: ShopWebhookState): Promise<voi
     });
 }
 
+/** Persist a new sync token only if no other webhook handler advanced it first. */
+export async function saveShopSyncTokenIfUnchanged(
+    channelId: string,
+    resourceId: string,
+    previousSyncToken: string,
+    nextSyncToken: string,
+): Promise<boolean> {
+    const current = await getShopWebhookState();
+    if (!current || current.channel_id !== channelId || current.sync_token !== previousSyncToken) {
+        return false;
+    }
+    await saveShopWebhookState({
+        channel_id: channelId,
+        resource_id: resourceId,
+        sync_token: nextSyncToken,
+    });
+    return true;
+}
+
 /** Create/update the Savron shop calendar invite (with client attendee) so Google RSVP works. */
 export async function upsertShopInviteEvent(params: {
     bookingId: string;

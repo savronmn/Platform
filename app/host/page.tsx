@@ -368,6 +368,7 @@ function HostDashboardInner() {
         }
 
         const barber = barbers.find(b => b.id === quickForm.barberId);
+        const selectedSvc = services.find(s => s.name === quickForm.service);
         const { data: inserted, error } = await supabase.from('bookings').insert({
             client_name: quickForm.clientName.trim() || 'Walk-in',
             client_phone: quickForm.clientPhone.trim() || null,
@@ -377,7 +378,7 @@ function HostDashboardInner() {
             barber_name: barber?.name ?? '',
             date: dateStr,
             time: quickForm.time,
-            duration: '45 min',
+            duration: selectedSvc?.duration ?? '45 min',
             price: '',
             status: 'confirmed',
         }).select('id').single();

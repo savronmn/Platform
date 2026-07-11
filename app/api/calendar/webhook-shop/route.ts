@@ -12,6 +12,7 @@ import {
     getShopCalendarTokens,
     getShopWebhookState,
     saveShopWebhookState,
+    saveShopSyncTokenIfUnchanged,
 } from '@/lib/shop-calendar';
 import { processCalendarEventChanges } from '@/lib/process-calendar-declines';
 import type { CalendarSyncEvent } from '@/lib/calendar-event-sync';
@@ -118,10 +119,15 @@ export async function POST(req: NextRequest) {
             enrichedEvents,
         );
 
-        await saveShopWebhookState({
-            ...webhookState,
-            sync_token: nextSyncToken,
-        });
+        const saved = await saveShopSyncTokenIfUnchanged(
+            webhookState.channel_id,
+            webhookState.resource_id,
+            webhookState.sync_token,
+            nextSyncToken,
+        );
+        if (!saved) {
+            console.warn('[calendar/webhook-shop] Sync token advanced by concurrent handler; skipping stale write');
+        }
 
         return NextResponse.json({
             success: true,
