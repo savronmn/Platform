@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase';
 import { Button } from '@/components/ui/Button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,7 +15,6 @@ import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 import { isSlotInPast, nextBookableDate, slotConflictsWithBusy } from '@/lib/time-helpers';
 import BarberPortfolioGallery from './BarberPortfolioGallery';
-import { SelectedServiceBanner } from './SelectedServiceBanner';
 import {
     barberOffersAnyService,
     barberOffersService,
@@ -44,7 +43,6 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
     const supabase = createClient();
     const services = useServices();
     const [step, setStep] = useState(1);
-    const [serviceLocked, setServiceLocked] = useState(false);
     const [preselectionApplied, setPreselectionApplied] = useState(false);
     const [selectedServices, setSelectedServices] = useState<number[]>([]);
     const [selectedPro, setSelectedPro] = useState<Barber | null>(null);
@@ -64,16 +62,28 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
     const [barbersError, setBarbersError] = useState(false);
     const [portfolioGallery, setPortfolioGallery] = useState<Barber | null>(null);
     const [addEyebrows, setAddEyebrows] = useState(false);
+    const flowRef = useRef<HTMLDivElement>(null);
+    const skipStepScroll = useRef(true);
 
     useEffect(() => {
         if (preselectionApplied || !preselectedServiceName) return;
         const match = resolveServiceFromParam(preselectedServiceName, services);
         if (match) {
             setSelectedServices([match.id]);
-            setServiceLocked(true);
         }
         setPreselectionApplied(true);
     }, [preselectedServiceName, services, preselectionApplied]);
+
+    useEffect(() => {
+        if (skipStepScroll.current) {
+            skipStepScroll.current = false;
+            return;
+        }
+        const el = flowRef.current;
+        if (!el) return;
+        const top = el.getBoundingClientRect().top + window.scrollY - 96;
+        window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }, [step]);
 
     useEffect(() => {
         if (!selectedPro) return;
@@ -105,11 +115,13 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
     }, []);
 
     const toggleService = (id: number) => {
+        const scrollY = window.scrollY;
         setSelectedServices(prev => {
             const next = prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id];
             if (next.length === 0) setAddEyebrows(false);
             return next;
         });
+        requestAnimationFrame(() => window.scrollTo({ top: scrollY, left: 0, behavior: 'instant' as ScrollBehavior }));
     };
 
     const basePriceCents = selectedServices.reduce((sum, id) => {
@@ -228,43 +240,24 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
         barberOffersAnyService(pro, selectedServiceNames),
     );
 
-    const lockedService = serviceLocked && selectedServices.length === 1
-        ? services.find((s) => s.id === selectedServices[0])
-        : null;
-
     /* ─── STEP 1: Services ───────────────────────────────────── */
     const renderServiceStep = () => (
         <motion.div key="services" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION}>
-            {lockedService && (
-                <SelectedServiceBanner
-                    service={lockedService}
-                    onChange={() => {
-                        setServiceLocked(false);
-                        setSelectedServices([]);
-                        setAddEyebrows(false);
-                    }}
-                />
-            )}
             <div className="mb-5">
                 <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-wider">Select Services</h2>
-                <p className="text-savron-silver/65 text-sm mt-1.5">
-                    {lockedService
-                        ? 'Your service is ready — add another or continue below.'
-                        : 'Tap a service to continue — you can add more than one.'}
-                </p>
+                <p className="text-savron-silver/65 text-sm mt-1.5">Tap a service to continue — you can add more than one.</p>
             </div>
             <div className="grid grid-cols-1 gap-2.5">
                 {services.map((service) => {
                     const isSelected = selectedServices.includes(service.id);
                     return (
-                        <div
+                        <button
                             key={service.id}
-                            role="button"
-                            tabIndex={0}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
                             onClick={() => toggleService(service.id)}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleService(service.id); } }}
                             className={cn(
-                                "px-4 py-4 border cursor-pointer transition-all duration-300 flex justify-between items-center group min-h-[72px] touch-manipulation",
+                                "w-full px-4 py-4 border cursor-pointer transition-all duration-300 flex justify-between items-center group min-h-[72px] touch-manipulation text-left",
                                 isSelected
                                     ? "border-savron-green/50 bg-savron-green/5"
                                     : "border-white/[0.06] hover:border-white/15 bg-savron-black"
@@ -285,30 +278,16 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
                                     {isSelected ? <Check className="w-4 h-4" /> : <div className="w-4 h-4 border border-white/20" />}
                                 </div>
                             </div>
-                        </div>
+                        </button>
                     );
                 })}
             </div>
-            <EyebrowsAddon
-                visible={selectedServices.length > 0}
-                checked={addEyebrows}
-                onChange={setAddEyebrows}
-            />
         </motion.div>
     );
 
     /* ─── STEP 2: Select Barber ──────────────────────────────── */
     const renderProStep = () => (
         <motion.div key="pro" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION}>
-            {lockedService && (
-                <SelectedServiceBanner
-                    service={lockedService}
-                    onChange={() => {
-                        setServiceLocked(false);
-                        setStep(1);
-                    }}
-                />
-            )}
             <div className="mb-5">
                 <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-wider">Select Your Barber</h2>
                 <p className="text-savron-silver/65 text-sm mt-1.5">
@@ -556,7 +535,6 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
 
         return (
             <motion.div key="datetime" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION}>
-                {lockedService && <SelectedServiceBanner service={lockedService} />}
                 <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-wider mb-2">Select Date & Time</h2>
                 <p className="text-savron-silver/65 text-sm mb-6">
                     With {selectedPro?.name} · {displayServiceLine}
@@ -659,7 +637,7 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
             <p className="text-[10px] text-savron-silver/30 uppercase tracking-[0.3em]">Confirmation sent to your email</p>
             <Button variant="outline" onClick={() => {
                 setStep(1); setSelectedServices([]); setSelectedPro(null);
-                setServiceLocked(false); setPreselectionApplied(true);
+                setPreselectionApplied(true);
                 setAddEyebrows(false);
                 setSelectedDate(nextBookableDate()); setSelectedTime(null);
                 setClientName(''); setClientEmail(''); setClientPhone(''); setClientMessage('');
@@ -672,7 +650,7 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
     const steps = [1, 2, 3, 4];
 
     return (
-        <div className="bg-savron-grey border border-white/[0.06] relative">
+        <div ref={flowRef} className="bg-savron-grey border border-white/[0.06] relative">
             {/* Corner accents */}
             <div className="absolute top-0 left-0 w-5 h-5 border-t border-l border-savron-silver/15 pointer-events-none" />
             <div className="absolute bottom-0 right-0 w-5 h-5 border-b border-r border-savron-silver/15 pointer-events-none" />
@@ -686,8 +664,8 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
                 </div>
             )}
 
-            {/* Scrollable content — tall enough for full 5-service menu */}
-            <div className="px-4 sm:px-6 pt-5 pb-4 overflow-y-auto max-h-[78vh] md:max-h-[70vh]">
+            {/* Content — page scrolls naturally, no nested scroll */}
+            <div className="px-4 sm:px-6 pt-5 pb-4">
                 <AnimatePresence mode="wait">
                     {step === 1 && renderServiceStep()}
                     {step === 2 && renderProStep()}
@@ -697,14 +675,20 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
                 </AnimatePresence>
             </div>
 
-            {/* Sticky nav */}
+            {/* Footer nav */}
             {step < 5 && (
-                <div className="flex justify-between px-6 py-4 border-t border-white/[0.04]">
+                <div className="border-t border-white/[0.04]">
+                    {step === 1 && (
+                        <EyebrowsAddon
+                            variant="footer"
+                            visible={selectedServices.length > 0}
+                            checked={addEyebrows}
+                            onChange={setAddEyebrows}
+                        />
+                    )}
+                    <div className="flex justify-between px-6 py-4">
                     {step > 1 ? (
-                        <Button variant="ghost" onClick={() => {
-                            if (step === 2) setServiceLocked(false);
-                            setStep(step - 1);
-                        }} className="flex gap-1.5 text-xs">
+                        <Button variant="ghost" onClick={() => setStep(step - 1)} className="flex gap-1.5 text-xs">
                             <ChevronLeft className="w-3.5 h-3.5" /> Back
                         </Button>
                     ) : <div />}
@@ -713,6 +697,7 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
                         {step === 2 && <Button onClick={() => setStep(3)} disabled={!selectedPro}>Next <ChevronRight className="w-3.5 h-3.5 ml-1.5" /></Button>}
                         {step === 3 && <Button onClick={() => setStep(4)} disabled={!selectedTime}>Next <ChevronRight className="w-3.5 h-3.5 ml-1.5" /></Button>}
                         {step === 4 && <Button onClick={handleConfirm} isLoading={submitting} disabled={!clientName || !clientEmail}>Confirm Booking</Button>}
+                    </div>
                     </div>
                 </div>
             )}

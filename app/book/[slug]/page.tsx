@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,7 +16,6 @@ import { DatePicker } from '@/components/booking/DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 import { isSlotInPast, nextBookableDate, slotConflictsWithBusy } from '@/lib/time-helpers';
 import BarberPortfolioGallery from '@/components/booking/BarberPortfolioGallery';
-import { SelectedServiceBanner } from '@/components/booking/SelectedServiceBanner';
 import { bookingTotals, formatBookingServices, resolveServiceFromParam } from '@/lib/booking-utils';
 import { EyebrowsAddon } from '@/components/booking/EyebrowsAddon';
 
@@ -45,9 +44,10 @@ function BarberBookingContent() {
     const [busySlots, setBusySlots] = useState<{ start: string; end: string }[]>([]);
     const [workingHours, setWorkingHours] = useState<Record<string, { open: string; close: string } | null> | null>(null);
     const [loadingBusy, setLoadingBusy] = useState(false);
-    const [serviceLocked, setServiceLocked] = useState(false);
     const [preselectionApplied, setPreselectionApplied] = useState(false);
     const [addEyebrows, setAddEyebrows] = useState(false);
+    const flowRef = useRef<HTMLDivElement>(null);
+    const skipStepScroll = useRef(true);
 
     useEffect(() => {
         if (preselectionApplied || !preselectedService || services.length === 0) return;
@@ -56,7 +56,6 @@ function BarberBookingContent() {
             const barberOffers = !barber?.services_offered?.length || barber.services_offered.includes(match.name);
             if (barberOffers) {
                 setSelectedService(match.id);
-                setServiceLocked(true);
             }
         }
         setPreselectionApplied(true);
@@ -65,6 +64,17 @@ function BarberBookingContent() {
     useEffect(() => {
         if (selectedService === null) setAddEyebrows(false);
     }, [selectedService]);
+
+    useEffect(() => {
+        if (skipStepScroll.current) {
+            skipStepScroll.current = false;
+            return;
+        }
+        const el = flowRef.current;
+        if (!el) return;
+        const top = el.getBoundingClientRect().top + window.scrollY - 96;
+        window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }, [step]);
 
     useEffect(() => {
         if (!barber || !selectedDate) return;
@@ -151,7 +161,6 @@ function BarberBookingContent() {
     const resetBooking = () => {
         setStep(1);
         setSelectedService(null);
-        setServiceLocked(false);
         setPreselectionApplied(true);
         setAddEyebrows(false);
         setSelectedDate(nextBookableDate());
@@ -266,7 +275,7 @@ function BarberBookingContent() {
             {/* Booking flow */}
             <section className="px-6 md:px-12 lg:px-24">
                 <div className="max-w-2xl mx-auto">
-                    <div className="bg-savron-grey border border-white/5 p-5 sm:p-8 md:p-12 rounded-savron">
+                    <div ref={flowRef} className="bg-savron-grey border border-white/5 p-5 sm:p-8 md:p-12 rounded-savron">
                         {step < 4 && (
                             <div className="flex gap-2 mb-10">
                                 {[1, 2, 3].map(s => (
@@ -279,32 +288,22 @@ function BarberBookingContent() {
                             {/* Step 1: Service */}
                             {step === 1 && (
                                 <motion.div key="service" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION} className="space-y-3">
-                                    {serviceLocked && selectedService && (() => {
-                                        const svc = services.find(s => s.id === selectedService);
-                                        return svc ? (
-                                            <SelectedServiceBanner
-                                                service={svc}
-                                                onChange={() => {
-                                                    setServiceLocked(false);
-                                                    setSelectedService(null);
-                                                    setAddEyebrows(false);
-                                                }}
-                                            />
-                                        ) : null;
-                                    })()}
                                     <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-widest mb-2">Select Service</h2>
                                     <p className="text-savron-silver text-sm mb-4">Tap a service to continue.</p>
                                     {services.filter(s =>
                                         !barber.services_offered?.length || barber.services_offered.includes(s.name)
                                     ).map(service => (
-                                        <div
+                                        <button
                                             key={service.id}
-                                            role="button"
-                                            tabIndex={0}
-                                            onClick={() => setSelectedService(service.id)}
-                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedService(service.id); } }}
+                                            type="button"
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            onClick={() => {
+                                                const scrollY = window.scrollY;
+                                                setSelectedService(service.id);
+                                                requestAnimationFrame(() => window.scrollTo({ top: scrollY, left: 0, behavior: 'instant' as ScrollBehavior }));
+                                            }}
                                             className={cn(
-                                                "p-4 border rounded-savron cursor-pointer transition-all duration-300 flex justify-between items-center min-h-[72px] touch-manipulation",
+                                                "w-full p-4 border rounded-savron cursor-pointer transition-all duration-300 flex justify-between items-center min-h-[72px] touch-manipulation text-left",
                                                 selectedService === service.id ? "border-savron-green bg-savron-green/10" : "border-white/10 hover:border-white/30"
                                             )}
                                         >
@@ -321,23 +320,14 @@ function BarberBookingContent() {
                                                 <span className="text-white font-mono text-sm">{service.price}</span>
                                                 {selectedService === service.id && <Check className="w-4 h-4 text-emerald-400" />}
                                             </div>
-                                        </div>
+                                        </button>
                                     ))}
-                                    <EyebrowsAddon
-                                        visible={selectedService !== null}
-                                        checked={addEyebrows}
-                                        onChange={setAddEyebrows}
-                                    />
                                 </motion.div>
                             )}
 
                             {/* Step 2: Date + Time */}
                             {step === 2 && (
                                 <motion.div key="datetime" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION} className="space-y-6">
-                                    {selectedService && (() => {
-                                        const svc = services.find(s => s.id === selectedService);
-                                        return svc ? <SelectedServiceBanner service={svc} /> : null;
-                                    })()}
                                     <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-widest mb-2">Select Date & Time</h2>
                                     <div>
                                         <p className="text-xs uppercase tracking-widest text-savron-silver/50 mb-3">Date</p>
@@ -468,12 +458,18 @@ function BarberBookingContent() {
 
                         {/* Navigation */}
                         {step < 4 && (
-                            <div className="flex justify-between mt-10 pt-6 border-t border-white/5">
+                            <div className="border-t border-white/5 mt-10">
+                                {step === 1 && (
+                                    <EyebrowsAddon
+                                        variant="footer"
+                                        visible={selectedService !== null}
+                                        checked={addEyebrows}
+                                        onChange={setAddEyebrows}
+                                    />
+                                )}
+                                <div className="flex justify-between pt-6">
                                 {step > 1 ? (
-                                    <Button variant="ghost" onClick={() => {
-                                        if (step === 2) setServiceLocked(false);
-                                        setStep(step - 1);
-                                    }} className="flex gap-2">
+                                    <Button variant="ghost" onClick={() => setStep(step - 1)} className="flex gap-2">
                                         <ChevronLeft className="w-4 h-4" /> Back
                                     </Button>
                                 ) : <div />}
@@ -493,6 +489,7 @@ function BarberBookingContent() {
                                             Confirm Booking
                                         </Button>
                                     )}
+                                </div>
                                 </div>
                             </div>
                         )}

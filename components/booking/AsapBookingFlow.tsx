@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase';
 import { Button } from '@/components/ui/Button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,7 +14,6 @@ import { useServices } from '@/lib/use-services';
 import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 import { isSlotInPast, nextBookableDate, slotConflictsWithBusy } from '@/lib/time-helpers';
-import { SelectedServiceBanner } from './SelectedServiceBanner';
 import { barberOffersService, bookingTotals, formatBookingServices, resolveServiceFromParam } from '@/lib/booking-utils';
 import { EyebrowsAddon } from './EyebrowsAddon';
 
@@ -40,22 +39,33 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
     const [busySlots, setBusySlots] = useState<{ start: string; end: string }[]>([]);
     const [loadingBusy, setLoadingBusy] = useState(false);
     const [allBarbers, setAllBarbers] = useState<Barber[]>([]);
-    const [serviceLocked, setServiceLocked] = useState(false);
     const [preselectionApplied, setPreselectionApplied] = useState(false);
     const [addEyebrows, setAddEyebrows] = useState(false);
+    const flowRef = useRef<HTMLDivElement>(null);
+    const skipStepScroll = useRef(true);
 
-    const hasPreselectedService = selectedService !== null && serviceLocked;
-    const totalSteps = hasPreselectedService ? 2 : 3;
+    const skipServiceStep = Boolean(preselectedServiceName && selectedService !== null && preselectionApplied);
+    const totalSteps = skipServiceStep ? 2 : 3;
 
     useEffect(() => {
         if (preselectionApplied || !preselectedServiceName) return;
         const match = resolveServiceFromParam(preselectedServiceName, services);
         if (match) {
             setSelectedService(match.id);
-            setServiceLocked(true);
         }
         setPreselectionApplied(true);
     }, [preselectedServiceName, services, preselectionApplied]);
+
+    useEffect(() => {
+        if (skipStepScroll.current) {
+            skipStepScroll.current = false;
+            return;
+        }
+        const el = flowRef.current;
+        if (!el) return;
+        const top = el.getBoundingClientRect().top + window.scrollY - 96;
+        window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }, [step]);
 
     useEffect(() => {
         supabase.from('barbers').select('id, active, working_hours').eq('active', true).then(({ data }) => {
@@ -204,12 +214,12 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
     };
 
     return (
-        <div className="bg-savron-grey p-5 sm:p-8 md:p-12 rounded-savron border border-white/5 min-h-[500px] flex flex-col justify-between">
+        <div ref={flowRef} className="bg-savron-grey p-5 sm:p-8 md:p-12 rounded-savron border border-white/5">
             {/* Progress */}
             {step < 4 && (
                 <div className="flex gap-2 mb-12">
                     {Array.from({ length: totalSteps }, (_, i) => i + 1).map((s) => (
-                        <div key={s} className={cn("h-1 flex-1 rounded-full transition-colors duration-500", s <= (hasPreselectedService ? Math.min(step, totalSteps) : step) ? "bg-savron-green" : "bg-white/10")} />
+                        <div key={s} className={cn("h-1 flex-1 rounded-full transition-colors duration-500", s <= (skipServiceStep ? Math.min(step, totalSteps) : step) ? "bg-savron-green" : "bg-white/10")} />
                     ))}
                 </div>
             )}
@@ -256,10 +266,6 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
 
                     return (
                         <motion.div key="datetime" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION} className="space-y-6">
-                            {hasPreselectedService && (() => {
-                                const svc = services.find(s => s.id === selectedService);
-                                return svc ? <SelectedServiceBanner service={svc} onChange={() => { setServiceLocked(false); setSelectedService(null); }} /> : null;
-                            })()}
                             <div className="flex items-center gap-3 mb-2">
                                 <div className="w-9 h-9 bg-savron-green/20 border border-savron-green/30 rounded-savron flex items-center justify-center">
                                     <Zap className="w-4 h-4 text-savron-green" />
@@ -267,12 +273,6 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
                                 <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-wider">When do you need in?</h2>
                             </div>
                             <p className="text-savron-silver text-sm">We&apos;ll find the first available barber for you.</p>
-
-                            <EyebrowsAddon
-                                visible={hasPreselectedService && selectedService !== null}
-                                checked={addEyebrows}
-                                onChange={setAddEyebrows}
-                            />
 
                             <div>
                                 <p className="text-[9px] uppercase tracking-[0.18em] text-savron-silver/35 mb-3">Date</p>
@@ -302,22 +302,23 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
                 })()}
 
                 {/* Step 2: Service */}
-                {step === 2 && !hasPreselectedService && (
+                {step === 2 && !skipServiceStep && (
                     <motion.div key="service" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION} className="space-y-4">
                         <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-wider mb-2">What do you need?</h2>
                         <p className="text-savron-silver text-sm mb-4">Tap a service to continue.</p>
                         <div className="grid grid-cols-1 gap-3">
                             {services.map((service) => (
-                                <div
+                                <button
                                     key={service.id}
-                                    role="button"
-                                    tabIndex={0}
+                                    type="button"
+                                    onMouseDown={(e) => e.preventDefault()}
                                     onClick={() => {
+                                        const scrollY = window.scrollY;
                                         setSelectedService(service.id);
+                                        requestAnimationFrame(() => window.scrollTo({ top: scrollY, left: 0, behavior: 'instant' as ScrollBehavior }));
                                     }}
-                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedService(service.id); } }}
                                     className={cn(
-                                        "p-4 border rounded-savron cursor-pointer transition-all duration-300 flex justify-between items-center min-h-[72px] touch-manipulation",
+                                        "w-full p-4 border rounded-savron cursor-pointer transition-all duration-300 flex justify-between items-center min-h-[72px] touch-manipulation text-left",
                                         selectedService === service.id
                                             ? "border-savron-green bg-savron-green/10"
                                             : "border-white/10 hover:border-white/30 bg-savron-black"
@@ -333,19 +334,14 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
                                         <span className="text-white font-mono text-sm">{service.price}</span>
                                         {selectedService === service.id && <Check className="w-4 h-4 text-emerald-400" />}
                                     </div>
-                                </div>
+                                </button>
                             ))}
                         </div>
-                        <EyebrowsAddon
-                            visible={selectedService !== null}
-                            checked={addEyebrows}
-                            onChange={setAddEyebrows}
-                        />
                     </motion.div>
                 )}
 
                 {/* Step 3 (or 2 when service preselected): Details */}
-                {((hasPreselectedService && step === 2) || (!hasPreselectedService && step === 3)) && (
+                {((skipServiceStep && step === 2) || (!skipServiceStep && step === 3)) && (
                     <motion.div key="details" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION} className="space-y-6">
                         <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-wider">Your Details</h2>
                         <div className="bg-savron-black border border-white/10 rounded-savron p-5 space-y-3 text-base">
@@ -427,7 +423,7 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
                         <p className="text-xs text-savron-silver/50 uppercase tracking-widest">Check your email for details</p>
                         <Button variant="outline" onClick={() => {
                             setStep(1); setSelectedTime(null); setSelectedService(null);
-                            setServiceLocked(false); setPreselectionApplied(true);
+                            setPreselectionApplied(true);
                             setAddEyebrows(false);
                             setSelectedDate(nextBookableDate()); setClientName(''); setClientEmail(''); setClientPhone(''); setClientMessage('');
                             setAssignedBarber(null);
@@ -440,34 +436,38 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
 
             {/* Navigation */}
             {step < 4 && (
-                <div className="flex justify-between mt-8 md:mt-12 pt-6 md:pt-8 border-t border-white/5">
+                <div className="border-t border-white/5 mt-8 md:mt-12">
+                    {((skipServiceStep && step === 1) || (step === 2 && !skipServiceStep)) && (
+                        <EyebrowsAddon
+                            variant="footer"
+                            visible={selectedService !== null}
+                            checked={addEyebrows}
+                            onChange={setAddEyebrows}
+                        />
+                    )}
+                    <div className="flex justify-between pt-6 md:pt-8 px-0">
                     {step > 1 ? (
-                        <Button variant="ghost" onClick={() => {
-                            if (hasPreselectedService && step === 2) {
-                                setStep(1);
-                                return;
-                            }
-                            setStep(step - 1);
-                        }} className="flex gap-2">
+                        <Button variant="ghost" onClick={() => setStep(step - 1)} className="flex gap-2">
                             <ChevronLeft className="w-4 h-4" /> Back
                         </Button>
                     ) : <div />}
                     <div>
                         {step === 1 && (
-                            <Button onClick={() => setStep(2)} disabled={!selectedTime || (hasPreselectedService && !selectedService)}>
+                            <Button onClick={() => setStep(2)} disabled={!selectedTime || (skipServiceStep && !selectedService)}>
                                 Next <ChevronRight className="w-4 h-4 ml-2" />
                             </Button>
                         )}
-                        {step === 2 && !hasPreselectedService && (
+                        {step === 2 && !skipServiceStep && (
                             <Button onClick={() => setStep(3)} disabled={!selectedService}>
                                 Next <ChevronRight className="w-4 h-4 ml-2" />
                             </Button>
                         )}
-                        {((hasPreselectedService && step === 2) || (!hasPreselectedService && step === 3)) && (
+                        {((skipServiceStep && step === 2) || (!skipServiceStep && step === 3)) && (
                             <Button onClick={handleConfirm} isLoading={submitting} disabled={!clientName || !clientEmail}>
                                 Find Me a Barber
                             </Button>
                         )}
+                    </div>
                     </div>
                 </div>
             )}

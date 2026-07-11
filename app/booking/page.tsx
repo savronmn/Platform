@@ -43,7 +43,7 @@ function BookingPageContent() {
                     )}
                     {mode && preselectedService && (
                         <p className="text-savron-silver/70 text-sm mt-2 max-w-md mx-auto leading-relaxed">
-                            Your service is selected — review the menu, then pick your barber and time.
+                            Your service is pre-selected — review the menu, then continue.
                         </p>
                     )}
                     {mode && !preselectedService && (
