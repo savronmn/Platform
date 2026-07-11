@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
                   <p style="margin:0 0 8px;color:rgba(255,180,80,0.9);font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:700;">Calendar tip</p>
                   <p style="margin:0;color:rgba(255,255,255,0.75);font-size:12px;line-height:1.7;">
                     Your calendar invite was updated. Tap <strong style="color:#fff;">Yes</strong> to confirm you can make the new time.
-                    If you need a different slot, use <em>Propose a new time</em> or tap <em>No</em> &mdash; both free the original slot and notify the shop.
+                    If you need to cancel, tap <em>No</em> on your Google Calendar invite &mdash; that frees the slot and notifies the shop.
                   </p>
                   <p style="margin:10px 0 0;color:rgba(255,255,255,0.55);font-size:12px;line-height:1.7;">
                     You can also reply to this email and we&rsquo;ll help you reschedule.
@@ -257,7 +257,7 @@ export async function POST(request: NextRequest) {
 </html>`;
 
     const shopConnected = await isShopCalendarConnected();
-    const shopInviteActive = shopConnected || !!booking.shop_google_event_id;
+    const shopInviteActive = !!booking.shop_google_event_id;
     const icsString = shopInviteActive ? null : getUpdateIcsString(booking, barberName, barberEmail);
     const icsAttachment = icsString
         ? {

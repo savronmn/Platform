@@ -1,5 +1,5 @@
 // GET|POST /api/calendar/sweep-declines
-// Polls Google Calendar for client declines / propose-new-time and cancels matching bookings.
+// Polls Google Calendar for client declines and cancels matching bookings.
 // Runs on a Vercel cron so admin/host views stay accurate even when nobody opens the host calendar.
 // Auth: CRON_SECRET via Authorization Bearer header (Vercel) or x-cron-secret header.
 

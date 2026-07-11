@@ -33,7 +33,6 @@ export interface BookingDeclineTarget {
 export type CalendarCancellationReason =
     | 'event_deleted'
     | 'client_declined'
-    | 'client_proposed_new_time'
     | 'event_time_changed';
 
 function clientMatchesAttendee(
@@ -166,12 +165,13 @@ export function clientDeclinedInvite(
     return clientHasResponseStatus(event, booking, 'declined');
 }
 
-/** Tentative / Maybe — includes Google Calendar "Propose a new time". */
-export function clientProposedNewTime(
-    event: CalendarSyncEvent,
-    booking: Pick<BookingDeclineTarget, 'client_email' | 'client_name'>,
-): boolean {
-    return clientHasResponseStatus(event, booking, 'tentative');
+/** True when a non-system attendee declined the invite. */
+export function eventHasClientCalendarCancellationSignal(event: CalendarSyncEvent): boolean {
+    return (event.attendees ?? []).some(
+        attendee => !attendee.organizer
+            && !isSystemAttendee(attendee.email)
+            && attendee.responseStatus === 'declined',
+    );
 }
 
 /** Client accepted the invite (Yes). Not treated as cancellation — confirms attendance. */
@@ -197,15 +197,6 @@ export function eventHasDeclinedClient(event: CalendarSyncEvent): boolean {
     return eventHasClientCalendarCancellationSignal(event);
 }
 
-/** True when any client RSVP decline or propose-new-time signal is present on the event. */
-export function eventHasClientCalendarCancellationSignal(event: CalendarSyncEvent): boolean {
-    return (event.attendees ?? []).some(
-        attendee => !attendee.organizer
-            && !isSystemAttendee(attendee.email)
-            && ['declined', 'tentative'].includes(attendee.responseStatus ?? ''),
-    );
-}
-
 export function shouldCancelBookingFromCalendarEvent(
     event: CalendarSyncEvent,
     booking: BookingDeclineTarget,
@@ -218,10 +209,6 @@ export function shouldCancelBookingFromCalendarEvent(
 
     if (clientDeclinedInvite(event, booking)) {
         return { skipCalendar: false, reason: 'client_declined' };
-    }
-
-    if (clientProposedNewTime(event, booking)) {
-        return { skipCalendar: false, reason: 'client_proposed_new_time' };
     }
 
     // Accepting an invite (including after an edit) confirms attendance — never auto-cancel.

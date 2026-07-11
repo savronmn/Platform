@@ -11,6 +11,11 @@ import {
     getInitialSyncToken,
     type CalendarToken,
 } from '@/lib/google-calendar';
+import {
+    getShopCalendarId,
+    getShopCalendarTokens,
+    saveShopWebhookState,
+} from '@/lib/shop-calendar';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,19 +34,42 @@ async function handleRenew() {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL
         ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://savronmn.com');
 
+    const results: { id: string; name: string; status: string }[] = [];
+
+    // Renew shop calendar webhook — client RSVPs land here, not on barber busy blocks.
+    const shopTokens = await getShopCalendarTokens();
+    if (shopTokens) {
+        try {
+            const accessToken = await getValidAccessToken(shopTokens);
+            const calendarId = await getShopCalendarId();
+            const channelId = crypto.randomUUID();
+            const [syncToken, watchRes] = await Promise.all([
+                getInitialSyncToken(accessToken, calendarId),
+                watchCalendar(accessToken, calendarId, channelId, `${appUrl}/api/calendar/webhook-shop`),
+            ]);
+            await saveShopWebhookState({
+                channel_id: channelId,
+                resource_id: watchRes.resourceId,
+                sync_token: syncToken,
+            });
+            results.push({ id: 'shop', name: 'Savron Shop Calendar', status: 'renewed' });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            results.push({ id: 'shop', name: 'Savron Shop Calendar', status: `error: ${message}` });
+        }
+    }
+
     const { data: barbers } = await supabase
         .from('barbers')
         .select('id, name, google_calendar_id, google_calendar_tokens')
         .not('google_calendar_tokens', 'is', null)
         .not('google_calendar_id', 'is', null);
 
-    if (!barbers?.length) {
-        return NextResponse.json({ renewed: 0, message: 'No connected barbers' });
+    if (!barbers?.length && results.length === 0) {
+        return NextResponse.json({ renewed: 0, message: 'No connected calendars' });
     }
 
-    const results: { id: string; name: string; status: string }[] = [];
-
-    for (const barber of barbers) {
+    for (const barber of barbers ?? []) {
         try {
             const tokens = barber.google_calendar_tokens as CalendarToken;
             const accessToken = await getValidAccessToken(tokens);

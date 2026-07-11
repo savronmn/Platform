@@ -111,7 +111,6 @@ export async function createCalendarEvent(
     }
     body.guestsCanModify = false;
     body.guestsCanInviteOthers = false;
-    // Allow clients to propose a new time via Google Calendar RSVP UI.
     body.guestsCanSeeOtherGuests = false;
 
     const res = await fetch(

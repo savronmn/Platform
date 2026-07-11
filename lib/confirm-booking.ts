@@ -1,19 +1,38 @@
 // Client-side helper — fires email + calendar sync after a booking is inserted.
 // Called from BookingFlow and AsapBookingFlow after supabase.insert() succeeds.
 
+async function logSideEffectFailure(label: string, res: Response | undefined): Promise<void> {
+    if (!res) {
+        console.error(`[post-booking] ${label} failed: no response`);
+        return;
+    }
+    if (!res.ok) {
+        const detail = await res.text().catch(() => res.statusText);
+        console.error(`[post-booking] ${label} failed (${res.status}):`, detail);
+    }
+}
+
 export async function triggerPostBooking(bookingId: string): Promise<void> {
     // Calendar first so confirmation email can decide whether Google already sent the invite.
-    await fetch('/api/calendar/sync', {
+    const calendarRes = await fetch('/api/calendar/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bookingId, action: 'create' }),
-    }).catch(() => undefined);
+    }).catch((err) => {
+        console.error('[post-booking] calendar sync network error:', err);
+        return undefined;
+    });
+    await logSideEffectFailure('calendar sync', calendarRes);
 
-    await fetch('/api/email', {
+    const emailRes = await fetch('/api/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bookingId }),
-    }).catch(() => undefined);
+    }).catch((err) => {
+        console.error('[post-booking] confirmation email network error:', err);
+        return undefined;
+    });
+    await logSideEffectFailure('confirmation email', emailRes);
 }
 
 /** Fire email + calendar sync after a booking is edited. */
@@ -25,7 +44,7 @@ export async function triggerPostEditBooking(
         previousTime?: string;
     } = {},
 ): Promise<void> {
-    await fetch('/api/calendar/sync', {
+    const calendarRes = await fetch('/api/calendar/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -36,13 +55,21 @@ export async function triggerPostEditBooking(
             previousDate: options.previousDate,
             previousTime: options.previousTime,
         }),
-    }).catch(() => undefined);
+    }).catch((err) => {
+        console.error('[post-edit] calendar sync network error:', err);
+        return undefined;
+    });
+    await logSideEffectFailure('calendar update', calendarRes);
 
-    await fetch('/api/email/update', {
+    const emailRes = await fetch('/api/email/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bookingId }),
-    }).catch(() => undefined);
+    }).catch((err) => {
+        console.error('[post-edit] update email network error:', err);
+        return undefined;
+    });
+    await logSideEffectFailure('update email', emailRes);
 }
 
 /** Cancel a booking via the shared API (email + calendar delete). */
