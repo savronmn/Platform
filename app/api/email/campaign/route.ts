@@ -5,8 +5,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getMissYouTemplate, getSpecialOfferTemplate, getCustomTemplate } from '@/lib/email-templates';
+import { requireStaff } from '@/lib/staff-auth';
 
 export async function POST(request: NextRequest) {
+    const staff = await requireStaff();
+    if (!staff.ok) {
+        return NextResponse.json({ error: staff.error }, { status: staff.status });
+    }
+
     if (!process.env.RESEND_API_KEY) {
         return NextResponse.json({ error: 'Email service not configured' }, { status: 503 });
     }

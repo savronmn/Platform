@@ -2,6 +2,10 @@
 // Called after a booking is confirmed to push the event to the barber's Google Calendar.
 // Also called on booking cancellation (action: "delete") or edit (action: "update").
 // Body: { bookingId: string, action: "create" | "delete" | "update", previousBarberId?: string, previousDate?: string, previousTime?: string }
+//
+// Invite model:
+// - Savron shop calendar = Google invite with client attendee (RSVP / decline / propose new time)
+// - Barber calendar = silent busy block (no attendees, no Google invite email)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -13,6 +17,8 @@ import {
     type CalendarToken,
 } from '@/lib/google-calendar';
 import { deleteAllBookingCalendarEvents } from '@/lib/booking-calendar-cleanup';
+import { upsertShopInviteEvent } from '@/lib/shop-calendar';
+import { requireStaff } from '@/lib/staff-auth';
 import { SERVICES } from '@/lib/services-data';
 
 const getAdmin = () => createClient(
@@ -60,14 +66,12 @@ function buildEventPayload(booking: {
         booking.client_phone ? `Phone: ${booking.client_phone}` : '',
         booking.client_email ? `Email: ${booking.client_email}` : '',
         `Price: ${booking.price ?? ''}`,
+        '',
+        'Reply Yes / No / Propose a new time on this invite.',
+        'Declining or proposing a new time cancels the booking in SAVRON so the slot frees up.',
     ].filter(Boolean).join('\n');
 
     return { summary, description, startIso, endIso, durationMin };
-}
-
-function buildAttendees(_booking: { client_email: string | null }, _barber: BarberCalendarInfo | null): string[] {
-    // Invites are sent only via Savron email (bookings@savronmn.com). GCal event is barber-side busy block only.
-    return [];
 }
 
 async function removeBookingFromCalendars(
@@ -86,6 +90,40 @@ async function removeBookingFromCalendars(
     await deleteAllBookingCalendarEvents(booking, options);
 }
 
+async function syncShopInvite(
+    booking: {
+        id: string;
+        shop_google_event_id?: string | null;
+        client_email: string | null;
+        client_name: string | null;
+        client_phone: string | null;
+        service: string;
+        date: string;
+        time: string;
+        price: string | null;
+    },
+) {
+    const { summary, description, startIso, endIso } = buildEventPayload(booking);
+    const shopEventId = await upsertShopInviteEvent({
+        bookingId: booking.id,
+        shopEventId: booking.shop_google_event_id,
+        summary,
+        description,
+        startIso,
+        endIso,
+        clientEmail: booking.client_email,
+    });
+
+    if (shopEventId) {
+        await getAdmin()
+            .from('bookings')
+            .update({ shop_google_event_id: shopEventId })
+            .eq('id', booking.id);
+    }
+
+    return shopEventId;
+}
+
 export async function POST(request: NextRequest) {
     const { bookingId, action, previousBarberId, previousDate, previousTime } = await request.json() as {
         bookingId: string;
@@ -97,6 +135,14 @@ export async function POST(request: NextRequest) {
 
     if (!bookingId || !action) {
         return NextResponse.json({ error: 'Missing bookingId or action' }, { status: 400 });
+    }
+
+    // Public book flow may create once; edits/deletes require staff.
+    if (action === 'update' || action === 'delete') {
+        const staff = await requireStaff();
+        if (!staff.ok) {
+            return NextResponse.json({ error: staff.error }, { status: staff.status });
+        }
     }
 
     const supabaseAdmin = getAdmin();
@@ -115,7 +161,10 @@ export async function POST(request: NextRequest) {
 
     if (action === 'delete') {
         await removeBookingFromCalendars(booking, { barberId: booking.barber_id ?? undefined });
-        await getAdmin().from('bookings').update({ google_event_id: null }).eq('id', bookingId);
+        await getAdmin().from('bookings').update({
+            google_event_id: null,
+            shop_google_event_id: null,
+        }).eq('id', bookingId);
         return NextResponse.json({ success: true });
     }
 
@@ -128,57 +177,104 @@ export async function POST(request: NextRequest) {
                 fallbackDate: previousDate,
                 fallbackTime: previousTime,
             });
-            await supabaseAdmin.from('bookings').update({ google_event_id: null }).eq('id', bookingId);
+            await supabaseAdmin.from('bookings').update({
+                google_event_id: null,
+                shop_google_event_id: null,
+            }).eq('id', bookingId);
             booking.google_event_id = null;
+            booking.shop_google_event_id = null;
         }
 
+        const shopEventId = await syncShopInvite(booking);
+
         if (!barber?.google_calendar_tokens || !barber.google_calendar_id) {
-            return NextResponse.json({ skipped: true, reason: 'no_calendar_connected' });
+            return NextResponse.json({
+                success: !!shopEventId,
+                shopEventId,
+                skipped: !shopEventId ? true : undefined,
+                reason: !shopEventId ? 'no_calendar_connected' : undefined,
+            });
         }
 
         const accessToken = await getValidAccessToken(barber.google_calendar_tokens);
         const { summary, description, startIso, endIso } = buildEventPayload(booking);
-        const attendees = buildAttendees(booking, barber);
 
         if (booking.google_event_id && !barberChanged) {
             const eventId = await updateCalendarEvent(
                 accessToken,
                 barber.google_calendar_id,
                 booking.google_event_id,
-                { summary, description, startIso, endIso, attendeeEmails: attendees, bookingId: booking.id },
+                { summary, description, startIso, endIso, attendeeEmails: [], bookingId: booking.id },
+                'none',
             );
-            return NextResponse.json({ success: true, eventId, updated: true });
+            return NextResponse.json({ success: true, eventId, shopEventId, updated: true });
         }
 
-        const eventId = await createCalendarEvent(accessToken, barber.google_calendar_id, {
-            summary,
-            description,
-            startIso,
-            endIso,
-            attendeeEmails: attendees,
-            bookingId: booking.id,
-        });
+        const eventId = await createCalendarEvent(
+            accessToken,
+            barber.google_calendar_id,
+            {
+                summary,
+                description,
+                startIso,
+                endIso,
+                attendeeEmails: [],
+                bookingId: booking.id,
+            },
+            'none',
+        );
         await supabaseAdmin.from('bookings').update({ google_event_id: eventId }).eq('id', bookingId);
-        return NextResponse.json({ success: true, eventId, created: true });
+        return NextResponse.json({ success: true, eventId, shopEventId, created: true });
     }
 
     // action === 'create'
+    // Idempotent when both calendars are already linked (prevents abuse with known booking IDs).
+    if (booking.google_event_id && booking.shop_google_event_id) {
+        return NextResponse.json({
+            success: true,
+            skipped: true,
+            reason: 'already_synced',
+            eventId: booking.google_event_id,
+            shopEventId: booking.shop_google_event_id,
+        });
+    }
+
+    const shopEventId = booking.shop_google_event_id
+        ?? await syncShopInvite(booking);
+
     if (!barber?.google_calendar_tokens || !barber.google_calendar_id) {
-        return NextResponse.json({ skipped: true, reason: 'no_calendar_connected' });
+        return NextResponse.json({
+            success: !!shopEventId,
+            shopEventId,
+            skipped: !shopEventId ? true : undefined,
+            reason: !shopEventId ? 'no_calendar_connected' : undefined,
+        });
+    }
+
+    if (booking.google_event_id) {
+        return NextResponse.json({
+            success: true,
+            eventId: booking.google_event_id,
+            shopEventId,
+        });
     }
 
     const accessToken = await getValidAccessToken(barber.google_calendar_tokens);
     const { summary, description, startIso, endIso } = buildEventPayload(booking);
-    const attendees = buildAttendees(booking, barber);
 
-    const eventId = await createCalendarEvent(accessToken, barber.google_calendar_id, {
-        summary,
-        description,
-        startIso,
-        endIso,
-        attendeeEmails: attendees,
-        bookingId: booking.id,
-    });
+    const eventId = await createCalendarEvent(
+        accessToken,
+        barber.google_calendar_id,
+        {
+            summary,
+            description,
+            startIso,
+            endIso,
+            attendeeEmails: [],
+            bookingId: booking.id,
+        },
+        'none',
+    );
 
     await getAdmin().from('bookings').update({ google_event_id: eventId }).eq('id', bookingId);
 
@@ -211,5 +307,5 @@ export async function POST(request: NextRequest) {
         }
     }
 
-    return NextResponse.json({ success: true, eventId });
+    return NextResponse.json({ success: true, eventId, shopEventId });
 }

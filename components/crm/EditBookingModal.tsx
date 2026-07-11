@@ -9,6 +9,7 @@ import { useServices } from '@/lib/use-services';
 import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
 import type { Barber, Booking } from '@/lib/types';
 import { triggerPostEditBooking } from '@/lib/confirm-booking';
+import { isSlotInPast, slotConflictsWithBusy } from '@/lib/time-helpers';
 
 interface EditBookingModalProps {
     booking: Booking | null;
@@ -24,6 +25,8 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
     const services = useServices();
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [busySlots, setBusySlots] = useState<{ start: string; end: string }[]>([]);
+    const [loadingBusy, setLoadingBusy] = useState(false);
 
     const [form, setForm] = useState({
         clientName: '',
@@ -55,12 +58,41 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
     const field = (k: keyof typeof form, v: string) => {
         setForm(f => {
             const next = { ...f, [k]: v };
-            if (k === 'barberId' || k === 'date') next.time = '';
+            if (k === 'barberId' || k === 'date' || k === 'service') next.time = '';
             return next;
         });
     };
 
-    const availableSlots = (() => {
+    const selectedService = services.find(s => s.name === form.service);
+    const durationMin = selectedService?.durationMin ?? 45;
+    const selectedDate = form.date ? new Date(`${form.date}T12:00:00`) : new Date();
+
+    useEffect(() => {
+        if (!form.barberId || !form.date) {
+            setBusySlots([]);
+            return;
+        }
+        let cancelled = false;
+        async function fetchBusy() {
+            setLoadingBusy(true);
+            try {
+                const res = await fetch(`/api/calendar/busy?barberId=${form.barberId}&date=${form.date}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (!cancelled) setBusySlots(data.busy || []);
+                } else if (!cancelled) {
+                    setBusySlots([]);
+                }
+            } catch {
+                if (!cancelled) setBusySlots([]);
+            }
+            if (!cancelled) setLoadingBusy(false);
+        }
+        fetchBusy();
+        return () => { cancelled = true; };
+    }, [form.barberId, form.date]);
+
+    const workingHoursSlots = (() => {
         const barber = barbers.find(b => b.id === form.barberId);
         if (!barber?.working_hours || !form.date) return TIME_SLOTS;
         const dayIndex = new Date(`${form.date}T12:00:00`).getDay();
@@ -70,6 +102,21 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
         return generateTimeSlots(daySchedule.open, daySchedule.close);
     })();
 
+    const isCurrentSlot = (timeStr: string) =>
+        !!booking
+        && form.barberId === booking.barber_id
+        && form.date === booking.date
+        && timeStr === booking.time;
+
+    const isSlotUnavailable = (timeStr: string) => {
+        if (isCurrentSlot(timeStr)) return false;
+        if (isSlotInPast(selectedDate, timeStr, 0)) return true;
+        if (loadingBusy) return true;
+        return slotConflictsWithBusy(selectedDate, timeStr, durationMin, busySlots);
+    };
+
+    const availableSlots = workingHoursSlots.filter(t => !isSlotUnavailable(t) || isCurrentSlot(t));
+
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         if (!booking) return;
@@ -77,11 +124,38 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
             setError('Service, barber, date, and time are required.');
             return;
         }
+        if (isSlotUnavailable(form.time)) {
+            setError('That slot is no longer available. Please choose a different time.');
+            return;
+        }
+
         setSubmitting(true);
         setError(null);
 
         const barber = barbers.find(b => b.id === form.barberId);
-        const selectedService = services.find(s => s.name === form.service);
+        const selected = services.find(s => s.name === form.service);
+
+        const slotChanged =
+            form.barberId !== booking.barber_id
+            || form.date !== booking.date
+            || form.time !== booking.time;
+
+        if (slotChanged) {
+            const { data: conflictCheck } = await supabase
+                .from('bookings')
+                .select('id')
+                .eq('barber_id', form.barberId)
+                .eq('date', form.date)
+                .eq('time', form.time)
+                .in('status', ['confirmed', 'completed', 'no_show'])
+                .neq('id', booking.id)
+                .limit(1);
+            if (conflictCheck && conflictCheck.length > 0) {
+                setSubmitting(false);
+                setError('That slot is already booked. Please choose a different time.');
+                return;
+            }
+        }
 
         const { data, error: updateError } = await supabase
             .from('bookings')
@@ -94,8 +168,8 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
                 barber_name: barber?.name ?? booking.barber_name,
                 date: form.date,
                 time: form.time,
-                duration: selectedService?.duration ?? booking.duration,
-                price: selectedService?.price ?? booking.price,
+                duration: selected?.duration ?? booking.duration,
+                price: selected?.price ?? booking.price,
                 notes: form.notes.trim() || null,
             })
             .eq('id', booking.id)
@@ -103,7 +177,14 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
             .single();
 
         setSubmitting(false);
-        if (updateError) { setError(updateError.message); return; }
+        if (updateError) {
+            if (updateError.code === '23505') {
+                setError('That slot is already booked. Please choose a different time.');
+            } else {
+                setError(updateError.message);
+            }
+            return;
+        }
 
         triggerPostEditBooking(booking.id, {
             previousBarberId: booking.barber_id,

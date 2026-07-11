@@ -3,11 +3,14 @@ import { cancelBooking } from '@/lib/cancel-booking';
 import {
     findBookingForCalendarEvent,
     shouldCancelBookingFromCalendarEvent,
+    type CalendarCancellationReason,
     type CalendarSyncEvent,
 } from '@/lib/calendar-event-sync';
 import { getValidAccessToken, listAccountCalendarIds, type CalendarToken } from '@/lib/google-calendar';
+import { getShopCalendarId, getShopCalendarTokens } from '@/lib/shop-calendar';
 
 const GOOGLE_CALENDAR_BASE = 'https://www.googleapis.com/calendar/v3';
+const STAFF_NOTIFY_EMAIL = process.env.RESEND_FROM_EMAIL || 'info@savronmn.com';
 
 async function listEvents(
     accessToken: string,
@@ -31,6 +34,104 @@ async function listEvents(
     return (data.items ?? []) as CalendarSyncEvent[];
 }
 
+async function notifyStaffOfCalendarAction(params: {
+    reason: CalendarCancellationReason;
+    booking: {
+        id: string;
+        client_name: string | null;
+        client_email: string | null;
+        date: string;
+        time: string;
+    };
+    barberName?: string | null;
+}): Promise<void> {
+    if (!process.env.RESEND_API_KEY) return;
+
+    const reasonLabel =
+        params.reason === 'client_proposed_new_time' ? 'proposed a new time'
+            : params.reason === 'client_declined' ? 'declined the invite'
+                : params.reason === 'event_time_changed' ? 'changed the event time'
+                    : 'removed the calendar event';
+
+    const subject = params.reason === 'client_proposed_new_time'
+        ? `SAVRON — Client proposed a new time (${params.booking.client_name ?? 'Client'})`
+        : `SAVRON — Appointment cancelled via calendar (${params.booking.client_name ?? 'Client'})`;
+
+    const html = `
+      <p style="font-family:sans-serif;font-size:14px;line-height:1.6;color:#222;">
+        <strong>${params.booking.client_name ?? 'A client'}</strong>
+        (${params.booking.client_email ?? 'no email'})
+        ${reasonLabel} for their appointment.
+      </p>
+      <ul style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#333;">
+        <li><strong>Date:</strong> ${params.booking.date}</li>
+        <li><strong>Time:</strong> ${params.booking.time}</li>
+        ${params.barberName ? `<li><strong>Barber:</strong> ${params.barberName}</li>` : ''}
+        <li><strong>Booking ID:</strong> ${params.booking.id}</li>
+      </ul>
+      <p style="font-family:sans-serif;font-size:13px;color:#666;">
+        Google Calendar also emails the organizer when a guest proposes a new time or declines.
+        The booking has been cancelled in SAVRON so the slot is free again.
+      </p>
+    `;
+
+    try {
+        await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                from: STAFF_NOTIFY_EMAIL,
+                to: ['info@savronmn.com'],
+                subject,
+                html,
+            }),
+        });
+    } catch (err) {
+        console.error('[calendar-declines] Staff notification failed:', err);
+    }
+}
+
+async function processEventsForBarber(
+    supabase: SupabaseClient,
+    barberId: string | null,
+    barberName: string | null,
+    events: CalendarSyncEvent[],
+    seenEventIds: Set<string>,
+): Promise<{ cancelled: number; reasons: string[] }> {
+    let cancelled = 0;
+    const reasons: string[] = [];
+
+    for (const event of events) {
+        if (!event.id || seenEventIds.has(event.id)) continue;
+        seenEventIds.add(event.id);
+        if (event.status === 'cancelled') {
+            // Still try to match deleted events via stored IDs
+        }
+
+        const booking = await findBookingForCalendarEvent(supabase, barberId, event);
+        if (!booking) continue;
+
+        const action = shouldCancelBookingFromCalendarEvent(event, booking);
+        if (!action) continue;
+
+        const result = await cancelBooking(booking.id, { skipCalendar: action.skipCalendar });
+        if (result.success && !result.alreadyCancelled) {
+            cancelled += 1;
+            reasons.push(action.reason);
+            await notifyStaffOfCalendarAction({
+                reason: action.reason,
+                booking,
+                barberName,
+            });
+        }
+    }
+
+    return { cancelled, reasons };
+}
+
 export async function processDeclinedCalendarEvents(
     supabase: SupabaseClient,
     dateStart: string,
@@ -43,16 +144,37 @@ export async function processDeclinedCalendarEvents(
         .not('google_calendar_id', 'is', null)
         .eq('active', true);
 
-    if (!barbers?.length) {
-        return { cancelled: 0, reasons: [] };
-    }
-
     const timeMin = `${dateStart}T00:00:00-05:00`;
     const timeMax = `${dateEnd}T23:59:59-05:00`;
     let cancelled = 0;
     const reasons: string[] = [];
+    const seenEventIds = new Set<string>();
 
-    for (const barber of barbers) {
+    // 1) Shop calendar — this is where client RSVPs land (Google invite with attendees).
+    const shopTokens = await getShopCalendarTokens();
+    if (shopTokens) {
+        try {
+            const accessToken = await getValidAccessToken(shopTokens);
+            const shopCalendarId = await getShopCalendarId();
+            const calendarIds = await listAccountCalendarIds(accessToken);
+            const idsToFetch = calendarIds.length > 0
+                ? Array.from(new Set([shopCalendarId, ...calendarIds]))
+                : [shopCalendarId];
+
+            const events = (
+                await Promise.all(idsToFetch.map(calendarId => listEvents(accessToken, calendarId, timeMin, timeMax)))
+            ).flat();
+
+            const shopResult = await processEventsForBarber(supabase, null, 'Savron Shop', events, seenEventIds);
+            cancelled += shopResult.cancelled;
+            reasons.push(...shopResult.reasons);
+        } catch (err) {
+            console.error('[calendar-declines] Shop calendar sweep failed:', err);
+        }
+    }
+
+    // 2) Barber calendars — legacy invites / manual declines on busy blocks (if any attendees exist).
+    for (const barber of barbers ?? []) {
         const tokens = barber.google_calendar_tokens as CalendarToken;
         const accessToken = await getValidAccessToken(tokens);
         const calendarIds = await listAccountCalendarIds(accessToken);
@@ -62,24 +184,9 @@ export async function processDeclinedCalendarEvents(
             await Promise.all(idsToFetch.map(calendarId => listEvents(accessToken, calendarId, timeMin, timeMax)))
         ).flat();
 
-        const seenEventIds = new Set<string>();
-        for (const event of events) {
-            if (!event.id || seenEventIds.has(event.id)) continue;
-            seenEventIds.add(event.id);
-            if (event.status === 'cancelled') continue;
-
-            const booking = await findBookingForCalendarEvent(supabase, barber.id, event);
-            if (!booking) continue;
-
-            const action = shouldCancelBookingFromCalendarEvent(event, booking);
-            if (!action) continue;
-
-            const result = await cancelBooking(booking.id, { skipCalendar: action.skipCalendar });
-            if (result.success) {
-                cancelled += 1;
-                reasons.push(action.reason);
-            }
-        }
+        const result = await processEventsForBarber(supabase, barber.id, barber.name, events, seenEventIds);
+        cancelled += result.cancelled;
+        reasons.push(...result.reasons);
     }
 
     return { cancelled, reasons };

@@ -157,6 +157,31 @@ const Footer = () => {
                 </div>
             </div>
 
+            {/* Licensing / regulatory notice (MN Board of Barber Examiners) */}
+            <div style={{
+                padding: "0 clamp(24px, 8vw, 120px) 20px",
+            }}>
+                <p style={{
+                    fontSize: "10px",
+                    lineHeight: 1.6,
+                    color: "rgba(232,228,220,0.2)",
+                    maxWidth: "800px",
+                }}>
+                    SAVRON Barbershop &amp; Lounge operates as a registered Minnesota barbershop. Individual barber
+                    licenses and the shop registration are displayed in-shop as required by the Minnesota Board of
+                    Barber Examiners. Verify a registration at{' '}
+                    <a
+                        href="https://mn.gov/boards/barber-examiners/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "rgba(232,228,220,0.35)", textDecoration: "underline" }}
+                    >
+                        mn.gov/boards/barber-examiners
+                    </a>
+                    . Licensing questions: 651-201-2820 · bbe.board@state.mn.us
+                </p>
+            </div>
+
             {/* Google OAuth Transparency Copy */}
             <div style={{
                 padding: "0 clamp(24px, 8vw, 120px) 20px",

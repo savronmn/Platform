@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireStaff } from '@/lib/staff-auth';
 
 export async function POST(req: NextRequest) {
     try {
+        const staff = await requireStaff();
+        if (!staff.ok) {
+            return NextResponse.json({ error: staff.error }, { status: staff.status });
+        }
+
         const { subject, htmlContent, recipients } = await req.json();
 
         if (!subject || !htmlContent || !recipients || !Array.isArray(recipients) || recipients.length === 0) {

@@ -1,11 +1,7 @@
-// POST /api/email
-// Sends a booking confirmation email via Resend.
-// Savron is the sole calendar invite source — client + barber only (Google Calendar sync is silent).
-// Body: { bookingId: string }
-
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
+import { isShopCalendarConnected } from '@/lib/shop-calendar';
 
 const BARBERSHOP_EMAIL = 'info@savronmn.com';
 const SHOP_ADDRESS = '250 N Third Avenue, Minneapolis, MN 55401';
@@ -243,16 +239,18 @@ export async function POST(request: NextRequest) {
 </body>
 </html>`;
 
-  // Generate ICS attachment — content-type with method=REQUEST makes Gmail/Outlook show inline RSVP / Cancel buttons
-  const icsString = getIcsString(booking, barberName, barberEmail, 'REQUEST');
+  // When shop Google Calendar is connected, Google sends the RSVP invite.
+  // Resend still sends the confirmation email; skip ICS REQUEST to avoid a second invite.
+  const shopInviteActive = await isShopCalendarConnected();
+  const icsString = shopInviteActive ? null : getIcsString(booking, barberName, barberEmail, 'REQUEST');
+  const icsAttachment = icsString
+    ? {
+        filename: 'appointment.ics',
+        content: Buffer.from(icsString).toString('base64'),
+        contentType: 'text/calendar; charset=utf-8; method=REQUEST',
+      }
+    : null;
 
-  const icsAttachment = {
-      filename: 'appointment.ics',
-      content: Buffer.from(icsString).toString('base64'),
-      contentType: 'text/calendar; charset=utf-8; method=REQUEST',
-  };
-
-  // Savron sends the only calendar invite — client + barber (no duplicate from Google Calendar).
   const emailPromises: Promise<Response>[] = [];
   
   const headers = {
@@ -260,7 +258,7 @@ export async function POST(request: NextRequest) {
     'Content-Type': 'application/json',
   };
 
-  // Client invite
+  // Client confirmation (+ ICS only when shop Google invite is unavailable)
   emailPromises.push(
     fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -270,12 +268,12 @@ export async function POST(request: NextRequest) {
         to: [booking.client_email],
         subject: `Your appointment is confirmed — ${booking.time}, ${dateFormatted}`,
         html: htmlBody,
-        attachments: [icsAttachment],
+        ...(icsAttachment ? { attachments: [icsAttachment] } : {}),
       }),
     })
   );
 
-  // Barber invite
+  // Barber notification
   if (barberEmail) {
     const barberHtml = htmlBody
       .replace("You're all set,", `New booking — `)
@@ -290,7 +288,7 @@ export async function POST(request: NextRequest) {
           to: [barberEmail],
           subject: `New booking: ${booking.client_name || 'Walk-in'} — ${booking.time}, ${dateFormatted}`,
           html: barberHtml,
-          attachments: [icsAttachment],
+          ...(icsAttachment ? { attachments: [icsAttachment] } : {}),
         }),
       })
     );

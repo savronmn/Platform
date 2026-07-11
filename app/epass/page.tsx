@@ -116,6 +116,7 @@ export default function EPassPage() {
             const res = await fetch('/api/epass/verify-session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({ email: userEmail }),
             });
             const data = await res.json();
@@ -172,6 +173,7 @@ export default function EPassPage() {
         const res = await fetch('/api/epass/verify-otp', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({ email: email.trim(), code }),
         });
         const data = await res.json();

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { setEpassSessionCookie } from '@/lib/epass-session';
 
 function getSupabaseAdmin() {
     return createClient(
@@ -43,6 +44,8 @@ export async function POST(req: NextRequest) {
     if (!subscriber) {
         return NextResponse.json({ error: 'Subscriber not found' }, { status: 404 });
     }
+
+    setEpassSessionCookie(normalizedEmail);
 
     return NextResponse.json({ success: true, subscriber });
 }

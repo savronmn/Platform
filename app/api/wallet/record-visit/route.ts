@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { buildMembershipEmail } from '@/lib/email-templates';
 import { syncWalletsAfterCheckin } from '@/lib/wallet-checkin';
+import { requireStaff } from '@/lib/staff-auth';
 import {
     ensureWalletAuthToken,
     generateApplePassBuffer,
@@ -55,6 +56,11 @@ async function resendFullPass(subscriber: {
 
 export async function POST(req: NextRequest) {
     try {
+        const staff = await requireStaff();
+        if (!staff.ok) {
+            return NextResponse.json({ error: staff.error }, { status: staff.status });
+        }
+
         const supabase = getSupabaseAdmin();
         const body = await req.json();
         const { subscriber_id, action } = body;
@@ -74,16 +80,27 @@ export async function POST(req: NextRequest) {
         }
 
         if (action === 'record_visit') {
-            const newCount = subscriber.visit_count + 1;
-            const lastVisitAt = new Date().toISOString();
+            const { data: updated, error: updateError } = await supabase
+                .rpc('increment_subscriber_visit', { p_subscriber_id: subscriber_id });
 
-            const { error: updateError } = await supabase
-                .from('email_subscribers')
-                .update({ visit_count: newCount, last_visit_at: lastVisitAt })
-                .eq('id', subscriber_id);
+            let newCount: number;
+            let lastVisitAt: string;
 
-            if (updateError) {
-                return NextResponse.json({ error: 'Failed to update visit count' }, { status: 500 });
+            if (updateError || !updated) {
+                newCount = (subscriber.visit_count ?? 0) + 1;
+                lastVisitAt = new Date().toISOString();
+                const { error: fallbackErr } = await supabase
+                    .from('email_subscribers')
+                    .update({ visit_count: newCount, last_visit_at: lastVisitAt })
+                    .eq('id', subscriber_id)
+                    .eq('visit_count', subscriber.visit_count);
+                if (fallbackErr) {
+                    return NextResponse.json({ error: 'Failed to update visit count' }, { status: 500 });
+                }
+            } else {
+                const row = Array.isArray(updated) ? updated[0] : updated;
+                newCount = row.visit_count;
+                lastVisitAt = row.last_visit_at;
             }
 
             const walletSync = await syncWalletsAfterCheckin(subscriber, newCount, lastVisitAt);
@@ -97,22 +114,30 @@ export async function POST(req: NextRequest) {
         }
 
         if (action === 'remove_visit') {
-            const newCount = Math.max(0, subscriber.visit_count - 1);
+            const { data: updated, error: updateError } = await supabase
+                .rpc('decrement_subscriber_visit', { p_subscriber_id: subscriber_id });
 
-            const { error: updateError } = await supabase
-                .from('email_subscribers')
-                .update({ visit_count: newCount })
-                .eq('id', subscriber_id);
+            let newCount: number;
+            let lastVisitAt: string;
 
-            if (updateError) {
-                return NextResponse.json({ error: 'Failed to update visit count' }, { status: 500 });
+            if (updateError || !updated) {
+                newCount = Math.max(0, (subscriber.visit_count ?? 0) - 1);
+                const { error: fallbackErr } = await supabase
+                    .from('email_subscribers')
+                    .update({ visit_count: newCount })
+                    .eq('id', subscriber_id)
+                    .eq('visit_count', subscriber.visit_count);
+                if (fallbackErr) {
+                    return NextResponse.json({ error: 'Failed to update visit count' }, { status: 500 });
+                }
+                lastVisitAt = subscriber.last_visit_at ?? new Date().toISOString();
+            } else {
+                const row = Array.isArray(updated) ? updated[0] : updated;
+                newCount = row.visit_count;
+                lastVisitAt = row.last_visit_at ?? subscriber.last_visit_at ?? new Date().toISOString();
             }
 
-            const walletSync = await syncWalletsAfterCheckin(
-                subscriber,
-                newCount,
-                subscriber.last_visit_at ?? new Date().toISOString(),
-            );
+            const walletSync = await syncWalletsAfterCheckin(subscriber, newCount, lastVisitAt);
 
             return NextResponse.json({
                 success: true,

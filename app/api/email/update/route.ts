@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
+import { isShopCalendarConnected } from '@/lib/shop-calendar';
 
 const BARBERSHOP_EMAIL = 'info@savronmn.com';
 const SHOP_ADDRESS = '250 N Third Avenue, Minneapolis, MN 55401';
@@ -218,12 +219,13 @@ export async function POST(request: NextRequest) {
             <table width="100%" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border:1px solid rgba(255,180,80,0.25);margin-bottom:20px;">
               <tr>
                 <td style="padding:16px 20px;">
-                  <p style="margin:0 0 8px;color:rgba(255,180,80,0.9);font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:700;">Important</p>
+                  <p style="margin:0 0 8px;color:rgba(255,180,80,0.9);font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:700;">Calendar tip</p>
                   <p style="margin:0;color:rgba(255,255,255,0.75);font-size:12px;line-height:1.7;">
-                    Do <strong style="color:#fff;">not</strong> use <em>Propose a new time</em> on the calendar invite, and do <strong style="color:#fff;">not</strong> tap <em>Yes</em> or <em>No</em> on the invite to change your appointment &mdash; any of these actions will <strong style="color:#fff;">cancel</strong> your booking automatically.
+                    Your calendar invite was updated. Tap <strong style="color:#fff;">Yes</strong> to confirm you can make the new time.
+                    If you need a different slot, use <em>Propose a new time</em> or tap <em>No</em> &mdash; both free the original slot and notify the shop.
                   </p>
                   <p style="margin:10px 0 0;color:rgba(255,255,255,0.55);font-size:12px;line-height:1.7;">
-                    To request a different time, reply to this email instead of using the calendar buttons.
+                    You can also reply to this email and we&rsquo;ll help you reschedule.
                   </p>
                 </td>
               </tr>
@@ -250,12 +252,15 @@ export async function POST(request: NextRequest) {
 </body>
 </html>`;
 
-    const icsString = getUpdateIcsString(booking, barberName, barberEmail);
-    const icsAttachment = {
-        filename: 'appointment.ics',
-        content: Buffer.from(icsString).toString('base64'),
-        contentType: 'text/calendar; charset=utf-8; method=REQUEST',
-    };
+    const shopInviteActive = await isShopCalendarConnected();
+    const icsString = shopInviteActive ? null : getUpdateIcsString(booking, barberName, barberEmail);
+    const icsAttachment = icsString
+        ? {
+            filename: 'appointment.ics',
+            content: Buffer.from(icsString).toString('base64'),
+            contentType: 'text/calendar; charset=utf-8; method=REQUEST',
+        }
+        : null;
 
     const headers = {
         Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
@@ -273,7 +278,7 @@ export async function POST(request: NextRequest) {
                 to: [booking.client_email],
                 subject: `Your appointment has been updated — ${booking.time}, ${dateFormatted}`,
                 html: htmlBody,
-                attachments: [icsAttachment],
+                ...(icsAttachment ? { attachments: [icsAttachment] } : {}),
             }),
         })
     );
@@ -292,7 +297,7 @@ export async function POST(request: NextRequest) {
                     to: [barberEmail],
                     subject: `Updated booking: ${booking.client_name || 'Walk-in'} — ${booking.time}, ${dateFormatted}`,
                     html: barberHtml,
-                    attachments: [icsAttachment],
+                    ...(icsAttachment ? { attachments: [icsAttachment] } : {}),
                 }),
             })
         );

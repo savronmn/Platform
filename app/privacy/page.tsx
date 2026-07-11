@@ -21,7 +21,7 @@ export default function PrivacyPolicy() {
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="space-y-8 font-light text-sm leading-relaxed text-savron-silver/80">
                     <section className="space-y-4">
                         <h2 className="text-xl font-heading text-white tracking-widest uppercase">1. Information We Collect</h2>
-                        <p>We collect information you provide directly to us when you book an appointment, create an account, apply to be a barber, or communicate with us. This may include your name, email address, phone number, and payment information.</p>
+                        <p>We collect information you provide directly to us when you book an appointment, create an account, join our membership program, download a digital membership pass (ePass / Apple Wallet / Google Wallet), apply to be a barber, or communicate with us. This may include your name, email address, phone number, visit history, and appointment details.</p>
                         <p>We also automatically collect certain information about your device and how you interact with our website, including your IP address, browser type, and pages visited.</p>
                     </section>
 
@@ -30,10 +30,12 @@ export default function PrivacyPolicy() {
                         <p>We use the information we collect to:</p>
                         <ul className="list-disc pl-5 space-y-2 text-savron-silver/70">
                             <li>Process and manage your booking appointments</li>
-                            <li>Send appointment confirmations and reminders</li>
+                            <li>Send appointment confirmations, updates, cancellations, and reminders</li>
+                            <li>Synchronize appointments with Google Calendar for scheduling and availability</li>
+                            <li>Issue and update digital membership passes and visit counts</li>
                             <li>Communicate with you regarding services, promotions, or changes to our terms</li>
                             <li>Maintain and improve our website and scheduling platform</li>
-                            <li>Comply with legal obligations</li>
+                            <li>Comply with legal obligations, including Minnesota barbering regulations where applicable</li>
                         </ul>
                     </section>
 

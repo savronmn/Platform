@@ -73,7 +73,9 @@ export async function getValidAccessToken(token: CalendarToken): Promise<string>
     return token.access_token;
 }
 
-// Create an event on the barber's Google Calendar
+export type CalendarSendUpdates = 'all' | 'externalOnly' | 'none';
+
+// Create an event on a Google Calendar
 export async function createCalendarEvent(
     accessToken: string,
     calendarId: string,
@@ -84,7 +86,8 @@ export async function createCalendarEvent(
         endIso: string;
         attendeeEmails?: string[];
         bookingId?: string;
-    }
+    },
+    sendUpdates: CalendarSendUpdates = 'none',
 ): Promise<string> {
     const body: Record<string, unknown> = {
         summary: event.summary,
@@ -100,9 +103,11 @@ export async function createCalendarEvent(
     }
     body.guestsCanModify = false;
     body.guestsCanInviteOthers = false;
+    // Allow clients to propose a new time via Google Calendar RSVP UI.
+    body.guestsCanSeeOtherGuests = false;
 
     const res = await fetch(
-        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=none`,
+        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=${sendUpdates}`,
         {
             method: 'POST',
             headers: {
@@ -117,7 +122,7 @@ export async function createCalendarEvent(
     return data.id; // Google event ID — store in booking for later updates/deletes
 }
 
-// Update an existing event on the barber's Google Calendar
+// Update an existing event on a Google Calendar
 export async function updateCalendarEvent(
     accessToken: string,
     calendarId: string,
@@ -129,7 +134,8 @@ export async function updateCalendarEvent(
         endIso: string;
         attendeeEmails?: string[];
         bookingId?: string;
-    }
+    },
+    sendUpdates: CalendarSendUpdates = 'none',
 ): Promise<string> {
     const body: Record<string, unknown> = {
         summary: event.summary,
@@ -145,9 +151,10 @@ export async function updateCalendarEvent(
     }
     body.guestsCanModify = false;
     body.guestsCanInviteOthers = false;
+    body.guestsCanSeeOtherGuests = false;
 
     const res = await fetch(
-        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=none`,
+        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=${sendUpdates}`,
         {
             method: 'PATCH',
             headers: {
@@ -166,10 +173,11 @@ export async function updateCalendarEvent(
 export async function deleteCalendarEvent(
     accessToken: string,
     calendarId: string,
-    eventId: string
+    eventId: string,
+    sendUpdates: CalendarSendUpdates = 'none',
 ): Promise<void> {
     const res = await fetch(
-        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}?sendUpdates=none`,
+        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}?sendUpdates=${sendUpdates}`,
         {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${accessToken}` },

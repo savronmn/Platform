@@ -118,7 +118,7 @@ export async function cancelBooking(
 
             await supabase
                 .from('bookings')
-                .update({ google_event_id: null })
+                .update({ google_event_id: null, shop_google_event_id: null })
                 .in('id', rowIds);
 
             if (cleanup.failed > 0) {

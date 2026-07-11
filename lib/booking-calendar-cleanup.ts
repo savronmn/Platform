@@ -1,5 +1,6 @@
 // Delete booking events from barber + Savron shop Google Calendars.
-// Savron invites go through Resend (ICS). GCal events are availability blocks only.
+// Shop calendar holds the client Google invite (with attendees).
+// Barber calendar holds silent busy blocks.
 
 import { createClient } from '@supabase/supabase-js';
 import {
@@ -10,6 +11,7 @@ import {
     listAccountCalendarIds,
     type CalendarToken,
 } from '@/lib/google-calendar';
+import { getShopCalendarId, getShopCalendarTokens } from '@/lib/shop-calendar';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,6 +21,7 @@ const getAdmin = () => createClient(
 export interface BookingCalendarTarget {
     id: string;
     google_event_id: string | null;
+    shop_google_event_id?: string | null;
     barber_id: string | null;
     date: string;
     time: string;
@@ -33,47 +36,10 @@ export interface CalendarCleanupResult {
     calendarsChecked: string[];
 }
 
-function parseShopTokensFromEnv(): CalendarToken | null {
-    const raw = process.env.SAVRON_GOOGLE_CALENDAR_TOKENS;
-    if (!raw) return null;
-    try {
-        return JSON.parse(raw) as CalendarToken;
-    } catch {
-        console.error('[calendar-cleanup] Invalid SAVRON_GOOGLE_CALENDAR_TOKENS JSON');
-        return null;
-    }
-}
-
-async function getShopCalendarTokens(): Promise<CalendarToken | null> {
-    const fromEnv = parseShopTokensFromEnv();
-    if (fromEnv) return fromEnv;
-
-    const supabase = getAdmin();
-    const { data } = await supabase
-        .from('system_config')
-        .select('value')
-        .eq('key', 'savron_google_calendar_tokens')
-        .maybeSingle();
-
-    if (!data?.value) return null;
-    return data.value as CalendarToken;
-}
-
-async function getShopCalendarId(): Promise<string> {
-    const supabase = getAdmin();
-    const { data } = await supabase
-        .from('system_config')
-        .select('value')
-        .eq('key', 'savron_google_calendar_id')
-        .maybeSingle();
-
-    if (data?.value && typeof data.value === 'string') return data.value;
-    return process.env.SAVRON_GOOGLE_CALENDAR_ID || 'savronmn@gmail.com';
-}
-
 async function deleteTargets(
     accessToken: string,
     targets: Array<{ calendarId: string; eventId: string }>,
+    sendUpdates: 'all' | 'none' = 'none',
 ): Promise<{ deleted: number; failed: number }> {
     const unique = Array.from(
         new Map(targets.map(t => [`${t.calendarId}:${t.eventId}`, t])).values(),
@@ -82,7 +48,7 @@ async function deleteTargets(
 
     const results = await Promise.allSettled(
         unique.map(async target => {
-            await deleteCalendarEvent(accessToken, target.calendarId, target.eventId);
+            await deleteCalendarEvent(accessToken, target.calendarId, target.eventId, sendUpdates);
         }),
     );
 
@@ -178,6 +144,10 @@ async function collectShopTargets(
     const byBookingId = await findEventsByBookingId(accessToken, idsToSearch, booking.id);
     byBookingId.forEach(t => addTarget(t.calendarId, t.eventId));
 
+    if (booking.shop_google_event_id) {
+        addTarget(primaryId, booking.shop_google_event_id);
+    }
+
     const matchBooking = {
         date: fallbackDate ?? booking.date,
         time: fallbackTime ?? booking.time,
@@ -248,7 +218,8 @@ export async function deleteAllBookingCalendarEvents(
 
         if (targets.length > 0) {
             const accessToken = await getValidAccessToken(shopTokens);
-            const result = await deleteTargets(accessToken, targets);
+            // Notify clients that the Google invite was cancelled.
+            const result = await deleteTargets(accessToken, targets, 'all');
             deleted += result.deleted;
             failed += result.failed;
         }

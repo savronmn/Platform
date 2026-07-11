@@ -108,5 +108,6 @@ export interface Booking {
     notes: string | null;
     client_photo_url: string | null;
     google_event_id: string | null;
+    shop_google_event_id?: string | null;
     created_at: string;
 }

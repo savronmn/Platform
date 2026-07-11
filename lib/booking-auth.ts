@@ -33,8 +33,8 @@ export async function resolveBookingActor(
     );
     const ownsBooking = ownsByClientId || ownsByEmail;
 
-    // Host/admin users sign in without a clients row. Membership clients do have one.
-    const isStaff = !!barberRecord || !!adminRole || (!clientRecord && !!userId);
+    // Only explicit barber or admin roles count as staff (never infer from missing clients row).
+    const isStaff = !!barberRecord || !!adminRole;
 
     return { isStaff, ownsBooking };
 }

@@ -27,7 +27,7 @@ export default function TermsOfService() {
                     <section className="space-y-4">
                         <h2 className="text-xl font-heading text-white tracking-widest uppercase">2. Booking and Cancellations</h2>
                         <p>All appointments booked through our platform are subject to our scheduling and cancellation policies. Please ensure you arrive on time for your scheduled appointment. Late arrivals may result in reduced service time or cancellation.</p>
-                        <p>If you need to cancel or reschedule, please do so at least 24 hours in advance. Failure to provide sufficient notice or failure to show up for an appointment may result in a cancellation fee or restriction of future booking privileges.</p>
+                        <p>If you need to cancel or reschedule, please do so at least 24 hours in advance through the booking portal, by email, or by responding to your calendar invite (No / Propose a new time). Declining a calendar invite or proposing a new time cancels the current booking so the slot becomes available again. Failure to provide sufficient notice or failure to show up for an appointment may result in a cancellation fee or restriction of future booking privileges.</p>
                     </section>
 
                     <section className="space-y-4">

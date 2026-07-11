@@ -197,15 +197,12 @@ export function eventHasDeclinedClient(event: CalendarSyncEvent): boolean {
     return eventHasClientCalendarCancellationSignal(event);
 }
 
-/** True when any client RSVP or propose-new-time signal is present on the event. */
+/** True when any client RSVP decline or propose-new-time signal is present on the event. */
 export function eventHasClientCalendarCancellationSignal(event: CalendarSyncEvent): boolean {
     return (event.attendees ?? []).some(
         attendee => !attendee.organizer
             && !isSystemAttendee(attendee.email)
-            && (
-                ['declined', 'tentative'].includes(attendee.responseStatus ?? '')
-                || (attendee.responseStatus === 'accepted' && (event.sequence ?? 0) > 0)
-            ),
+            && ['declined', 'tentative'].includes(attendee.responseStatus ?? ''),
     );
 }
 
@@ -227,11 +224,8 @@ export function shouldCancelBookingFromCalendarEvent(
         return { skipCalendar: false, reason: 'client_proposed_new_time' };
     }
 
-    // After an edit (Google sequence > 0), Yes/Accept on the updated invite cancels per shop policy.
-    if (clientAcceptedInvite(event, booking) && (event.sequence ?? 0) > 0) {
-        return { skipCalendar: false, reason: 'client_declined' };
-    }
-
+    // Accepting an invite (including after an edit) confirms attendance — never auto-cancel.
+    // Time changes on the organizer event still cancel so the app stays the source of truth.
     if (eventTimeDiffersFromBooking(event, booking)) {
         return { skipCalendar: false, reason: 'event_time_changed' };
     }
@@ -241,7 +235,7 @@ export function shouldCancelBookingFromCalendarEvent(
 
 export async function findBookingForCalendarEvent(
     supabase: SupabaseClient,
-    barberId: string,
+    barberId: string | null,
     event: CalendarSyncEvent,
 ): Promise<{
     id: string;
@@ -252,24 +246,36 @@ export async function findBookingForCalendarEvent(
     time: string;
 } | null> {
     if (event.id) {
-        const { data } = await supabase
+        const { data: byBarberEvent } = await supabase
             .from('bookings')
             .select('id, status, client_email, client_name, date, time')
             .eq('google_event_id', event.id)
             .maybeSingle();
-        if (data) return data;
+        if (byBarberEvent) return byBarberEvent;
+
+        const { data: byShopEvent } = await supabase
+            .from('bookings')
+            .select('id, status, client_email, client_name, date, time')
+            .eq('shop_google_event_id', event.id)
+            .maybeSingle();
+        if (byShopEvent) return byShopEvent;
     }
 
     const slot = eventSlot(event);
     if (!slot) return null;
 
-    const { data: slotBookings } = await supabase
+    let query = supabase
         .from('bookings')
         .select('id, status, client_email, client_name, date, time')
-        .eq('barber_id', barberId)
         .eq('date', slot.date)
         .eq('time', slot.time)
         .in('status', ['confirmed']);
+
+    if (barberId) {
+        query = query.eq('barber_id', barberId);
+    }
+
+    const { data: slotBookings } = await query;
 
     if (!slotBookings?.length) return null;
     if (slotBookings.length === 1) return slotBookings[0];
