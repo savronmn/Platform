@@ -9,7 +9,11 @@ import {
     type CalendarToken,
 } from '@/lib/google-calendar';
 import { cancelBooking } from '@/lib/cancel-booking';
-import { shouldCancelBookingFromCalendarEvent } from '@/lib/calendar-event-sync';
+import {
+    eventHasDeclinedClient,
+    findBookingForCalendarEvent,
+    shouldCancelBookingFromCalendarEvent,
+} from '@/lib/calendar-event-sync';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -113,12 +117,7 @@ export async function POST(req: NextRequest) {
         for (const event of events) {
             if (!event.id) continue;
 
-            const { data: booking } = await supabase
-                .from('bookings')
-                .select('id, status, client_email')
-                .eq('google_event_id', event.id)
-                .maybeSingle();
-
+            const booking = await findBookingForCalendarEvent(supabase, barber.id, event);
             if (!booking) continue;
 
             let eventData = event;
@@ -130,7 +129,10 @@ export async function POST(req: NextRequest) {
                 }
             }
 
-            const action = shouldCancelBookingFromCalendarEvent(eventData, booking);
+            let action = shouldCancelBookingFromCalendarEvent(eventData, booking);
+            if (!action && eventHasDeclinedClient(eventData)) {
+                action = { skipCalendar: false, reason: 'client_declined' };
+            }
             if (!action) continue;
 
             const result = await cancelBooking(booking.id, { skipCalendar: action.skipCalendar });

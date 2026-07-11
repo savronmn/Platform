@@ -167,17 +167,28 @@ function HostDashboardInner() {
         } catch { /* silent — platform bookings still show */ }
     }, [rangeStart, rangeEnd]);
 
+    const refreshCalendarData = useCallback(async () => {
+        // Process Google declines first, then reload bookings so declined appointments disappear.
+        await fetchExternalEvents();
+        await fetchBookings();
+    }, [fetchBookings, fetchExternalEvents]);
+
+    const scheduleBookings = useMemo(
+        () => bookings.filter(b => b.status !== 'cancelled'),
+        [bookings],
+    );
+
     useEffect(() => {
         async function init() {
             setLoading(true);
             const { data: barberData } = await supabase
                 .from('barbers').select('*').eq('active', true).order('name');
             setBarbers(barberData ?? []);
-            await Promise.all([fetchBookings(), fetchExternalEvents()]);
+            await refreshCalendarData();
             setLoading(false);
         }
         init();
-    }, [rangeStart, rangeEnd]);
+    }, [rangeStart, rangeEnd, refreshCalendarData]);
 
     useEffect(() => {
         const channel = supabase
@@ -208,7 +219,7 @@ function HostDashboardInner() {
         if (status === 'cancelled') {
             const result = await triggerCancelBooking(booking.id);
             if (result.success) {
-                await fetchBookings();
+                await refreshCalendarData();
                 setBookings(prev => prev.map(b =>
                     b.barber_id === booking.barber_id &&
                     b.date === booking.date &&
@@ -229,7 +240,7 @@ function HostDashboardInner() {
                             ? { ...prev, status: 'cancelled' }
                             : prev
                 );
-                await fetchExternalEvents();
+                await refreshCalendarData();
                 setCancelError(result.warning ?? null);
             } else {
                 setCancelError(result.error ?? 'Could not cancel appointment');
@@ -261,8 +272,7 @@ function HostDashboardInner() {
             return;
         }
         setBookings(prev => prev.filter(b => b.id !== booking.id));
-        await fetchBookings();
-        await fetchExternalEvents();
+        await refreshCalendarData();
         setCancelError(result.warning ?? null);
         setDeletingId(null);
         setConfirmDelete(false);
@@ -285,8 +295,7 @@ function HostDashboardInner() {
             }
             setExternalEvents(prev => prev.filter(item => item.id !== event.id));
             setActiveExternal(null);
-            await fetchBookings();
-            await fetchExternalEvents();
+            await refreshCalendarData();
             setCancelError(data.warning ?? null);
         } catch {
             setCancelError('Could not cancel calendar event');
@@ -371,14 +380,14 @@ function HostDashboardInner() {
     const bookingsForDayHour = (day: Date, hourMins: number) => {
         const d = format(day, 'yyyy-MM-dd');
         return itemsInHour(
-            bookings.filter(b => b.date === d && isBookingVisible(b)),
+            scheduleBookings.filter(b => b.date === d && isBookingVisible(b)),
             hourMins,
             b => timeToMins(b.time),
         );
     };
     const bookingsForDay = (day: Date) => {
         const d = format(day, 'yyyy-MM-dd');
-        return bookings.filter(b => b.date === d && isBookingVisible(b));
+        return scheduleBookings.filter(b => b.date === d && isBookingVisible(b));
     };
 
     const formatTime = formatTimeCompact;
@@ -393,14 +402,14 @@ function HostDashboardInner() {
     const deduplicatedExternal = useMemo(() => {
         return externalEvents.filter(e => {
             const eMins = timeToMins(e.time);
-            return !bookings.some(b =>
+            return !scheduleBookings.some(b =>
                 b.barber_id === e.barberId &&
                 b.date === e.date &&
                 ['confirmed', 'completed', 'no_show'].includes(b.status) &&
                 Math.abs(timeToMins(b.time) - eMins) <= 22
             );
         });
-    }, [externalEvents, bookings]);
+    }, [externalEvents, scheduleBookings]);
 
     const bookingDurationMins = (b: Booking): number => parseDurationMins(b.duration);
 
@@ -411,7 +420,7 @@ function HostDashboardInner() {
 
     // Slot availability — zero buffer between appointments; back-to-back bookings are allowed.
     const slotTakenByBooking = (barberId: string, dateStr: string, slotMins: number, durationMins: number): boolean =>
-        bookings.some(b => {
+        scheduleBookings.some(b => {
             if (b.barber_id !== barberId || b.date !== dateStr) return false;
             if (!['confirmed', 'completed', 'no_show'].includes(b.status)) return false;
             return rangesOverlapMins(slotMins, durationMins, timeToMins(b.time), bookingDurationMins(b));
@@ -442,7 +451,7 @@ function HostDashboardInner() {
             }
             return { slot, status: 'available' as const };
         });
-    }, [quickFormDate, quickForm.barberId, quickForm.service, quickAddDurationMins, bookings, deduplicatedExternal]);
+    }, [quickFormDate, quickForm.barberId, quickForm.service, quickAddDurationMins, scheduleBookings, deduplicatedExternal]);
 
     const availableTimeSlots = allTimeSlotsWithStatus
         .filter(s => s.status === 'available')
@@ -468,14 +477,14 @@ function HostDashboardInner() {
     const dayTimelineMap = useMemo(() => {
         const map = new Map<string, DayTimelineItem>();
         const d = format(selectedDate, 'yyyy-MM-dd');
-        for (const b of bookings.filter(b => b.date === d && isBookingVisible(b))) {
+        for (const b of scheduleBookings.filter(b => b.date === d && isBookingVisible(b))) {
             map.set(`b-${b.id}`, { kind: 'booking', b });
         }
         for (const e of deduplicatedExternal.filter(e => e.date === d && isExternalVisible(e))) {
             map.set(`e-${e.id}`, { kind: 'external', e });
         }
         return map;
-    }, [bookings, deduplicatedExternal, selectedDate, filteredBarberIds]);
+    }, [scheduleBookings, deduplicatedExternal, selectedDate, filteredBarberIds]);
 
     const dayTimelineEventsForBarber = (barberId: string): TimelineEvent[] => {
         const events: TimelineEvent[] = [];
@@ -493,14 +502,14 @@ function HostDashboardInner() {
 
     const timelineItemMap = useMemo(() => {
         const map = new Map<string, DayTimelineItem>();
-        for (const b of bookings.filter(isBookingVisible)) {
+        for (const b of scheduleBookings.filter(isBookingVisible)) {
             map.set(`b-${b.id}`, { kind: 'booking', b });
         }
         for (const e of deduplicatedExternal.filter(isExternalVisible)) {
             map.set(`e-${e.id}`, { kind: 'external', e });
         }
         return map;
-    }, [bookings, deduplicatedExternal, filteredBarberIds]);
+    }, [scheduleBookings, deduplicatedExternal, filteredBarberIds]);
 
     const timelineEventsForDay = (dayKey: string): TimelineEvent[] => {
         const events: TimelineEvent[] = [];

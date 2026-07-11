@@ -5,6 +5,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getValidAccessToken, type CalendarToken } from '@/lib/google-calendar';
+import { processDeclinedCalendarEvents } from '@/lib/process-calendar-declines';
+import {
+    eventHasDeclinedClient,
+    extractClientNameFromEvent,
+    isoDateTimeToTimeSlot,
+} from '@/lib/calendar-event-sync';
 
 const GOOGLE_CALENDAR_BASE = 'https://www.googleapis.com/calendar/v3';
 
@@ -38,68 +44,18 @@ async function listAllCalendarIds(accessToken: string): Promise<string[]> {
 }
 
 function isoToTimeSlot(iso: string): string {
-    // Return the exact event time — no rounding.
-    // Parse h/m from ISO string to avoid server UTC timezone shifts.
-    // e.g. "2026-06-08T10:00:00-05:00" → "10:00 AM"
-    const match = iso.match(/T(\d{2}):(\d{2})/);
-    if (!match) return '9:00 AM';
-    let h = parseInt(match[1], 10);
-    const m = parseInt(match[2], 10);
-    if (iso.endsWith('Z')) h = (h - 5 + 24) % 24; // UTC → CDT
-    const meridiem = h >= 12 ? 'PM' : 'AM';
-    const displayH = h % 12 || 12;
-    return `${displayH}:${String(m).padStart(2, '0')} ${meridiem}`;
+    return isoDateTimeToTimeSlot(iso);
 }
 
 /** Extract a clean client name from GCal event data.
  *  Priority:
  *  1. Non-email displayName from attendees (exclude savronmn & info@savronmn)
  *  2. Name parsed from summary patterns: "✂️ {Name} — {service}", "{service} ({Name})", etc.
- *  3. Raw summary if it looks like a name (no special chars, short enough)
+ *  3. Name parsed from summary if it looks like a name (no special chars, short enough)
  *  4. null
  */
-function extractClientName(e: any): string | null {
-    const SYSTEM_EMAILS = ['info@savronmn.com', 'savronmn@gmail.com', 'aah8903@gmail.com'];
-
-    // 1. Look for a real attendee (non-system, non-email-only)
-    const attendees: any[] = e.attendees ?? [];
-    for (const a of attendees) {
-        const email = (a.email ?? '').toLowerCase();
-        if (SYSTEM_EMAILS.includes(email)) continue;
-        if (a.displayName && !a.displayName.includes('@')) return a.displayName;
-        // Has a non-system email but no display name — skip (we'll parse from summary)
-    }
-
-    // 2. Parse name from known summary patterns
-    const summary: string = (e.summary ?? '').trim();
-
-    // Pattern: "✂️ Name — Service" or "✂️ Name - Service"
-    const scissorsMatch = summary.match(/^✂️?\s*(.+?)\s*[—–-]\s*.+/);
-    if (scissorsMatch) {
-        const name = scissorsMatch[1].trim();
-        if (name && !name.includes('@')) return name;
-    }
-
-    // Pattern: "Service (Name)" or "SERVICE (Name)"
-    const parenMatch = summary.match(/\(([^)]+)\)\s*$/);
-    if (parenMatch) {
-        const name = parenMatch[1].trim();
-        if (name && !name.includes('@')) return name;
-    }
-
-    // Pattern: "Name — Service" (no scissors)
-    const dashMatch = summary.match(/^([A-Z][a-z]+(?: [A-Z][a-z]+)+)\s*[—–-]/);
-    if (dashMatch) {
-        const name = dashMatch[1].trim();
-        if (name && !name.includes('@')) return name;
-    }
-
-    // 3. If summary looks like just a name (1-3 words, titlecase, no special chars)
-    if (/^[A-Z][a-z]+(?: [A-Z][a-z]+){0,2}$/.test(summary)) {
-        return summary;
-    }
-
-    return null;
+function extractClientName(e: { summary?: string; attendees?: Array<{ email?: string; displayName?: string }> }): string | null {
+    return extractClientNameFromEvent(e);
 }
 
 export async function GET(req: NextRequest) {
@@ -115,6 +71,9 @@ export async function GET(req: NextRequest) {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
+
+    // Cancel bookings when clients decline in Google Calendar before building host view data.
+    await processDeclinedCalendarEvents(supabase, dateStart, dateEnd);
 
     const { data: barbers } = await supabase
         .from('barbers')
@@ -165,6 +124,7 @@ export async function GET(req: NextRequest) {
 
             const mapped = events
                 .filter((e) => e.status !== 'cancelled' && e.start?.dateTime)
+                .filter((e) => !eventHasDeclinedClient(e))
                 .filter((e) => !linkedEventIds.has(e.id as string))
                 .map((e) => {
                     const clientName = extractClientName(e);
