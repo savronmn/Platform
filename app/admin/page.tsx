@@ -10,6 +10,7 @@ import type { Booking, Client, Barber, Applicant } from '@/lib/types';
 import { format, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { useBookingsRealtime } from '@/lib/use-bookings-realtime';
 
 const QRScannerModal = dynamic(() => import('@/components/qr/QRScannerModal'), { ssr: false });
 const WalkInModal = dynamic(() => import('@/components/crm/WalkInModal'), { ssr: false });
@@ -171,6 +172,8 @@ export default function AdminDashboard() {
     useEffect(() => {
         fetchData();
     }, []);
+
+    useBookingsRealtime(fetchData, 'admin-dashboard');
 
     const openStat = (key: StatKey) => setActiveStat(key);
 

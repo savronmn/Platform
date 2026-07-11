@@ -80,6 +80,21 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
         setError(null);
         const barber = barbers.find(b => b.id === form.barberId);
         const selectedService = services.find(s => s.name === form.service);
+
+        const { data: conflictCheck } = await supabase
+            .from('bookings')
+            .select('id')
+            .eq('barber_id', form.barberId)
+            .eq('date', form.date)
+            .eq('time', form.time)
+            .in('status', ['confirmed', 'completed', 'no_show'])
+            .limit(1);
+        if (conflictCheck && conflictCheck.length > 0) {
+            setSubmitting(false);
+            setError('That slot is already booked. Please choose a different time.');
+            return;
+        }
+
         const { data: inserted, error: insertError } = await supabase.from('bookings').insert({
             client_name: form.clientName.trim() || 'Walk-in',
             service: form.service,
@@ -92,7 +107,14 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
             status: 'confirmed',
         }).select('id').single();
         setSubmitting(false);
-        if (insertError) { setError(insertError.message); return; }
+        if (insertError) {
+            if (insertError.code === '23505') {
+                setError('That slot is already booked. Please choose a different time.');
+            } else {
+                setError(insertError.message);
+            }
+            return;
+        }
         if (inserted?.id) triggerPostBooking(inserted.id);
         setSuccess(true);
         onBooked?.();

@@ -191,12 +191,31 @@ function HostDashboardInner() {
     }, [rangeStart, rangeEnd, refreshCalendarData]);
 
     useEffect(() => {
+        let debounceTimer: ReturnType<typeof setTimeout> | null = null;
         const channel = supabase
             .channel(`host-${rangeStart}-${rangeEnd}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, fetchBookings)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
+                if (debounceTimer) clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => { void refreshCalendarData(); }, 800);
+            })
             .subscribe(status => setRealtimeConnected(status === 'SUBSCRIBED'));
-        return () => { supabase.removeChannel(channel); };
-    }, [rangeStart, rangeEnd, fetchBookings]);
+        return () => {
+            if (debounceTimer) clearTimeout(debounceTimer);
+            supabase.removeChannel(channel);
+        };
+    }, [rangeStart, rangeEnd, refreshCalendarData]);
+
+    useEffect(() => {
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') void refreshCalendarData();
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        window.addEventListener('focus', onVisible);
+        return () => {
+            document.removeEventListener('visibilitychange', onVisible);
+            window.removeEventListener('focus', onVisible);
+        };
+    }, [refreshCalendarData]);
 
     useEffect(() => {
         fetch('/api/calendar/sync-health')
@@ -240,7 +259,6 @@ function HostDashboardInner() {
                             ? { ...prev, status: 'cancelled' }
                             : prev
                 );
-                await refreshCalendarData();
                 setCancelError(result.warning ?? null);
             } else {
                 setCancelError(result.error ?? 'Could not cancel appointment');
@@ -346,12 +364,20 @@ function HostDashboardInner() {
             price: '',
             status: 'confirmed',
         }).select('id').single();
-        if (error) { setQuickSubmitting(false); setQuickError(error.message); return; }
+        if (error) {
+            setQuickSubmitting(false);
+            if (error.code === '23505') {
+                setQuickError('That slot was just booked. Please choose a different time.');
+            } else {
+                setQuickError(error.message);
+            }
+            return;
+        }
         if (inserted?.id) triggerPostBooking(inserted.id);
         setQuickSubmitting(false);
         setShowQuickAdd(false);
         setQuickForm({ clientName: '', clientPhone: '', clientEmail: '', service: '', barberId: '', time: '' });
-        await fetchBookings();
+        await refreshCalendarData();
     };
 
     const uploadClientPhoto = async (booking: Booking, file: File) => {
@@ -804,7 +830,7 @@ function HostDashboardInner() {
                     <div className="text-center hidden sm:block"><p className="text-white font-mono text-[21px] leading-none">{confirmed}</p><p className="text-savron-silver text-xs uppercase tracking-widest mt-0.5">{t('host.confirmed')}</p></div>
                     <div className="text-center hidden sm:block"><p className="text-blue-400 font-mono text-[21px] leading-none">{completed}</p><p className="text-savron-silver text-xs uppercase tracking-widest mt-0.5">{t('host.done')}</p></div>
                     <div className="text-center hidden sm:block"><p className="text-red-400 font-mono text-[21px] leading-none">{noShow}</p><p className="text-savron-silver text-xs uppercase tracking-widest mt-0.5">{t('host.no_show')}</p></div>
-                    <button onClick={fetchBookings} className="p-1 text-savron-silver hover:text-white transition-colors"><RefreshCw className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => void refreshCalendarData()} className="p-1 text-savron-silver hover:text-white transition-colors"><RefreshCw className="w-3.5 h-3.5" /></button>
                     <button
                         onClick={() => setShowScanner(true)}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 text-savron-silver border border-white/15 text-[13.5px] uppercase tracking-widest rounded-savron hover:text-white hover:border-white/30 transition-all"
@@ -1520,8 +1546,8 @@ function HostDashboardInner() {
                 booking={editingBooking}
                 barbers={barbers}
                 onClose={() => setEditingBooking(null)}
-                onSaved={(updated) => {
-                    setBookings(prev => prev.map(b => b.id === updated.id ? updated : b));
+                onSaved={() => {
+                    void refreshCalendarData();
                     setEditingBooking(null);
                 }}
             />

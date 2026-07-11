@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import type { Booking, Barber } from '@/lib/types';
 import CalendarNavBar from '@/components/calendar/CalendarNavBar';
 import { triggerCancelBooking } from '@/lib/confirm-booking';
+import { useBookingsRealtime } from '@/lib/use-bookings-realtime';
 
 const WalkInModal    = dynamic(() => import('@/components/crm/WalkInModal'),     { ssr: false });
 const EditBookingModal = dynamic(() => import('@/components/crm/EditBookingModal'), { ssr: false });
@@ -99,6 +100,8 @@ export default function BookingsPage() {
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
 
+    useBookingsRealtime(fetchAll, 'admin-bookings');
+
     // ── derived data ─────────────────────────────────────────────────────────
     const visibleBookings = useMemo(() => {
         return bookings.filter(b => {
@@ -128,8 +131,8 @@ export default function BookingsPage() {
     const calendarDays = useMemo(() => buildCalendarDays(currentMonth), [currentMonth]);
 
     // ── handlers ─────────────────────────────────────────────────────────────
-    function handleBookingSaved(updated: Booking) {
-        setBookings(prev => prev.map(b => b.id === updated.id ? updated : b));
+    function handleBookingSaved() {
+        void fetchAll();
     }
 
     async function quickStatus(booking: Booking, status: Booking['status']) {
@@ -138,16 +141,7 @@ export default function BookingsPage() {
             setStatusError(null);
             const result = await triggerCancelBooking(booking.id);
             if (result.success) {
-                setBookings(prev => prev.map(b =>
-                    b.barber_id === booking.barber_id &&
-                    b.date === booking.date &&
-                    b.time === booking.time &&
-                    b.status === 'confirmed'
-                        ? { ...b, status: 'cancelled' as const }
-                        : b.id === booking.id
-                            ? { ...b, status: 'cancelled' as const }
-                            : b
-                ));
+                await fetchAll();
                 setStatusError(result.warning ?? null);
             } else {
                 setStatusError(result.error ?? 'Could not cancel appointment');
@@ -164,7 +158,7 @@ export default function BookingsPage() {
         }
         if (data) {
             setStatusError(null);
-            handleBookingSaved(data as Booking);
+            handleBookingSaved();
         }
     }
 
