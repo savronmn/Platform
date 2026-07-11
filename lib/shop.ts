@@ -24,8 +24,11 @@ export const SHOP_LONGITUDE = -93.27635;
 export const SHOP_MAPS_URL =
     'https://maps.google.com/?q=250+N+Third+Avenue,+Minneapolis,+MN+55401';
 
-export const SHOP_EPASS_URL =
-    (process.env.NEXT_PUBLIC_SITE_URL || 'https://savronmn.com') + '/epass';
+export function getSiteUrl(): string {
+    return process.env.NEXT_PUBLIC_SITE_URL || 'https://savronmn.com';
+}
+
+export const SHOP_EPASS_URL = getSiteUrl() + '/epass';
 
 export function getShopMerchantLocations() {
     return [{ latitude: SHOP_LATITUDE, longitude: SHOP_LONGITUDE }];

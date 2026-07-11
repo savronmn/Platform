@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
 import {
+    bookingCancelEmailBlock,
+    buildBookingCancelUrl,
+    CLIENT_CANCEL_EMAIL_MARKER,
+} from '@/lib/booking-cancel-link';
+import {
     RESEND_BOOKING_FROM,
     RESEND_BOOKING_FROM_NAME,
     SHOP_ADDRESS,
@@ -147,11 +152,13 @@ export async function POST(request: NextRequest) {
     catch { return booking.date; }
   })();
 
+  const cancelUrl = buildBookingCancelUrl(booking);
+  const clientCancelBlock = bookingCancelEmailBlock(cancelUrl);
+
   const calendarNote = `<p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
               Your calendar invite is attached (<strong style="color:#fff;">appointment.ics</strong>) from
               <strong style="color:#fff;">${SHOP_CALENDAR_DISPLAY_NAME}</strong>
               (<strong style="color:#fff;">${SHOP_CALENDAR_EMAIL}</strong>) — open it to add this appointment to your calendar.
-              Need to cancel? Reply to this email and we&rsquo;ll help.
             </p>`;
 
   const htmlBody = `
@@ -229,6 +236,8 @@ export async function POST(request: NextRequest) {
               </tr>
             </table>
 
+            ${clientCancelBlock}
+
             ${calendarNote}
             <p style="margin:0;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
               We&rsquo;ll see you soon.
@@ -281,6 +290,7 @@ export async function POST(request: NextRequest) {
   // Barber notification
   if (barberEmail) {
     const barberHtml = htmlBody
+      .replace(CLIENT_CANCEL_EMAIL_MARKER, '')
       .replace("You're all set,", `New booking — `)
       .replace(booking.client_name?.split(' ')[0] ?? 'friend', booking.client_name || 'Walk-in');
 

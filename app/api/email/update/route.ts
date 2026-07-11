@@ -6,6 +6,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
 import {
+    bookingCancelEmailBlock,
+    buildBookingCancelUrl,
+    CLIENT_CANCEL_EMAIL_MARKER,
+} from '@/lib/booking-cancel-link';
+import {
     RESEND_BOOKING_FROM,
     RESEND_BOOKING_FROM_NAME,
     SHOP_ADDRESS,
@@ -149,6 +154,9 @@ export async function POST(request: NextRequest) {
         catch { return booking.date; }
     })();
 
+    const cancelUrl = buildBookingCancelUrl(booking);
+    const clientCancelBlock = bookingCancelEmailBlock(cancelUrl);
+
     const htmlBody = `
 <!DOCTYPE html>
 <html>
@@ -231,11 +239,13 @@ export async function POST(request: NextRequest) {
                     (<strong style="color:#fff;">${SHOP_CALENDAR_EMAIL}</strong>) — open it to refresh the appointment in your calendar.
                   </p>
                   <p style="margin:10px 0 0;color:rgba(255,255,255,0.55);font-size:12px;line-height:1.7;">
-                    Need to cancel? Reply to this email and we&rsquo;ll help.
+                    Need to cancel? Use the button below.
                   </p>
                 </td>
               </tr>
             </table>
+
+            ${clientCancelBlock}
 
             <p style="margin:0;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
               We&rsquo;ll see you soon.
@@ -285,6 +295,7 @@ export async function POST(request: NextRequest) {
 
     if (barberEmail) {
         const barberHtml = htmlBody
+            .replace(CLIENT_CANCEL_EMAIL_MARKER, '')
             .replace('Your appointment has been updated,', 'Appointment updated —')
             .replace(booking.client_name?.split(' ')[0] ?? 'friend', booking.client_name || 'Walk-in');
 
