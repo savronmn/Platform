@@ -7,6 +7,8 @@ export interface EmailSubscriber {
     phone: string | null;
     pass_serial_number: string;
     google_pass_object_id: string | null;
+    wallet_auth_token: string | null;
+    pass_updated_at: string | null;
     visit_count: number;
     issued_at: string;
     last_visit_at: string | null;
