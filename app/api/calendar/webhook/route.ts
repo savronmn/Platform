@@ -10,7 +10,6 @@ import {
 } from '@/lib/google-calendar';
 import { cancelBooking } from '@/lib/cancel-booking';
 import {
-    eventHasDeclinedClient,
     findBookingForCalendarEvent,
     shouldCancelBookingFromCalendarEvent,
 } from '@/lib/calendar-event-sync';
@@ -129,10 +128,7 @@ export async function POST(req: NextRequest) {
                 }
             }
 
-            let action = shouldCancelBookingFromCalendarEvent(eventData, booking);
-            if (!action && eventHasDeclinedClient(eventData)) {
-                action = { skipCalendar: false, reason: 'client_declined' };
-            }
+            const action = shouldCancelBookingFromCalendarEvent(eventData, booking);
             if (!action) continue;
 
             const result = await cancelBooking(booking.id, { skipCalendar: action.skipCalendar });

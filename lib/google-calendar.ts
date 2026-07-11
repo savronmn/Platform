@@ -94,6 +94,8 @@ export async function createCalendarEvent(
     if (event.attendeeEmails && event.attendeeEmails.length > 0) {
         body.attendees = event.attendeeEmails.map(email => ({ email }));
     }
+    body.guestsCanModify = false;
+    body.guestsCanInviteOthers = false;
 
     const res = await fetch(
         `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=all`,
@@ -133,6 +135,8 @@ export async function updateCalendarEvent(
     if (event.attendeeEmails && event.attendeeEmails.length > 0) {
         body.attendees = event.attendeeEmails.map(email => ({ email }));
     }
+    body.guestsCanModify = false;
+    body.guestsCanInviteOthers = false;
 
     const res = await fetch(
         `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=all`,
@@ -430,7 +434,7 @@ export async function getCalendarEvent(
     accessToken: string,
     calendarId: string,
     eventId: string,
-): Promise<{ id?: string; status?: string; attendees?: Array<{ email?: string; responseStatus?: string; organizer?: boolean }> }> {
+): Promise<{ id?: string; status?: string; sequence?: number; attendees?: Array<{ email?: string; responseStatus?: string; organizer?: boolean }> }> {
     const res = await fetch(
         `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
         { headers: { Authorization: `Bearer ${accessToken}` } },

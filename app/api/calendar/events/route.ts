@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getValidAccessToken, type CalendarToken } from '@/lib/google-calendar';
 import { processDeclinedCalendarEvents } from '@/lib/process-calendar-declines';
 import {
-    eventHasDeclinedClient,
+    eventHasClientCalendarCancellationSignal,
     extractClientNameFromEvent,
     isoDateTimeToTimeSlot,
 } from '@/lib/calendar-event-sync';
@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
 
             const mapped = events
                 .filter((e) => e.status !== 'cancelled' && e.start?.dateTime)
-                .filter((e) => !eventHasDeclinedClient(e))
+                .filter((e) => !eventHasClientCalendarCancellationSignal(e))
                 .filter((e) => !linkedEventIds.has(e.id as string))
                 .map((e) => {
                     const clientName = extractClientName(e);

@@ -218,8 +218,22 @@ export async function POST(request: NextRequest) {
               </tr>
             </table>
 
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border:1px solid rgba(255,180,80,0.25);margin-bottom:20px;">
+              <tr>
+                <td style="padding:16px 20px;">
+                  <p style="margin:0 0 8px;color:rgba(255,180,80,0.9);font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:700;">Important</p>
+                  <p style="margin:0;color:rgba(255,255,255,0.75);font-size:12px;line-height:1.7;">
+                    Do <strong style="color:#fff;">not</strong> use <em>Propose a new time</em> on the calendar invite, and do <strong style="color:#fff;">not</strong> tap <em>Yes</em> or <em>No</em> on the invite to change your appointment &mdash; any of these actions will <strong style="color:#fff;">cancel</strong> your booking automatically.
+                  </p>
+                  <p style="margin:10px 0 0;color:rgba(255,255,255,0.55);font-size:12px;line-height:1.7;">
+                    To request a different time, reply to this email instead of using the calendar buttons.
+                  </p>
+                </td>
+              </tr>
+            </table>
+
             <p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
-              Your calendar invite has been updated with the new details. Need to make another change? Reply to this email.
+              Your calendar invite has been updated with the new details above.
             </p>
             <p style="margin:0;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
               We&rsquo;ll see you soon.
