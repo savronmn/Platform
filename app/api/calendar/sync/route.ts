@@ -9,6 +9,8 @@ import {
     getValidAccessToken,
     createCalendarEvent,
     deleteCalendarEvent,
+    listAccountCalendarIds,
+    findMatchingCalendarEvents,
     toIsoString,
     type CalendarToken,
 } from '@/lib/google-calendar';
@@ -57,12 +59,47 @@ export async function POST(request: NextRequest) {
     const accessToken = await getValidAccessToken(barber.google_calendar_tokens);
 
     if (action === 'delete') {
-        if (!booking.google_event_id) {
-            return NextResponse.json({ skipped: true, reason: 'no_event_id' });
+        const calendarIds = await listAccountCalendarIds(accessToken);
+        const idsToSearch = calendarIds.length > 0
+            ? calendarIds
+            : [barber.google_calendar_id];
+
+        const targets: Array<{ calendarId: string; eventId: string }> = [];
+        const knownEventIds = new Set<string>();
+        if (booking.google_event_id) {
+            knownEventIds.add(booking.google_event_id);
+            for (const calendarId of idsToSearch) {
+                targets.push({ calendarId, eventId: booking.google_event_id });
+            }
         }
-        await deleteCalendarEvent(accessToken, barber.google_calendar_id, booking.google_event_id);
+
+        const fallbackMatches = await findMatchingCalendarEvents(
+            accessToken,
+            idsToSearch,
+            {
+                date: booking.date,
+                time: booking.time,
+                client_name: booking.client_name,
+                client_email: booking.client_email,
+                service: booking.service,
+            },
+            knownEventIds,
+        );
+        targets.push(...fallbackMatches);
+
+        const uniqueTargets = Array.from(
+            new Map(targets.map(target => [`${target.calendarId}:${target.eventId}`, target])).values(),
+        );
+
+        if (uniqueTargets.length === 0) {
+            return NextResponse.json({ skipped: true, reason: 'no_matching_events' });
+        }
+
+        await Promise.all(uniqueTargets.map(target =>
+            deleteCalendarEvent(accessToken, target.calendarId, target.eventId),
+        ));
         await getAdmin().from('bookings').update({ google_event_id: null }).eq('id', bookingId);
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, deleted: uniqueTargets.length });
     }
 
     // Build event times from booking.date + booking.time + duration

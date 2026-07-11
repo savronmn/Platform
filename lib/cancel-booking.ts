@@ -4,6 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 import {
     getValidAccessToken,
     deleteCalendarEvent,
+    listAccountCalendarIds,
+    findMatchingCalendarEvents,
     type CalendarToken,
 } from '@/lib/google-calendar';
 import { sendCancellationEmails } from '@/lib/cancellation-email';
@@ -122,35 +124,81 @@ export async function cancelBooking(
             google_calendar_tokens: CalendarToken | null;
         } | null;
 
-        const eventRows = calendarRows
-            .filter((row): row is { id: string; google_event_id: string } => Boolean(row.google_event_id));
+        const knownEventIds = new Set(
+            calendarRows
+                .map(row => row.google_event_id)
+                .filter((id): id is string => Boolean(id)),
+        );
 
-        if (barber?.google_calendar_tokens && barber.google_calendar_id && eventRows.length > 0) {
+        if (barber?.google_calendar_tokens && barber.google_calendar_id) {
             try {
                 const accessToken = await getValidAccessToken(barber.google_calendar_tokens);
-                const results = await Promise.allSettled(eventRows.map(async row => {
-                    await deleteCalendarEvent(accessToken, barber.google_calendar_id!, row.google_event_id);
-                    await supabase.from('bookings').update({ google_event_id: null }).eq('id', row.id);
-                }));
-                const failed = results.filter(result => result.status === 'rejected');
-                calendarDeleted = failed.length === 0;
-                if (failed.length > 0) {
-                    failed.forEach(result => {
-                        if (result.status === 'rejected') {
-                            console.error('Failed to delete cancelled calendar event:', result.reason);
-                        }
-                    });
-                    warnings.push('Google Calendar cleanup is incomplete; the database slot is available');
+                const calendarIds = await listAccountCalendarIds(accessToken);
+                const idsToSearch = calendarIds.length > 0
+                    ? calendarIds
+                    : [barber.google_calendar_id];
+
+                const targets: Array<{ calendarId: string; eventId: string }> = [];
+
+                for (const eventId of Array.from(knownEventIds)) {
+                    for (const calendarId of idsToSearch) {
+                        targets.push({ calendarId, eventId });
+                    }
+                }
+
+                const fallbackMatches = await findMatchingCalendarEvents(
+                    accessToken,
+                    idsToSearch,
+                    {
+                        date: booking.date,
+                        time: booking.time,
+                        client_name: booking.client_name,
+                        client_email: booking.client_email,
+                        service: booking.service,
+                    },
+                    knownEventIds,
+                );
+                targets.push(...fallbackMatches);
+
+                const uniqueTargets = Array.from(
+                    new Map(targets.map(target => [`${target.calendarId}:${target.eventId}`, target])).values(),
+                );
+
+                if (uniqueTargets.length === 0) {
+                    calendarDeleted = true;
+                } else {
+                    const results = await Promise.allSettled(uniqueTargets.map(async target => {
+                        await deleteCalendarEvent(accessToken, target.calendarId, target.eventId);
+                    }));
+                    const failed = results.filter(result => result.status === 'rejected');
+                    calendarDeleted = failed.length === 0;
+                    if (failed.length > 0) {
+                        failed.forEach(result => {
+                            if (result.status === 'rejected') {
+                                console.error('Failed to delete cancelled calendar event:', result.reason);
+                            }
+                        });
+                        warnings.push('Google Calendar cleanup is incomplete; the database slot is available');
+                    }
+                }
+
+                if (knownEventIds.size > 0) {
+                    await supabase
+                        .from('bookings')
+                        .update({ google_event_id: null })
+                        .in('id', calendarRows.map(row => row.id));
                 }
             } catch (error) {
                 console.error('Failed to delete cancelled calendar events:', error);
+                calendarDeleted = false;
                 warnings.push('Google Calendar cleanup failed; the database slot is available');
             }
+        } else if (knownEventIds.size > 0) {
+            calendarDeleted = false;
+            warnings.push('Google Calendar is not connected; the database slot is available');
         } else {
-            calendarDeleted = eventRows.length === 0;
-            if (eventRows.length > 0) {
-                warnings.push('Google Calendar is not connected; the database slot is available');
-            }
+            // No stored event ID and no calendar connection — nothing to clean up remotely.
+            calendarDeleted = true;
         }
     }
 

@@ -131,6 +131,131 @@ export async function deleteCalendarEvent(
     }
 }
 
+export interface CalendarListEvent {
+    id?: string;
+    status?: string;
+    summary?: string;
+    start?: { dateTime?: string };
+    attendees?: Array<{ email?: string }>;
+}
+
+/** All calendar IDs the connected account can read/write. */
+export async function listAccountCalendarIds(accessToken: string): Promise<string[]> {
+    const url = new URL(`${GOOGLE_CALENDAR_BASE}/users/me/calendarList`);
+    url.searchParams.set('minAccessRole', 'reader');
+    const res = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        next: { revalidate: 0 },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return ((data.items ?? []) as Array<{ id?: string }>)
+        .map(calendar => calendar.id)
+        .filter((id): id is string => Boolean(id));
+}
+
+async function listCalendarEventsForDay(
+    accessToken: string,
+    calendarId: string,
+    date: string,
+): Promise<CalendarListEvent[]> {
+    const timeMin = `${date}T00:00:00-05:00`;
+    const timeMax = `${date}T23:59:59-05:00`;
+    const url = new URL(`${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events`);
+    url.searchParams.set('timeMin', timeMin);
+    url.searchParams.set('timeMax', timeMax);
+    url.searchParams.set('singleEvents', 'true');
+    url.searchParams.set('orderBy', 'startTime');
+    url.searchParams.set('maxResults', '250');
+
+    const res = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        next: { revalidate: 0 },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.items ?? []) as CalendarListEvent[];
+}
+
+function isoDateTimeToMins(iso: string): number | null {
+    const match = iso.match(/T(\d{2}):(\d{2})/);
+    if (!match) return null;
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    if (iso.endsWith('Z')) hours = (hours - 5 + 24) % 24;
+    return hours * 60 + minutes;
+}
+
+function bookingTimeToMins(time: string): number {
+    const [timePart, meridiem] = time.trim().split(' ');
+    let [hours, minutes] = timePart.split(':').map(Number);
+    if (meridiem === 'PM' && hours !== 12) hours += 12;
+    if (meridiem === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+}
+
+/** Match a Google event to a booking when google_event_id was never stored. */
+export function eventMatchesBooking(
+    event: CalendarListEvent,
+    booking: {
+        date: string;
+        time: string;
+        client_name: string | null;
+        client_email: string | null;
+        service: string;
+    },
+): boolean {
+    if (!event.id || event.status === 'cancelled' || !event.start?.dateTime) return false;
+    if (!event.start.dateTime.startsWith(booking.date)) return false;
+
+    const eventMins = isoDateTimeToMins(event.start.dateTime);
+    const bookingMins = bookingTimeToMins(booking.time);
+    if (eventMins === null || eventMins !== bookingMins) return false;
+
+    const summary = (event.summary ?? '').toLowerCase();
+    const clientName = booking.client_name?.toLowerCase().trim();
+    const clientEmail = booking.client_email?.toLowerCase().trim();
+    const service = booking.service.toLowerCase();
+
+    if (clientName && summary.includes(clientName)) return true;
+    if (clientEmail && event.attendees?.some(attendee => attendee.email?.toLowerCase() === clientEmail)) {
+        return true;
+    }
+    if (service && summary.includes(service)) return true;
+    if (summary.includes('✂️') || summary.includes('savron')) return true;
+
+    return false;
+}
+
+/** Find calendar events that correspond to a booking (fallback when google_event_id is missing). */
+export async function findMatchingCalendarEvents(
+    accessToken: string,
+    calendarIds: string[],
+    booking: {
+        date: string;
+        time: string;
+        client_name: string | null;
+        client_email: string | null;
+        service: string;
+    },
+    excludeEventIds: Set<string> = new Set(),
+): Promise<Array<{ calendarId: string; eventId: string }>> {
+    const matches: Array<{ calendarId: string; eventId: string }> = [];
+    const seen = new Set<string>();
+
+    for (const calendarId of calendarIds) {
+        const events = await listCalendarEventsForDay(accessToken, calendarId, booking.date);
+        for (const event of events) {
+            if (!event.id || excludeEventIds.has(event.id) || seen.has(event.id)) continue;
+            if (!eventMatchesBooking(event, booking)) continue;
+            seen.add(event.id);
+            matches.push({ calendarId, eventId: event.id });
+        }
+    }
+
+    return matches;
+}
+
 // Parse a time string like "10:00 AM" + date "2026-04-01" into an ISO string (CT)
 export function toIsoString(date: string, time: string): string {
     const [timePart, meridiem] = time.split(' ');
