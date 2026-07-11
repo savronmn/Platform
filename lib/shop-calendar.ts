@@ -120,7 +120,9 @@ export async function upsertShopInviteEvent(params: {
 
     const accessToken = await getValidAccessToken(tokens);
     const calendarId = await getShopCalendarId();
-    const attendeeEmails = params.clientEmail ? [params.clientEmail] : [];
+
+    // Internal shop mirror only — no client attendee (prevents any Google invite email).
+    const attendeeEmails: string[] = [];
 
     // Silent shop calendar mirror — client gets one Resend email with .ics (no Google mail).
     const sendUpdates = 'none' as const;

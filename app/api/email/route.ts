@@ -40,8 +40,8 @@ function icsFold(line: string): string {
 function getIcsString(
     booking: any,
     barberName: string,
-    barberEmail: string | null,
-    method: 'REQUEST' | 'CANCEL' = 'REQUEST'
+    _barberEmail: string | null,
+    method: 'PUBLISH' | 'CANCEL' = 'PUBLISH'
 ): string {
     const [timePart, meridiem] = (booking.time || '12:00 PM').split(' ');
     let [hours, minutes] = timePart.split(':').map(Number);
@@ -65,19 +65,6 @@ function getIcsString(
     const sequence = method === 'CANCEL' ? 1 : 0;
     const status = method === 'CANCEL' ? 'CANCELLED' : 'CONFIRMED';
 
-    // Attendees — proper PARTSTAT so calendar clients render RSVP/Cancel buttons
-    const attendees: string[] = [];
-    if (booking.client_email) {
-        attendees.push(
-            `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE;CN=${icsEscape(booking.client_name || 'Guest')}:mailto:${booking.client_email}`
-        );
-    }
-    if (barberEmail) {
-        attendees.push(
-            `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE;CN=${icsEscape(barberName)}:mailto:${barberEmail}`
-        );
-    }
-
     const notes = booking.notes ? `\\n\\nNote from guest: ${icsEscape(booking.notes)}` : '';
     const description = `Your appointment for ${icsEscape(booking.service)} with ${icsEscape(barberName)} at ${icsEscape(SHOP_NAME)}.\\n${icsEscape(SHOP_ADDRESS)}${notes}`;
 
@@ -97,7 +84,6 @@ function getIcsString(
         `LOCATION:${icsEscape(`${SHOP_NAME}, ${SHOP_ADDRESS}`)}`,
         `DESCRIPTION:${description}`,
         `ORGANIZER;CN=${icsEscape(SHOP_CALENDAR_DISPLAY_NAME)}:mailto:${SHOP_CALENDAR_EMAIL}`,
-        ...attendees,
         `STATUS:${status}`,
         'TRANSP:OPAQUE',
         'CLASS:PUBLIC',
@@ -258,11 +244,11 @@ export async function POST(request: NextRequest) {
 </body>
 </html>`;
 
-  const icsString = getIcsString(booking, barberName, barberEmail, 'REQUEST');
+  const icsString = getIcsString(booking, barberName, barberEmail, 'PUBLISH');
   const icsAttachment = {
     filename: 'appointment.ics',
     content: Buffer.from(icsString).toString('base64'),
-    contentType: 'text/calendar; charset=utf-8; method=REQUEST',
+    contentType: 'text/calendar; charset=utf-8; method=PUBLISH',
   };
 
   const emailPromises: Promise<Response>[] = [];

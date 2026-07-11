@@ -4,8 +4,9 @@
 // Body: { bookingId: string, action: "create" | "delete" | "update", previousBarberId?: string, previousDate?: string, previousTime?: string }
 //
 // Invite model:
-// - Savron shop calendar = Google invite with client attendee (RSVP / decline)
+// - Savron shop calendar = silent internal mirror (no client attendee, no Google email)
 // - Barber calendar = silent busy block (no attendees, no Google invite email)
+// - Client gets one Resend email with PUBLISH .ics (organizer savronmn@gmail.com / SAVRON)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -68,8 +69,8 @@ function buildEventPayload(booking: {
         booking.client_email ? `Email: ${booking.client_email}` : '',
         `Price: ${booking.price ?? ''}`,
         '',
-        'Reply Yes or No on this invite.',
-        'Declining cancels the booking in SAVRON so the slot frees up.',
+        'Client confirmation is sent by email with a calendar attachment.',
+        'Use the Cancel Appointment link in that email to free the slot.',
     ].filter(Boolean).join('\n');
 
     return { summary, description, startIso, endIso, durationMin };

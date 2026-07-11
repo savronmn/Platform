@@ -51,7 +51,7 @@ function getUpdateIcsString(
         notes: string | null;
     },
     barberName: string,
-    barberEmail: string | null,
+    _barberEmail: string | null,
 ): string {
     const [timePart, meridiem] = (booking.time || '12:00 PM').split(' ');
     let [hours, minutes] = timePart.split(':').map(Number);
@@ -68,18 +68,6 @@ function getUpdateIcsString(
     const fmt = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
     const uid = `booking-${booking.id}@savronmn.com`;
 
-    const attendees: string[] = [];
-    if (booking.client_email) {
-        attendees.push(
-            `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE;CN=${icsEscape(booking.client_name || 'Guest')}:mailto:${booking.client_email}`
-        );
-    }
-    if (barberEmail) {
-        attendees.push(
-            `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE;CN=${icsEscape(barberName)}:mailto:${barberEmail}`
-        );
-    }
-
     const notes = booking.notes ? `\\n\\nNote from guest: ${icsEscape(booking.notes)}` : '';
     const description = `Your updated appointment for ${icsEscape(booking.service)} with ${icsEscape(barberName)} at ${icsEscape(SHOP_NAME)}.\\n${icsEscape(SHOP_ADDRESS)}${notes}`;
 
@@ -88,7 +76,7 @@ function getUpdateIcsString(
         'VERSION:2.0',
         'PRODID:-//SAVRON Barbershop & Lounge//Booking System//EN',
         'CALSCALE:GREGORIAN',
-        'METHOD:REQUEST',
+        'METHOD:PUBLISH',
         'BEGIN:VEVENT',
         `UID:${uid}`,
         'SEQUENCE:2',
@@ -99,7 +87,6 @@ function getUpdateIcsString(
         `LOCATION:${icsEscape(`${SHOP_NAME}, ${SHOP_ADDRESS}`)}`,
         `DESCRIPTION:${description}`,
         `ORGANIZER;CN=${icsEscape(SHOP_CALENDAR_DISPLAY_NAME)}:mailto:${SHOP_CALENDAR_EMAIL}`,
-        ...attendees,
         'STATUS:CONFIRMED',
         'TRANSP:OPAQUE',
         'CLASS:PUBLIC',
@@ -269,7 +256,7 @@ export async function POST(request: NextRequest) {
     const icsAttachment = {
         filename: 'appointment.ics',
         content: Buffer.from(icsString).toString('base64'),
-        contentType: 'text/calendar; charset=utf-8; method=REQUEST',
+        contentType: 'text/calendar; charset=utf-8; method=PUBLISH',
     };
 
     const headers = {
