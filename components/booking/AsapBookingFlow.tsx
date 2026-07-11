@@ -14,8 +14,16 @@ import { useServices } from '@/lib/use-services';
 import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 import { isSlotInPast, nextBookableDate, slotConflictsWithBusy } from '@/lib/time-helpers';
+import { SelectedServiceBanner } from './SelectedServiceBanner';
+import { barberOffersService, resolveServiceFromParam } from '@/lib/booking-utils';
 
-export default function AsapBookingFlow() {
+const STEP_TRANSITION = { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as const };
+
+type AsapBookingFlowProps = {
+    preselectedServiceName?: string | null;
+};
+
+export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingFlowProps) {
     const supabase = createClient();
     const services = useServices();
     const [step, setStep] = useState(1);
@@ -31,6 +39,21 @@ export default function AsapBookingFlow() {
     const [busySlots, setBusySlots] = useState<{ start: string; end: string }[]>([]);
     const [loadingBusy, setLoadingBusy] = useState(false);
     const [allBarbers, setAllBarbers] = useState<Barber[]>([]);
+    const [serviceLocked, setServiceLocked] = useState(false);
+    const [preselectionApplied, setPreselectionApplied] = useState(false);
+
+    const hasPreselectedService = selectedService !== null && serviceLocked;
+    const totalSteps = hasPreselectedService ? 2 : 3;
+
+    useEffect(() => {
+        if (preselectionApplied || !preselectedServiceName) return;
+        const match = resolveServiceFromParam(preselectedServiceName, services);
+        if (match) {
+            setSelectedService(match.id);
+            setServiceLocked(true);
+        }
+        setPreselectionApplied(true);
+    }, [preselectedServiceName, services, preselectionApplied]);
 
     useEffect(() => {
         supabase.from('barbers').select('id, active, working_hours').eq('active', true).then(({ data }) => {
@@ -93,13 +116,17 @@ export default function AsapBookingFlow() {
             .eq('status', 'confirmed');
 
         const takenIds = new Set((taken ?? []).map((b) => b.barber_id));
-        const dbAvailable = allBarbers.filter((b) => !takenIds.has(b.id));
+        const selectedSvc = services.find(s => s.id === selectedService);
+        const dbAvailable = allBarbers.filter((b) => {
+            if (takenIds.has(b.id)) return false;
+            if (selectedSvc?.name) return barberOffersService(b, selectedSvc.name);
+            return true;
+        });
 
         if (dbAvailable.length === 0) return null;
 
         // 2. Also filter out barbers with Google Calendar conflicts
-        const service = services.find(s => s.id === selectedService);
-        const durationMin = service?.durationMin ?? 45;
+        const durationMin = selectedSvc?.durationMin ?? 45;
 
         const calAvailable: Barber[] = [];
         await Promise.all(dbAvailable.map(async (barber) => {
@@ -174,8 +201,8 @@ export default function AsapBookingFlow() {
             {/* Progress */}
             {step < 4 && (
                 <div className="flex gap-2 mb-12">
-                    {[1, 2, 3].map((s) => (
-                        <div key={s} className={cn("h-1 flex-1 rounded-full transition-colors duration-500", s <= step ? "bg-savron-green" : "bg-white/10")} />
+                    {Array.from({ length: totalSteps }, (_, i) => i + 1).map((s) => (
+                        <div key={s} className={cn("h-1 flex-1 rounded-full transition-colors duration-500", s <= (hasPreselectedService ? Math.min(step, totalSteps) : step) ? "bg-savron-green" : "bg-white/10")} />
                     ))}
                 </div>
             )}
@@ -221,14 +248,18 @@ export default function AsapBookingFlow() {
                     };
 
                     return (
-                        <motion.div key="datetime" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                        <motion.div key="datetime" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION} className="space-y-6">
+                            {hasPreselectedService && (() => {
+                                const svc = services.find(s => s.id === selectedService);
+                                return svc ? <SelectedServiceBanner service={svc} onChange={() => { setServiceLocked(false); setSelectedService(null); }} /> : null;
+                            })()}
                             <div className="flex items-center gap-3 mb-2">
-                                <div className="w-8 h-8 bg-savron-green/20 border border-savron-green/30 rounded-savron flex items-center justify-center">
+                                <div className="w-9 h-9 bg-savron-green/20 border border-savron-green/30 rounded-savron flex items-center justify-center">
                                     <Zap className="w-4 h-4 text-savron-green" />
                                 </div>
-                                <h2 className="text-2xl font-heading text-white uppercase tracking-wider">When do you need in?</h2>
+                                <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-wider">When do you need in?</h2>
                             </div>
-                            <p className="text-savron-silver text-xs uppercase tracking-widest">We&apos;ll find the first available barber for you</p>
+                            <p className="text-savron-silver text-sm">We&apos;ll find the first available barber for you.</p>
 
                             <div>
                                 <p className="text-[9px] uppercase tracking-[0.18em] text-savron-silver/35 mb-3">Date</p>
@@ -258,29 +289,33 @@ export default function AsapBookingFlow() {
                 })()}
 
                 {/* Step 2: Service */}
-                {step === 2 && (
-                    <motion.div key="service" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
-                        <h2 className="text-2xl font-heading text-white uppercase tracking-wider mb-6">What do you need?</h2>
+                {step === 2 && !hasPreselectedService && (
+                    <motion.div key="service" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION} className="space-y-4">
+                        <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-wider mb-2">What do you need?</h2>
+                        <p className="text-savron-silver text-sm mb-4">Tap a service to continue.</p>
                         <div className="grid grid-cols-1 gap-3">
                             {services.map((service) => (
                                 <div
                                     key={service.id}
+                                    role="button"
+                                    tabIndex={0}
                                     onClick={() => setSelectedService(service.id)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedService(service.id); } }}
                                     className={cn(
-                                        "p-4 border rounded-savron cursor-pointer transition-all flex justify-between items-center",
+                                        "p-4 border rounded-savron cursor-pointer transition-all duration-300 flex justify-between items-center min-h-[72px] touch-manipulation",
                                         selectedService === service.id
                                             ? "border-savron-green bg-savron-green/10"
                                             : "border-white/10 hover:border-white/30 bg-savron-black"
                                     )}
                                 >
                                     <div>
-                                        <h3 className="text-white font-medium uppercase tracking-wide">{service.name}</h3>
-                                        <p className="text-savron-silver text-xs mt-1 flex items-center gap-1">
-                                            <Clock className="w-3 h-3" /> {service.duration}
+                                        <h3 className="text-white font-medium uppercase tracking-wide text-sm">{service.name}</h3>
+                                        <p className="text-savron-silver text-sm mt-1 flex items-center gap-1.5">
+                                            <Clock className="w-3.5 h-3.5" /> {service.duration}
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-4">
-                                        <span className="text-white font-mono">{service.price}</span>
+                                        <span className="text-white font-mono text-sm">{service.price}</span>
                                         {selectedService === service.id && <Check className="w-4 h-4 text-emerald-400" />}
                                     </div>
                                 </div>
@@ -289,10 +324,10 @@ export default function AsapBookingFlow() {
                     </motion.div>
                 )}
 
-                {/* Step 3: Details */}
-                {step === 3 && (
-                    <motion.div key="details" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-                        <h2 className="text-2xl font-heading text-white uppercase tracking-wider">Your Details</h2>
+                {/* Step 3 (or 2 when service preselected): Details */}
+                {((hasPreselectedService && step === 2) || (!hasPreselectedService && step === 3)) && (
+                    <motion.div key="details" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION} className="space-y-6">
+                        <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-wider">Your Details</h2>
                         <div className="bg-savron-black border border-white/10 rounded-savron p-5 space-y-3 text-base">
                             <p className="text-savron-silver text-sm uppercase tracking-widest mb-3">Booking Summary</p>
                             <div className="flex justify-between">
@@ -355,6 +390,7 @@ export default function AsapBookingFlow() {
                         <p className="text-xs text-savron-silver/50 uppercase tracking-widest">Check your email for details</p>
                         <Button variant="outline" onClick={() => {
                             setStep(1); setSelectedTime(null); setSelectedService(null);
+                            setServiceLocked(false); setPreselectionApplied(true);
                             setSelectedDate(nextBookableDate()); setClientName(''); setClientEmail(''); setClientPhone(''); setClientMessage('');
                             setAssignedBarber(null);
                         }}>
@@ -368,22 +404,28 @@ export default function AsapBookingFlow() {
             {step < 4 && (
                 <div className="flex justify-between mt-8 md:mt-12 pt-6 md:pt-8 border-t border-white/5">
                     {step > 1 ? (
-                        <Button variant="ghost" onClick={() => setStep(step - 1)} className="flex gap-2">
+                        <Button variant="ghost" onClick={() => {
+                            if (hasPreselectedService && step === 2) {
+                                setStep(1);
+                                return;
+                            }
+                            setStep(step - 1);
+                        }} className="flex gap-2">
                             <ChevronLeft className="w-4 h-4" /> Back
                         </Button>
                     ) : <div />}
                     <div>
                         {step === 1 && (
-                            <Button onClick={() => setStep(2)} disabled={!selectedTime}>
+                            <Button onClick={() => setStep(2)} disabled={!selectedTime || (hasPreselectedService && !selectedService)}>
                                 Next <ChevronRight className="w-4 h-4 ml-2" />
                             </Button>
                         )}
-                        {step === 2 && (
+                        {step === 2 && !hasPreselectedService && (
                             <Button onClick={() => setStep(3)} disabled={!selectedService}>
                                 Next <ChevronRight className="w-4 h-4 ml-2" />
                             </Button>
                         )}
-                        {step === 3 && (
+                        {((hasPreselectedService && step === 2) || (!hasPreselectedService && step === 3)) && (
                             <Button onClick={handleConfirm} isLoading={submitting} disabled={!clientName || !clientEmail}>
                                 Find Me a Barber
                             </Button>

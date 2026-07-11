@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, ChevronRight, ChevronLeft, Clock } from 'lucide-react';
@@ -16,10 +16,16 @@ import { DatePicker } from '@/components/booking/DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 import { isSlotInPast, nextBookableDate, slotConflictsWithBusy } from '@/lib/time-helpers';
 import BarberPortfolioGallery from '@/components/booking/BarberPortfolioGallery';
+import { SelectedServiceBanner } from '@/components/booking/SelectedServiceBanner';
+import { resolveServiceFromParam } from '@/lib/booking-utils';
 
-export default function BarberBookingPage() {
+const STEP_TRANSITION = { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as const };
+
+function BarberBookingContent() {
     const params = useParams();
+    const searchParams = useSearchParams();
     const slug = params.slug as string;
+    const preselectedService = searchParams.get('service');
     const supabase = createClient();
     const services = useServices();
 
@@ -38,6 +44,22 @@ export default function BarberBookingPage() {
     const [busySlots, setBusySlots] = useState<{ start: string; end: string }[]>([]);
     const [workingHours, setWorkingHours] = useState<Record<string, { open: string; close: string } | null> | null>(null);
     const [loadingBusy, setLoadingBusy] = useState(false);
+    const [serviceLocked, setServiceLocked] = useState(false);
+    const [preselectionApplied, setPreselectionApplied] = useState(false);
+
+    useEffect(() => {
+        if (preselectionApplied || !preselectedService || services.length === 0) return;
+        const match = resolveServiceFromParam(preselectedService, services);
+        if (match) {
+            const barberOffers = !barber?.services_offered?.length || barber.services_offered.includes(match.name);
+            if (barberOffers) {
+                setSelectedService(match.id);
+                setServiceLocked(true);
+                setStep(2);
+            }
+        }
+        setPreselectionApplied(true);
+    }, [preselectedService, services, barber, preselectionApplied]);
 
     useEffect(() => {
         if (!barber || !selectedDate) return;
@@ -123,6 +145,8 @@ export default function BarberBookingPage() {
     const resetBooking = () => {
         setStep(1);
         setSelectedService(null);
+        setServiceLocked(false);
+        setPreselectionApplied(true);
         setSelectedDate(nextBookableDate());
         setSelectedTime(null);
         setClientName('');
@@ -247,16 +271,20 @@ export default function BarberBookingPage() {
                         <AnimatePresence mode="wait">
                             {/* Step 1: Service */}
                             {step === 1 && (
-                                <motion.div key="service" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-3">
-                                    <h2 className="text-xl font-heading text-white uppercase tracking-widest mb-6">Select Service</h2>
+                                <motion.div key="service" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION} className="space-y-3">
+                                    <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-widest mb-2">Select Service</h2>
+                                    <p className="text-savron-silver text-sm mb-4">Tap a service to continue.</p>
                                     {services.filter(s =>
                                         !barber.services_offered?.length || barber.services_offered.includes(s.name)
                                     ).map(service => (
                                         <div
                                             key={service.id}
+                                            role="button"
+                                            tabIndex={0}
                                             onClick={() => setSelectedService(service.id)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedService(service.id); } }}
                                             className={cn(
-                                                "p-4 border rounded-savron cursor-pointer transition-all flex justify-between items-center",
+                                                "p-4 border rounded-savron cursor-pointer transition-all duration-300 flex justify-between items-center min-h-[72px] touch-manipulation",
                                                 selectedService === service.id ? "border-savron-green bg-savron-green/10" : "border-white/10 hover:border-white/30"
                                             )}
                                         >
@@ -280,8 +308,17 @@ export default function BarberBookingPage() {
 
                             {/* Step 2: Date + Time */}
                             {step === 2 && (
-                                <motion.div key="datetime" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-                                    <h2 className="text-xl font-heading text-white uppercase tracking-widest mb-2">Select Date & Time</h2>
+                                <motion.div key="datetime" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION} className="space-y-6">
+                                    {serviceLocked && selectedService && (() => {
+                                        const svc = services.find(s => s.id === selectedService);
+                                        return svc ? (
+                                            <SelectedServiceBanner
+                                                service={svc}
+                                                onChange={() => { setServiceLocked(false); setStep(1); }}
+                                            />
+                                        ) : null;
+                                    })()}
+                                    <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-widest mb-2">Select Date & Time</h2>
                                     <div>
                                         <p className="text-xs uppercase tracking-widest text-savron-silver/50 mb-3">Date</p>
                                         <DatePicker selected={selectedDate} onChange={(d) => { setSelectedDate(d); setSelectedTime(null); }} />
@@ -317,7 +354,7 @@ export default function BarberBookingPage() {
                                                                 disabled={busy}
                                                                 onClick={() => !busy && setSelectedTime(time)}
                                                                 className={cn(
-                                                                    "p-3 border rounded-savron transition-all text-center text-sm font-mono w-full",
+                                                                    "p-3.5 min-h-[52px] border rounded-savron transition-all duration-300 text-center text-sm font-mono w-full touch-manipulation",
                                                                     busy
                                                                         ? "opacity-30 cursor-not-allowed border-white/5 text-savron-silver/30 line-through"
                                                                         : selectedTime === time
@@ -400,7 +437,10 @@ export default function BarberBookingPage() {
                         {step < 4 && (
                             <div className="flex justify-between mt-10 pt-6 border-t border-white/5">
                                 {step > 1 ? (
-                                    <Button variant="ghost" onClick={() => setStep(step - 1)} className="flex gap-2">
+                                    <Button variant="ghost" onClick={() => {
+                                        if (step === 2) setServiceLocked(false);
+                                        setStep(step - 1);
+                                    }} className="flex gap-2">
                                         <ChevronLeft className="w-4 h-4" /> Back
                                     </Button>
                                 ) : <div />}
@@ -427,5 +467,17 @@ export default function BarberBookingPage() {
                 </div>
             </section>
         </main>
+    );
+}
+
+export default function BarberBookingPage() {
+    return (
+        <Suspense fallback={
+            <main className="min-h-screen bg-savron-black flex items-center justify-center pt-20">
+                <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            </main>
+        }>
+            <BarberBookingContent />
+        </Suspense>
     );
 }

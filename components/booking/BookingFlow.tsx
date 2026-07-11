@@ -15,6 +15,15 @@ import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 import { isSlotInPast, nextBookableDate, slotConflictsWithBusy } from '@/lib/time-helpers';
 import BarberPortfolioGallery from './BarberPortfolioGallery';
+import { SelectedServiceBanner } from './SelectedServiceBanner';
+import {
+    barberOffersAnyService,
+    barberOffersService,
+    resolveServiceFromParam,
+    serviceNamesForIds,
+} from '@/lib/booking-utils';
+
+const STEP_TRANSITION = { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as const };
 
 const nullBarber = { auth_id: null, bio: null, phone: null, email: null, instagram_url: null, license_number: null, services_offered: null, google_calendar_id: null, google_calendar_tokens: null, google_sync_token: null, google_channel_id: null, google_resource_id: null, working_hours: null, portfolio_images: null, booking_links: null, created_at: '' };
 const PLACEHOLDER_BARBERS: Barber[] = [
@@ -24,10 +33,16 @@ const PLACEHOLDER_BARBERS: Barber[] = [
     { ...nullBarber, id: 'ph-4', name: 'Leo R.',    slug: 'leo-r',    role: 'Barber',                 specialties: ['Classic Cuts', 'Kids Cuts'],           image_url: null, active: true },
 ];
 
-const BookingFlow = () => {
+type BookingFlowProps = {
+    preselectedServiceName?: string | null;
+};
+
+const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
     const supabase = createClient();
     const services = useServices();
     const [step, setStep] = useState(1);
+    const [serviceLocked, setServiceLocked] = useState(false);
+    const [preselectionApplied, setPreselectionApplied] = useState(false);
     const [selectedServices, setSelectedServices] = useState<number[]>([]);
     const [selectedPro, setSelectedPro] = useState<Barber | null>(null);
     const [selectedDate, setSelectedDate] = useState<Date>(() => nextBookableDate());
@@ -45,6 +60,27 @@ const BookingFlow = () => {
     const [loadingBusy, setLoadingBusy] = useState(false);
     const [barbersError, setBarbersError] = useState(false);
     const [portfolioGallery, setPortfolioGallery] = useState<Barber | null>(null);
+
+    useEffect(() => {
+        if (preselectionApplied || !preselectedServiceName) return;
+        const match = resolveServiceFromParam(preselectedServiceName, services);
+        if (match) {
+            setSelectedServices([match.id]);
+            setServiceLocked(true);
+            setStep(2);
+        }
+        setPreselectionApplied(true);
+    }, [preselectedServiceName, services, preselectionApplied]);
+
+    useEffect(() => {
+        if (!selectedPro) return;
+        setSelectedServices((prev) =>
+            prev.filter((id) => {
+                const name = services.find((s) => s.id === id)?.name;
+                return name ? barberOffersService(selectedPro, name) : false;
+            }),
+        );
+    }, [selectedPro, services]);
 
     useEffect(() => {
         async function fetchBarbers() {
@@ -175,43 +211,51 @@ const BookingFlow = () => {
         setStep(5);
     };
 
-    const displayBarbers = barbers;
+    const selectedServiceNames = serviceNamesForIds(services, selectedServices);
+    const displayBarbers = barbers.filter((pro) =>
+        barberOffersAnyService(pro, selectedServiceNames),
+    );
 
-    /* ─── STEP 2: Services ───────────────────────────────────── */
+    const lockedService = serviceLocked && selectedServices.length === 1
+        ? services.find((s) => s.id === selectedServices[0])
+        : null;
+
+    /* ─── STEP 1: Services ───────────────────────────────────── */
     const renderServiceStep = () => (
-        <motion.div key="services" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-            <div className="mb-4">
-                <h2 className="text-xl font-heading text-white uppercase tracking-wider">Select Services</h2>
-                <p className="text-savron-silver/60 text-xs uppercase tracking-widest mt-1">Select one or more</p>
+        <motion.div key="services" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION}>
+            <div className="mb-5">
+                <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-wider">Select Services</h2>
+                <p className="text-savron-silver/65 text-sm mt-1.5">Tap a service to continue — you can add more than one.</p>
             </div>
-            <div className="grid grid-cols-1 gap-2">
-                {services.filter(s =>
-                    !selectedPro?.services_offered?.length || selectedPro.services_offered.includes(s.name)
-                ).map((service) => {
+            <div className="grid grid-cols-1 gap-2.5">
+                {services.map((service) => {
                     const isSelected = selectedServices.includes(service.id);
                     return (
                         <div
                             key={service.id}
+                            role="button"
+                            tabIndex={0}
                             onClick={() => toggleService(service.id)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleService(service.id); } }}
                             className={cn(
-                                "px-4 py-3 border cursor-pointer transition-all duration-200 flex justify-between items-center group",
+                                "px-4 py-4 border cursor-pointer transition-all duration-300 flex justify-between items-center group min-h-[72px] touch-manipulation",
                                 isSelected
                                     ? "border-savron-green/50 bg-savron-green/5"
                                     : "border-white/[0.06] hover:border-white/15 bg-savron-black"
                             )}
                         >
-                            <div>
-                                <h3 className="text-white font-medium uppercase tracking-widest text-xs">{service.name}</h3>
+                            <div className="min-w-0 pr-3">
+                                <h3 className="text-white font-medium uppercase tracking-wide text-sm">{service.name}</h3>
                                 {service.description && (
-                                    <p className="text-savron-silver/45 text-[11px] mt-1 leading-relaxed max-w-md">{service.description}</p>
+                                    <p className="text-savron-silver/55 text-sm mt-1 leading-relaxed max-w-md">{service.description}</p>
                                 )}
-                                <p className="text-savron-silver/40 text-[10px] mt-0.5 flex items-center gap-1">
-                                    <Clock className="w-2.5 h-2.5" /> {service.duration}
+                                <p className="text-savron-silver/45 text-xs mt-1 flex items-center gap-1.5">
+                                    <Clock className="w-3 h-3 shrink-0" /> {service.duration}
                                 </p>
                             </div>
-                            <div className="flex items-center gap-3">
-                                <span className={cn("font-mono text-sm transition-colors duration-200", isSelected ? "text-savron-silver" : "text-savron-silver/50 group-hover:text-savron-silver")}>{service.price}</span>
-                                <div className={cn("w-4 h-4 flex items-center justify-center transition-all duration-200 flex-shrink-0", isSelected ? "text-emerald-400" : "text-white/10")}>
+                            <div className="flex items-center gap-3 shrink-0">
+                                <span className={cn("font-mono text-sm transition-colors duration-300", isSelected ? "text-savron-silver" : "text-savron-silver/50 group-hover:text-savron-silver")}>{service.price}</span>
+                                <div className={cn("w-5 h-5 flex items-center justify-center transition-all duration-300 flex-shrink-0", isSelected ? "text-emerald-400" : "text-white/10")}>
                                     {isSelected ? <Check className="w-4 h-4" /> : <div className="w-4 h-4 border border-white/20" />}
                                 </div>
                             </div>
@@ -222,20 +266,33 @@ const BookingFlow = () => {
         </motion.div>
     );
 
-    /* ─── STEP 1: Select Barber ──────────────────────────────── */
+    /* ─── STEP 2: Select Barber ──────────────────────────────── */
     const renderProStep = () => (
-        <motion.div key="pro" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-            <div className="mb-4">
-                <h2 className="text-xl font-heading text-white uppercase tracking-wider">Select Professional</h2>
-                <p className="text-savron-silver/60 text-xs uppercase tracking-widest mt-1">Tap a card to select</p>
+        <motion.div key="pro" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION}>
+            {lockedService && (
+                <SelectedServiceBanner
+                    service={lockedService}
+                    onChange={() => {
+                        setServiceLocked(false);
+                        setStep(1);
+                    }}
+                />
+            )}
+            <div className="mb-5">
+                <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-wider">Select Your Barber</h2>
+                <p className="text-savron-silver/65 text-sm mt-1.5">
+                    {selectedServiceNames.length > 0
+                        ? `Showing barbers who offer ${selectedServiceNames.join(', ')}.`
+                        : 'Tap a card to select your barber.'}
+                </p>
             </div>
             {loadingBarbers ? (
                 <div className="flex items-center justify-center py-12">
                     <div className="w-5 h-5 border-2 border-savron-green/30 border-t-savron-green rounded-full animate-spin" />
                 </div>
-            ) : barbersError || displayBarbers.length === 0 ? (
+            ) : barbersError ? (
                 <div className="text-center py-12 space-y-3">
-                    <p className="text-savron-silver/60 text-xs uppercase tracking-widest">Unable to load team</p>
+                    <p className="text-savron-silver/60 text-sm">Unable to load team</p>
                     <button
                         onClick={() => {
                             setBarbers([]);
@@ -253,6 +310,16 @@ const BookingFlow = () => {
                         Retry
                     </button>
                 </div>
+            ) : displayBarbers.length === 0 ? (
+                <div className="text-center py-12 space-y-3">
+                    <p className="text-savron-silver/60 text-sm">No barbers currently offer this service.</p>
+                    <button
+                        onClick={() => setStep(1)}
+                        className="text-sm text-emerald-400 uppercase tracking-widest hover:text-emerald-300 transition-colors min-h-[44px] px-4"
+                    >
+                        Choose a different service
+                    </button>
+                </div>
             ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3">
                     {displayBarbers.map((pro) => {
@@ -261,9 +328,12 @@ const BookingFlow = () => {
                         return (
                             <div
                                 key={pro.id}
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => setSelectedPro(pro)}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedPro(pro); } }}
                                 className={cn(
-                                    "relative overflow-hidden p-4 border cursor-pointer transition-all duration-300 flex flex-col items-center justify-between text-center gap-3 group rounded-savron min-h-[160px]",
+                                    "relative overflow-hidden p-4 border cursor-pointer transition-all duration-300 flex flex-col items-center justify-between text-center gap-3 group rounded-savron min-h-[168px] touch-manipulation",
                                     isSelected
                                         ? "border-savron-green bg-savron-green/10"
                                         : "border-white/[0.06] hover:border-white/20 bg-savron-black"
@@ -299,8 +369,8 @@ const BookingFlow = () => {
 
                                 {/* Barber Info */}
                                 <div className="space-y-1">
-                                    <h3 className="text-white text-xs font-heading uppercase tracking-widest leading-tight">{pro.name}</h3>
-                                    <p className="text-savron-silver/40 text-[9px] uppercase tracking-wider leading-tight">{pro.role}</p>
+                                    <h3 className="text-white text-sm font-heading uppercase tracking-widest leading-tight">{pro.name}</h3>
+                                    <p className="text-savron-silver/45 text-[11px] uppercase tracking-wider leading-tight">{pro.role}</p>
                                 </div>
 
                                 {/* Card Actions Footer */}
@@ -310,7 +380,7 @@ const BookingFlow = () => {
                                             e.stopPropagation();
                                             setProfileOpen(pro);
                                         }}
-                                        className="text-[9px] uppercase tracking-widest text-savron-silver/40 hover:text-white transition-colors px-2.5 py-1 bg-white/5 hover:bg-white/10 rounded-sm"
+                                        className="text-[11px] uppercase tracking-widest text-savron-silver/50 hover:text-white transition-colors px-3 py-1.5 min-h-[36px] bg-white/5 hover:bg-white/10 rounded-sm"
                                     >
                                         Bio
                                     </button>
@@ -320,7 +390,7 @@ const BookingFlow = () => {
                                                 e.stopPropagation();
                                                 setPortfolioGallery(pro);
                                             }}
-                                            className="text-[9px] uppercase tracking-widest text-savron-silver/40 hover:text-white transition-colors px-2.5 py-1 bg-white/5 hover:bg-white/10 rounded-sm"
+                                            className="text-[11px] uppercase tracking-widest text-savron-silver/50 hover:text-white transition-colors px-3 py-1.5 min-h-[36px] bg-white/5 hover:bg-white/10 rounded-sm"
                                         >
                                             Work
                                         </button>
@@ -432,14 +502,14 @@ const BookingFlow = () => {
             if (slots.length === 0) return null;
             return (
                 <div className="mb-6">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-savron-silver/30 mb-3">{label}</p>
+                    <p className="text-xs uppercase tracking-[0.18em] text-savron-silver/40 mb-3">{label}</p>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                         {slots.map((time, idx) => (
                             <button
                                 key={idx}
                                 onClick={() => setSelectedTime(time)}
                                 className={cn(
-                                    "py-4 border transition-all duration-150 text-center text-sm font-mono",
+                                    "py-4 min-h-[52px] border transition-all duration-300 text-center text-sm font-mono touch-manipulation",
                                     selectedTime === time
                                         ? "border-savron-green/50 bg-savron-green/10 text-white"
                                         : "border-white/[0.07] hover:border-white/20 text-savron-silver/50 hover:text-white"
@@ -454,8 +524,10 @@ const BookingFlow = () => {
         };
 
         return (
-            <motion.div key="datetime" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                <h2 className="text-xl font-heading text-white uppercase tracking-wider mb-6">Select Date & Time</h2>
+            <motion.div key="datetime" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION}>
+                {lockedService && <SelectedServiceBanner service={lockedService} />}
+                <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-wider mb-2">Select Date & Time</h2>
+                <p className="text-savron-silver/65 text-sm mb-6">With {selectedPro?.name} · {selectedServiceNames.join(', ')}</p>
 
                 {/* Date row */}
                 <div className="mb-7">
@@ -494,11 +566,11 @@ const BookingFlow = () => {
 
     /* ─── STEP 4: Details ────────────────────────────────────── */
     const renderDetailsStep = () => (
-        <motion.div key="details" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-            <h2 className="text-2xl font-heading text-white uppercase tracking-wider mb-4">Your Details</h2>
+        <motion.div key="details" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION}>
+            <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-wider mb-4">Your Details</h2>
             {/* Summary */}
             <div className="bg-savron-black border border-white/[0.06] p-4 mb-4 space-y-2.5 text-sm">
-                <p className="text-savron-silver/50 uppercase tracking-widest text-xs mb-3">Booking Summary</p>
+                <p className="text-savron-silver/55 uppercase tracking-widest text-xs mb-3">Booking Summary</p>
                 <div className="flex justify-between">
                     <span className="text-savron-silver/70">Services</span>
                     <span className="text-white text-right max-w-[55%]">{selectedServices.map(id => services.find(s => s.id === id)?.name).join(', ')}</span>
@@ -539,7 +611,7 @@ const BookingFlow = () => {
 
     /* ─── STEP 5: Confirmation ───────────────────────────────── */
     const renderConfirmation = () => (
-        <motion.div key="confirm" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }} className="text-center space-y-4 py-8">
+        <motion.div key="confirm" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.45, ease: [0.25, 0.1, 0.25, 1] }} className="text-center space-y-4 py-8">
             <div className="w-12 h-12 border border-savron-silver/30 flex items-center justify-center mx-auto">
                 <Check className="w-5 h-5 text-savron-silver" />
             </div>
@@ -553,6 +625,7 @@ const BookingFlow = () => {
             <p className="text-[10px] text-savron-silver/30 uppercase tracking-[0.3em]">Confirmation sent to your email</p>
             <Button variant="outline" onClick={() => {
                 setStep(1); setSelectedServices([]); setSelectedPro(null);
+                setServiceLocked(false); setPreselectionApplied(true);
                 setSelectedDate(nextBookableDate()); setSelectedTime(null);
                 setClientName(''); setClientEmail(''); setClientPhone(''); setClientMessage('');
             }}>
@@ -581,8 +654,8 @@ const BookingFlow = () => {
             {/* Scrollable content */}
             <div className="px-4 sm:px-6 pt-5 pb-4 overflow-y-auto max-h-[72vh] md:max-h-[65vh]">
                 <AnimatePresence mode="wait">
-                    {step === 1 && renderProStep()}
-                    {step === 2 && renderServiceStep()}
+                    {step === 1 && renderServiceStep()}
+                    {step === 2 && renderProStep()}
                     {step === 3 && renderDateTimeStep()}
                     {step === 4 && renderDetailsStep()}
                     {step === 5 && renderConfirmation()}
@@ -593,13 +666,16 @@ const BookingFlow = () => {
             {step < 5 && (
                 <div className="flex justify-between px-6 py-4 border-t border-white/[0.04]">
                     {step > 1 ? (
-                        <Button variant="ghost" onClick={() => setStep(step - 1)} className="flex gap-1.5 text-xs">
+                        <Button variant="ghost" onClick={() => {
+                            if (step === 2) setServiceLocked(false);
+                            setStep(step - 1);
+                        }} className="flex gap-1.5 text-xs">
                             <ChevronLeft className="w-3.5 h-3.5" /> Back
                         </Button>
                     ) : <div />}
                     <div>
-                        {step === 1 && <Button onClick={() => setStep(2)} disabled={!selectedPro}>Next <ChevronRight className="w-3.5 h-3.5 ml-1.5" /></Button>}
-                        {step === 2 && <Button onClick={() => setStep(3)} disabled={selectedServices.length === 0}>Next <ChevronRight className="w-3.5 h-3.5 ml-1.5" /></Button>}
+                        {step === 1 && <Button onClick={() => setStep(2)} disabled={selectedServices.length === 0}>Next <ChevronRight className="w-3.5 h-3.5 ml-1.5" /></Button>}
+                        {step === 2 && <Button onClick={() => setStep(3)} disabled={!selectedPro}>Next <ChevronRight className="w-3.5 h-3.5 ml-1.5" /></Button>}
                         {step === 3 && <Button onClick={() => setStep(4)} disabled={!selectedTime}>Next <ChevronRight className="w-3.5 h-3.5 ml-1.5" /></Button>}
                         {step === 4 && <Button onClick={handleConfirm} isLoading={submitting} disabled={!clientName || !clientEmail}>Confirm Booking</Button>}
                     </div>
