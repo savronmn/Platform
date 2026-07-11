@@ -1,9 +1,9 @@
 /**
- * When the Savron shop Google Calendar sends an invite (savronmn@gmail.com),
- * the client already received one email from SAVRON. Skip Resend to the client
- * to avoid duplicates — barber/staff notifications via Resend still go out.
+ * Shop Google Calendar (savronmn@gmail.com) owns the client calendar invite.
+ * Resend (bookings@savronmn.com) sends the branded confirmation email — HTML only,
+ * never a duplicate .ics when the shop invite was created.
  */
-export function shouldSkipClientResendEmail(options: {
+export function shopGoogleInviteActive(options: {
     shopInviteSent?: boolean;
     shopGoogleEventId?: string | null;
 }): boolean {

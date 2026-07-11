@@ -13,7 +13,7 @@ async function logSideEffectFailure(label: string, res: Response | undefined): P
 }
 
 export async function triggerPostBooking(bookingId: string): Promise<void> {
-    // Calendar first — shop invite from savronmn@gmail.com is the client-facing email.
+    // Calendar first, then Resend confirmation — two channels, one calendar owner (savronmn@gmail.com).
     const calendarRes = await fetch('/api/calendar/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
