@@ -1,7 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cancelBooking } from '@/lib/cancel-booking';
 import {
-    eventHasDeclinedClient,
     findBookingForCalendarEvent,
     shouldCancelBookingFromCalendarEvent,
     type CalendarSyncEvent,
@@ -68,15 +67,11 @@ export async function processDeclinedCalendarEvents(
             if (!event.id || seenEventIds.has(event.id)) continue;
             seenEventIds.add(event.id);
             if (event.status === 'cancelled') continue;
-            if (!eventHasDeclinedClient(event)) continue;
 
             const booking = await findBookingForCalendarEvent(supabase, barber.id, event);
             if (!booking) continue;
 
-            let action = shouldCancelBookingFromCalendarEvent(event, booking);
-            if (!action && eventHasDeclinedClient(event)) {
-                action = { skipCalendar: false, reason: 'client_declined' };
-            }
+            const action = shouldCancelBookingFromCalendarEvent(event, booking);
             if (!action) continue;
 
             const result = await cancelBooking(booking.id, { skipCalendar: action.skipCalendar });

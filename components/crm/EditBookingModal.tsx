@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { useServices } from '@/lib/use-services';
 import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
 import type { Barber, Booking } from '@/lib/types';
+import { triggerPostEditBooking } from '@/lib/confirm-booking';
 
 interface EditBookingModalProps {
     booking: Booking | null;
@@ -103,6 +104,13 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
 
         setSubmitting(false);
         if (updateError) { setError(updateError.message); return; }
+
+        triggerPostEditBooking(booking.id, {
+            previousBarberId: booking.barber_id,
+            previousDate: booking.date,
+            previousTime: booking.time,
+        });
+
         onSaved(data as Booking);
         onClose();
     }

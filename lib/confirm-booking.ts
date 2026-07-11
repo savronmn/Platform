@@ -17,6 +17,35 @@ export async function triggerPostBooking(bookingId: string): Promise<void> {
     // allSettled — failures are silent so booking is never blocked
 }
 
+/** Fire email + calendar sync after a booking is edited. */
+export async function triggerPostEditBooking(
+    bookingId: string,
+    options: {
+        previousBarberId?: string | null;
+        previousDate?: string;
+        previousTime?: string;
+    } = {},
+): Promise<void> {
+    await Promise.allSettled([
+        fetch('/api/email/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookingId }),
+        }),
+        fetch('/api/calendar/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                bookingId,
+                action: 'update',
+                previousBarberId: options.previousBarberId ?? undefined,
+                previousDate: options.previousDate,
+                previousTime: options.previousTime,
+            }),
+        }),
+    ]);
+}
+
 /** Cancel a booking via the shared API (email + calendar delete). */
 export async function triggerCancelBooking(
     bookingId: string,
