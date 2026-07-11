@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { isShopCalendarConnected } from '@/lib/shop-calendar';
+import { shouldSkipClientResendEmail } from '@/lib/booking-email-policy';
 import {
     RESEND_BOOKING_FROM,
     RESEND_BOOKING_FROM_NAME,
@@ -98,15 +98,23 @@ export async function sendCancellationEmails(
 
     const barberName = booking.barbers?.name ?? booking.barber_name ?? 'Your barber';
     const barberEmail = booking.barbers?.email ?? null;
+    const skipClientResend = shouldSkipClientResendEmail({
+        shopGoogleEventId: booking.shop_google_event_id,
+    });
+    const ics = skipClientResend ? null : buildCancelIcs(booking, barberName, barberEmail);
+
+    const recipientEmails: string[] = [];
+    if (!skipClientResend && booking.client_email) recipientEmails.push(booking.client_email);
+    if (barberEmail) recipientEmails.push(barberEmail);
+
     const missingRecipients = [
-        !booking.client_email ? 'client' : null,
+        !skipClientResend && !booking.client_email ? 'client' : null,
         !barberEmail ? 'barber' : null,
     ].filter((recipient): recipient is string => Boolean(recipient));
-    const recipients = Array.from(new Set(
-        [booking.client_email, barberEmail].filter(
-            (email): email is string => Boolean(email),
-        ),
-    ));
+
+    if (recipientEmails.length === 0) {
+        return { success: true, sent: 0, failed: 0 };
+    }
 
     const dateFormatted = (() => {
         try {
@@ -116,12 +124,8 @@ export async function sendCancellationEmails(
         }
     })();
 
-    const shopConnected = await isShopCalendarConnected();
-    const skipCalendarIcs = !!booking.shop_google_event_id;
-    const ics = skipCalendarIcs ? null : buildCancelIcs(booking, barberName, barberEmail);
-
-    const calendarNote = (skipCalendarIcs || shopConnected)
-        ? `Your Google Calendar invitation from <strong style="color:#fff;">${SHOP_CALENDAR_EMAIL}</strong> has been cancelled automatically.`
+    const calendarNote = skipClientResend
+        ? `Your Google Calendar invitation from <strong style="color:#fff;">${SHOP_CALENDAR_EMAIL}</strong> (SAVRON) has been cancelled automatically.`
         : 'Your calendar has been updated automatically.';
 
     const html = `<!DOCTYPE html>
@@ -157,7 +161,7 @@ export async function sendCancellationEmails(
   </td></tr></table>
 </body></html>`;
 
-    const results = await Promise.allSettled(recipients.map(async (to) => {
+    const results = await Promise.allSettled(recipientEmails.map(async (to) => {
         const response = await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: {

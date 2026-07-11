@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
 import { isShopCalendarConnected } from '@/lib/shop-calendar';
+import { shouldSkipClientResendEmail } from '@/lib/booking-email-policy';
 import {
     RESEND_BOOKING_FROM,
     RESEND_BOOKING_FROM_NAME,
@@ -121,7 +122,10 @@ export async function POST(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
-  const { bookingId } = await request.json() as { bookingId: string };
+  const { bookingId, shopInviteSent } = await request.json() as {
+    bookingId: string;
+    shopInviteSent?: boolean;
+  };
 
   if (!bookingId) {
     return NextResponse.json({ error: 'Missing bookingId' }, { status: 400 });
@@ -147,15 +151,22 @@ export async function POST(request: NextRequest) {
   })();
 
   const shopConnected = await isShopCalendarConnected();
-  const shopInviteActive = !!booking.shop_google_event_id;
+  const shopInviteActive = shouldSkipClientResendEmail({
+    shopInviteSent,
+    shopGoogleEventId: booking.shop_google_event_id,
+  });
 
-  const calendarNote = (shopInviteActive || shopConnected)
+  const calendarNote = shopInviteActive
     ? `<p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
-              Your Google Calendar invitation comes from <strong style="color:#fff;">${SHOP_CALENDAR_EMAIL}</strong>.
+              Your Google Calendar invitation comes from <strong style="color:#fff;">${SHOP_CALENDAR_EMAIL}</strong> (SAVRON).
               Use <em>Yes</em> or <em>No</em> on that invite. Tapping <em>No</em> cancels the appointment.
             </p>`
+    : shopConnected
+    ? `<p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
+              Your calendar invitation will come from <strong style="color:#fff;">${SHOP_CALENDAR_EMAIL}</strong> when available.
+            </p>`
     : `<p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
-              Need to cancel or reschedule? Reply to this email — your calendar invite includes RSVP options.
+              Need to cancel? Reply to this email — your calendar invite includes RSVP options.
             </p>`;
 
   const htmlBody = `
@@ -271,22 +282,26 @@ export async function POST(request: NextRequest) {
     'Content-Type': 'application/json',
   };
 
-  // Client confirmation (+ ICS only when shop Google invite is unavailable)
-  emailPromises.push(
-    fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        from: `${RESEND_BOOKING_FROM_NAME} <${RESEND_BOOKING_FROM}>`,
-        to: [booking.client_email],
-        subject: `Your appointment is confirmed — ${booking.time}, ${dateFormatted}`,
-        html: htmlBody,
-        ...(icsAttachment ? { attachments: [icsAttachment] } : {}),
-      }),
-    })
-  );
+  // Client: only when shop Google Calendar did NOT send the invite (avoids duplicate emails).
+  if (!shopInviteActive) {
+    emailPromises.push(
+      fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          from: `${RESEND_BOOKING_FROM_NAME} <${RESEND_BOOKING_FROM}>`,
+          to: [booking.client_email],
+          subject: `Your appointment is confirmed — ${booking.time}, ${dateFormatted}`,
+          html: htmlBody,
+          ...(icsAttachment ? { attachments: [icsAttachment] } : {}),
+        }),
+      })
+    );
+  } else {
+    console.log(`[email] Skipping client Resend for booking ${bookingId} — shop GCal invite sent`);
+  }
 
-  // Barber notification
+  // Barber notification (internal — does not duplicate client calendar invite)
   if (barberEmail) {
     const barberHtml = htmlBody
       .replace("You're all set,", `New booking — `)
@@ -310,16 +325,21 @@ export async function POST(request: NextRequest) {
   // Send all emails in parallel
   const results = await Promise.allSettled(emailPromises);
   
-  // Check at least the client email succeeded
-  const clientResult = results[0];
-  if (clientResult.status === 'rejected' || (clientResult.status === 'fulfilled' && !clientResult.value.ok)) {
+  if (emailPromises.length === 0) {
+    return NextResponse.json({ success: true, skippedClient: true, reason: 'shop_gcal_invite' });
+  }
+
+  // Check at least the client email succeeded when we sent one
+  const clientResult = shopInviteActive ? null : results[0];
+  if (clientResult && (clientResult.status === 'rejected' || (clientResult.status === 'fulfilled' && !clientResult.value.ok))) {
     const err = clientResult.status === 'fulfilled' ? await clientResult.value.text() : clientResult.reason;
     console.error('Client email failed:', err);
     return NextResponse.json({ error: 'Email failed', detail: String(err) }, { status: 500 });
   }
 
-  // Log any barber/shop failures but don't fail the response
-  results.slice(1).forEach((r, i) => {
+  // Log any barber failures but don't fail the response
+  const barberOffset = shopInviteActive ? 0 : 1;
+  results.slice(barberOffset).forEach((r, i) => {
     if (r.status === 'rejected') {
       console.error(`Email ${i + 2} failed:`, r.reason);
     }

@@ -96,6 +96,7 @@ export async function cancelBooking(
                 {
                     id: booking.id,
                     google_event_id: booking.google_event_id,
+                    shop_google_event_id: booking.shop_google_event_id,
                     barber_id: booking.barber_id,
                     date: options.fallbackDate ?? booking.date,
                     time: options.fallbackTime ?? booking.time,

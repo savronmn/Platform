@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
-import { isShopCalendarConnected } from '@/lib/shop-calendar';
+import { shouldSkipClientResendEmail } from '@/lib/booking-email-policy';
 import {
     RESEND_BOOKING_FROM,
     RESEND_BOOKING_FROM_NAME,
@@ -123,7 +123,10 @@ export async function POST(request: NextRequest) {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
-    const { bookingId } = await request.json() as { bookingId: string };
+    const { bookingId, shopInviteSent } = await request.json() as {
+        bookingId: string;
+        shopInviteSent?: boolean;
+    };
 
     if (!bookingId) {
         return NextResponse.json({ error: 'Missing bookingId' }, { status: 400 });
@@ -256,8 +259,10 @@ export async function POST(request: NextRequest) {
 </body>
 </html>`;
 
-    const shopConnected = await isShopCalendarConnected();
-    const shopInviteActive = !!booking.shop_google_event_id;
+    const shopInviteActive = shouldSkipClientResendEmail({
+        shopInviteSent,
+        shopGoogleEventId: booking.shop_google_event_id,
+    });
     const icsString = shopInviteActive ? null : getUpdateIcsString(booking, barberName, barberEmail);
     const icsAttachment = icsString
         ? {
@@ -274,19 +279,23 @@ export async function POST(request: NextRequest) {
 
     const emailPromises: Promise<Response>[] = [];
 
-    emailPromises.push(
-        fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-                from: `${RESEND_BOOKING_FROM_NAME} <${RESEND_BOOKING_FROM}>`,
-                to: [booking.client_email],
-                subject: `Your appointment has been updated — ${booking.time}, ${dateFormatted}`,
-                html: htmlBody,
-                ...(icsAttachment ? { attachments: [icsAttachment] } : {}),
-            }),
-        })
-    );
+    if (!shopInviteActive) {
+        emailPromises.push(
+            fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    from: `${RESEND_BOOKING_FROM_NAME} <${RESEND_BOOKING_FROM}>`,
+                    to: [booking.client_email],
+                    subject: `Your appointment has been updated — ${booking.time}, ${dateFormatted}`,
+                    html: htmlBody,
+                    ...(icsAttachment ? { attachments: [icsAttachment] } : {}),
+                }),
+            })
+        );
+    } else {
+        console.log(`[email/update] Skipping client Resend for booking ${bookingId} — shop GCal updated invite`);
+    }
 
     if (barberEmail) {
         const barberHtml = htmlBody
@@ -310,14 +319,19 @@ export async function POST(request: NextRequest) {
 
     const results = await Promise.allSettled(emailPromises);
 
-    const clientResult = results[0];
-    if (clientResult.status === 'rejected' || (clientResult.status === 'fulfilled' && !clientResult.value.ok)) {
+    if (emailPromises.length === 0) {
+        return NextResponse.json({ success: true, skippedClient: true, reason: 'shop_gcal_invite' });
+    }
+
+    const clientResult = shopInviteActive ? null : results[0];
+    if (clientResult && (clientResult.status === 'rejected' || (clientResult.status === 'fulfilled' && !clientResult.value.ok))) {
         const err = clientResult.status === 'fulfilled' ? await clientResult.value.text() : clientResult.reason;
         console.error('Client update email failed:', err);
         return NextResponse.json({ error: 'Email failed', detail: String(err) }, { status: 500 });
     }
 
-    results.slice(1).forEach((r, i) => {
+    const barberOffset = shopInviteActive ? 0 : 1;
+    results.slice(barberOffset).forEach((r, i) => {
         if (r.status === 'rejected') {
             console.error(`Update email ${i + 2} failed:`, r.reason);
         }
