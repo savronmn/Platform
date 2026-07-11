@@ -232,7 +232,7 @@ function CancellationDetailItem({ booking, clients }: { booking: Booking; client
                 <p className="text-[10px] uppercase tracking-widest text-savron-silver/60 flex items-center gap-1.5">
                     <AlertCircle className="w-3 h-3" /> Follow-up intel
                 </p>
-                <div className="grid grid-cols-2 gap-2 text-xs text-savron-silver">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-savron-silver">
                     <span>
                         {isFuture ? 'Was scheduled' : 'Appointment was'} {isFuture ? 'for' : ''} {Math.abs(daysSinceAppt)} day{Math.abs(daysSinceAppt) !== 1 ? 's' : ''} {isFuture ? 'from now' : 'ago'}
                     </span>
@@ -499,7 +499,7 @@ export default function StatDetailModal({ statKey, data, cutoff, onClose }: Stat
                                 </div>
                                 <button
                                     onClick={onClose}
-                                    className="p-2 text-savron-silver hover:text-white transition-colors rounded-lg hover:bg-white/5"
+                                    className="admin-icon-btn text-savron-silver hover:text-white hover:bg-white/5"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>

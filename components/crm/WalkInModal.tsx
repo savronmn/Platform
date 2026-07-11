@@ -174,7 +174,7 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
                                 </div>
 
                                 {/* Date + Time */}
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
                                         <label className="block text-xs uppercase tracking-widest text-savron-silver mb-1">Date</label>
                                         <input

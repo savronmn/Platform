@@ -298,7 +298,7 @@ export default function CommunicationsPage() {
                                         type="checkbox"
                                         checked={allFilteredSelected}
                                         onChange={toggleAllFiltered}
-                                        className="accent-savron-green w-3.5 h-3.5"
+                                        className="admin-checkbox"
                                     />
                                     <span className="text-[10px] uppercase tracking-widest text-savron-silver">
                                         {allFilteredSelected ? 'Deselect filtered' : 'Select filtered'}
@@ -323,7 +323,7 @@ export default function CommunicationsPage() {
                                                     type="checkbox"
                                                     checked={checked}
                                                     onChange={() => toggleRecipient(recipient.email)}
-                                                    className="accent-savron-green w-3.5 h-3.5 mt-0.5 shrink-0"
+                                                    className="admin-checkbox mt-0.5 shrink-0"
                                                 />
                                                 <div className="min-w-0 flex-1">
                                                     <p className="text-white text-sm truncate">{recipient.name || 'No name'}</p>
@@ -349,13 +349,13 @@ export default function CommunicationsPage() {
                             Emails are routed through the official Brevo API. This ensures high deliverability and protects your domain reputation.
                         </p>
                         <ul className="mt-4 space-y-2">
-                            <li className="flex items-center justify-between text-xs font-light border-b border-white/5 pb-2">
-                                <span className="text-savron-silver">Sender Email:</span>
-                                <span className="text-white">info@savronmn.com</span>
+                            <li className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs font-light border-b border-white/5 pb-2 min-w-0">
+                                <span className="text-savron-silver shrink-0">Sender Email:</span>
+                                <span className="text-white truncate">info@savronmn.com</span>
                             </li>
-                            <li className="flex items-center justify-between text-xs font-light border-b border-white/5 pb-2">
-                                <span className="text-savron-silver">Sender Name:</span>
-                                <span className="text-white">SAVRON Barbershop</span>
+                            <li className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs font-light border-b border-white/5 pb-2 min-w-0">
+                                <span className="text-savron-silver shrink-0">Sender Name:</span>
+                                <span className="text-white truncate">SAVRON Barbershop</span>
                             </li>
                         </ul>
                     </div>

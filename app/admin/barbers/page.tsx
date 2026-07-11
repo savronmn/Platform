@@ -291,7 +291,7 @@ export default function AdminBarbersPage() {
                                             {barber.name.charAt(0)}
                                         </span>
                                     )}
-                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 opacity-100 transition-opacity">
                                         <Camera className="w-4 h-4 text-white" />
                                     </div>
                                 </button>
@@ -331,20 +331,20 @@ export default function AdminBarbersPage() {
                                 <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
                                     <button
                                         onClick={() => copyBookingLink(barber.slug)}
-                                        className="flex items-center gap-1 px-2.5 py-1.5 text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
+                                        className="admin-action-btn text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
                                     >
-                                        {copiedSlug === barber.slug ? <Check className="w-3 h-3 text-savron-green" /> : <Copy className="w-3 h-3" />}
+                                        {copiedSlug === barber.slug ? <Check className="w-3.5 h-3.5 text-savron-green" /> : <Copy className="w-3.5 h-3.5" />}
                                         {copiedSlug === barber.slug ? 'Copied' : 'Link'}
                                     </button>
                                     <a
                                         href={`/admin/barbers/${barber.id}/calendar`}
-                                        className="flex items-center gap-1 px-2.5 py-1.5 text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
+                                        className="admin-action-btn text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
                                     >
                                         <Calendar className="w-3.5 h-3.5" /> Calendar
                                     </a>
                                     <button
                                         onClick={() => openSettings(barber)}
-                                        className="flex items-center gap-1 px-2.5 py-1.5 text-xs uppercase tracking-wider text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
+                                        className="admin-action-btn text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
                                     >
                                         <Settings className="w-3.5 h-3.5" /> Settings
                                     </button>

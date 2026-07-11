@@ -309,7 +309,7 @@ export default function ClientsPage() {
                         <thead>
                             <tr className="border-b border-white/5">
                                 <th className="px-4 py-4 w-10">
-                                    <input type="checkbox" checked={allSelected} onChange={selectAllFiltered} className="accent-savron-green w-3.5 h-3.5" />
+                                    <input type="checkbox" checked={allSelected} onChange={selectAllFiltered} className="admin-checkbox" />
                                 </th>
                                 <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Name</th>
                                 <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal hidden sm:table-cell">Email</th>
@@ -330,7 +330,7 @@ export default function ClientsPage() {
                                         onClick={() => { setSelected(c); setEditData(c); setEditing(false); }}
                                     >
                                         <td className="px-4 py-4" onClick={e => e.stopPropagation()}>
-                                            <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => toggleSelect(c.id)} className="accent-savron-green w-3.5 h-3.5" />
+                                            <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => toggleSelect(c.id)} className="admin-checkbox" />
                                         </td>
                                         <td className="px-4 py-4 text-white text-sm font-medium">
                                             <div>{c.name}</div>
@@ -348,9 +348,10 @@ export default function ClientsPage() {
                                         <td className="px-4 py-4" onClick={e => e.stopPropagation()}>
                                             <button
                                                 onClick={() => setShowDelete(c.id)}
-                                                className="opacity-0 group-hover:opacity-100 p-1.5 text-savron-silver/50 hover:text-red-400 hover:bg-red-500/10 rounded transition-all"
+                                                className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 admin-icon-btn text-savron-silver/50 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                                                aria-label="Delete client"
                                             >
-                                                <Trash2 className="w-3.5 h-3.5" />
+                                                <Trash2 className="w-4 h-4" />
                                             </button>
                                         </td>
                                     </tr>
@@ -420,7 +421,7 @@ export default function ClientsPage() {
                                     </>
                                 ) : (
                                     <>
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div className="space-y-1">
                                                 <span className="text-savron-silver text-xs uppercase tracking-wider">Email</span>
                                                 <p className="text-white text-sm">{selected.email || '—'}</p>
@@ -595,7 +596,7 @@ export default function ClientsPage() {
                             <div className="p-6 space-y-5">
                                 <div>
                                     <p className="text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">Template</p>
-                                    <div className="flex gap-2">
+                                    <div className="flex flex-col sm:flex-row gap-2">
                                         {([
                                             ['miss_you', '💈 We Miss You'],
                                             ['special_offer', '💰 Special Offer'],

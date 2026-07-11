@@ -442,15 +442,17 @@ export default function AdminServicesPage() {
                                             <div className="flex items-center gap-1.5 shrink-0">
                                                 <button
                                                     onClick={() => startEdit(svc)}
-                                                    className="p-2 text-savron-silver/50 hover:text-white hover:bg-white/5 rounded-savron transition-all"
+                                                    className="admin-icon-btn text-savron-silver/50 hover:text-white hover:bg-white/5 transition-all"
+                                                    aria-label="Edit service"
                                                 >
-                                                    <Pencil className="w-3.5 h-3.5" />
+                                                    <Pencil className="w-4 h-4" />
                                                 </button>
                                                 <button
                                                     onClick={() => setConfirmDelete(svc)}
-                                                    className="p-2 text-savron-silver/50 hover:text-red-400 hover:bg-red-500/5 rounded-savron transition-all"
+                                                    className="admin-icon-btn text-savron-silver/50 hover:text-red-400 hover:bg-red-500/5 transition-all"
+                                                    aria-label="Delete service"
                                                 >
-                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                    <Trash2 className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         </div>

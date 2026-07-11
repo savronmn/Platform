@@ -193,7 +193,7 @@ export default function AdminBarberCalendarPage() {
                     <button
                         onClick={fetchGoogleBusy}
                         disabled={syncing}
-                        className="p-2 border border-white/10 text-savron-silver hover:text-white hover:border-white/25 transition-all rounded-savron disabled:opacity-40"
+                        className="admin-icon-btn border border-white/10 text-savron-silver hover:text-white hover:border-white/25 transition-all disabled:opacity-40"
                         title="Sync Google Calendar"
                     >
                         <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin")} />
@@ -292,7 +292,7 @@ export default function AdminBarberCalendarPage() {
                                 <p className="text-white text-xs font-heading uppercase tracking-widest">{barber.name}</p>
                             ),
                         }]}
-                        columnWidth="flex-1 min-w-[360px]"
+                        columnWidth="flex-1 min-w-0 sm:min-w-[320px]"
                         getEventsForColumn={() => dayTimelineEvents}
                         renderColumnBackground={() => {
                             if (!daySchedule || isDayOff) return null;
@@ -395,7 +395,7 @@ export default function AdminBarberCalendarPage() {
                                 ),
                             };
                         })}
-                        columnWidth="min-w-[220px] sm:min-w-[260px]"
+                        columnWidth="min-w-[140px] sm:min-w-[200px] md:min-w-[260px]"
                         getEventsForColumn={timelineEventsForDate}
                         renderEvent={(event) => {
                             const booking = bookingTimelineMap.get(event.id);

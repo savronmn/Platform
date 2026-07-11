@@ -134,11 +134,11 @@ body {
   }
 
   .admin-page {
-    @apply space-y-10 lg:space-y-12 entry-fade;
+    @apply space-y-8 sm:space-y-10 lg:space-y-12 entry-fade;
   }
 
   .admin-header {
-    @apply flex items-start justify-between flex-wrap gap-5;
+    @apply flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-5;
   }
 
   .admin-kicker {
@@ -146,11 +146,23 @@ body {
   }
 
   .admin-title {
-    @apply font-heading text-3xl md:text-4xl uppercase tracking-wider text-white;
+    @apply font-heading text-2xl sm:text-3xl md:text-4xl uppercase tracking-wider text-white;
   }
 
   .admin-subtitle {
     @apply text-sm text-savron-cream/50 font-light mt-2 max-w-2xl;
+  }
+
+  .admin-icon-btn {
+    @apply min-h-11 min-w-11 inline-flex items-center justify-center rounded-savron transition-colors;
+  }
+
+  .admin-action-btn {
+    @apply min-h-11 px-4 py-2.5 text-xs uppercase tracking-widest inline-flex items-center justify-center gap-2;
+  }
+
+  .admin-checkbox {
+    @apply accent-savron-green w-5 h-5 cursor-pointer;
   }
 
   /* Accent text helpers — blue primary, cream secondary */

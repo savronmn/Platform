@@ -139,7 +139,7 @@ export default function AdminApplicantsPage() {
                             onClick={() => setSelectedApplicant(a)}
                             className="card-savron cursor-pointer hover:border-white/15 hover:bg-white/[0.025] transition-all"
                         >
-                            <div className="flex items-start justify-between gap-4 flex-wrap">
+                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                                 {/* Left: identity */}
                                 <div className="space-y-2 flex-1 min-w-0">
                                     <div className="flex items-center gap-3 flex-wrap">
@@ -180,7 +180,7 @@ export default function AdminApplicantsPage() {
                                 </div>
 
                                 {/* Right: actions */}
-                                <div className="flex items-center gap-2 shrink-0">
+                                <div className="flex items-center gap-2 shrink-0 flex-wrap w-full sm:w-auto">
                                     {a.video_url && (
                                         <a
                                             href={a.video_url}
@@ -212,7 +212,7 @@ export default function AdminApplicantsPage() {
                                                 <motion.div
                                                     initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
                                                     transition={{ duration: 0.1 }}
-                                                    className="absolute right-0 top-full mt-1 w-36 bg-savron-charcoal border border-white/10 rounded-savron overflow-hidden z-20 shadow-xl"
+                                                    className="absolute right-0 sm:right-0 left-0 sm:left-auto top-full mt-1 w-full sm:w-36 bg-savron-charcoal border border-white/10 rounded-savron overflow-hidden z-20 shadow-xl"
                                                 >
                                                     {STATUS_OPTIONS.filter(s => s !== a.status).map(s => (
                                                         <button

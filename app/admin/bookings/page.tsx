@@ -174,7 +174,7 @@ export default function BookingsPage() {
     const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     return (
-        <div className="flex flex-col gap-8 entry-fade h-[calc(100vh-8rem)]">
+        <div className="flex flex-col gap-6 lg:gap-8 entry-fade lg:h-[calc(100vh-8rem)]">
             {/* ── Header ── */}
             <div className="admin-header shrink-0">
                 <div>
@@ -185,14 +185,14 @@ export default function BookingsPage() {
                     </p>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                     {/* Barber filter */}
-                    <div className="relative">
+                    <div className="relative flex-1 sm:flex-none min-w-[140px]">
                         <Users className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-savron-silver pointer-events-none" />
                         <select
                             value={barberFilter}
                             onChange={e => setBarberFilter(e.target.value)}
-                            className="pl-7 pr-3 py-2 text-[10px] uppercase tracking-widest bg-white/5 border border-white/10 rounded-savron text-savron-silver focus:outline-none focus:border-white/20 appearance-none"
+                            className="w-full pl-7 pr-3 py-2.5 min-h-11 text-xs uppercase tracking-widest bg-white/5 border border-white/10 rounded-savron text-savron-silver focus:outline-none focus:border-white/20 appearance-none"
                         >
                             <option value="all" className="bg-savron-grey">All Barbers</option>
                             {barbers.map(b => (
@@ -205,29 +205,27 @@ export default function BookingsPage() {
                     <button
                         onClick={() => setShowCancelled(v => !v)}
                         className={cn(
-                            "flex items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-widest border rounded-savron transition-all",
+                            "admin-action-btn border rounded-savron transition-all",
                             showCancelled
                                 ? "bg-white/10 border-white/20 text-white"
                                 : "bg-white/5 border-white/10 text-savron-silver hover:text-white"
                         )}
                     >
-                        <Filter className="w-3 h-3" />
-                        {showCancelled ? 'Hiding none' : 'Show cancelled'}
+                        <Filter className="w-3.5 h-3.5" />
+                        {showCancelled ? 'All statuses' : 'Cancelled'}
                     </button>
 
-                    {/* Refresh */}
                     <button
                         onClick={fetchAll}
                         disabled={loading}
-                        className="flex items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-widest bg-white/5 border border-white/10 rounded-savron text-savron-silver hover:text-white transition-all disabled:opacity-40"
+                        className="admin-action-btn bg-white/5 border border-white/10 rounded-savron text-savron-silver hover:text-white transition-all disabled:opacity-40"
                     >
-                        <RefreshCw className={cn("w-3 h-3", loading && "animate-spin")} />
+                        <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
                     </button>
 
-                    {/* Walk-in */}
                     <button
                         onClick={() => setShowWalkIn(true)}
-                        className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all"
+                        className="admin-action-btn bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all w-full sm:w-auto"
                     >
                         <UserPlus className="w-3.5 h-3.5" /> Walk-in
                     </button>
@@ -241,10 +239,10 @@ export default function BookingsPage() {
             )}
 
             {/* ── Main grid: Calendar + Day panel ── */}
-            <div className="flex gap-6 flex-1 min-h-0">
+            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 flex-1 min-h-0">
 
                 {/* ── Calendar ── */}
-                <div className="flex flex-col flex-1 card-savron min-w-0 overflow-hidden">
+                <div className="flex flex-col flex-1 card-savron min-w-0 overflow-hidden min-h-[320px] lg:min-h-0">
                     <CalendarNavBar
                         view="month"
                         onViewChange={() => {}}
@@ -260,14 +258,15 @@ export default function BookingsPage() {
                     {/* Day labels */}
                     <div className="grid grid-cols-7 mb-1 shrink-0">
                         {DAY_LABELS.map(d => (
-                            <div key={d} className="text-center text-[9px] uppercase tracking-widest text-savron-silver/50 py-1">
-                                {d}
+                            <div key={d} className="text-center text-[10px] sm:text-[9px] uppercase tracking-widest text-savron-silver/50 py-1">
+                                <span className="hidden sm:inline">{d}</span>
+                                <span className="sm:hidden">{d.charAt(0)}</span>
                             </div>
                         ))}
                     </div>
 
                     {/* Day cells */}
-                    <div className="grid grid-cols-7 flex-1 gap-px overflow-auto">
+                    <div className="grid grid-cols-7 flex-1 gap-px overflow-auto min-h-[240px]">
                         {calendarDays.map(day => {
                             const key          = toDateKey(day);
                             const dayBookings  = bookingsByDay.get(key) ?? [];
@@ -283,7 +282,7 @@ export default function BookingsPage() {
                                     key={key}
                                     onClick={() => setSelectedDay(day)}
                                     className={cn(
-                                        "flex flex-col items-start p-1.5 rounded-lg text-left transition-all min-h-[60px] relative",
+                                        "flex flex-col items-start p-1 sm:p-1.5 rounded-lg text-left transition-all min-h-[52px] sm:min-h-[60px] relative touch-manipulation",
                                         isCurrentMo ? "hover:bg-savron-blue/5" : "opacity-30",
                                         isSelected && "bg-savron-blue/10 ring-1 ring-savron-blue/35",
                                     )}
@@ -316,7 +315,7 @@ export default function BookingsPage() {
                                             {/* Count badge */}
                                             {total > 0 && (
                                                 <span className={cn(
-                                                    "text-[9px] leading-none",
+                                                    "text-[9px] leading-none hidden sm:inline",
                                                     confirmed > 0 ? "text-accent-blue" : "text-savron-silver/50"
                                                 )}>
                                                     {confirmed > 0 && `${confirmed} conf`}
@@ -333,7 +332,7 @@ export default function BookingsPage() {
                 </div>
 
                 {/* ── Day Detail Panel ── */}
-                <div className="w-80 shrink-0 card-savron flex flex-col overflow-hidden">
+                <div className="w-full lg:w-80 lg:shrink-0 card-savron flex flex-col overflow-hidden min-h-[280px] lg:min-h-0">
                     {/* Panel header */}
                     <div className="shrink-0 pb-4 border-b border-white/5 mb-3">
                         <div className="flex items-center gap-2">
@@ -466,25 +465,25 @@ function AppointmentCard({ booking, onEdit, onStatusChange, isUpdating }: Appoin
             <div className="flex items-center gap-2 pt-1.5 border-t border-white/8 flex-wrap">
                 <button
                     onClick={onEdit}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs uppercase tracking-widest bg-savron-green/15 hover:bg-savron-green/25 border border-savron-green/30 hover:border-savron-green/50 rounded-savron text-accent-blue hover:text-savron-cream font-medium transition-all"
+                    className="admin-action-btn bg-savron-green/15 hover:bg-savron-green/25 border border-savron-green/30 hover:border-savron-green/50 rounded-savron text-accent-blue hover:text-savron-cream font-medium transition-all"
                 >
-                    <Pencil className="w-3 h-3" /> Edit Appointment
+                    <Pencil className="w-3.5 h-3.5" /> Edit
                 </button>
 
                 {booking.status === 'confirmed' && (
                     <>
                         <button
                             onClick={() => onStatusChange('completed')}
-                            className="flex items-center gap-1 px-2 py-1 text-[9px] uppercase tracking-widest bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded text-blue-400 hover:text-blue-300 transition-all"
+                            className="admin-action-btn bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-savron text-blue-400 hover:text-blue-300 transition-all"
                         >
-                            <CheckCircle2 className="w-2.5 h-2.5" /> Done
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Done
                         </button>
                         <button
                             onClick={() => onStatusChange('cancelled')}
                             disabled={isUpdating}
-                            className="flex items-center gap-1 px-2 py-1 text-[9px] uppercase tracking-widest bg-red-500/5 hover:bg-red-500/10 border border-red-500/15 rounded text-red-400/70 hover:text-red-400 transition-all disabled:opacity-50"
+                            className="admin-action-btn bg-red-500/5 hover:bg-red-500/10 border border-red-500/15 rounded-savron text-red-400/70 hover:text-red-400 transition-all disabled:opacity-50"
                         >
-                            <XCircle className="w-2.5 h-2.5" /> {isUpdating ? 'Cancelling…' : 'Cancel'}
+                            <XCircle className="w-3.5 h-3.5" /> {isUpdating ? 'Cancelling…' : 'Cancel'}
                         </button>
                     </>
                 )}
@@ -492,7 +491,7 @@ function AppointmentCard({ booking, onEdit, onStatusChange, isUpdating }: Appoin
                 {booking.status === 'completed' && (
                     <button
                         onClick={() => onStatusChange('confirmed')}
-                        className="flex items-center gap-1 px-2 py-1 text-[9px] uppercase tracking-widest bg-white/5 hover:bg-white/10 border border-white/10 rounded text-savron-silver hover:text-white transition-all"
+                        className="admin-action-btn bg-white/5 hover:bg-white/10 border border-white/10 rounded-savron text-savron-silver hover:text-white transition-all"
                     >
                         ↩ Revert
                     </button>
@@ -501,7 +500,7 @@ function AppointmentCard({ booking, onEdit, onStatusChange, isUpdating }: Appoin
                 {booking.status === 'cancelled' && (
                     <button
                         onClick={() => onStatusChange('confirmed')}
-                        className="flex items-center gap-1 px-2 py-1 text-[9px] uppercase tracking-widest bg-savron-blue/10 hover:bg-savron-blue/15 border border-savron-blue/20 rounded text-accent-blue transition-all"
+                        className="admin-action-btn bg-savron-blue/10 hover:bg-savron-blue/15 border border-savron-blue/20 rounded-savron text-accent-blue transition-all"
                     >
                         ↩ Restore
                     </button>

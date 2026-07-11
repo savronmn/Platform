@@ -144,7 +144,7 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-xs uppercase tracking-widest text-savron-silver mb-1">Phone</label>
                                     <input
@@ -196,7 +196,7 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
                             </div>
 
                             {/* Date + Time */}
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-xs uppercase tracking-widest text-savron-silver mb-1">Date <span className="text-savron-green">*</span></label>
                                     <input
