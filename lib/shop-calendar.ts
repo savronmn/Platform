@@ -5,6 +5,7 @@ import {
     getValidAccessToken,
     type CalendarToken,
 } from '@/lib/google-calendar';
+import { SHOP_CALENDAR_EMAIL } from '@/lib/shop';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -46,7 +47,7 @@ export async function getShopCalendarId(): Promise<string> {
         .maybeSingle();
 
     if (data?.value && typeof data.value === 'string') return data.value;
-    return process.env.SAVRON_GOOGLE_CALENDAR_ID || 'savronmn@gmail.com';
+    return process.env.SAVRON_GOOGLE_CALENDAR_ID || SHOP_CALENDAR_EMAIL;
 }
 
 export async function isShopCalendarConnected(): Promise<boolean> {

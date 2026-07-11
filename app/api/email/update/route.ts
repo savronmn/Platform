@@ -5,10 +5,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
-
-const BARBERSHOP_EMAIL = 'info@savronmn.com';
-const SHOP_ADDRESS = '250 N Third Avenue, Minneapolis, MN 55401';
-const SHOP_NAME = 'SAVRON Barbershop & Lounge';
+import { isShopCalendarConnected } from '@/lib/shop-calendar';
+import {
+    RESEND_BOOKING_FROM,
+    SHOP_ADDRESS,
+    SHOP_CALENDAR_EMAIL,
+    SHOP_NAME,
+} from '@/lib/shop';
 
 function icsEscape(s: string): string {
     return String(s || '')
@@ -89,7 +92,7 @@ function getUpdateIcsString(
         `SUMMARY:${icsEscape(`${booking.service} — ${SHOP_NAME}`)}`,
         `LOCATION:${icsEscape(`${SHOP_NAME}, ${SHOP_ADDRESS}`)}`,
         `DESCRIPTION:${description}`,
-        `ORGANIZER;CN=${icsEscape(SHOP_NAME)}:mailto:${BARBERSHOP_EMAIL}`,
+        `ORGANIZER;CN=${icsEscape(SHOP_NAME)}:mailto:${SHOP_CALENDAR_EMAIL}`,
         ...attendees,
         'STATUS:CONFIRMED',
         'TRANSP:OPAQUE',
@@ -251,7 +254,8 @@ export async function POST(request: NextRequest) {
 </body>
 </html>`;
 
-    const shopInviteActive = !!booking.shop_google_event_id;
+    const shopConnected = await isShopCalendarConnected();
+    const shopInviteActive = shopConnected || !!booking.shop_google_event_id;
     const icsString = shopInviteActive ? null : getUpdateIcsString(booking, barberName, barberEmail);
     const icsAttachment = icsString
         ? {
@@ -273,7 +277,7 @@ export async function POST(request: NextRequest) {
             method: 'POST',
             headers,
             body: JSON.stringify({
-                from: 'SAVRON Barbershop & Lounge <bookings@savronmn.com>',
+                from: `SAVRON Barbershop & Lounge <${RESEND_BOOKING_FROM}>`,
                 to: [booking.client_email],
                 subject: `Your appointment has been updated — ${booking.time}, ${dateFormatted}`,
                 html: htmlBody,
@@ -292,7 +296,7 @@ export async function POST(request: NextRequest) {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({
-                    from: 'SAVRON Barbershop & Lounge <bookings@savronmn.com>',
+                    from: `SAVRON Barbershop & Lounge <${RESEND_BOOKING_FROM}>`,
                     to: [barberEmail],
                     subject: `Updated booking: ${booking.client_name || 'Walk-in'} — ${booking.time}, ${dateFormatted}`,
                     html: barberHtml,

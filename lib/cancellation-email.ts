@@ -1,8 +1,11 @@
 import { format } from 'date-fns';
-
-const BARBERSHOP_EMAIL = 'info@savronmn.com';
-const SHOP_ADDRESS = '250 N Third Avenue, Minneapolis, MN 55401';
-const SHOP_NAME = 'SAVRON Barbershop & Lounge';
+import { isShopCalendarConnected } from '@/lib/shop-calendar';
+import {
+    RESEND_BOOKING_FROM,
+    SHOP_ADDRESS,
+    SHOP_CALENDAR_EMAIL,
+    SHOP_NAME,
+} from '@/lib/shop';
 
 interface CancellationBooking {
     id: string;
@@ -13,6 +16,7 @@ interface CancellationBooking {
     service: string;
     time: string;
     barber_name: string | null;
+    shop_google_event_id?: string | null;
     barbers: { name: string; email: string | null } | null;
 }
 
@@ -75,7 +79,7 @@ function buildCancelIcs(
         `DTEND:${fmt(endMs)}`,
         `SUMMARY:CANCELLED — ${icsEscape(booking.service)}`,
         `LOCATION:${icsEscape(`${SHOP_NAME}, ${SHOP_ADDRESS}`)}`,
-        `ORGANIZER;CN=${icsEscape(SHOP_NAME)}:mailto:${BARBERSHOP_EMAIL}`,
+        `ORGANIZER;CN=${icsEscape(SHOP_NAME)}:mailto:${SHOP_CALENDAR_EMAIL}`,
         ...attendees,
         'STATUS:CANCELLED',
         'END:VEVENT',
@@ -109,7 +113,15 @@ export async function sendCancellationEmails(
             return booking.date;
         }
     })();
-    const ics = buildCancelIcs(booking, barberName, barberEmail);
+
+    const shopConnected = await isShopCalendarConnected();
+    const skipCalendarIcs = shopConnected || !!booking.shop_google_event_id;
+    const ics = skipCalendarIcs ? null : buildCancelIcs(booking, barberName, barberEmail);
+
+    const calendarNote = skipCalendarIcs
+        ? `Your Google Calendar invitation from <strong style="color:#fff;">${SHOP_CALENDAR_EMAIL}</strong> has been cancelled automatically.`
+        : 'Your calendar has been updated automatically.';
+
     const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#050505;font-family:Arial,sans-serif;">
@@ -123,7 +135,7 @@ export async function sendCancellationEmails(
         <p style="margin:0 0 8px;color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:3px;text-transform:uppercase;">Appointment Cancelled</p>
         <h1 style="margin:0 0 24px;color:#fff;font-size:22px;letter-spacing:1.5px;text-transform:uppercase;">Your appointment has been cancelled</h1>
         <p style="margin:0 0 16px;color:rgba(255,255,255,0.6);font-size:14px;line-height:1.7;">
-          ${booking.service} with ${barberName} on ${dateFormatted} at ${booking.time} is no longer scheduled. Your calendar has been updated automatically.
+          ${booking.service} with ${barberName} on ${dateFormatted} at ${booking.time} is no longer scheduled. ${calendarNote}
         </p>
         <p style="margin:0 0 28px;color:rgba(255,255,255,0.5);font-size:13px;line-height:1.7;">
           Walk-ins are welcome anytime. Or rebook online when you&rsquo;re ready.
@@ -151,15 +163,17 @@ export async function sendCancellationEmails(
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                from: 'SAVRON Barbershop & Lounge <bookings@savronmn.com>',
+                from: `SAVRON Barbershop & Lounge <${RESEND_BOOKING_FROM}>`,
                 to: [to],
                 subject: `Cancelled: ${booking.service} — ${dateFormatted}, ${booking.time}`,
                 html,
-                attachments: [{
-                    filename: 'appointment-cancel.ics',
-                    content: Buffer.from(ics).toString('base64'),
-                    contentType: 'text/calendar; charset=utf-8; method=CANCEL',
-                }],
+                ...(ics ? {
+                    attachments: [{
+                        filename: 'appointment-cancel.ics',
+                        content: Buffer.from(ics).toString('base64'),
+                        contentType: 'text/calendar; charset=utf-8; method=CANCEL',
+                    }],
+                } : {}),
             }),
         });
         if (!response.ok) {

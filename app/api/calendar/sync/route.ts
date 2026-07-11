@@ -20,6 +20,7 @@ import { deleteAllBookingCalendarEvents } from '@/lib/booking-calendar-cleanup';
 import { upsertShopInviteEvent } from '@/lib/shop-calendar';
 import { requireStaff } from '@/lib/staff-auth';
 import { SERVICES } from '@/lib/services-data';
+import { SHOP_NAME } from '@/lib/shop';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -104,10 +105,11 @@ async function syncShopInvite(
     },
 ) {
     const { summary, description, startIso, endIso } = buildEventPayload(booking);
+    const clientSummary = `${booking.service} — ${SHOP_NAME}`;
     const shopEventId = await upsertShopInviteEvent({
         bookingId: booking.id,
         shopEventId: booking.shop_google_event_id,
-        summary,
+        summary: clientSummary,
         description,
         startIso,
         endIso,

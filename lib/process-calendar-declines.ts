@@ -10,7 +10,13 @@ import { getValidAccessToken, listAccountCalendarIds, type CalendarToken } from 
 import { getShopCalendarId, getShopCalendarTokens } from '@/lib/shop-calendar';
 
 const GOOGLE_CALENDAR_BASE = 'https://www.googleapis.com/calendar/v3';
-const STAFF_NOTIFY_EMAIL = process.env.RESEND_FROM_EMAIL || 'info@savronmn.com';
+import {
+    RESEND_BOOKING_FROM,
+    SHOP_CALENDAR_EMAIL,
+    SHOP_CONTACT_EMAIL,
+} from '@/lib/shop';
+
+const STAFF_NOTIFY_EMAIL = process.env.RESEND_FROM_EMAIL || RESEND_BOOKING_FROM;
 
 async function listEvents(
     accessToken: string,
@@ -84,7 +90,7 @@ async function notifyStaffOfCalendarAction(params: {
             },
             body: JSON.stringify({
                 from: STAFF_NOTIFY_EMAIL,
-                to: ['info@savronmn.com'],
+                to: [SHOP_CALENDAR_EMAIL, SHOP_CONTACT_EMAIL],
                 subject,
                 html,
             }),

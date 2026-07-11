@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
-
-const BARBERSHOP_EMAIL = 'info@savronmn.com';
-const SHOP_ADDRESS = '250 N Third Avenue, Minneapolis, MN 55401';
-const SHOP_NAME = 'SAVRON Barbershop & Lounge';
+import { isShopCalendarConnected } from '@/lib/shop-calendar';
+import {
+    RESEND_BOOKING_FROM,
+    SHOP_ADDRESS,
+    SHOP_CALENDAR_EMAIL,
+    SHOP_NAME,
+} from '@/lib/shop';
 
 // Escape ICS text per RFC 5545 (commas, semicolons, newlines)
 function icsEscape(s: string): string {
@@ -87,7 +90,7 @@ function getIcsString(
         `SUMMARY:${icsEscape(`${booking.service} — ${SHOP_NAME}`)}`,
         `LOCATION:${icsEscape(`${SHOP_NAME}, ${SHOP_ADDRESS}`)}`,
         `DESCRIPTION:${description}`,
-        `ORGANIZER;CN=${icsEscape(SHOP_NAME)}:mailto:${BARBERSHOP_EMAIL}`,
+        `ORGANIZER;CN=${icsEscape(SHOP_NAME)}:mailto:${SHOP_CALENDAR_EMAIL}`,
         ...attendees,
         `STATUS:${status}`,
         'TRANSP:OPAQUE',
@@ -140,6 +143,18 @@ export async function POST(request: NextRequest) {
     try { return format(new Date(booking.date), 'EEEE, MMMM d, yyyy'); }
     catch { return booking.date; }
   })();
+
+  const shopConnected = await isShopCalendarConnected();
+  const shopInviteActive = shopConnected || !!booking.shop_google_event_id;
+
+  const calendarNote = shopInviteActive
+    ? `<p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
+              Your Google Calendar invitation comes from <strong style="color:#fff;">${SHOP_CALENDAR_EMAIL}</strong>.
+              Use <em>Yes</em>, <em>No</em>, or <em>Propose a new time</em> on that invite.
+            </p>`
+    : `<p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
+              Need to cancel or reschedule? Reply to this email — your calendar invite includes RSVP options.
+            </p>`;
 
   const htmlBody = `
 <!DOCTYPE html>
@@ -216,9 +231,7 @@ export async function POST(request: NextRequest) {
               </tr>
             </table>
 
-            <p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
-              Need to cancel or reschedule? Reply to this email — your calendar invite includes a cancel option.
-            </p>
+            ${calendarNote}
             <p style="margin:0;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
               We&rsquo;ll see you soon.
             </p>
@@ -238,8 +251,8 @@ export async function POST(request: NextRequest) {
 </body>
 </html>`;
 
-  // Skip ICS REQUEST only when THIS booking already has a shop Google invite.
-  const shopInviteActive = !!booking.shop_google_event_id;
+  // When shop Google Calendar is connected, savronmn@gmail.com sends the real invite.
+  // Resend email is HTML-only — never attach ICS with a different organizer (info@).
   const icsString = shopInviteActive ? null : getIcsString(booking, barberName, barberEmail, 'REQUEST');
   const icsAttachment = icsString
     ? {
@@ -262,7 +275,7 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        from: 'SAVRON Barbershop & Lounge <bookings@savronmn.com>',
+        from: `SAVRON Barbershop & Lounge <${RESEND_BOOKING_FROM}>`,
         to: [booking.client_email],
         subject: `Your appointment is confirmed — ${booking.time}, ${dateFormatted}`,
         html: htmlBody,
@@ -282,7 +295,7 @@ export async function POST(request: NextRequest) {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          from: 'SAVRON Barbershop & Lounge <bookings@savronmn.com>',
+          from: `SAVRON Barbershop & Lounge <${RESEND_BOOKING_FROM}>`,
           to: [barberEmail],
           subject: `New booking: ${booking.client_name || 'Walk-in'} — ${booking.time}, ${dateFormatted}`,
           html: barberHtml,

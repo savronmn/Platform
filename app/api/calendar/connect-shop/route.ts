@@ -1,5 +1,5 @@
 // GET /api/calendar/connect-shop?redirect=/admin
-// Connect savronmn@gmail.com (Savron shop calendar) for event cleanup.
+// Connect savronmn@gmail.com shop calendar — this account sends booking invites (RSVP source of truth).
 
 import { NextRequest, NextResponse } from 'next/server';
 import { buildAuthUrl } from '@/lib/google-calendar';
