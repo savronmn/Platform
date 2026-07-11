@@ -5,7 +5,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
-import { shopGoogleInviteActive } from '@/lib/booking-email-policy';
+import {
+    bookingCancelEmailBlock,
+    buildBookingCancelUrl,
+    CLIENT_CANCEL_EMAIL_MARKER,
+} from '@/lib/booking-cancel-link';
 import {
     RESEND_BOOKING_FROM,
     RESEND_BOOKING_FROM_NAME,
@@ -47,7 +51,7 @@ function getUpdateIcsString(
         notes: string | null;
     },
     barberName: string,
-    barberEmail: string | null,
+    _barberEmail: string | null,
 ): string {
     const [timePart, meridiem] = (booking.time || '12:00 PM').split(' ');
     let [hours, minutes] = timePart.split(':').map(Number);
@@ -64,18 +68,6 @@ function getUpdateIcsString(
     const fmt = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
     const uid = `booking-${booking.id}@savronmn.com`;
 
-    const attendees: string[] = [];
-    if (booking.client_email) {
-        attendees.push(
-            `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE;CN=${icsEscape(booking.client_name || 'Guest')}:mailto:${booking.client_email}`
-        );
-    }
-    if (barberEmail) {
-        attendees.push(
-            `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE;CN=${icsEscape(barberName)}:mailto:${barberEmail}`
-        );
-    }
-
     const notes = booking.notes ? `\\n\\nNote from guest: ${icsEscape(booking.notes)}` : '';
     const description = `Your updated appointment for ${icsEscape(booking.service)} with ${icsEscape(barberName)} at ${icsEscape(SHOP_NAME)}.\\n${icsEscape(SHOP_ADDRESS)}${notes}`;
 
@@ -84,7 +76,7 @@ function getUpdateIcsString(
         'VERSION:2.0',
         'PRODID:-//SAVRON Barbershop & Lounge//Booking System//EN',
         'CALSCALE:GREGORIAN',
-        'METHOD:REQUEST',
+        'METHOD:PUBLISH',
         'BEGIN:VEVENT',
         `UID:${uid}`,
         'SEQUENCE:2',
@@ -95,7 +87,6 @@ function getUpdateIcsString(
         `LOCATION:${icsEscape(`${SHOP_NAME}, ${SHOP_ADDRESS}`)}`,
         `DESCRIPTION:${description}`,
         `ORGANIZER;CN=${icsEscape(SHOP_CALENDAR_DISPLAY_NAME)}:mailto:${SHOP_CALENDAR_EMAIL}`,
-        ...attendees,
         'STATUS:CONFIRMED',
         'TRANSP:OPAQUE',
         'CLASS:PUBLIC',
@@ -123,9 +114,8 @@ export async function POST(request: NextRequest) {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
-    const { bookingId, shopInviteSent } = await request.json() as {
+    const { bookingId } = await request.json() as {
         bookingId: string;
-        shopInviteSent?: boolean;
     };
 
     if (!bookingId) {
@@ -150,6 +140,9 @@ export async function POST(request: NextRequest) {
         try { return format(new Date(booking.date), 'EEEE, MMMM d, yyyy'); }
         catch { return booking.date; }
     })();
+
+    const cancelUrl = buildBookingCancelUrl(booking);
+    const clientCancelBlock = bookingCancelEmailBlock(cancelUrl);
 
     const htmlBody = `
 <!DOCTYPE html>
@@ -228,19 +221,19 @@ export async function POST(request: NextRequest) {
                 <td style="padding:16px 20px;">
                   <p style="margin:0 0 8px;color:rgba(255,180,80,0.9);font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:700;">Calendar tip</p>
                   <p style="margin:0;color:rgba(255,255,255,0.75);font-size:12px;line-height:1.7;">
-                    Your calendar invite was updated. Tap <strong style="color:#fff;">Yes</strong> to confirm you can make the new time.
-                    If you need to cancel, tap <em>No</em> on your Google Calendar invite &mdash; that frees the slot and notifies the shop.
+                    Your updated calendar invite is attached (<strong style="color:#fff;">appointment.ics</strong>) from
+                    <strong style="color:#fff;">${SHOP_CALENDAR_DISPLAY_NAME}</strong>
+                    (<strong style="color:#fff;">${SHOP_CALENDAR_EMAIL}</strong>) — open it to refresh the appointment in your calendar.
                   </p>
                   <p style="margin:10px 0 0;color:rgba(255,255,255,0.55);font-size:12px;line-height:1.7;">
-                    You can also reply to this email and we&rsquo;ll help you reschedule.
+                    Need to cancel? Use the button below.
                   </p>
                 </td>
               </tr>
             </table>
 
-            <p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
-              Your calendar invite has been updated with the new details above.
-            </p>
+            ${clientCancelBlock}
+
             <p style="margin:0;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
               We&rsquo;ll see you soon.
             </p>
@@ -259,18 +252,12 @@ export async function POST(request: NextRequest) {
 </body>
 </html>`;
 
-    const shopInviteActive = shopGoogleInviteActive({
-        shopInviteSent,
-        shopGoogleEventId: booking.shop_google_event_id,
-    });
-    const icsString = shopInviteActive ? null : getUpdateIcsString(booking, barberName, barberEmail);
-    const icsAttachment = icsString
-        ? {
-            filename: 'appointment.ics',
-            content: Buffer.from(icsString).toString('base64'),
-            contentType: 'text/calendar; charset=utf-8; method=REQUEST',
-        }
-        : null;
+    const icsString = getUpdateIcsString(booking, barberName, barberEmail);
+    const icsAttachment = {
+        filename: 'appointment.ics',
+        content: Buffer.from(icsString).toString('base64'),
+        contentType: 'text/calendar; charset=utf-8; method=PUBLISH',
+    };
 
     const headers = {
         Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
@@ -288,13 +275,14 @@ export async function POST(request: NextRequest) {
                 to: [booking.client_email],
                 subject: `Your appointment has been updated — ${booking.time}, ${dateFormatted}`,
                 html: htmlBody,
-                ...(icsAttachment ? { attachments: [icsAttachment] } : {}),
+                attachments: [icsAttachment],
             }),
         })
     );
 
     if (barberEmail) {
         const barberHtml = htmlBody
+            .replace(CLIENT_CANCEL_EMAIL_MARKER, '')
             .replace('Your appointment has been updated,', 'Appointment updated —')
             .replace(booking.client_name?.split(' ')[0] ?? 'friend', booking.client_name || 'Walk-in');
 
@@ -307,7 +295,7 @@ export async function POST(request: NextRequest) {
                     to: [barberEmail],
                     subject: `Updated booking: ${booking.client_name || 'Walk-in'} — ${booking.time}, ${dateFormatted}`,
                     html: barberHtml,
-                    ...(icsAttachment ? { attachments: [icsAttachment] } : {}),
+                    attachments: [icsAttachment],
                 }),
             })
         );

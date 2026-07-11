@@ -21,8 +21,7 @@ export interface CancelBookingResult {
 
 /**
  * Cancel a booking: set status, send cancellation email, remove Google Calendar events.
- * When shop calendar is connected, Google (savronmn@gmail.com) cancels the invite via API.
- * Resend sends HTML-only; legacy ICS cancel only when shop calendar is unavailable.
+ * Client cancel link uses Resend email with attached METHOD:CANCEL .ics.
  */
 export async function cancelBooking(
     bookingId: string,

@@ -105,7 +105,7 @@ export async function saveShopSyncTokenIfUnchanged(
     return true;
 }
 
-/** Create/update the Savron shop calendar invite (with client attendee) so Google RSVP works. */
+/** Create/update a silent shop calendar mirror (no Google emails to attendees). */
 export async function upsertShopInviteEvent(params: {
     bookingId: string;
     shopEventId?: string | null;
@@ -120,10 +120,12 @@ export async function upsertShopInviteEvent(params: {
 
     const accessToken = await getValidAccessToken(tokens);
     const calendarId = await getShopCalendarId();
-    const attendeeEmails = params.clientEmail ? [params.clientEmail] : [];
 
-    // Google invite is the RSVP source of truth (decline only).
-    const sendUpdates = attendeeEmails.length > 0 ? 'all' : 'none';
+    // Internal shop mirror only — no client attendee (prevents any Google invite email).
+    const attendeeEmails: string[] = [];
+
+    // Silent shop calendar mirror — client gets one Resend email with .ics (no Google mail).
+    const sendUpdates = 'none' as const;
 
     const organizer = {
         organizerEmail: SHOP_CALENDAR_EMAIL,
