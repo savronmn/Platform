@@ -7,9 +7,10 @@ import { createClient } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useServices } from '@/lib/use-services';
-import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
+import { generateTimeSlots } from '@/lib/services-data';
 import type { Barber } from '@/lib/types';
 import { triggerPostBooking } from '@/lib/confirm-booking';
+import { isSlotInPast, slotConflictsWithBusy } from '@/lib/time-helpers';
 
 interface WalkInModalProps {
     open: boolean;
@@ -24,6 +25,8 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    const [busySlots, setBusySlots] = useState<{ start: string; end: string }[]>([]);
+    const [loadingBusy, setLoadingBusy] = useState(false);
 
     const [form, setForm] = useState({
         clientName: '',
@@ -52,23 +55,59 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
     const field = (k: keyof typeof form, v: string) => {
         setForm(f => {
             const next = { ...f, [k]: v };
-            // Reset time when barber or date changes so stale selection can't persist
-            if (k === 'barberId' || k === 'date') next.time = '';
+            if (k === 'barberId' || k === 'date' || k === 'service') next.time = '';
             return next;
         });
     };
 
+    const selectedService = services.find(s => s.name === form.service);
+    const durationMin = selectedService?.durationMin ?? 45;
+    const selectedDate = form.date ? new Date(`${form.date}T12:00:00`) : new Date();
+
+    useEffect(() => {
+        if (!open || !form.barberId || !form.date) {
+            setBusySlots([]);
+            return;
+        }
+        let cancelled = false;
+        async function fetchBusy() {
+            setLoadingBusy(true);
+            try {
+                const res = await fetch(`/api/calendar/busy?barberId=${form.barberId}&date=${form.date}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (!cancelled) setBusySlots(data.busy || []);
+                } else if (!cancelled) {
+                    setBusySlots([]);
+                }
+            } catch {
+                if (!cancelled) setBusySlots([]);
+            }
+            if (!cancelled) setLoadingBusy(false);
+        }
+        fetchBusy();
+        return () => { cancelled = true; };
+    }, [open, form.barberId, form.date]);
+
     const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
-    const availableSlots = (() => {
+    const workingHoursSlots = (() => {
         const barber = barbers.find(b => b.id === form.barberId);
-        if (!barber?.working_hours || !form.date) return TIME_SLOTS;
+        if (!barber?.working_hours || !form.date) return [];
         const dayIndex = new Date(`${form.date}T12:00:00`).getDay();
         const dayKey = DAY_KEYS[dayIndex];
         const daySchedule = (barber.working_hours as Record<string, { open: string; close: string } | null>)[dayKey];
-        if (!daySchedule) return []; // barber is off that day
+        if (!daySchedule) return [];
         return generateTimeSlots(daySchedule.open, daySchedule.close);
     })();
+
+    const isSlotUnavailable = (timeStr: string) => {
+        if (isSlotInPast(selectedDate, timeStr, 0)) return true;
+        if (loadingBusy) return true;
+        return slotConflictsWithBusy(selectedDate, timeStr, durationMin, busySlots);
+    };
+
+    const availableSlots = workingHoursSlots.filter(t => !isSlotUnavailable(t));
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -79,7 +118,12 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
         setSubmitting(true);
         setError(null);
         const barber = barbers.find(b => b.id === form.barberId);
-        const selectedService = services.find(s => s.name === form.service);
+
+        if (isSlotUnavailable(form.time)) {
+            setSubmitting(false);
+            setError('That slot is no longer available. Please choose a different time.');
+            return;
+        }
 
         const { data: conflictCheck } = await supabase
             .from('bookings')
@@ -208,18 +252,28 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
                                     </div>
                                     <div>
                                         <label className="block text-xs uppercase tracking-widest text-savron-silver mb-1">Time <span className="text-savron-green">*</span></label>
-                                        <select
-                                            value={form.time}
-                                            onChange={e => field('time', e.target.value)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-savron px-3 py-2 text-sm text-white focus:outline-none focus:border-savron-green/50 transition-colors appearance-none"
-                                        >
-                                            <option value="" className="bg-savron-grey">
-                                                {availableSlots.length === 0 && form.barberId ? 'Barber off this day' : 'Select…'}
-                                            </option>
-                                            {availableSlots.map(t => (
-                                                <option key={t} value={t} className="bg-savron-grey">{t}</option>
-                                            ))}
-                                        </select>
+                                        {!form.barberId ? (
+                                            <p className="text-savron-silver/50 text-xs py-2">Select a barber first.</p>
+                                        ) : loadingBusy ? (
+                                            <p className="text-savron-silver/50 text-xs py-2">Loading availability…</p>
+                                        ) : (
+                                            <select
+                                                value={form.time}
+                                                onChange={e => field('time', e.target.value)}
+                                                className="w-full bg-white/5 border border-white/10 rounded-savron px-3 py-2 text-sm text-white focus:outline-none focus:border-savron-green/50 transition-colors appearance-none"
+                                            >
+                                                <option value="" className="bg-savron-grey">
+                                                    {workingHoursSlots.length === 0
+                                                        ? 'Barber off this day'
+                                                        : availableSlots.length === 0
+                                                            ? 'No available slots'
+                                                            : 'Select…'}
+                                                </option>
+                                                {availableSlots.map(t => (
+                                                    <option key={t} value={t} className="bg-savron-grey">{t}</option>
+                                                ))}
+                                            </select>
+                                        )}
                                     </div>
                                 </div>
 
