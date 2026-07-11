@@ -23,6 +23,10 @@ DROP POLICY IF EXISTS "Public can insert clients" ON public.clients;
 -- email_subscribers
 DROP POLICY IF EXISTS "Public can insert subscribers" ON public.email_subscribers;
 DROP POLICY IF EXISTS "Service role full access on email_subscribers" ON public.email_subscribers;
+DROP POLICY IF EXISTS "Authenticated read email_subscribers" ON public.email_subscribers;
+
+-- barbers: duplicate public SELECT policy (keep "Public can read barbers")
+DROP POLICY IF EXISTS "Public read barbers" ON public.barbers;
 
 -- ── 2. Recreate INSERT policies with field validation (not WITH CHECK true) ──
 
