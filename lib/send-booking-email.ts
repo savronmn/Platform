@@ -11,6 +11,7 @@ import {
     RESEND_BOOKING_FROM_NAME,
     SHOP_ADDRESS,
     SHOP_CALENDAR_DISPLAY_NAME,
+    SHOP_CALENDAR_EMAIL,
     SHOP_NAME,
 } from '@/lib/shop';
 
@@ -97,8 +98,10 @@ export async function sendBookingConfirmationEmail(bookingId: string): Promise<S
     const clientCancelBlock = bookingCancelEmailBlock(cancelUrl);
 
     const calendarNote = `<p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
-              This message is from <strong style="color:#fff;">${RESEND_BOOKING_FROM}</strong> (${SHOP_CALENDAR_DISPLAY_NAME}).
-              Your calendar file is attached as <strong style="color:#fff;">appointment.ics</strong> — open it to add this appointment.
+              This confirmation is from <strong style="color:#fff;">${RESEND_BOOKING_FROM}</strong> (${SHOP_CALENDAR_DISPLAY_NAME}).
+              Your appointment is held on the shop calendar under
+              <strong style="color:#fff;">${SHOP_CALENDAR_EMAIL}</strong>.
+              Open the attached <strong style="color:#fff;">appointment.ics</strong> to add it to your personal calendar.
             </p>`;
 
     const htmlBody = `<!DOCTYPE html>

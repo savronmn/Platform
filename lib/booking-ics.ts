@@ -1,5 +1,4 @@
 import {
-    RESEND_BOOKING_FROM,
     SHOP_ADDRESS,
     SHOP_CALENDAR_DISPLAY_NAME,
     SHOP_CALENDAR_EMAIL,
@@ -26,9 +25,9 @@ export function icsFold(line: string): string {
     return out.join('\r\n');
 }
 
-/** Client-facing ICS: SAVRON/savronmn@gmail.com invites, sent via bookings@savronmn.com (Resend). */
+/** Client-facing ICS: SAVRON invites from savronmn@gmail.com (shop calendar owner). */
 export function getBookingIcsOrganizerLine(): string {
-    return `ORGANIZER;CN=${icsEscape(SHOP_CALENDAR_DISPLAY_NAME)};SENT-BY=mailto:${RESEND_BOOKING_FROM}:mailto:${SHOP_CALENDAR_EMAIL}`;
+    return `ORGANIZER;CN=${icsEscape(SHOP_CALENDAR_DISPLAY_NAME)}:mailto:${SHOP_CALENDAR_EMAIL}`;
 }
 
 interface BookingIcsInput {

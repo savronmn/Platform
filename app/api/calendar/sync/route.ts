@@ -22,7 +22,7 @@ import { upsertShopInviteEvent } from '@/lib/shop-calendar';
 import { sendBookingConfirmationEmail, sendBookingUpdateEmail } from '@/lib/send-booking-email';
 import { requireStaff } from '@/lib/staff-auth';
 import { SERVICES } from '@/lib/services-data';
-import { SHOP_NAME } from '@/lib/shop';
+import { SHOP_CALENDAR_DISPLAY_NAME, SHOP_CALENDAR_EMAIL, SHOP_NAME } from '@/lib/shop';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -108,11 +108,17 @@ async function syncShopInvite(
 ) {
     const { summary, description, startIso, endIso } = buildEventPayload(booking);
     const clientSummary = `${booking.service} — ${SHOP_NAME}`;
+    const shopDescription = [
+        description,
+        '',
+        `Shop calendar owner: ${SHOP_CALENDAR_EMAIL} (${SHOP_CALENDAR_DISPLAY_NAME})`,
+        booking.client_email ? `Client: ${booking.client_name ?? 'Guest'} <${booking.client_email}>` : '',
+    ].filter(Boolean).join('\n');
     const shopEventId = await upsertShopInviteEvent({
         bookingId: booking.id,
         shopEventId: booking.shop_google_event_id,
         summary: clientSummary,
-        description,
+        description: shopDescription,
         startIso,
         endIso,
         clientEmail: booking.client_email,

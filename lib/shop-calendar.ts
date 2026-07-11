@@ -105,7 +105,7 @@ export async function saveShopSyncTokenIfUnchanged(
     return true;
 }
 
-/** Create/update a silent shop calendar mirror (no Google emails to attendees). */
+/** Create/update shop calendar event owned by savronmn@gmail.com (silent — no Google email to client). */
 export async function upsertShopInviteEvent(params: {
     bookingId: string;
     shopEventId?: string | null;
