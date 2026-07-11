@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/calendar/sweep-declines",
-      "schedule": "0 * * * *"
+      "schedule": "0 10 * * *"
     }
   ]
 }
