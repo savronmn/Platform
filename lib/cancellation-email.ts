@@ -60,9 +60,6 @@ function buildCancelIcs(
             `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;CN=${icsEscape(barberName)}:mailto:${barberEmail}`,
         );
     }
-    attendees.push(
-        `ATTENDEE;CUTYPE=ROOM;ROLE=NON-PARTICIPANT;PARTSTAT=ACCEPTED;CN=${icsEscape(SHOP_NAME)}:mailto:${BARBERSHOP_EMAIL}`,
-    );
 
     return [
         'BEGIN:VCALENDAR',
@@ -100,7 +97,7 @@ export async function sendCancellationEmails(
         !barberEmail ? 'barber' : null,
     ].filter((recipient): recipient is string => Boolean(recipient));
     const recipients = Array.from(new Set(
-        [booking.client_email, barberEmail, BARBERSHOP_EMAIL].filter(
+        [booking.client_email, barberEmail].filter(
             (email): email is string => Boolean(email),
         ),
     ));

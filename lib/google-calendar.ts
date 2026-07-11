@@ -98,7 +98,7 @@ export async function createCalendarEvent(
     body.guestsCanInviteOthers = false;
 
     const res = await fetch(
-        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=all`,
+        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=none`,
         {
             method: 'POST',
             headers: {
@@ -139,7 +139,7 @@ export async function updateCalendarEvent(
     body.guestsCanInviteOthers = false;
 
     const res = await fetch(
-        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=all`,
+        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=none`,
         {
             method: 'PATCH',
             headers: {
@@ -161,7 +161,7 @@ export async function deleteCalendarEvent(
     eventId: string
 ): Promise<void> {
     const res = await fetch(
-        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}?sendUpdates=all`,
+        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}?sendUpdates=none`,
         {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${accessToken}` },

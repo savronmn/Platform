@@ -67,12 +67,9 @@ function buildEventPayload(booking: {
     return { summary, description, startIso, endIso, durationMin };
 }
 
-function buildAttendees(booking: { client_email: string | null }, barber: BarberCalendarInfo | null): string[] {
-    const attendees: string[] = [];
-    if (booking.client_email) attendees.push(booking.client_email);
-    attendees.push('info@savronmn.com');
-    if (barber?.email) attendees.push(barber.email);
-    return attendees;
+function buildAttendees(_booking: { client_email: string | null }, _barber: BarberCalendarInfo | null): string[] {
+    // Invites are sent only via Savron email (bookings@savronmn.com). GCal event is barber-side busy block only.
+    return [];
 }
 
 async function deleteEventFromBarber(

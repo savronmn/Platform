@@ -70,9 +70,6 @@ function getUpdateIcsString(
             `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE;CN=${icsEscape(barberName)}:mailto:${barberEmail}`
         );
     }
-    attendees.push(
-        `ATTENDEE;CUTYPE=ROOM;ROLE=NON-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE;CN=${icsEscape(SHOP_NAME)}:mailto:${BARBERSHOP_EMAIL}`
-    );
 
     const notes = booking.notes ? `\\n\\nNote from guest: ${icsEscape(booking.notes)}` : '';
     const description = `Your updated appointment for ${icsEscape(booking.service)} with ${icsEscape(barberName)} at ${icsEscape(SHOP_NAME)}.\\n${icsEscape(SHOP_ADDRESS)}${notes}`;
@@ -300,24 +297,6 @@ export async function POST(request: NextRequest) {
             })
         );
     }
-
-    const shopHtml = htmlBody
-        .replace('Your appointment has been updated,', 'Appointment updated —')
-        .replace(booking.client_name?.split(' ')[0] ?? 'friend', `${booking.client_name || 'Walk-in'} with ${barberName}`);
-
-    emailPromises.push(
-        fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-                from: 'SAVRON Barbershop & Lounge <bookings@savronmn.com>',
-                to: [BARBERSHOP_EMAIL],
-                subject: `Updated booking: ${booking.client_name || 'Walk-in'} — ${barberName}, ${booking.time}, ${dateFormatted}`,
-                html: shopHtml,
-                attachments: [icsAttachment],
-            }),
-        })
-    );
 
     const results = await Promise.allSettled(emailPromises);
 

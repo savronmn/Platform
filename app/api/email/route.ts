@@ -1,6 +1,6 @@
 // POST /api/email
 // Sends a booking confirmation email via Resend.
-// Sends calendar invite to client, barber, and barbershop (info@savronmn.com)
+// Savron is the sole calendar invite source — client + barber only (Google Calendar sync is silent).
 // Body: { bookingId: string }
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -73,9 +73,6 @@ function getIcsString(
             `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE;CN=${icsEscape(barberName)}:mailto:${barberEmail}`
         );
     }
-    attendees.push(
-        `ATTENDEE;CUTYPE=ROOM;ROLE=NON-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE;CN=${icsEscape(SHOP_NAME)}:mailto:${BARBERSHOP_EMAIL}`
-    );
 
     const notes = booking.notes ? `\\n\\nNote from guest: ${icsEscape(booking.notes)}` : '';
     const description = `Your appointment for ${icsEscape(booking.service)} with ${icsEscape(barberName)} at ${icsEscape(SHOP_NAME)}.\\n${icsEscape(SHOP_ADDRESS)}${notes}`;
@@ -255,7 +252,7 @@ export async function POST(request: NextRequest) {
       contentType: 'text/calendar; charset=utf-8; method=REQUEST',
   };
 
-  // Build all email recipients: client, barber (if email exists), and barbershop
+  // Savron sends the only calendar invite — client + barber (no duplicate from Google Calendar).
   const emailPromises: Promise<Response>[] = [];
   
   const headers = {
@@ -263,7 +260,7 @@ export async function POST(request: NextRequest) {
     'Content-Type': 'application/json',
   };
 
-  // 1. Send to client
+  // Client invite
   emailPromises.push(
     fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -278,7 +275,7 @@ export async function POST(request: NextRequest) {
     })
   );
 
-  // 2. Send to barber (if email exists)
+  // Barber invite
   if (barberEmail) {
     const barberHtml = htmlBody
       .replace("You're all set,", `New booking — `)
@@ -298,25 +295,6 @@ export async function POST(request: NextRequest) {
       })
     );
   }
-
-  // 3. Send to barbershop / receptionist
-  const shopHtml = htmlBody
-    .replace("You're all set,", `New booking — `)
-    .replace(booking.client_name?.split(' ')[0] ?? 'friend', `${booking.client_name || 'Walk-in'} with ${barberName}`);
-
-  emailPromises.push(
-    fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        from: 'SAVRON Barbershop & Lounge <bookings@savronmn.com>',
-        to: [BARBERSHOP_EMAIL],
-        subject: `New booking: ${booking.client_name || 'Walk-in'} — ${barberName}, ${booking.time}, ${dateFormatted}`,
-        html: shopHtml,
-        attachments: [icsAttachment],
-      }),
-    })
-  );
 
   // Send all emails in parallel
   const results = await Promise.allSettled(emailPromises);
