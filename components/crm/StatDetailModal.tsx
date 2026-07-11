@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Phone, Mail, Star, AlertCircle } from 'lucide-react';
 import { format, formatDistanceToNow, differenceInDays, parseISO } from 'date-fns';
@@ -427,6 +429,36 @@ interface StatDetailModalProps {
 }
 
 export default function StatDetailModal({ statKey, data, cutoff, onClose }: StatDetailModalProps) {
+    const modalRef = useRef<HTMLDivElement>(null);
+    const scrollLockRef = useRef(0);
+
+    useEffect(() => {
+        if (!statKey) return;
+
+        scrollLockRef.current = window.scrollY;
+        const { style } = document.body;
+        style.overflow = 'hidden';
+        style.position = 'fixed';
+        style.top = `-${scrollLockRef.current}px`;
+        style.left = '0';
+        style.right = '0';
+        style.width = '100%';
+
+        requestAnimationFrame(() => {
+            modalRef.current?.scrollIntoView({ block: 'center', inline: 'nearest' });
+        });
+
+        return () => {
+            style.overflow = '';
+            style.position = '';
+            style.top = '';
+            style.left = '';
+            style.right = '';
+            style.width = '';
+            window.scrollTo(0, scrollLockRef.current);
+        };
+    }, [statKey]);
+
     if (!statKey) return null;
 
     const { title, subtitle } = STAT_TITLES[statKey];
@@ -440,55 +472,61 @@ export default function StatDetailModal({ statKey, data, cutoff, onClose }: Stat
                     ? '/admin/barbers'
                     : null;
 
-    return (
+    const modal = (
         <AnimatePresence>
             {statKey && (
                 <motion.div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+                    className="fixed inset-0 z-[200] overflow-y-auto overscroll-contain bg-black/80 backdrop-blur-sm"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
                 >
-                    <motion.div
-                        className="bg-savron-grey border border-white/10 rounded-savron w-full max-w-lg max-h-[85vh] shadow-2xl flex flex-col overflow-hidden"
-                        initial={{ scale: 0.95, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.95, opacity: 0 }}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="flex items-start justify-between p-5 border-b border-white/[0.06] shrink-0">
-                            <div>
-                                <h2 className="font-heading text-lg uppercase tracking-widest text-white">{title}</h2>
-                                <p className="text-savron-silver/70 text-xs mt-1">{subtitle}</p>
-                            </div>
-                            <button
-                                onClick={onClose}
-                                className="p-2 text-savron-silver hover:text-white transition-colors rounded-lg hover:bg-white/5"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        <div className="overflow-y-auto flex-1 px-5">
-                            {renderContent(statKey, data, cutoff)}
-                        </div>
-
-                        {linkHref && (
-                            <div className="p-4 border-t border-white/[0.06] shrink-0">
-                                <Link
-                                    href={linkHref}
-                                    className="block text-center text-xs uppercase tracking-widest text-accent-blue hover:text-savron-cream transition-colors"
+                    <div className="flex min-h-[100dvh] items-center justify-center p-4 sm:p-6">
+                        <motion.div
+                            ref={modalRef}
+                            className="bg-savron-grey border border-white/10 rounded-savron w-full max-w-lg max-h-[min(85dvh,calc(100dvh-2rem))] shadow-2xl flex flex-col overflow-hidden my-auto"
+                            initial={{ scale: 0.95, opacity: 0, y: 8 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.95, opacity: 0, y: 8 }}
+                            transition={{ duration: 0.15 }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-start justify-between p-5 border-b border-white/[0.06] shrink-0">
+                                <div>
+                                    <h2 className="font-heading text-lg uppercase tracking-widest text-white">{title}</h2>
+                                    <p className="text-savron-silver/70 text-xs mt-1">{subtitle}</p>
+                                </div>
+                                <button
+                                    onClick={onClose}
+                                    className="p-2 text-savron-silver hover:text-white transition-colors rounded-lg hover:bg-white/5"
                                 >
-                                    Open full page →
-                                </Link>
+                                    <X className="w-4 h-4" />
+                                </button>
                             </div>
-                        )}
-                    </motion.div>
+
+                            <div className="overflow-y-auto flex-1 px-5 min-h-0">
+                                {renderContent(statKey, data, cutoff)}
+                            </div>
+
+                            {linkHref && (
+                                <div className="p-4 border-t border-white/[0.06] shrink-0">
+                                    <Link
+                                        href={linkHref}
+                                        className="block text-center text-xs uppercase tracking-widest text-accent-blue hover:text-savron-cream transition-colors"
+                                    >
+                                        Open full page →
+                                    </Link>
+                                </div>
+                            )}
+                        </motion.div>
+                    </div>
                 </motion.div>
             )}
         </AnimatePresence>
     );
+
+    return createPortal(modal, document.body);
 }
 
 export function buildStatDetailData(

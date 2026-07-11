@@ -25,6 +25,8 @@ export default function ClientsPage() {
     const [showAdd, setShowAdd] = useState(false);
     const [newClient, setNewClient] = useState({ name: '', email: '', phone: '', notes: '', preferences: '' });
     const [showDelete, setShowDelete] = useState<string | null>(null);
+    const [showBulkDelete, setShowBulkDelete] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [fetchError, setFetchError] = useState<string | null>(null);
 
     // Bulk selection
@@ -115,9 +117,32 @@ export default function ClientsPage() {
     }
 
     async function deleteClient(id: string) {
-        await supabase.from('clients').delete().eq('id', id);
+        setDeleting(true);
+        const { error } = await supabase.from('clients').delete().eq('id', id);
+        setDeleting(false);
+        if (error) return;
         setShowDelete(null);
-        setSelected(null);
+        if (selected?.id === id) setSelected(null);
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+        });
+        fetchClients();
+    }
+
+    async function deleteSelectedClients() {
+        const ids = Array.from(selectedIds);
+        if (ids.length === 0) return;
+
+        setDeleting(true);
+        const { error } = await supabase.from('clients').delete().in('id', ids);
+        setDeleting(false);
+        if (error) return;
+
+        setShowBulkDelete(false);
+        if (selected && ids.includes(selected.id)) setSelected(null);
+        setSelectedIds(new Set());
         fetchClients();
     }
 
@@ -215,6 +240,12 @@ export default function ClientsPage() {
                                 className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-savron hover:bg-blue-500/30 transition-all"
                             >
                                 <Mail className="w-4 h-4" /> Email {selectedIds.size}
+                            </button>
+                            <button
+                                onClick={() => setShowBulkDelete(true)}
+                                className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest bg-red-500/15 text-red-300 border border-red-500/30 rounded-savron hover:bg-red-500/25 transition-all"
+                            >
+                                <Trash2 className="w-4 h-4" /> Delete {selectedIds.size}
                             </button>
                         </>
                     )}
@@ -456,7 +487,7 @@ export default function ClientsPage() {
                     <motion.div
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                         className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4"
-                        onClick={() => setShowDelete(null)}
+                        onClick={() => !deleting && setShowDelete(null)}
                     >
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
@@ -467,8 +498,43 @@ export default function ClientsPage() {
                             <h3 className="text-white font-heading text-lg uppercase tracking-wider">Delete Client?</h3>
                             <p className="text-savron-silver text-sm">This action cannot be undone.</p>
                             <div className="flex gap-3 justify-center">
-                                <button onClick={() => setShowDelete(null)} className="px-4 py-2 text-xs uppercase tracking-widest text-savron-silver border border-white/10 rounded-savron hover:text-white transition-all">Cancel</button>
-                                <button onClick={() => deleteClient(showDelete)} className="px-4 py-2 text-xs uppercase tracking-widest bg-red-500 text-white rounded-savron hover:bg-opacity-90 transition-all">Delete</button>
+                                <button onClick={() => setShowDelete(null)} disabled={deleting} className="px-4 py-2 text-xs uppercase tracking-widest text-savron-silver border border-white/10 rounded-savron hover:text-white transition-all disabled:opacity-50">Cancel</button>
+                                <button onClick={() => deleteClient(showDelete)} disabled={deleting} className="px-4 py-2 text-xs uppercase tracking-widest bg-red-500 text-white rounded-savron hover:bg-opacity-90 transition-all disabled:opacity-50 flex items-center gap-2">
+                                    {deleting ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
+                                    Delete
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* ── Bulk Delete Confirmation ── */}
+            <AnimatePresence>
+                {showBulkDelete && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4"
+                        onClick={() => !deleting && setShowBulkDelete(false)}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-savron-grey border border-red-500/20 rounded-savron w-full max-w-sm p-6 text-center space-y-4"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <AlertTriangle className="w-8 h-8 text-red-400 mx-auto" />
+                            <h3 className="text-white font-heading text-lg uppercase tracking-wider">
+                                Delete {selectedIds.size} Client{selectedIds.size !== 1 ? 's' : ''}?
+                            </h3>
+                            <p className="text-savron-silver text-sm">
+                                This will permanently remove the selected clients from your CRM. This action cannot be undone.
+                            </p>
+                            <div className="flex gap-3 justify-center">
+                                <button onClick={() => setShowBulkDelete(false)} disabled={deleting} className="px-4 py-2 text-xs uppercase tracking-widest text-savron-silver border border-white/10 rounded-savron hover:text-white transition-all disabled:opacity-50">Cancel</button>
+                                <button onClick={deleteSelectedClients} disabled={deleting} className="px-4 py-2 text-xs uppercase tracking-widest bg-red-500 text-white rounded-savron hover:bg-opacity-90 transition-all disabled:opacity-50 flex items-center gap-2">
+                                    {deleting ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
+                                    Delete {selectedIds.size}
+                                </button>
                             </div>
                         </motion.div>
                     </motion.div>

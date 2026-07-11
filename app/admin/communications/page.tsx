@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
-import { Mail, Send, Users, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Mail, Send, Users, CheckCircle2, AlertCircle, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 type Recipient = { email: string; name?: string };
 
@@ -20,6 +21,8 @@ export default function CommunicationsPage() {
     
     const [clients, setClients] = useState<Recipient[]>([]);
     const [subscribers, setSubscribers] = useState<Recipient[]>([]);
+    const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
+    const [recipientSearch, setRecipientSearch] = useState('');
 
     useEffect(() => {
         async function fetchData() {
@@ -40,26 +43,66 @@ export default function CommunicationsPage() {
         fetchData();
     }, []);
 
-    // Get unique recipients based on target group
-    const getActiveRecipients = () => {
+    const activeRecipients = useMemo(() => {
         let pool: Recipient[] = [];
         if (targetGroup === 'clients' || targetGroup === 'all') pool = [...pool, ...clients];
         if (targetGroup === 'subscribers' || targetGroup === 'all') pool = [...pool, ...subscribers];
-        
-        // Deduplicate by email
+
         const unique = new Map<string, Recipient>();
-        for (const r of pool) {
-            unique.set(r.email.toLowerCase(), r);
+        for (const recipient of pool) {
+            unique.set(recipient.email.toLowerCase(), recipient);
         }
         return Array.from(unique.values());
-    };
+    }, [targetGroup, clients, subscribers]);
 
-    const activeRecipients = getActiveRecipients();
+    useEffect(() => {
+        setSelectedEmails(new Set(activeRecipients.map(r => r.email.toLowerCase())));
+        setRecipientSearch('');
+    }, [activeRecipients]);
+
+    const filteredRecipients = useMemo(() => {
+        if (!recipientSearch.trim()) return activeRecipients;
+        const query = recipientSearch.toLowerCase();
+        return activeRecipients.filter(r =>
+            r.email.toLowerCase().includes(query) ||
+            r.name?.toLowerCase().includes(query),
+        );
+    }, [activeRecipients, recipientSearch]);
+
+    const selectedRecipients = useMemo(
+        () => activeRecipients.filter(r => selectedEmails.has(r.email.toLowerCase())),
+        [activeRecipients, selectedEmails],
+    );
+
+    const allFilteredSelected = filteredRecipients.length > 0
+        && filteredRecipients.every(r => selectedEmails.has(r.email.toLowerCase()));
+
+    function toggleRecipient(email: string) {
+        const key = email.toLowerCase();
+        setSelectedEmails(prev => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            return next;
+        });
+    }
+
+    function toggleAllFiltered() {
+        setSelectedEmails(prev => {
+            const next = new Set(prev);
+            if (allFilteredSelected) {
+                filteredRecipients.forEach(r => next.delete(r.email.toLowerCase()));
+            } else {
+                filteredRecipients.forEach(r => next.add(r.email.toLowerCase()));
+            }
+            return next;
+        });
+    }
 
     async function handleSend(e: React.FormEvent) {
         e.preventDefault();
-        if (activeRecipients.length === 0) {
-            setErrorMsg('No valid email recipients found in this group.');
+        if (selectedRecipients.length === 0) {
+            setErrorMsg('Select at least one recipient.');
             setStatus('error');
             return;
         }
@@ -90,7 +133,7 @@ export default function CommunicationsPage() {
                 body: JSON.stringify({
                     subject,
                     htmlContent,
-                    recipients: activeRecipients
+                    recipients: selectedRecipients
                 })
             });
 
@@ -133,7 +176,7 @@ export default function CommunicationsPage() {
                 <div className="flex items-center gap-2 px-5 py-3 bg-white/5 border border-white/10 rounded-savron">
                     <Users size={14} className="text-savron-silver" />
                     <span className="text-[10px] uppercase tracking-widest text-white">
-                        {activeRecipients.length} Target Recipients
+                        {selectedRecipients.length} of {activeRecipients.length} Selected
                     </span>
                 </div>
             </div>
@@ -214,16 +257,89 @@ export default function CommunicationsPage() {
 
                         <button 
                             type="submit" 
-                            disabled={sending || !subject || !content || activeRecipients.length === 0}
+                            disabled={sending || !subject || !content || selectedRecipients.length === 0}
                             className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-savron-green text-white border border-savron-green-light/20 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-savron-green-light transition-all rounded-savron disabled:opacity-50"
                         >
-                            {sending ? 'Sending Campaign...' : `Send to ${activeRecipients.length} Recipients`}
+                            {sending ? 'Sending Campaign...' : `Send to ${selectedRecipients.length} Recipient${selectedRecipients.length !== 1 ? 's' : ''}`}
                             {!sending && <Send size={14} />}
                         </button>
                     </form>
                 </div>
 
                 <div className="space-y-6">
+                    <div className="card-savron">
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                            <div className="flex items-center gap-3">
+                                <Users className="text-savron-silver w-4 h-4" />
+                                <h3 className="text-xs uppercase tracking-widest text-white">Recipients</h3>
+                            </div>
+                            <span className="text-[10px] uppercase tracking-widest text-savron-silver">
+                                {selectedRecipients.length}/{activeRecipients.length}
+                            </span>
+                        </div>
+
+                        {activeRecipients.length === 0 ? (
+                            <p className="text-sm text-savron-silver/70">No recipients with email addresses in this group.</p>
+                        ) : (
+                            <>
+                                <div className="relative mb-3">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-savron-silver/50" />
+                                    <input
+                                        type="text"
+                                        value={recipientSearch}
+                                        onChange={e => setRecipientSearch(e.target.value)}
+                                        placeholder="Search recipients..."
+                                        className="input-savron pl-9 py-2 text-sm"
+                                    />
+                                </div>
+
+                                <label className="flex items-center gap-2 px-1 py-2 border-b border-white/5 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={allFilteredSelected}
+                                        onChange={toggleAllFiltered}
+                                        className="accent-savron-green w-3.5 h-3.5"
+                                    />
+                                    <span className="text-[10px] uppercase tracking-widest text-savron-silver">
+                                        {allFilteredSelected ? 'Deselect filtered' : 'Select filtered'}
+                                    </span>
+                                </label>
+
+                                <div className="max-h-[420px] overflow-y-auto -mx-1 px-1 space-y-1">
+                                    {filteredRecipients.map(recipient => {
+                                        const key = recipient.email.toLowerCase();
+                                        const checked = selectedEmails.has(key);
+                                        return (
+                                            <label
+                                                key={key}
+                                                className={cn(
+                                                    'flex items-start gap-3 p-3 rounded-savron border cursor-pointer transition-colors',
+                                                    checked
+                                                        ? 'bg-savron-green/10 border-savron-green/20'
+                                                        : 'bg-white/[0.02] border-white/5 hover:border-white/10',
+                                                )}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={() => toggleRecipient(recipient.email)}
+                                                    className="accent-savron-green w-3.5 h-3.5 mt-0.5 shrink-0"
+                                                />
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-white text-sm truncate">{recipient.name || 'No name'}</p>
+                                                    <p className="text-savron-silver text-xs truncate">{recipient.email}</p>
+                                                </div>
+                                            </label>
+                                        );
+                                    })}
+                                    {filteredRecipients.length === 0 && (
+                                        <p className="text-center text-savron-silver/50 text-sm py-8">No recipients match your search.</p>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                    </div>
+
                     <div className="card-savron">
                         <div className="flex items-center gap-3 mb-4">
                             <Mail className="text-savron-silver w-4 h-4" />
