@@ -94,8 +94,13 @@ export async function sendBookingConfirmationEmail(bookingId: string): Promise<S
     const barberName = barber?.name ?? booking.barber_name ?? 'Your barber';
     const barberEmail = barber?.email ?? null;
     const dateFormatted = formatBookingDate(booking.date);
-    const cancelUrl = buildBookingCancelUrl(booking);
-    const clientCancelBlock = bookingCancelEmailBlock(cancelUrl);
+    let clientCancelBlock = '';
+    try {
+        const cancelUrl = buildBookingCancelUrl(booking);
+        clientCancelBlock = bookingCancelEmailBlock(cancelUrl);
+    } catch (error) {
+        console.error('[send-booking-email] cancel link generation failed:', error);
+    }
 
     const calendarNote = `<p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
               This confirmation is from <strong style="color:#fff;">${RESEND_BOOKING_FROM}</strong> (${SHOP_CALENDAR_DISPLAY_NAME}).
@@ -192,8 +197,13 @@ export async function sendBookingUpdateEmail(bookingId: string): Promise<SendBoo
     const barberName = barber?.name ?? booking.barber_name ?? 'Your barber';
     const barberEmail = barber?.email ?? null;
     const dateFormatted = formatBookingDate(booking.date);
-    const cancelUrl = buildBookingCancelUrl(booking);
-    const clientCancelBlock = bookingCancelEmailBlock(cancelUrl);
+    let clientCancelBlock = '';
+    try {
+        const cancelUrl = buildBookingCancelUrl(booking);
+        clientCancelBlock = bookingCancelEmailBlock(cancelUrl);
+    } catch (error) {
+        console.error('[send-booking-email] cancel link generation failed:', error);
+    }
 
     const htmlBody = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>

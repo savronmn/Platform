@@ -13,15 +13,27 @@ async function logSideEffectFailure(label: string, res: Response | undefined): P
 }
 
 export async function triggerPostBooking(bookingId: string): Promise<void> {
-    // Server sends Resend email inside calendar sync — one reliable server-side path.
-    const calendarRes = await fetch('/api/calendar/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId, action: 'create' }),
-    }).catch((err) => {
-        console.error('[post-booking] calendar sync network error:', err);
-        return undefined;
-    });
+    // Email and calendar are independent — a calendar failure must not block confirmation email.
+    const [emailRes, calendarRes] = await Promise.all([
+        fetch('/api/email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookingId }),
+        }).catch((err) => {
+            console.error('[post-booking] confirmation email network error:', err);
+            return undefined;
+        }),
+        fetch('/api/calendar/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookingId, action: 'create' }),
+        }).catch((err) => {
+            console.error('[post-booking] calendar sync network error:', err);
+            return undefined;
+        }),
+    ]);
+
+    await logSideEffectFailure('confirmation email', emailRes);
     await logSideEffectFailure('calendar sync', calendarRes);
 }
 
@@ -34,21 +46,34 @@ export async function triggerPostEditBooking(
         previousTime?: string;
     } = {},
 ): Promise<void> {
-    const calendarRes = await fetch('/api/calendar/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-            bookingId,
-            action: 'update',
-            previousBarberId: options.previousBarberId ?? undefined,
-            previousDate: options.previousDate,
-            previousTime: options.previousTime,
+    const [emailRes, calendarRes] = await Promise.all([
+        fetch('/api/email/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ bookingId }),
+        }).catch((err) => {
+            console.error('[post-edit] update email network error:', err);
+            return undefined;
         }),
-    }).catch((err) => {
-        console.error('[post-edit] calendar sync network error:', err);
-        return undefined;
-    });
+        fetch('/api/calendar/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                bookingId,
+                action: 'update',
+                previousBarberId: options.previousBarberId ?? undefined,
+                previousDate: options.previousDate,
+                previousTime: options.previousTime,
+            }),
+        }).catch((err) => {
+            console.error('[post-edit] calendar sync network error:', err);
+            return undefined;
+        }),
+    ]);
+
+    await logSideEffectFailure('update email', emailRes);
     await logSideEffectFailure('calendar update', calendarRes);
 }
 

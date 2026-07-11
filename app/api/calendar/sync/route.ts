@@ -19,7 +19,6 @@ import {
 } from '@/lib/google-calendar';
 import { deleteAllBookingCalendarEvents } from '@/lib/booking-calendar-cleanup';
 import { upsertShopInviteEvent } from '@/lib/shop-calendar';
-import { sendBookingConfirmationEmail, sendBookingUpdateEmail } from '@/lib/send-booking-email';
 import { requireStaff } from '@/lib/staff-auth';
 import { SERVICES } from '@/lib/services-data';
 import { SHOP_CALENDAR_DISPLAY_NAME, SHOP_CALENDAR_EMAIL, SHOP_NAME } from '@/lib/shop';
@@ -134,19 +133,60 @@ async function syncShopInvite(
     return shopEventId;
 }
 
-async function sendClientEmailForAction(
-    bookingId: string,
-    action: 'create' | 'update',
-    options: { skip?: boolean } = {},
-) {
-    if (options.skip) return null;
-    const result = action === 'update'
-        ? await sendBookingUpdateEmail(bookingId)
-        : await sendBookingConfirmationEmail(bookingId);
-    if (!result.success && !result.skipped) {
-        console.error(`[calendar/sync] ${action} email failed:`, result.error);
+async function syncBarberCalendar(
+    booking: {
+        id: string;
+        google_event_id: string | null;
+        barber_id: string | null;
+        date: string;
+        time: string;
+        client_name: string | null;
+        client_phone: string | null;
+        client_email: string | null;
+        service: string;
+        price: string | null;
+    },
+    barber: BarberCalendarInfo,
+    options: { barberChanged?: boolean } = {},
+): Promise<{ eventId: string | null; created?: boolean; updated?: boolean; error?: string }> {
+    if (!barber.google_calendar_tokens || !barber.google_calendar_id) {
+        return { eventId: null };
     }
-    return result;
+
+    try {
+        const accessToken = await getValidAccessToken(barber.google_calendar_tokens);
+        const { summary, description, startIso, endIso } = buildEventPayload(booking);
+
+        if (booking.google_event_id && !options.barberChanged) {
+            const eventId = await updateCalendarEvent(
+                accessToken,
+                barber.google_calendar_id,
+                booking.google_event_id,
+                { summary, description, startIso, endIso, attendeeEmails: [], bookingId: booking.id },
+                'none',
+            );
+            return { eventId, updated: true };
+        }
+
+        const eventId = await createCalendarEvent(
+            accessToken,
+            barber.google_calendar_id,
+            {
+                summary,
+                description,
+                startIso,
+                endIso,
+                attendeeEmails: [],
+                bookingId: booking.id,
+            },
+            'none',
+        );
+        await getAdmin().from('bookings').update({ google_event_id: eventId }).eq('id', booking.id);
+        return { eventId, created: true };
+    } catch (error) {
+        console.error('[calendar/sync] barber calendar failed:', error);
+        return { eventId: booking.google_event_id, error: String(error) };
+    }
 }
 
 export async function POST(request: NextRequest) {
@@ -223,50 +263,31 @@ export async function POST(request: NextRequest) {
             booking.shop_google_event_id = null;
         }
 
-        const shopEventId = await syncShopInvite(booking);
+        let shopEventId: string | null = null;
+        try {
+            shopEventId = await syncShopInvite(booking);
+        } catch (error) {
+            console.error('[calendar/sync] shop calendar failed:', error);
+        }
 
         if (!barber?.google_calendar_tokens || !barber.google_calendar_id) {
-            const emailResult = await sendClientEmailForAction(bookingId, 'update');
             return NextResponse.json({
                 success: !!shopEventId,
                 shopEventId,
-                emailSent: emailResult?.success ?? false,
                 skipped: !shopEventId ? true : undefined,
                 reason: !shopEventId ? 'no_calendar_connected' : undefined,
             });
         }
 
-        const accessToken = await getValidAccessToken(barber.google_calendar_tokens);
-        const { summary, description, startIso, endIso } = buildEventPayload(booking);
-
-        if (booking.google_event_id && !barberChanged) {
-            const eventId = await updateCalendarEvent(
-                accessToken,
-                barber.google_calendar_id,
-                booking.google_event_id,
-                { summary, description, startIso, endIso, attendeeEmails: [], bookingId: booking.id },
-                'none',
-            );
-            const emailResult = await sendClientEmailForAction(bookingId, 'update');
-            return NextResponse.json({ success: true, eventId, shopEventId, updated: true, emailSent: emailResult?.success ?? false });
-        }
-
-        const eventId = await createCalendarEvent(
-            accessToken,
-            barber.google_calendar_id,
-            {
-                summary,
-                description,
-                startIso,
-                endIso,
-                attendeeEmails: [],
-                bookingId: booking.id,
-            },
-            'none',
-        );
-        await supabaseAdmin.from('bookings').update({ google_event_id: eventId }).eq('id', bookingId);
-        const emailResult = await sendClientEmailForAction(bookingId, 'update');
-        return NextResponse.json({ success: true, eventId, shopEventId, created: true, emailSent: emailResult?.success ?? false });
+        const barberResult = await syncBarberCalendar(booking, barber, { barberChanged: !!barberChanged });
+        return NextResponse.json({
+            success: true,
+            eventId: barberResult.eventId,
+            shopEventId,
+            updated: barberResult.updated,
+            created: barberResult.created,
+            warning: barberResult.error,
+        });
     }
 
     // action === 'create'
@@ -281,48 +302,33 @@ export async function POST(request: NextRequest) {
         });
     }
 
-    const shopEventId = booking.shop_google_event_id
-        ?? await syncShopInvite(booking);
+    let shopEventId: string | null = booking.shop_google_event_id ?? null;
+    if (!shopEventId) {
+        try {
+            shopEventId = await syncShopInvite(booking);
+        } catch (error) {
+            console.error('[calendar/sync] shop calendar failed:', error);
+        }
+    }
 
     if (!barber?.google_calendar_tokens || !barber.google_calendar_id) {
-        const emailResult = await sendClientEmailForAction(bookingId, 'create');
         return NextResponse.json({
             success: !!shopEventId,
             shopEventId,
-            emailSent: emailResult?.success ?? false,
             skipped: !shopEventId ? true : undefined,
             reason: !shopEventId ? 'no_calendar_connected' : undefined,
         });
     }
 
     if (booking.google_event_id) {
-        const emailResult = await sendClientEmailForAction(bookingId, 'create');
         return NextResponse.json({
             success: true,
             eventId: booking.google_event_id,
             shopEventId,
-            emailSent: emailResult?.success ?? false,
         });
     }
 
-    const accessToken = await getValidAccessToken(barber.google_calendar_tokens);
-    const { summary, description, startIso, endIso } = buildEventPayload(booking);
-
-    const eventId = await createCalendarEvent(
-        accessToken,
-        barber.google_calendar_id,
-        {
-            summary,
-            description,
-            startIso,
-            endIso,
-            attendeeEmails: [],
-            bookingId: booking.id,
-        },
-        'none',
-    );
-
-    await getAdmin().from('bookings').update({ google_event_id: eventId }).eq('id', bookingId);
+    const barberResult = await syncBarberCalendar(booking, barber);
 
     if (booking.client_name) {
         let query = supabaseAdmin.from('clients').select('id, total_visits, total_spent').eq('name', booking.client_name);
@@ -353,6 +359,12 @@ export async function POST(request: NextRequest) {
         }
     }
 
-    const emailResult = await sendClientEmailForAction(bookingId, 'create');
-    return NextResponse.json({ success: true, eventId, shopEventId, emailSent: emailResult?.success ?? false });
+    return NextResponse.json({
+        success: true,
+        eventId: barberResult.eventId,
+        shopEventId,
+        created: barberResult.created,
+        updated: barberResult.updated,
+        warning: barberResult.error,
+    });
 }

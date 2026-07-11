@@ -7,8 +7,11 @@ function cancelSecret(): string {
     if (process.env.CRON_SECRET) {
         return process.env.CRON_SECRET;
     }
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        return process.env.SUPABASE_SERVICE_ROLE_KEY;
+    }
     if (process.env.NODE_ENV === 'production') {
-        throw new Error('BOOKING_CANCEL_SECRET or CRON_SECRET must be configured');
+        throw new Error('BOOKING_CANCEL_SECRET, CRON_SECRET, or SUPABASE_SERVICE_ROLE_KEY must be configured');
     }
     return 'savron-booking-cancel-dev-secret';
 }
