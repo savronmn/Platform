@@ -487,29 +487,29 @@ const BookingFlow = () => {
     /* ─── STEP 4: Details ────────────────────────────────────── */
     const renderDetailsStep = () => (
         <motion.div key="details" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-            <h2 className="text-xl font-heading text-white uppercase tracking-wider mb-4">Your Details</h2>
+            <h2 className="text-2xl font-heading text-white uppercase tracking-wider mb-4">Your Details</h2>
             {/* Summary */}
-            <div className="bg-savron-black border border-white/[0.06] p-3 mb-4 space-y-1.5 text-xs">
-                <p className="text-savron-silver/40 uppercase tracking-widest text-[10px] mb-2">Booking Summary</p>
+            <div className="bg-savron-black border border-white/[0.06] p-4 mb-4 space-y-2.5 text-sm">
+                <p className="text-savron-silver/50 uppercase tracking-widest text-xs mb-3">Booking Summary</p>
                 <div className="flex justify-between">
-                    <span className="text-savron-silver/60">Services</span>
+                    <span className="text-savron-silver/70">Services</span>
                     <span className="text-white text-right max-w-[55%]">{selectedServices.map(id => services.find(s => s.id === id)?.name).join(', ')}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-savron-silver/60">Barber</span>
+                    <span className="text-savron-silver/70">Barber</span>
                     <span className="text-white">{selectedPro?.name}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-savron-silver/60">Date</span>
+                    <span className="text-savron-silver/70">Date</span>
                     <span className="text-white">{format(selectedDate, 'EEE, MMM d')}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-savron-silver/60">Time</span>
+                    <span className="text-savron-silver/70">Time</span>
                     <span className="text-white">{selectedTime}</span>
                 </div>
-                <div className="flex justify-between pt-1.5 border-t border-white/[0.06] mt-1">
-                    <span className="text-savron-silver/60">Total</span>
-                    <span className="text-white font-mono">${totalPrice}</span>
+                <div className="flex justify-between pt-2 border-t border-white/[0.06] mt-1">
+                    <span className="text-savron-silver/70">Total</span>
+                    <span className="text-white font-mono text-base">${totalPrice}</span>
                 </div>
             </div>
             {/* Inputs */}
