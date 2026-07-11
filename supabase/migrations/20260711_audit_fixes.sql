@@ -71,7 +71,9 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.increment_subscriber_visit(uuid) FROM PUBLIC;
+-- Signature must match the created function: (uuid, boolean), not (uuid).
+-- DEFAULT false lets callers omit p_force, but GRANT/REVOKE use the full arg list.
+REVOKE ALL ON FUNCTION public.increment_subscriber_visit(uuid, boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.decrement_subscriber_visit(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.increment_subscriber_visit(uuid, boolean) TO service_role;
 GRANT EXECUTE ON FUNCTION public.decrement_subscriber_visit(uuid) TO service_role;
