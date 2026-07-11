@@ -27,7 +27,7 @@ export default function TermsOfService() {
                     <section className="space-y-4">
                         <h2 className="text-xl font-heading text-white tracking-widest uppercase">2. Booking and Cancellations</h2>
                         <p>All appointments booked through our platform are subject to our scheduling and cancellation policies. Please ensure you arrive on time for your scheduled appointment. Late arrivals may result in reduced service time or cancellation.</p>
-                        <p>If you need to cancel or reschedule, please do so at least 24 hours in advance through the booking portal, by email, or using the <strong>Cancel Appointment</strong> link in your confirmation email. That frees the slot and notifies the shop. Failure to provide sufficient notice or failure to show up for an appointment may result in a cancellation fee or restriction of future booking privileges.</p>
+                        <p>If you need to cancel or reschedule, please do so at least 24 hours in advance through the booking portal, by email, or by responding <em>No</em> to your Google Calendar invitation from <strong>SAVRON</strong> (<strong>savronmn@gmail.com</strong>). Declining the invite cancels the appointment and frees the slot. Failure to provide sufficient notice or failure to show up for an appointment may result in a cancellation fee or restriction of future booking privileges.</p>
                     </section>
 
                     <section className="space-y-4">

@@ -20,8 +20,8 @@ export interface CancelBookingResult {
 }
 
 /**
- * Cancel a booking: set status, send cancellation email, remove Google Calendar events.
- * Client cancel link uses Resend email with attached METHOD:CANCEL .ics.
+ * Cancel a booking: set status, remove Google Calendar events.
+ * When shop calendar is connected, Google (savronmn@gmail.com) notifies attendees on delete/decline.
  */
 export async function cancelBooking(
     bookingId: string,
@@ -71,7 +71,7 @@ export async function cancelBooking(
         ? booking.barbers[0] ?? null
         : booking.barbers;
 
-    if (!options.skipEmail && !alreadyCancelled) {
+    if (!options.skipEmail && !alreadyCancelled && !booking.shop_google_event_id) {
         try {
             const emailResult = await sendCancellationEmails({
                 ...booking,

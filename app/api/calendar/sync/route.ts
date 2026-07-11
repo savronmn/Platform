@@ -4,9 +4,8 @@
 // Body: { bookingId: string, action: "create" | "delete" | "update", previousBarberId?: string, previousDate?: string, previousTime?: string }
 //
 // Invite model:
-// - Savron shop calendar = silent internal mirror (no client attendee, no Google email)
-// - Barber calendar = silent busy block (no attendees, no Google invite email)
-// - Client gets one Resend email with PUBLISH .ics (organizer savronmn@gmail.com / SAVRON)
+// - Savron shop calendar (savronmn@gmail.com) = Google invite to client + barber
+// - Barber personal calendar = silent busy block only when shop calendar is unavailable
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -18,7 +17,7 @@ import {
     type CalendarToken,
 } from '@/lib/google-calendar';
 import { deleteAllBookingCalendarEvents } from '@/lib/booking-calendar-cleanup';
-import { upsertShopInviteEvent } from '@/lib/shop-calendar';
+import { isShopCalendarConnected, upsertShopInviteEvent } from '@/lib/shop-calendar';
 import { requireStaff } from '@/lib/staff-auth';
 import { SERVICES } from '@/lib/services-data';
 import { SHOP_CALENDAR_DISPLAY_NAME, SHOP_CALENDAR_EMAIL, SHOP_NAME } from '@/lib/shop';
@@ -69,8 +68,8 @@ function buildEventPayload(booking: {
         booking.client_email ? `Email: ${booking.client_email}` : '',
         `Price: ${booking.price ?? ''}`,
         '',
-        'Client confirmation is sent by email with a calendar attachment.',
-        'Use the Cancel Appointment link in that email to free the slot.',
+        'You will receive a Google Calendar invitation from SAVRON (savronmn@gmail.com).',
+        'Tap Yes to confirm, or No to cancel — declining frees the slot automatically.',
     ].filter(Boolean).join('\n');
 
     return { summary, description, startIso, endIso, durationMin };
@@ -104,15 +103,17 @@ async function syncShopInvite(
         time: string;
         price: string | null;
     },
+    barberEmail: string | null,
 ) {
-    const { summary, description, startIso, endIso } = buildEventPayload(booking);
-    const clientSummary = `${booking.service} — ${SHOP_NAME}`;
+    const { description, startIso, endIso } = buildEventPayload(booking);
+    const clientSummary = booking.client_name
+        ? `${booking.service} — ${booking.client_name} @ ${SHOP_NAME}`
+        : `${booking.service} — ${SHOP_NAME}`;
     const shopDescription = [
         description,
         '',
-        `Shop calendar owner: ${SHOP_CALENDAR_EMAIL} (${SHOP_CALENDAR_DISPLAY_NAME})`,
-        booking.client_email ? `Client: ${booking.client_name ?? 'Guest'} <${booking.client_email}>` : '',
-    ].filter(Boolean).join('\n');
+        `Organizer: ${SHOP_CALENDAR_EMAIL} (${SHOP_CALENDAR_DISPLAY_NAME})`,
+    ].join('\n');
     const shopEventId = await upsertShopInviteEvent({
         bookingId: booking.id,
         shopEventId: booking.shop_google_event_id,
@@ -121,6 +122,7 @@ async function syncShopInvite(
         startIso,
         endIso,
         clientEmail: booking.client_email,
+        barberEmail,
     });
 
     if (shopEventId) {
@@ -236,6 +238,8 @@ export async function POST(request: NextRequest) {
     }
 
     const barber = booking.barbers as BarberCalendarInfo | null;
+    const barberEmail = barber?.email ?? null;
+    const shopConnected = await isShopCalendarConnected();
 
     if (action === 'delete') {
         await removeBookingFromCalendars(booking, { barberId: booking.barber_id ?? undefined });
@@ -265,9 +269,19 @@ export async function POST(request: NextRequest) {
 
         let shopEventId: string | null = null;
         try {
-            shopEventId = await syncShopInvite(booking);
+            shopEventId = await syncShopInvite(booking, barberEmail);
         } catch (error) {
             console.error('[calendar/sync] shop calendar failed:', error);
+        }
+
+        if (shopConnected) {
+            return NextResponse.json({
+                success: !!shopEventId,
+                shopEventId,
+                inviteModel: 'google_calendar',
+                skipped: !shopEventId ? true : undefined,
+                reason: !shopEventId ? 'shop_calendar_failed' : undefined,
+            });
         }
 
         if (!barber?.google_calendar_tokens || !barber.google_calendar_id) {
@@ -305,10 +319,48 @@ export async function POST(request: NextRequest) {
     let shopEventId: string | null = booking.shop_google_event_id ?? null;
     if (!shopEventId) {
         try {
-            shopEventId = await syncShopInvite(booking);
+            shopEventId = await syncShopInvite(booking, barberEmail);
         } catch (error) {
             console.error('[calendar/sync] shop calendar failed:', error);
         }
+    }
+
+    if (shopConnected) {
+        if (booking.client_name) {
+            let query = supabaseAdmin.from('clients').select('id, total_visits, total_spent').eq('name', booking.client_name);
+            if (booking.client_email) query = query.or(`email.eq.${booking.client_email}`);
+
+            const { data: existingClients } = await query;
+            const existing = existingClients?.[0];
+            const priceNum = parseFloat(String(booking.price || '0').replace(/[^0-9.]/g, '')) || 0;
+
+            if (existing) {
+                await supabaseAdmin.from('clients').update({
+                    last_booking_date: booking.date,
+                    total_visits: (existing.total_visits || 0) + 1,
+                    total_spent: (existing.total_spent || 0) + priceNum,
+                    phone: booking.client_phone || undefined,
+                    email: booking.client_email || undefined,
+                }).eq('id', existing.id);
+            } else {
+                await supabaseAdmin.from('clients').insert({
+                    name: booking.client_name,
+                    email: booking.client_email || null,
+                    phone: booking.client_phone || null,
+                    last_booking_date: booking.date,
+                    total_visits: 1,
+                    total_spent: priceNum,
+                });
+            }
+        }
+
+        return NextResponse.json({
+            success: !!shopEventId,
+            shopEventId,
+            inviteModel: 'google_calendar',
+            skipped: !shopEventId ? true : undefined,
+            reason: !shopEventId ? 'shop_calendar_failed' : undefined,
+        });
     }
 
     if (!barber?.google_calendar_tokens || !barber.google_calendar_id) {

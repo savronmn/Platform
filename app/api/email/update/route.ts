@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isShopCalendarConnected } from '@/lib/shop-calendar';
 import { sendBookingUpdateEmail } from '@/lib/send-booking-email';
 
 export async function POST(request: NextRequest) {
@@ -6,6 +7,14 @@ export async function POST(request: NextRequest) {
 
     if (!bookingId) {
         return NextResponse.json({ error: 'Missing bookingId' }, { status: 400 });
+    }
+
+    if (await isShopCalendarConnected()) {
+        return NextResponse.json({
+            skipped: true,
+            reason: 'google_calendar_invite',
+            message: 'Attendees receive an updated Google Calendar invitation from savronmn@gmail.com',
+        });
     }
 
     const result = await sendBookingUpdateEmail(bookingId);

@@ -105,7 +105,7 @@ export async function saveShopSyncTokenIfUnchanged(
     return true;
 }
 
-/** Create/update shop calendar event owned by savronmn@gmail.com (silent — no Google email to client). */
+/** Create/update the shop Google Calendar invite — client + barber attendees, emails from savronmn@gmail.com. */
 export async function upsertShopInviteEvent(params: {
     bookingId: string;
     shopEventId?: string | null;
@@ -114,6 +114,7 @@ export async function upsertShopInviteEvent(params: {
     startIso: string;
     endIso: string;
     clientEmail: string | null;
+    barberEmail?: string | null;
 }): Promise<string | null> {
     const tokens = await getShopCalendarTokens();
     if (!tokens) return null;
@@ -121,11 +122,14 @@ export async function upsertShopInviteEvent(params: {
     const accessToken = await getValidAccessToken(tokens);
     const calendarId = await getShopCalendarId();
 
-    // Internal shop mirror only — no client attendee (prevents any Google invite email).
-    const attendeeEmails: string[] = [];
+    const shopEmail = SHOP_CALENDAR_EMAIL.toLowerCase();
+    const attendeeEmails = Array.from(new Set(
+        [params.clientEmail, params.barberEmail]
+            .filter((email): email is string => !!email && email.toLowerCase() !== shopEmail),
+    ));
 
-    // Silent shop calendar mirror — client gets one Resend email with .ics (no Google mail).
-    const sendUpdates = 'none' as const;
+    // Google Calendar invite is the client + barber confirmation channel.
+    const sendUpdates = attendeeEmails.length > 0 ? 'all' as const : 'none' as const;
 
     const organizer = {
         organizerEmail: SHOP_CALENDAR_EMAIL,

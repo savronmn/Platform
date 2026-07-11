@@ -49,6 +49,10 @@ function buildCancelIcs(
 export async function sendCancellationEmails(
     booking: CancellationBooking,
 ): Promise<CancellationEmailResult> {
+    if (booking.shop_google_event_id) {
+        return { success: true, sent: 0, failed: 0 };
+    }
+
     if (!process.env.RESEND_API_KEY) {
         return { success: false, sent: 0, failed: 0, error: 'Email service not configured' };
     }
