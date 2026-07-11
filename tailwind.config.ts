@@ -38,11 +38,21 @@ const config: Config = {
                     '0%, 100%': { opacity: '1' },
                     '50%': { opacity: '0.6' },
                 },
+                'epass-shimmer': {
+                    '0%': { backgroundPosition: '200% center' },
+                    '100%': { backgroundPosition: '-200% center' },
+                },
+                'epass-glow': {
+                    '0%, 100%': { opacity: '0.4' },
+                    '50%': { opacity: '0.75' },
+                },
             },
             animation: {
                 'fade-in': 'fade-in 0.6s ease-out forwards',
                 'fade-in-delay': 'fade-in 0.6s ease-out 0.2s forwards',
                 'luxury-pulse': 'luxury-pulse 2s ease-in-out infinite',
+                'epass-shimmer': 'epass-shimmer 4s ease-in-out infinite',
+                'epass-glow': 'epass-glow 3s ease-in-out infinite',
             },
         },
     },
