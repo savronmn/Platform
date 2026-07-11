@@ -4,7 +4,9 @@ import { format } from 'date-fns';
 import { isShopCalendarConnected } from '@/lib/shop-calendar';
 import {
     RESEND_BOOKING_FROM,
+    RESEND_BOOKING_FROM_NAME,
     SHOP_ADDRESS,
+    SHOP_CALENDAR_DISPLAY_NAME,
     SHOP_CALENDAR_EMAIL,
     SHOP_NAME,
 } from '@/lib/shop';
@@ -90,7 +92,7 @@ function getIcsString(
         `SUMMARY:${icsEscape(`${booking.service} — ${SHOP_NAME}`)}`,
         `LOCATION:${icsEscape(`${SHOP_NAME}, ${SHOP_ADDRESS}`)}`,
         `DESCRIPTION:${description}`,
-        `ORGANIZER;CN=${icsEscape(SHOP_NAME)}:mailto:${SHOP_CALENDAR_EMAIL}`,
+        `ORGANIZER;CN=${icsEscape(SHOP_CALENDAR_DISPLAY_NAME)}:mailto:${SHOP_CALENDAR_EMAIL}`,
         ...attendees,
         `STATUS:${status}`,
         'TRANSP:OPAQUE',
@@ -275,7 +277,7 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        from: `SAVRON Barbershop & Lounge <${RESEND_BOOKING_FROM}>`,
+        from: `${RESEND_BOOKING_FROM_NAME} <${RESEND_BOOKING_FROM}>`,
         to: [booking.client_email],
         subject: `Your appointment is confirmed — ${booking.time}, ${dateFormatted}`,
         html: htmlBody,
@@ -295,7 +297,7 @@ export async function POST(request: NextRequest) {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          from: `SAVRON Barbershop & Lounge <${RESEND_BOOKING_FROM}>`,
+          from: `${RESEND_BOOKING_FROM_NAME} <${RESEND_BOOKING_FROM}>`,
           to: [barberEmail],
           subject: `New booking: ${booking.client_name || 'Walk-in'} — ${booking.time}, ${dateFormatted}`,
           html: barberHtml,

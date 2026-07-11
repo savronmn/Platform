@@ -5,7 +5,7 @@ import {
     getValidAccessToken,
     type CalendarToken,
 } from '@/lib/google-calendar';
-import { SHOP_CALENDAR_EMAIL } from '@/lib/shop';
+import { SHOP_CALENDAR_DISPLAY_NAME, SHOP_CALENDAR_EMAIL } from '@/lib/shop';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -75,6 +75,11 @@ export async function upsertShopInviteEvent(params: {
     // Google invite is the RSVP source of truth (decline / propose new time).
     const sendUpdates = attendeeEmails.length > 0 ? 'all' : 'none';
 
+    const organizer = {
+        organizerEmail: SHOP_CALENDAR_EMAIL,
+        organizerDisplayName: SHOP_CALENDAR_DISPLAY_NAME,
+    };
+
     if (params.shopEventId) {
         try {
             return await updateCalendarEvent(
@@ -88,6 +93,7 @@ export async function upsertShopInviteEvent(params: {
                     endIso: params.endIso,
                     attendeeEmails,
                     bookingId: params.bookingId,
+                    ...organizer,
                 },
                 sendUpdates,
             );
@@ -106,6 +112,7 @@ export async function upsertShopInviteEvent(params: {
             endIso: params.endIso,
             attendeeEmails,
             bookingId: params.bookingId,
+            ...organizer,
         },
         sendUpdates,
     );

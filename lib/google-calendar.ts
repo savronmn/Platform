@@ -86,6 +86,8 @@ export async function createCalendarEvent(
         endIso: string;
         attendeeEmails?: string[];
         bookingId?: string;
+        organizerEmail?: string;
+        organizerDisplayName?: string;
     },
     sendUpdates: CalendarSendUpdates = 'none',
 ): Promise<string> {
@@ -97,6 +99,12 @@ export async function createCalendarEvent(
     };
     if (event.bookingId) {
         body.extendedProperties = { private: { savronBookingId: event.bookingId } };
+    }
+    if (event.organizerEmail) {
+        body.organizer = {
+            email: event.organizerEmail,
+            ...(event.organizerDisplayName ? { displayName: event.organizerDisplayName } : {}),
+        };
     }
     if (event.attendeeEmails && event.attendeeEmails.length > 0) {
         body.attendees = event.attendeeEmails.map(email => ({ email }));
@@ -134,6 +142,8 @@ export async function updateCalendarEvent(
         endIso: string;
         attendeeEmails?: string[];
         bookingId?: string;
+        organizerEmail?: string;
+        organizerDisplayName?: string;
     },
     sendUpdates: CalendarSendUpdates = 'none',
 ): Promise<string> {
@@ -145,6 +155,12 @@ export async function updateCalendarEvent(
     };
     if (event.bookingId) {
         body.extendedProperties = { private: { savronBookingId: event.bookingId } };
+    }
+    if (event.organizerEmail) {
+        body.organizer = {
+            email: event.organizerEmail,
+            ...(event.organizerDisplayName ? { displayName: event.organizerDisplayName } : {}),
+        };
     }
     if (event.attendeeEmails && event.attendeeEmails.length > 0) {
         body.attendees = event.attendeeEmails.map(email => ({ email }));

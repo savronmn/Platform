@@ -2,7 +2,9 @@ import { format } from 'date-fns';
 import { isShopCalendarConnected } from '@/lib/shop-calendar';
 import {
     RESEND_BOOKING_FROM,
+    RESEND_BOOKING_FROM_NAME,
     SHOP_ADDRESS,
+    SHOP_CALENDAR_DISPLAY_NAME,
     SHOP_CALENDAR_EMAIL,
     SHOP_NAME,
 } from '@/lib/shop';
@@ -79,7 +81,7 @@ function buildCancelIcs(
         `DTEND:${fmt(endMs)}`,
         `SUMMARY:CANCELLED — ${icsEscape(booking.service)}`,
         `LOCATION:${icsEscape(`${SHOP_NAME}, ${SHOP_ADDRESS}`)}`,
-        `ORGANIZER;CN=${icsEscape(SHOP_NAME)}:mailto:${SHOP_CALENDAR_EMAIL}`,
+        `ORGANIZER;CN=${icsEscape(SHOP_CALENDAR_DISPLAY_NAME)}:mailto:${SHOP_CALENDAR_EMAIL}`,
         ...attendees,
         'STATUS:CANCELLED',
         'END:VEVENT',
@@ -163,7 +165,7 @@ export async function sendCancellationEmails(
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                from: `SAVRON Barbershop & Lounge <${RESEND_BOOKING_FROM}>`,
+                from: `${RESEND_BOOKING_FROM_NAME} <${RESEND_BOOKING_FROM}>`,
                 to: [to],
                 subject: `Cancelled: ${booking.service} — ${dateFormatted}, ${booking.time}`,
                 html,
