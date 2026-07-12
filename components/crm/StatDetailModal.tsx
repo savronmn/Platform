@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Phone, Mail, Star, AlertCircle, ChevronDown } from 'lucide-react';
-import { format, formatDistanceToNow, differenceInDays, parseISO } from 'date-fns';
+import { format, formatDistanceToNow, differenceInDays, parseISO, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { Booking, Client, Barber, Applicant } from '@/lib/types';
 import Link from 'next/link';
+import DateRangeFilter, { type DateRange, bookingInRange } from '@/components/crm/DateRangeFilter';
 
 export type StatKey =
     | 'todayAppointments'
@@ -50,6 +51,7 @@ export interface BarberWorkload {
     barber: Barber;
     todayCount: number;
     upcomingCount: number;
+    bookingCount: number;
     completedCount: number;
     totalRevenue: number;
 }
@@ -62,6 +64,7 @@ export interface StatDetailData {
     activeBarbers: Barber[];
     pendingApplicants: Applicant[];
     recentCancellations: Booking[];
+    allBookings: Booking[];
     activeBookings: Booking[];
     serviceBreakdown: ServiceBreakdownItem[];
     revenueByMonth: RevenueByMonthItem[];
@@ -69,6 +72,168 @@ export interface StatDetailData {
     barberWorkloads: BarberWorkload[];
     pipelineValue: number;
     pipelineDateRange: { earliest: string; latest: string } | null;
+}
+
+const DATE_FILTER_STATS: StatKey[] = [
+    'todayAppointments',
+    'todayRevenue',
+    'pipeline',
+    'totalRevenue',
+    'totalAppointments',
+    'avgTicket',
+    'topService',
+    'recentCancellations',
+    'barbersActive',
+    'totalClients',
+];
+
+function todayDateStr() {
+    return format(new Date(), 'yyyy-MM-dd');
+}
+
+function getDefaultDateRange(statKey: StatKey): DateRange {
+    const today = todayDateStr();
+    switch (statKey) {
+        case 'todayAppointments':
+        case 'todayRevenue':
+            return { start: today, end: today };
+        case 'pipeline':
+            return { start: today, end: format(addDays(new Date(), 90), 'yyyy-MM-dd') };
+        case 'recentCancellations':
+            return { start: format(addDays(new Date(), -29), 'yyyy-MM-dd'), end: today };
+        default:
+            return { start: '', end: '' };
+    }
+}
+
+function sortBookings(bookings: Booking[]) {
+    return [...bookings].sort((a, b) => {
+        const dateCompare = b.date.localeCompare(a.date);
+        if (dateCompare !== 0) return dateCompare;
+        return (b.time || '').localeCompare(a.time || '');
+    });
+}
+
+function filterActiveBookings(bookings: Booking[], range: DateRange) {
+    return sortBookings(
+        bookings.filter(b =>
+            (b.status === 'confirmed' || b.status === 'completed') && bookingInRange(b.date, range)
+        )
+    );
+}
+
+function filterCancellations(bookings: Booking[], range: DateRange) {
+    return sortBookings(
+        bookings.filter(b =>
+            (b.status === 'cancelled' || b.status === 'no_show') && bookingInRange(b.date, range)
+        )
+    );
+}
+
+function filterPipelineBookings(bookings: Booking[], range: DateRange) {
+    const today = todayDateStr();
+    return sortBookings(
+        bookings.filter(b =>
+            b.status === 'confirmed' &&
+            b.date >= today &&
+            bookingInRange(b.date, range)
+        )
+    ).reverse();
+}
+
+function computeAvgTicketStats(bookings: Booking[]): AvgTicketStats {
+    const prices = bookings.map(b => parsePrice(b.price));
+    const total = prices.reduce((sum, p) => sum + p, 0);
+    return {
+        avg: bookings.length > 0 ? total / bookings.length : 0,
+        min: prices.length > 0 ? Math.min(...prices) : 0,
+        max: prices.length > 0 ? Math.max(...prices) : 0,
+        total,
+        count: bookings.length,
+    };
+}
+
+function computeServiceBreakdown(bookings: Booking[]): ServiceBreakdownItem[] {
+    const serviceMap: Record<string, { count: number; revenue: number; bookings: Booking[] }> = {};
+    bookings.forEach(b => {
+        if (!b.service) return;
+        if (!serviceMap[b.service]) serviceMap[b.service] = { count: 0, revenue: 0, bookings: [] };
+        serviceMap[b.service].count++;
+        serviceMap[b.service].revenue += parsePrice(b.price);
+        serviceMap[b.service].bookings.push(b);
+    });
+
+    return Object.entries(serviceMap)
+        .map(([service, stats]) => ({
+            service,
+            count: stats.count,
+            revenue: stats.revenue,
+            avgPrice: stats.count > 0 ? stats.revenue / stats.count : 0,
+            recentBookings: sortBookings(stats.bookings).slice(0, 5),
+        }))
+        .sort((a, b) => b.count - a.count);
+}
+
+function computeRevenueByMonth(bookings: Booking[]): RevenueByMonthItem[] {
+    const monthMap: Record<string, { revenue: number; count: number; bookings: Booking[] }> = {};
+    bookings.forEach(b => {
+        try {
+            const month = format(parseISO(b.date), 'MMMM yyyy');
+            if (!monthMap[month]) monthMap[month] = { revenue: 0, count: 0, bookings: [] };
+            monthMap[month].revenue += parsePrice(b.price);
+            monthMap[month].count++;
+            monthMap[month].bookings.push(b);
+        } catch { /* skip invalid dates */ }
+    });
+
+    return Object.entries(monthMap)
+        .map(([month, stats]) => ({
+            month,
+            revenue: stats.revenue,
+            count: stats.count,
+            bookings: sortBookings(stats.bookings),
+        }))
+        .sort((a, b) => new Date(b.month).getTime() - new Date(a.month).getTime());
+}
+
+function computeBarberWorkloads(
+    barbers: Barber[],
+    activeBookings: Booking[],
+    todaySchedule: Booking[],
+    upcomingSchedule: Booking[],
+): BarberWorkload[] {
+    return barbers.map(barber => {
+        const barberBookings = activeBookings.filter(b =>
+            b.barber_id === barber.id || b.barber_name === barber.name
+        );
+        return {
+            barber,
+            todayCount: todaySchedule.filter(b =>
+                b.barber_id === barber.id || b.barber_name === barber.name
+            ).length,
+            upcomingCount: upcomingSchedule.filter(b =>
+                b.barber_id === barber.id || b.barber_name === barber.name
+            ).length,
+            bookingCount: barberBookings.length,
+            completedCount: barberBookings.filter(b => b.status === 'completed').length,
+            totalRevenue: barberBookings.reduce((sum, b) => sum + parsePrice(b.price), 0),
+        };
+    });
+}
+
+function clientsWithBookingsInRange(clients: Client[], bookings: Booking[]): Client[] {
+    const clientIds = new Set<string>();
+    const clientEmails = new Set<string>();
+
+    bookings.forEach(b => {
+        if (b.client_id) clientIds.add(b.client_id);
+        if (b.client_email) clientEmails.add(b.client_email.toLowerCase());
+    });
+
+    return clients.filter(c =>
+        clientIds.has(c.id) ||
+        (c.email && clientEmails.has(c.email.toLowerCase()))
+    );
 }
 
 const STAT_TITLES: Record<StatKey, { title: string; subtitle: string }> = {
@@ -436,29 +601,56 @@ function ClientDetailItem({ client, showDaysOverdue = false, cutoff }: { client:
     );
 }
 
-function renderContent(statKey: StatKey, data: StatDetailData, cutoff: string) {
+function renderContent(statKey: StatKey, data: StatDetailData, cutoff: string, dateRange: DateRange) {
+    const today = todayDateStr();
+    const filteredActive = filterActiveBookings(data.allBookings, dateRange);
+    const filteredCancellations = filterCancellations(data.allBookings, dateRange);
+    const filteredPipeline = filterPipelineBookings(data.allBookings, dateRange);
+    const filteredToday = filterActiveBookings(
+        data.allBookings,
+        DATE_FILTER_STATS.includes(statKey) && (statKey === 'todayAppointments' || statKey === 'todayRevenue')
+            ? dateRange
+            : { start: today, end: today },
+    );
+    const serviceBreakdown = computeServiceBreakdown(filteredActive);
+    const avgTicketStats = computeAvgTicketStats(filteredActive);
+    const revenueByMonth = computeRevenueByMonth(filteredActive);
+    const barberWorkloads = computeBarberWorkloads(
+        data.activeBarbers,
+        filteredActive,
+        filteredToday,
+        filteredPipeline,
+    );
+    const pipelineValue = filteredPipeline.reduce((sum, b) => sum + parsePrice(b.price), 0);
+    const pipelineDateRange = filteredPipeline.length > 0
+        ? { earliest: filteredPipeline[0].date, latest: filteredPipeline[filteredPipeline.length - 1].date }
+        : null;
+    const clientsInRange = clientsWithBookingsInRange(data.allClients, filteredActive);
+
     switch (statKey) {
-        case 'todayAppointments':
-            return data.todaySchedule.length === 0
-                ? <EmptyState message="No appointments today" />
+        case 'todayAppointments': {
+            return filteredActive.length === 0
+                ? <EmptyState message="No appointments in this date range" />
                 : <>
                     <SummaryBanner items={[
-                        { label: 'Total today', value: String(data.todaySchedule.length) },
-                        { label: 'Completed', value: String(data.todaySchedule.filter(b => b.status === 'completed').length) },
-                        { label: 'Confirmed', value: String(data.todaySchedule.filter(b => b.status === 'confirmed').length) },
+                        { label: 'Appointments', value: String(filteredActive.length) },
+                        { label: 'Completed', value: String(filteredActive.filter(b => b.status === 'completed').length) },
+                        { label: 'Confirmed', value: String(filteredActive.filter(b => b.status === 'confirmed').length) },
                     ]} />
-                    {data.todaySchedule.map(b => <BookingDetailItem key={b.id} booking={b} clients={data.allClients} />)}
+                    {filteredActive.map(b => <BookingDetailItem key={b.id} booking={b} clients={data.allClients} />)}
                 </>;
+        }
 
         case 'todayRevenue': {
-            const todayServiceMap: Record<string, { count: number; revenue: number }> = {};
-            data.todaySchedule.forEach(b => {
+            const schedule = filteredActive;
+            const serviceMap: Record<string, { count: number; revenue: number }> = {};
+            schedule.forEach(b => {
                 const service = b.service || 'Unknown';
-                if (!todayServiceMap[service]) todayServiceMap[service] = { count: 0, revenue: 0 };
-                todayServiceMap[service].count++;
-                todayServiceMap[service].revenue += parsePrice(b.price);
+                if (!serviceMap[service]) serviceMap[service] = { count: 0, revenue: 0 };
+                serviceMap[service].count++;
+                serviceMap[service].revenue += parsePrice(b.price);
             });
-            const todayServices = Object.entries(todayServiceMap)
+            const todayServices = Object.entries(serviceMap)
                 .map(([service, stats]) => ({
                     service,
                     count: stats.count,
@@ -467,108 +659,111 @@ function renderContent(statKey: StatKey, data: StatDetailData, cutoff: string) {
                     recentBookings: [],
                 }))
                 .sort((a, b) => b.revenue - a.revenue);
-            const total = data.todaySchedule.reduce((s, b) => s + parsePrice(b.price), 0);
+            const total = schedule.reduce((s, b) => s + parsePrice(b.price), 0);
 
-            return data.todaySchedule.length === 0
-                ? <EmptyState message="No revenue today" />
+            return schedule.length === 0
+                ? <EmptyState message="No revenue in this date range" />
                 : <>
                     <SummaryBanner items={[
                         { label: 'Total revenue', value: `$${total.toFixed(0)}` },
-                        { label: 'Appointments', value: String(data.todaySchedule.length) },
-                        { label: 'Avg ticket', value: `$${(total / data.todaySchedule.length).toFixed(0)}` },
+                        { label: 'Appointments', value: String(schedule.length) },
+                        { label: 'Avg ticket', value: schedule.length > 0 ? `$${(total / schedule.length).toFixed(0)}` : '$0' },
                     ]} />
                     <ServiceBreakdownTable items={todayServices} />
                     <p className="text-[10px] uppercase tracking-widest text-savron-silver/60 pt-4 pb-2">Each booking</p>
-                    {data.todaySchedule.map(b => <BookingDetailItem key={b.id} booking={b} clients={data.allClients} showQualification={false} />)}
+                    {schedule.map(b => <BookingDetailItem key={b.id} booking={b} clients={data.allClients} showQualification={false} />)}
                 </>;
         }
 
         case 'pipeline':
-            return data.upcomingSchedule.length === 0
-                ? <EmptyState message="No upcoming bookings" />
+            return filteredPipeline.length === 0
+                ? <EmptyState message="No upcoming bookings in this date range" />
                 : <>
                     <SummaryBanner items={[
-                        { label: 'Upcoming', value: String(data.upcomingSchedule.length) },
-                        { label: 'Pipeline value', value: `$${data.pipelineValue.toLocaleString()}` },
+                        { label: 'Upcoming', value: String(filteredPipeline.length) },
+                        { label: 'Pipeline value', value: `$${pipelineValue.toLocaleString()}` },
                         {
                             label: 'Date range',
-                            value: data.pipelineDateRange
-                                ? `${formatDateLabel(data.pipelineDateRange.earliest)} – ${formatDateLabel(data.pipelineDateRange.latest)}`
+                            value: pipelineDateRange
+                                ? `${formatDateLabel(pipelineDateRange.earliest)} – ${formatDateLabel(pipelineDateRange.latest)}`
                                 : '—',
                         },
                     ]} />
-                    {data.upcomingSchedule.map(b => <BookingDetailItem key={b.id} booking={b} clients={data.allClients} />)}
+                    {filteredPipeline.map(b => <BookingDetailItem key={b.id} booking={b} clients={data.allClients} />)}
                 </>;
 
         case 'totalRevenue':
-            return data.revenueByMonth.length === 0
-                ? <EmptyState message="No revenue data" />
+            return revenueByMonth.length === 0
+                ? <EmptyState message="No revenue in this date range" />
                 : <>
                     <SummaryBanner items={[
-                        { label: 'All-time revenue', value: `$${data.avgTicketStats.total.toLocaleString()}` },
-                        { label: 'Total bookings', value: String(data.avgTicketStats.count) },
-                        { label: 'Avg ticket', value: `$${data.avgTicketStats.avg.toFixed(0)}` },
+                        { label: 'Revenue', value: `$${avgTicketStats.total.toLocaleString()}` },
+                        { label: 'Bookings', value: String(avgTicketStats.count) },
+                        { label: 'Avg ticket', value: `$${avgTicketStats.avg.toFixed(0)}` },
                     ]} />
                     <p className="text-[10px] uppercase tracking-widest text-savron-silver/60 pt-2 pb-1">Tap a month to see who booked and what they paid</p>
-                    {data.revenueByMonth.map(m => (
+                    {revenueByMonth.map(m => (
                         <MonthRevenueSection key={m.month} {...m} clients={data.allClients} />
                     ))}
                 </>;
 
         case 'totalAppointments':
-            return data.activeBookings.length === 0
-                ? <EmptyState message="No appointment data" />
+            return filteredActive.length === 0
+                ? <EmptyState message="No appointments in this date range" />
                 : <>
                     <SummaryBanner items={[
-                        { label: 'Total appointments', value: String(data.activeBookings.length) },
-                        { label: 'Completed', value: String(data.activeBookings.filter(b => b.status === 'completed').length) },
-                        { label: 'Confirmed', value: String(data.activeBookings.filter(b => b.status === 'confirmed').length) },
+                        { label: 'Appointments', value: String(filteredActive.length) },
+                        { label: 'Completed', value: String(filteredActive.filter(b => b.status === 'completed').length) },
+                        { label: 'Confirmed', value: String(filteredActive.filter(b => b.status === 'confirmed').length) },
                     ]} />
-                    {data.activeBookings.map(b => <BookingDetailItem key={b.id} booking={b} clients={data.allClients} />)}
+                    {filteredActive.map(b => <BookingDetailItem key={b.id} booking={b} clients={data.allClients} />)}
                 </>;
 
         case 'avgTicket':
-            return data.serviceBreakdown.length === 0
-                ? <EmptyState message="No appointment data" />
+            return serviceBreakdown.length === 0
+                ? <EmptyState message="No appointments in this date range" />
                 : <>
                     <SummaryBanner items={[
-                        { label: 'Average ticket', value: `$${data.avgTicketStats.avg.toFixed(2)}` },
-                        { label: 'Highest', value: `$${data.avgTicketStats.max.toFixed(0)}` },
-                        { label: 'Lowest', value: `$${data.avgTicketStats.min.toFixed(0)}` },
+                        { label: 'Average ticket', value: `$${avgTicketStats.avg.toFixed(2)}` },
+                        { label: 'Highest', value: `$${avgTicketStats.max.toFixed(0)}` },
+                        { label: 'Lowest', value: `$${avgTicketStats.min.toFixed(0)}` },
                     ]} />
-                    <ServiceBreakdownTable items={data.serviceBreakdown} showAvg />
-                    <p className="text-[10px] uppercase tracking-widest text-savron-silver/60 pt-4 pb-2">Recent bookings</p>
-                    {data.activeBookings.slice(0, 10).map(b => (
+                    <ServiceBreakdownTable items={serviceBreakdown} showAvg />
+                    <p className="text-[10px] uppercase tracking-widest text-savron-silver/60 pt-4 pb-2">Bookings in range</p>
+                    {filteredActive.slice(0, 15).map(b => (
                         <BookingDetailItem key={b.id} booking={b} clients={data.allClients} showQualification={false} compact />
                     ))}
                 </>;
 
         case 'topService':
-            return data.serviceBreakdown.length === 0
-                ? <EmptyState message="No appointment data" />
+            return serviceBreakdown.length === 0
+                ? <EmptyState message="No appointments in this date range" />
                 : <>
                     <SummaryBanner items={[
-                        { label: 'Top service', value: data.serviceBreakdown[0]?.service || '—' },
-                        { label: 'Bookings', value: String(data.serviceBreakdown[0]?.count || 0) },
-                        { label: 'Revenue', value: `$${(data.serviceBreakdown[0]?.revenue || 0).toLocaleString()}` },
+                        { label: 'Top service', value: serviceBreakdown[0]?.service || '—' },
+                        { label: 'Bookings', value: String(serviceBreakdown[0]?.count || 0) },
+                        { label: 'Revenue', value: `$${(serviceBreakdown[0]?.revenue || 0).toLocaleString()}` },
                     ]} />
-                    <p className="text-[10px] uppercase tracking-widest text-savron-silver/60 pt-2 pb-1">Tap a service to see who booked it recently</p>
-                    {data.serviceBreakdown.map((s, i) => (
+                    <p className="text-[10px] uppercase tracking-widest text-savron-silver/60 pt-2 pb-1">Tap a service to see who booked it</p>
+                    {serviceBreakdown.map((s, i) => (
                         <ServiceDetailSection key={s.service} item={s} clients={data.allClients} rank={i} />
                     ))}
                 </>;
 
-        case 'totalClients':
-            return data.allClients.length === 0
-                ? <EmptyState message="No clients yet" />
+        case 'totalClients': {
+            const showAllClients = !dateRange.start && !dateRange.end;
+            const clientsToShow = showAllClients ? data.allClients : clientsInRange;
+            return clientsToShow.length === 0
+                ? <EmptyState message={showAllClients ? 'No clients yet' : 'No clients with appointments in this date range'} />
                 : <>
                     <SummaryBanner items={[
-                        { label: 'Total clients', value: String(data.allClients.length) },
-                        { label: 'VIP members', value: String(data.allClients.filter(c => c.membership_status === 'vip').length) },
-                        { label: 'Due for visit', value: String(data.dueClients.length) },
+                        { label: 'Clients', value: String(clientsToShow.length) },
+                        { label: 'VIP members', value: String(clientsToShow.filter(c => c.membership_status === 'vip').length) },
+                        { label: showAllClients ? 'Due for visit' : 'Bookings', value: showAllClients ? String(data.dueClients.length) : String(filteredActive.length) },
                     ]} />
-                    {data.allClients.map(c => <ClientDetailItem key={c.id} client={c} />)}
+                    {clientsToShow.map(c => <ClientDetailItem key={c.id} client={c} />)}
                 </>;
+        }
 
         case 'dueForVisit':
             return data.dueClients.length === 0
@@ -583,9 +778,9 @@ function renderContent(statKey: StatKey, data: StatDetailData, cutoff: string) {
                 </>;
 
         case 'barbersActive':
-            return data.barberWorkloads.length === 0
+            return barberWorkloads.length === 0
                 ? <EmptyState message="No active barbers" />
-                : data.barberWorkloads.map(({ barber, todayCount, upcomingCount, completedCount, totalRevenue }) => (
+                : barberWorkloads.map(({ barber, todayCount, upcomingCount, bookingCount, totalRevenue }) => (
                     <DetailRow key={barber.id}>
                         <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0 flex-1">
@@ -606,7 +801,7 @@ function renderContent(statKey: StatKey, data: StatDetailData, cutoff: string) {
                             {[
                                 { label: 'Today', value: String(todayCount) },
                                 { label: 'Upcoming', value: String(upcomingCount) },
-                                { label: 'Completed', value: String(completedCount) },
+                                { label: 'Bookings', value: String(bookingCount) },
                                 { label: 'Revenue', value: `$${totalRevenue.toLocaleString()}` },
                             ].map(stat => (
                                 <div key={stat.label} className="p-2 rounded bg-white/[0.03] border border-white/[0.06] text-center">
@@ -654,15 +849,15 @@ function renderContent(statKey: StatKey, data: StatDetailData, cutoff: string) {
                 </>;
 
         case 'recentCancellations':
-            return data.recentCancellations.length === 0
-                ? <EmptyState message="No recent cancellations — great retention!" />
+            return filteredCancellations.length === 0
+                ? <EmptyState message="No cancellations in this date range" />
                 : <>
                     <SummaryBanner items={[
-                        { label: 'Last 30 days', value: String(data.recentCancellations.length) },
-                        { label: 'Cancelled', value: String(data.recentCancellations.filter(b => b.status === 'cancelled').length) },
-                        { label: 'No-shows', value: String(data.recentCancellations.filter(b => b.status === 'no_show').length) },
+                        { label: 'Total', value: String(filteredCancellations.length) },
+                        { label: 'Cancelled', value: String(filteredCancellations.filter(b => b.status === 'cancelled').length) },
+                        { label: 'No-shows', value: String(filteredCancellations.filter(b => b.status === 'no_show').length) },
                     ]} />
-                    {data.recentCancellations.map(b => (
+                    {filteredCancellations.map(b => (
                         <CancellationDetailItem key={b.id} booking={b} clients={data.allClients} />
                     ))}
                 </>;
@@ -682,6 +877,13 @@ interface StatDetailModalProps {
 export default function StatDetailModal({ statKey, data, cutoff, onClose }: StatDetailModalProps) {
     const modalRef = useRef<HTMLDivElement>(null);
     const scrollLockRef = useRef(0);
+    const [dateRange, setDateRange] = useState<DateRange>({ start: '', end: '' });
+
+    useEffect(() => {
+        if (statKey) {
+            setDateRange(getDefaultDateRange(statKey));
+        }
+    }, [statKey]);
 
     useEffect(() => {
         if (!statKey) return;
@@ -738,7 +940,7 @@ export default function StatDetailModal({ statKey, data, cutoff, onClose }: Stat
                     <div className="flex min-h-[100dvh] items-center justify-center p-4 sm:p-6">
                         <motion.div
                             ref={modalRef}
-                            className="bg-savron-grey border border-white/10 rounded-savron w-full max-w-lg max-h-[min(85dvh,calc(100dvh-2rem))] shadow-2xl flex flex-col overflow-hidden my-auto"
+                            className="bg-savron-grey border border-white/10 rounded-savron w-full max-w-xl max-h-[min(85dvh,calc(100dvh-2rem))] shadow-2xl flex flex-col overflow-hidden my-auto"
                             initial={{ scale: 0.95, opacity: 0, y: 8 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.95, opacity: 0, y: 8 }}
@@ -759,7 +961,14 @@ export default function StatDetailModal({ statKey, data, cutoff, onClose }: Stat
                             </div>
 
                             <div className="overflow-y-auto flex-1 px-5 min-h-0">
-                                {renderContent(statKey, data, cutoff)}
+                                {DATE_FILTER_STATS.includes(statKey) && (
+                                    <DateRangeFilter
+                                        start={dateRange.start}
+                                        end={dateRange.end}
+                                        onChange={setDateRange}
+                                    />
+                                )}
+                                {renderContent(statKey, data, cutoff, dateRange)}
                             </div>
 
                             {linkHref && (
@@ -876,6 +1085,7 @@ export function buildStatDetailData(
             upcomingCount: upcomingSchedule.filter(b =>
                 b.barber_id === barber.id || b.barber_name === barber.name
             ).length,
+            bookingCount: barberBookings.length,
             completedCount: barberBookings.filter(b => b.status === 'completed').length,
             totalRevenue: barberBookings.reduce((sum, b) => sum + parsePrice(b.price), 0),
         };
@@ -897,6 +1107,7 @@ export function buildStatDetailData(
         activeBarbers,
         pendingApplicants,
         recentCancellations,
+        allBookings,
         activeBookings,
         serviceBreakdown,
         revenueByMonth,

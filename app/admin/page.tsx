@@ -23,6 +23,7 @@ const EMPTY_DETAIL_DATA: StatDetailData = {
     activeBarbers: [],
     pendingApplicants: [],
     recentCancellations: [],
+    allBookings: [],
     activeBookings: [],
     serviceBreakdown: [],
     revenueByMonth: [],
