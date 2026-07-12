@@ -23,8 +23,13 @@ const EMPTY_DETAIL_DATA: StatDetailData = {
     activeBarbers: [],
     pendingApplicants: [],
     recentCancellations: [],
+    activeBookings: [],
     serviceBreakdown: [],
     revenueByMonth: [],
+    avgTicketStats: { avg: 0, min: 0, max: 0, total: 0, count: 0 },
+    barberWorkloads: [],
+    pipelineValue: 0,
+    pipelineDateRange: null,
 };
 
 export default function AdminDashboard() {
