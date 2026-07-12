@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
             .single(),
         supabaseAdmin
             .from('bookings')
-            .select('time, duration, status, google_event_id')
+            .select('time, duration, status')
             .eq('barber_id', barberId)
             .eq('date', date),
     ]);
@@ -57,11 +57,6 @@ export async function GET(request: NextRequest) {
     const dbBusy = (dbBookings ?? [])
         .filter(booking => booking.status === 'confirmed')
         .map(booking => bookingToBusySlot(date, booking.time, booking.duration));
-    const linkedGoogleEventIds = new Set(
-        (dbBookings ?? [])
-            .map(booking => booking.google_event_id)
-            .filter((id): id is string => Boolean(id)),
-    );
 
     const tokens = barber.google_calendar_tokens as CalendarToken | null;
     const calendarId = barber.google_calendar_id;
@@ -76,12 +71,9 @@ export async function GET(request: NextRequest) {
         const timeMin = `${date}T00:00:00-05:00`;
         const timeMax = `${date}T23:59:59-05:00`;
 
-        // Use exact event times — freeBusy pads appointments with Google Calendar buffer time.
-        // DB rows are canonical for app-created events. Excluding their linked
-        // Google events avoids double blocks and immediately ignores an orphaned
-        // event when calendar cleanup after cancellation temporarily fails.
+        // App appointments live on the shop calendar; DB rows are canonical here.
+        // Barber personal calendar is only for external blocks.
         const gcalBusy = (await getEventBusySlots(accessToken, calendarId, timeMin, timeMax))
-            .filter(slot => !slot.id || !linkedGoogleEventIds.has(slot.id))
             .map(({ start, end }) => ({ start, end }));
 
         return NextResponse.json({ busy: [...gcalBusy, ...dbBusy], workingHours });

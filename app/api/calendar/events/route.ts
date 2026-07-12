@@ -93,21 +93,21 @@ export async function GET(req: NextRequest) {
     const barberIds = barbers.map(barber => barber.id);
     const { data: linkedBookings } = await supabase
         .from('bookings')
-        .select('id, google_event_id, barber_id, status')
+        .select('id, shop_google_event_id, barber_id, status')
         .in('barber_id', barberIds)
         .gte('date', dateStart)
         .lte('date', dateEnd)
-        .not('google_event_id', 'is', null);
+        .not('shop_google_event_id', 'is', null);
 
     const linkedEventIds = new Set(
         (linkedBookings ?? [])
-            .filter(booking => booking.status === 'confirmed' && booking.google_event_id)
-            .map(booking => booking.google_event_id as string),
+            .filter(booking => booking.status === 'confirmed' && booking.shop_google_event_id)
+            .map(booking => booking.shop_google_event_id as string),
     );
     const bookingByEventId = new Map(
         (linkedBookings ?? [])
-            .filter(booking => booking.google_event_id)
-            .map(booking => [booking.google_event_id as string, booking.id as string]),
+            .filter(booking => booking.shop_google_event_id)
+            .map(booking => [booking.shop_google_event_id as string, booking.id as string]),
     );
 
     const timeMin = `${dateStart}T00:00:00-05:00`;

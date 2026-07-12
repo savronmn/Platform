@@ -14,6 +14,10 @@ export const RESEND_BOOKING_FROM_NAME = SHOP_CALENDAR_DISPLAY_NAME;
 /** Google Calendar account — organizer entity on client .ics (SENT-BY bookings@). */
 export const SHOP_CALENDAR_EMAIL = 'savronmn@gmail.com';
 
+/** SAVRON shop Google Calendar — one invite per appointment (client + barber attendees). */
+export const SHOP_GOOGLE_CALENDAR_ID =
+    '647974e05fc3f7623a296d4bf0a07a875fbabbf1c93155fc80f16000841ba73b@group.calendar.google.com';
+
 /** Public contact / reply-to style address (not used as calendar organizer). */
 export const SHOP_CONTACT_EMAIL = 'info@savronmn.com';
 

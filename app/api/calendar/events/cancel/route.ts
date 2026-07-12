@@ -8,6 +8,7 @@ import { createServerSupabase } from '@/lib/supabase-server';
 import { cancelBooking } from '@/lib/cancel-booking';
 import { deleteCalendarEvent, getValidAccessToken, type CalendarToken } from '@/lib/google-calendar';
 import { resolveBookingActor } from '@/lib/booking-auth';
+import { getShopCalendarId, getShopCalendarTokens } from '@/lib/shop-calendar';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
     const { data: booking } = await supabaseAdmin
         .from('bookings')
         .select('id, status')
-        .eq('google_event_id', googleEventId)
+        .or(`shop_google_event_id.eq.${googleEventId},google_event_id.eq.${googleEventId}`)
         .maybeSingle();
 
     if (booking && booking.status === 'confirmed') {
@@ -62,6 +63,14 @@ export async function POST(request: NextRequest) {
         });
     }
 
+    const shopTokens = await getShopCalendarTokens();
+    if (shopTokens) {
+        const accessToken = await getValidAccessToken(shopTokens);
+        const calendarId = await getShopCalendarId();
+        await deleteCalendarEvent(accessToken, calendarId, googleEventId);
+        return NextResponse.json({ success: true, bookingCancelled: false });
+    }
+
     const { data: barber } = await supabaseAdmin
         .from('barbers')
         .select('google_calendar_id, google_calendar_tokens')
@@ -69,7 +78,7 @@ export async function POST(request: NextRequest) {
         .single();
 
     if (!barber?.google_calendar_tokens || !barber.google_calendar_id) {
-        return NextResponse.json({ error: 'Barber calendar not connected' }, { status: 400 });
+        return NextResponse.json({ error: 'Calendar not connected' }, { status: 400 });
     }
 
     const accessToken = await getValidAccessToken(barber.google_calendar_tokens as CalendarToken);
