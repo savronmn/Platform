@@ -211,12 +211,12 @@ function BarberBookingContent() {
                         </div>
                         <div className="text-center md:text-left space-y-3">
                             <h1 className="font-heading text-4xl md:text-5xl uppercase tracking-widest text-white">{barber.name}</h1>
-                            <p className="text-emerald-400 uppercase tracking-widest text-sm font-medium">{barber.role}</p>
+                            <p className="text-savron-blue-light uppercase tracking-widest text-sm font-medium">{barber.role}</p>
                             {barber.bio && <p className="text-savron-silver text-sm leading-relaxed max-w-lg">{barber.bio}</p>}
                             {barber.specialties && barber.specialties.length > 0 && (
                                 <div className="flex flex-wrap gap-2 justify-center md:justify-start">
                                     {barber.specialties.map((s, i) => (
-                                        <span key={i} className="badge bg-savron-green/15 text-emerald-400 border border-savron-green/30 text-xs">
+                                        <span key={i} className="badge bg-savron-green/15 text-savron-blue-light border border-savron-green/30 text-xs">
                                             {s}
                                         </span>
                                     ))}
@@ -318,7 +318,7 @@ function BarberBookingContent() {
                                             </div>
                                             <div className="flex items-center gap-3">
                                                 <span className="text-white font-mono text-sm">{service.price}</span>
-                                                {selectedService === service.id && <Check className="w-4 h-4 text-emerald-400" />}
+                                                {selectedService === service.id && <Check className="w-4 h-4 text-savron-blue-light" />}
                                             </div>
                                         </button>
                                     ))}
@@ -410,7 +410,7 @@ function BarberBookingContent() {
                                         </div>
                                         <div className="flex justify-between pt-2 border-t border-white/10">
                                             <span className="text-savron-silver font-mono font-bold">Total</span>
-                                            <span className="text-emerald-400 font-mono font-bold">
+                                            <span className="text-savron-blue-light font-mono font-bold">
                                                 {bookingTotals(
                                                     services.find(s => s.id === selectedService)?.priceCents ?? 0,
                                                     services.find(s => s.id === selectedService)?.durationMin ?? 0,

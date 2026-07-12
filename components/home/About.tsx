@@ -61,9 +61,9 @@ const About = () => {
                     >
                         <p style={{
                             fontFamily: "var(--font-montserrat), sans-serif",
-                            fontWeight: 300, fontSize: 9,
-                            letterSpacing: "0.4em", textTransform: "uppercase",
-                            color: "rgba(232,228,220,0.25)", marginBottom: 28,
+                            fontWeight: 300, fontSize: 12,
+                            letterSpacing: "0.35em", textTransform: "uppercase",
+                            color: "rgba(232,228,220,0.65)", marginBottom: 28,
                         }}>
                             001 The Standard
                         </p>
@@ -82,7 +82,7 @@ const About = () => {
                             fontFamily: "var(--font-montserrat), sans-serif",
                             fontWeight: 300, fontSize: 15,
                             lineHeight: 1.9,
-                            color: "rgba(232,228,220,0.62)",
+                            color: "rgba(232,228,220,0.78)",
                             maxWidth: 380,
                         }}>
                             Located in the North Loop, Minneapolis. SAVRON is built on quality craft and a straightforward approach to barbering. Appointments and walk-ins both welcome.
@@ -117,7 +117,7 @@ const About = () => {
                                     fontFamily: "var(--font-montserrat), sans-serif",
                                     fontWeight: 300, fontSize: 14,
                                     lineHeight: 1.8,
-                                    color: "rgba(232,228,220,0.58)",
+                                    color: "rgba(232,228,220,0.72)",
                                 }}>
                                     {body}
                                 </p>
@@ -147,9 +147,9 @@ const About = () => {
                                     </p>
                                     <p style={{
                                         fontFamily: "var(--font-montserrat), sans-serif",
-                                        fontSize: 10, letterSpacing: "0.22em",
+                                        fontSize: 12, letterSpacing: "0.2em",
                                         textTransform: "uppercase",
-                                        color: "rgba(232,228,220,0.42)",
+                                        color: "rgba(232,228,220,0.72)",
                                     }}>
                                         {label}
                                     </p>

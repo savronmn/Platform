@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
         if (!existingServices || existingServices.length === 0) {
             const { error: sErr } = await supabase.from('services').insert([
                 { name: 'The Executive', duration_minutes: 75, price_cents: 9000, color: 'blue', description: 'The full SAVRON experience — signature cut paired with hot towel shave.', active: true },
-                { name: 'Signature Cut', duration_minutes: 45, price_cents: 5000, color: 'emerald', description: 'Tailored fade or scissor cut, finished with a clean neckline.', active: true },
+                { name: 'Signature Cut', duration_minutes: 45, price_cents: 5000, color: 'blue', description: 'Tailored fade or scissor cut, finished with a clean neckline.', active: true },
                 { name: 'Long Styles Haircut', duration_minutes: 60, price_cents: 6000, color: 'indigo', description: 'Sculpted cut for longer hair — texture, shape, and movement.', active: true },
                 { name: 'Kids Cut', duration_minutes: 30, price_cents: 5000, color: 'teal', description: 'Classic precision cut for the next generation.', active: true },
                 { name: 'Beard Sculpting + Hot Towel Shave', duration_minutes: 45, price_cents: 5000, color: 'amber', description: 'Straight-razor line up, hot towel ritual, conditioning finish.', active: true }

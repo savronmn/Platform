@@ -303,8 +303,8 @@ export default function BarberSlugCalendarPage() {
                         <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin")} />
                     </button>
                     {isGcalConnected ? (
-                        <span className="text-[10px] uppercase tracking-widest text-emerald-400 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                        <span className="text-[10px] uppercase tracking-widest text-savron-blue-light flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-savron-blue-light inline-block" />
                             Google connected
                         </span>
                     ) : (
@@ -322,19 +322,19 @@ export default function BarberSlugCalendarPage() {
             {(calConnected || calError || !isGcalConnected) && (
                 <div className={cn(
                     "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-savron",
-                    calConnected ? "bg-savron-green/20 border-savron-green-light/35" :
+                    calConnected ? "bg-savron-blue/20 border-savron-blue-light/35" :
                     calError ? "bg-red-500/10 border-red-500/30" :
                     "bg-savron-grey border-white/10",
                 )}>
                     <div className="flex items-center gap-3">
                         {calConnected ? (
-                            <Link2 className="w-4 h-4 text-emerald-400" />
+                            <Link2 className="w-4 h-4 text-savron-blue-light" />
                         ) : (
                             <Link2Off className="w-4 h-4 text-savron-silver" />
                         )}
                         <div>
                             <p className={cn("text-xs uppercase tracking-widest font-medium",
-                                calConnected ? "text-emerald-400" : calError ? "text-red-400" : "text-savron-silver",
+                                calConnected ? "text-savron-blue-light" : calError ? "text-red-400" : "text-savron-silver",
                             )}>
                                 {calConnected ? "Google Calendar connected" : calError ? "Connection failed" : "Connect Google Calendar"}
                             </p>
@@ -355,11 +355,11 @@ export default function BarberSlugCalendarPage() {
 
             {/* Next appointment highlight */}
             {nextAppointment && (
-                <div className="px-4 py-3 border border-savron-green-light/25 bg-savron-green/10 rounded-savron flex items-center justify-between gap-3">
+                <div className="px-4 py-3 border border-savron-blue-light/25 bg-savron-blue/10 rounded-savron flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                        <Clock className="w-4 h-4 text-emerald-400" />
+                        <Clock className="w-4 h-4 text-savron-blue-light" />
                         <div>
-                            <p className="text-[10px] uppercase tracking-widest text-emerald-400">Next appointment</p>
+                            <p className="text-[10px] uppercase tracking-widest text-savron-blue-light">Next appointment</p>
                             <p className="text-white text-sm font-medium">
                                 {nextAppointment.client_name || 'Walk-in'} · {nextAppointment.service}
                             </p>
@@ -368,7 +368,7 @@ export default function BarberSlugCalendarPage() {
                     </div>
                     <button
                         onClick={() => { setListTab('calendar'); setSelectedDate(new Date(`${nextAppointment.date}T12:00:00`)); setSelectedBooking(nextAppointment); }}
-                        className="text-[10px] uppercase tracking-widest text-emerald-400 hover:text-white transition-colors"
+                        className="text-[10px] uppercase tracking-widest text-savron-blue-light hover:text-white transition-colors"
                     >
                         View
                     </button>
@@ -394,7 +394,7 @@ export default function BarberSlugCalendarPage() {
                         className={cn(
                             "flex items-center gap-2 px-4 py-2 rounded-savron text-xs uppercase tracking-widest transition-all border",
                             listTab === tab.id
-                                ? "bg-savron-green border-savron-green-light/20 text-white"
+                                ? "bg-savron-blue border-savron-blue-light/20 text-white"
                                 : "text-savron-silver border-white/5 hover:text-white",
                         )}
                     >
@@ -421,7 +421,7 @@ export default function BarberSlugCalendarPage() {
                             "flex items-center justify-between px-4 py-3 border rounded-savron text-xs",
                             isDayOff
                                 ? "border-amber-500/20 bg-amber-500/5 text-amber-400/70"
-                                : "border-savron-green-light/20 bg-savron-green/10 text-emerald-400",
+                                : "border-savron-blue-light/20 bg-savron-blue/10 text-savron-blue-light",
                         )}>
                             <span className="uppercase tracking-widest">
                                 {isDayOff
@@ -439,7 +439,7 @@ export default function BarberSlugCalendarPage() {
 
                     {view === 'day' && (
                         <div className="flex flex-wrap gap-4 text-[10px] uppercase tracking-widest text-savron-silver/40">
-                            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-savron-green/20 border border-savron-green/30 inline-block" />SAVRON</span>
+                            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-savron-blue/20 border border-savron-blue/30 inline-block" />SAVRON</span>
                             <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-blue-500/20 border border-blue-500/30 inline-block" />Google Calendar</span>
                         </div>
                     )}
@@ -533,9 +533,9 @@ export default function BarberSlugCalendarPage() {
                                         header: (
                                             <button
                                                 onClick={() => { setSelectedDate(day); setView('day'); }}
-                                                className={cn('w-full rounded-savron p-1 text-center hover:bg-white/5 transition-colors', isToday(day) && 'bg-savron-green/5')}
+                                                className={cn('w-full rounded-savron p-1 text-center hover:bg-white/5 transition-colors', isToday(day) && 'bg-savron-blue/5')}
                                             >
-                                                <p className={cn('text-xs uppercase tracking-widest font-heading', isToday(day) ? 'text-emerald-400' : 'text-savron-silver')}>
+                                                <p className={cn('text-xs uppercase tracking-widest font-heading', isToday(day) ? 'text-savron-blue-light' : 'text-savron-silver')}>
                                                     {format(day, 'EEE')}
                                                 </p>
                                                 <p className={cn('text-lg font-heading', isToday(day) ? 'text-white' : 'text-savron-silver/60')}>

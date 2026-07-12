@@ -19,7 +19,7 @@ const config: Config = {
                 'savron-green-light': '#1A6A8A',
                 'savron-cream': '#e8e4dc',
                 'savron-silver': '#C8C8C8',
-                'savron-silver-muted': '#787878',
+                'savron-silver-muted': '#9A9A9A',
                 'savron-white': '#FFFFFF',
             },
             fontFamily: {

@@ -49,9 +49,9 @@ const Hero = () => {
             }}>
                 <p style={{
                     fontFamily: "var(--font-montserrat), sans-serif",
-                    fontWeight: 300, fontSize: 9,
-                    letterSpacing: "0.44em", textTransform: "uppercase",
-                    color: "rgba(232,228,220,0.35)", marginBottom: 18,
+                    fontWeight: 300, fontSize: 12,
+                    letterSpacing: "0.38em", textTransform: "uppercase",
+                    color: "rgba(232,228,220,0.68)", marginBottom: 18,
                 }}>
                     Minneapolis &nbsp;·&nbsp; North Loop
                 </p>

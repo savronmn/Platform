@@ -61,7 +61,7 @@ export default function BarberSharePage() {
             {/* Header */}
             <div className="text-center space-y-2">
                 <div className="w-12 h-12 mx-auto bg-savron-green/15 border border-savron-green/25 rounded-full flex items-center justify-center">
-                    <Link2 className="w-5 h-5 text-emerald-400" />
+                    <Link2 className="w-5 h-5 text-savron-blue-light" />
                 </div>
                 <h1 className="font-heading text-2xl uppercase tracking-widest text-white">My Booking Page</h1>
                 <p className="text-savron-silver text-xs uppercase tracking-widest">
@@ -125,7 +125,7 @@ export default function BarberSharePage() {
                         { title: 'Social Media Posts', desc: 'Share the link in your stories and posts.' },
                     ].map((tip, i) => (
                         <div key={i} className="flex gap-3">
-                            <div className="w-6 h-6 flex-shrink-0 bg-savron-green/10 border border-savron-green/20 rounded-full flex items-center justify-center text-emerald-400 text-[10px] font-heading">
+                            <div className="w-6 h-6 flex-shrink-0 bg-savron-green/10 border border-savron-green/20 rounded-full flex items-center justify-center text-savron-blue-light text-[10px] font-heading">
                                 {i + 1}
                             </div>
                             <div>

@@ -87,7 +87,7 @@ export default function BarberRegistration() {
                                     initial={{ scale: 0 }}
                                     animate={{ scale: 1 }}
                                     transition={{ type: "spring", stiffness: 200, damping: 20, delay: 0.2 }}
-                                    className="w-20 h-20 bg-savron-green/10 rounded-full flex items-center justify-center mx-auto mb-6 text-emerald-400"
+                                    className="w-20 h-20 bg-savron-green/10 rounded-full flex items-center justify-center mx-auto mb-6 text-savron-blue-light"
                                 >
                                     <CheckCircle2 size={40} />
                                 </motion.div>
@@ -110,7 +110,7 @@ export default function BarberRegistration() {
                             >
                                 {/* Title */}
                                 <div className="text-center mb-8">
-                                    <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-400 mb-3 flex items-center justify-center gap-2">
+                                    <p className="text-[10px] uppercase tracking-[0.3em] text-savron-blue-light mb-3 flex items-center justify-center gap-2">
                                         <Scissors size={12} /> Join the team
                                     </p>
                                     <h1 className="font-heading text-2xl md:text-4xl text-white uppercase tracking-widest mb-3">

@@ -34,7 +34,7 @@ export function EyebrowsAddon({ checked, onChange, visible, variant = 'default' 
                             className={cn(
                                 'w-4 h-4 shrink-0 border rounded-sm flex items-center justify-center transition-all duration-300',
                                 checked
-                                    ? 'border-emerald-400 bg-emerald-400/15 text-emerald-400'
+                                    ? 'border-savron-blue-light bg-savron-blue-light/15 text-savron-blue-light'
                                     : 'border-white/25 text-transparent',
                             )}
                         >
@@ -73,7 +73,7 @@ export function EyebrowsAddon({ checked, onChange, visible, variant = 'default' 
                     className={cn(
                         'w-5 h-5 shrink-0 border rounded-sm flex items-center justify-center transition-all duration-300',
                         checked
-                            ? 'border-emerald-400 bg-emerald-400/15 text-emerald-400'
+                            ? 'border-savron-blue-light bg-savron-blue-light/15 text-savron-blue-light'
                             : 'border-white/25 text-transparent',
                     )}
                 >

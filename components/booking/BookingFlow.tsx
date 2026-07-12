@@ -274,7 +274,7 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
                                 <span className={cn("font-mono text-sm transition-colors duration-300", isSelected ? "text-savron-silver" : "text-savron-silver/50 group-hover:text-savron-silver")}>{service.price}</span>
-                                <div className={cn("w-5 h-5 flex items-center justify-center transition-all duration-300 flex-shrink-0", isSelected ? "text-emerald-400" : "text-white/10")}>
+                                <div className={cn("w-5 h-5 flex items-center justify-center transition-all duration-300 flex-shrink-0", isSelected ? "text-savron-blue-light" : "text-white/10")}>
                                     {isSelected ? <Check className="w-4 h-4" /> : <div className="w-4 h-4 border border-white/20" />}
                                 </div>
                             </div>
@@ -315,7 +315,7 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
                                     setLoadingBarbers(false);
                                 });
                         }}
-                        className="text-xs text-emerald-400 uppercase tracking-widest hover:text-emerald-300 transition-colors"
+                        className="text-xs text-savron-blue-light uppercase tracking-widest hover:text-savron-blue-light transition-colors"
                     >
                         Retry
                     </button>
@@ -325,7 +325,7 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
                     <p className="text-savron-silver/60 text-sm">No barbers currently offer this service.</p>
                     <button
                         onClick={() => setStep(1)}
-                        className="text-sm text-emerald-400 uppercase tracking-widest hover:text-emerald-300 transition-colors min-h-[44px] px-4"
+                        className="text-sm text-savron-blue-light uppercase tracking-widest hover:text-savron-blue-light transition-colors min-h-[44px] px-4"
                     >
                         Choose a different service
                     </button>
@@ -448,7 +448,7 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
                                         <p className="text-xs uppercase tracking-widest text-savron-silver/40 mb-2">Specialties</p>
                                         <div className="flex flex-wrap gap-1.5">
                                             {profileOpen.specialties.map((s, i) => (
-                                                <span key={i} className="px-2 py-0.5 bg-savron-green/10 text-emerald-400 border border-savron-green/20 text-[10px] uppercase tracking-wider">
+                                                <span key={i} className="px-2 py-0.5 bg-savron-green/10 text-savron-blue-light border border-savron-green/20 text-[10px] uppercase tracking-wider">
                                                     {s}
                                                 </span>
                                             ))}
@@ -538,7 +538,7 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
                 <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-wider mb-2">Select Date & Time</h2>
                 <p className="text-savron-silver/65 text-sm mb-6">
                     With {selectedPro?.name} · {displayServiceLine}
-                    {addEyebrows && <span className="text-emerald-400/80"> · includes eyebrows</span>}
+                    {addEyebrows && <span className="text-savron-blue-light/80"> · includes eyebrows</span>}
                 </p>
 
                 {/* Date row */}

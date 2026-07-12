@@ -54,7 +54,7 @@ export default function BarberLoginPage() {
                     <div className="relative w-32 h-8 mx-auto">
                         <Image src="/logo.png" alt="SAVRON" fill className="object-contain" priority />
                     </div>
-                    <div className="flex items-center justify-center gap-2 text-emerald-400">
+                    <div className="flex items-center justify-center gap-2 text-savron-blue-light">
                         <Scissors className="w-4 h-4" />
                         <p className="text-xs uppercase tracking-widest font-medium">Barber Portal</p>
                     </div>

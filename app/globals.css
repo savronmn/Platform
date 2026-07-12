@@ -9,7 +9,9 @@
   --accent-blue: 18, 84, 112;
   --accent-blue-light: 26, 106, 138;
   --accent-cream: 232, 228, 220;
-  --accent-silver: 163, 163, 163;
+  --accent-silver: 180, 180, 180;
+  --text-muted: rgba(200, 200, 200, 0.82);
+  --text-kicker: rgba(232, 228, 220, 0.62);
 }
 
 /* Silver text selection */
@@ -64,6 +66,11 @@ body {
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* Improved contrast for muted copy across the site */
+  .text-muted-readable {
+    color: var(--text-muted);
   }
 }
 
@@ -142,7 +149,7 @@ body {
   }
 
   .admin-kicker {
-    @apply font-mono text-xs tracking-[0.4em] text-savron-cream/45 uppercase mb-3;
+    @apply font-mono text-xs tracking-[0.35em] text-savron-cream/70 uppercase mb-3;
   }
 
   .admin-title {
@@ -150,7 +157,7 @@ body {
   }
 
   .admin-subtitle {
-    @apply text-sm text-savron-cream/50 font-light mt-2 max-w-2xl;
+    @apply text-sm text-savron-silver font-light mt-2 max-w-2xl;
   }
 
   .admin-icon-btn {
@@ -215,7 +222,7 @@ body {
   }
 
   .chapter-label {
-    @apply font-mono text-xs tracking-[0.4em] text-savron-cream/45 uppercase;
+    @apply font-mono text-xs tracking-[0.35em] text-savron-cream/70 uppercase;
   }
 
   .price-silver {

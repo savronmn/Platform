@@ -152,7 +152,7 @@ export default function MemberBookingsPage() {
                                     <div className="flex items-center gap-3">
                                         <span className={cn(
                                             "text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-sm border",
-                                            booking.status === 'confirmed' ? "text-emerald-300 border-savron-green/35 bg-savron-green/15" :
+                                            booking.status === 'confirmed' ? "text-savron-blue-light border-savron-green/35 bg-savron-green/15" :
                                             booking.status === 'completed' ? "text-green-400 border-green-500/20 bg-green-500/10" :
                                             booking.status === 'cancelled' ? "text-red-400 border-red-500/20 bg-red-500/10" :
                                             "text-yellow-400 border-yellow-500/20 bg-yellow-500/10"

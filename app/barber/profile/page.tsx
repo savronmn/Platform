@@ -189,7 +189,7 @@ export default function BarberProfilePage() {
             )}
 
             {successMessage && (
-                <div className="bg-savron-green/20 border border-savron-green-light/35 rounded-savron p-4 text-emerald-300 text-sm">
+                <div className="bg-savron-green/20 border border-savron-green-light/35 rounded-savron p-4 text-savron-blue-light text-sm">
                     {successMessage}
                 </div>
             )}

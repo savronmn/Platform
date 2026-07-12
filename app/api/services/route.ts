@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     const { data, error } = await adminClient()
         .from('services')
-        .insert({ name: name.trim(), duration_minutes, price_cents, color: color ?? 'emerald', description: description?.trim() || null, active: true, sort_order })
+        .insert({ name: name.trim(), duration_minutes, price_cents, color: color ?? 'blue', description: description?.trim() || null, active: true, sort_order })
         .select()
         .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

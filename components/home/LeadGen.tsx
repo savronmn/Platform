@@ -19,9 +19,9 @@ const LeadGen = () => {
                 >
                     <p style={{
                         fontFamily: "var(--font-montserrat), sans-serif",
-                        fontWeight: 300, fontSize: 9,
-                        letterSpacing: "0.4em", textTransform: "uppercase",
-                        color: "rgba(232,228,220,0.25)", marginBottom: 24,
+                        fontWeight: 300, fontSize: 12,
+                        letterSpacing: "0.35em", textTransform: "uppercase",
+                        color: "rgba(232,228,220,0.65)", marginBottom: 24,
                     }}>
                         003 The Access
                     </p>

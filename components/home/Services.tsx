@@ -28,9 +28,9 @@ const Services = () => {
                 >
                     <p style={{
                         fontFamily: "var(--font-montserrat), sans-serif",
-                        fontWeight: 300, fontSize: 11,
-                        letterSpacing: "0.35em", textTransform: "uppercase",
-                        color: "rgba(232,228,220,0.3)", marginBottom: 24,
+                        fontWeight: 300, fontSize: 12,
+                        letterSpacing: "0.32em", textTransform: "uppercase",
+                        color: "rgba(232,228,220,0.65)", marginBottom: 24,
                     }}>
                         002 The Menu
                     </p>
@@ -148,8 +148,8 @@ const Services = () => {
                 .service-row-index {
                     font-family: var(--font-montserrat), sans-serif;
                     font-weight: 300;
-                    font-size: 11px;
-                    color: rgba(232,228,220,0.28);
+                    font-size: 12px;
+                    color: rgba(232,228,220,0.62);
                     letter-spacing: 0.1em;
                     min-width: 28px;
                     padding-top: 4px;
@@ -176,7 +176,7 @@ const Services = () => {
                     font-weight: 300;
                     font-size: clamp(14px, 1.4vw, 15px);
                     line-height: 1.65;
-                    color: rgba(232,228,220,0.62);
+                    color: rgba(232,228,220,0.78);
                     max-width: 520px;
                 }
 
@@ -201,20 +201,20 @@ const Services = () => {
 
                 .service-row-duration {
                     font-family: var(--font-montserrat), sans-serif;
-                    font-size: 11px;
-                    letter-spacing: 0.16em;
+                    font-size: 12px;
+                    letter-spacing: 0.14em;
                     text-transform: uppercase;
-                    color: rgba(232,228,220,0.48);
+                    color: rgba(232,228,220,0.72);
                     margin-top: 6px;
                 }
 
                 .service-row-cta {
                     font-family: var(--font-montserrat), sans-serif;
                     font-weight: 500;
-                    font-size: 11px;
-                    letter-spacing: 0.2em;
+                    font-size: 12px;
+                    letter-spacing: 0.18em;
                     text-transform: uppercase;
-                    color: rgba(232,228,220,0.45);
+                    color: rgba(232,228,220,0.7);
                     white-space: nowrap;
                     transition: color 0.35s ease, transform 0.35s ease;
                 }

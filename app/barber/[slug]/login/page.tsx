@@ -107,7 +107,7 @@ export default function BarberSlugLoginPage() {
                     ) : null}
                     <div>
                         <p className="font-heading text-xl uppercase tracking-widest text-white">{barber.name}</p>
-                        <div className="flex items-center justify-center gap-2 text-emerald-400 mt-2">
+                        <div className="flex items-center justify-center gap-2 text-savron-blue-light mt-2">
                             <Scissors className="w-4 h-4" />
                             <p className="text-xs uppercase tracking-widest font-medium">My Calendar</p>
                         </div>
