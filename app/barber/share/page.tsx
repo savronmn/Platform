@@ -30,6 +30,8 @@ export default function BarberSharePage() {
     }, []);
 
     const bookingUrl = barber ? `${typeof window !== 'undefined' ? window.location.origin : ''}/book/${barber.slug}` : '';
+    const calendarUrl = barber ? `${typeof window !== 'undefined' ? window.location.origin : ''}/barber/${barber.slug}/calendar` : '';
+    const calendarLoginUrl = barber ? `${typeof window !== 'undefined' ? window.location.origin : ''}/barber/${barber.slug}/login` : '';
 
     const copyLink = () => {
         navigator.clipboard.writeText(bookingUrl);
@@ -65,6 +67,23 @@ export default function BarberSharePage() {
                 <p className="text-savron-silver text-xs uppercase tracking-widest">
                     Share this link with clients to let them book directly with you
                 </p>
+            </div>
+
+            {/* Calendar Link */}
+            <div className="bg-savron-grey border border-white/5 rounded-savron p-6 space-y-5">
+                <div>
+                    <p className="text-[10px] uppercase tracking-widest text-savron-silver/40 mb-2">Your Calendar Portal</p>
+                    <div className="flex items-center gap-3 bg-savron-black border border-white/[0.06] rounded-savron p-3">
+                        <span className="text-savron-silver text-sm font-mono truncate flex-1">{calendarLoginUrl}</span>
+                    </div>
+                    <p className="text-savron-silver/50 text-xs mt-2">Bookmark this link to sign in and view your schedule.</p>
+                </div>
+                <a href={calendarUrl} className="block">
+                    <Button variant="outline" className="w-full flex gap-2 justify-center">
+                        <ExternalLink className="w-4 h-4" />
+                        Open My Calendar
+                    </Button>
+                </a>
             </div>
 
             {/* Link Card */}

@@ -45,9 +45,22 @@ export async function middleware(request: NextRequest) {
     }
 
     // =============================================
-    // BARBER routes — redirect to /barber/login
+    // BARBER routes — redirect to login when needed
     // =============================================
-    if (
+    const slugPortalMatch = pathname.match(/^\/barber\/([^/]+)(?:\/|$)/);
+    const slugFromPath = slugPortalMatch?.[1];
+    const reservedBarberSegments = new Set(['login', 'register', 'calendar', 'profile', 'share', 'requests']);
+    const isSlugPortal = !!slugFromPath && !reservedBarberSegments.has(slugFromPath);
+
+    if (isSlugPortal) {
+        if (pathname.endsWith('/login')) {
+            if (user) {
+                return NextResponse.redirect(new URL(`/barber/${slugFromPath}/calendar`, request.url));
+            }
+        } else if (!user) {
+            return NextResponse.redirect(new URL(`/barber/${slugFromPath}/login`, request.url));
+        }
+    } else if (
         pathname.startsWith('/barber') &&
         !pathname.startsWith('/barber/login') &&
         !pathname.startsWith('/barber/register')

@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 
 type Barber = {
     id: string;
+    slug: string;
     name: string;
     role: string | null;
     image_url: string | null;
@@ -54,7 +55,7 @@ export default function BarberProfilePage() {
 
             const { data } = await supabase
                 .from('barbers')
-                .select('id, name, role, image_url, portfolio_images, instagram_url, google_calendar_tokens')
+                .select('id, slug, name, role, image_url, portfolio_images, instagram_url, google_calendar_tokens')
                 .eq('auth_id', session.user.id)
                 .single();
             if (data) {
@@ -159,7 +160,7 @@ export default function BarberProfilePage() {
         if (!barber) return;
         setLinkingGoogle(true);
         setError(null);
-        window.location.href = `/api/calendar/connect?barberId=${barber.id}&redirect=/barber/profile`;
+        window.location.href = `/api/calendar/connect?barberId=${barber.id}&redirect=/barber/${barber.slug}/calendar`;
     }
 
     if (loading) {
