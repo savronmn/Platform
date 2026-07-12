@@ -23,7 +23,11 @@ export default function BarberLayout({ children }: { children: React.ReactNode }
     const supabase = createClient();
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-    if (pathname === '/barber/login') {
+    const slugMatch = pathname.match(/^\/barber\/([^/]+)(?:\/|$)/);
+    const reservedBarberSegments = new Set(['login', 'register', 'calendar', 'profile', 'share', 'requests']);
+    const isSlugPortal = !!slugMatch && !reservedBarberSegments.has(slugMatch[1]);
+
+    if (pathname === '/barber/login' || isSlugPortal) {
         return <>{children}</>;
     }
 

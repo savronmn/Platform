@@ -22,14 +22,24 @@ export default function BarberLoginPage() {
 
         await new Promise(r => setTimeout(r, 800));
 
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
+        const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error || !authData.user) {
             setError('Invalid credentials');
             setLoading(false);
             return;
         }
 
-        router.push('/barber');
+        const { data: barberData } = await supabase
+            .from('barbers')
+            .select('slug')
+            .eq('auth_id', authData.user.id)
+            .maybeSingle();
+
+        if (barberData?.slug) {
+            router.push(`/barber/${barberData.slug}/calendar`);
+        } else {
+            router.push('/barber');
+        }
         router.refresh();
     };
 
