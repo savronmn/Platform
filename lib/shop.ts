@@ -28,6 +28,18 @@ export const SHOP_LONGITUDE = -93.27635;
 export const SHOP_MAPS_URL =
     'https://maps.google.com/?q=250+N+Third+Avenue,+Minneapolis,+MN+55401';
 
+export const SHOP_SOCIAL_LINKS = {
+    facebook: 'https://www.facebook.com/profile.php?id=61589236641226',
+    instagram: 'https://www.instagram.com/savron_mn/',
+    tiktok: 'https://www.tiktok.com/@savronmn',
+} as const;
+
+export const SHOP_SOCIAL_LINK_LIST = [
+    { id: 'instagram', label: 'Instagram', href: SHOP_SOCIAL_LINKS.instagram },
+    { id: 'facebook', label: 'Facebook', href: SHOP_SOCIAL_LINKS.facebook },
+    { id: 'tiktok', label: 'TikTok', href: SHOP_SOCIAL_LINKS.tiktok },
+] as const;
+
 export function getSiteUrl(): string {
     return process.env.NEXT_PUBLIC_SITE_URL || 'https://savronmn.com';
 }
