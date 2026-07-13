@@ -58,6 +58,86 @@ function formatTime12(t: string) {
     return `${h}:${m} ${ampm}`;
 }
 
+const BARBER_CARD_ACTION_CLASS =
+    'admin-action-btn w-full text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all';
+
+interface BarberCardActionsProps {
+    barber: Barber;
+    copiedPortalSlug: string | null;
+    copiedSlug: string | null;
+    onCopyPortalLink: (slug: string) => void;
+    onCopyBookingLink: (slug: string) => void;
+    onOpenSettings: (barber: Barber) => void;
+    onArchive: (barber: Barber) => void;
+}
+
+function BarberCardActions({
+    barber,
+    copiedPortalSlug,
+    copiedSlug,
+    onCopyPortalLink,
+    onCopyBookingLink,
+    onOpenSettings,
+    onArchive,
+}: BarberCardActionsProps) {
+    return (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <button
+                type="button"
+                onClick={() => onCopyPortalLink(barber.slug)}
+                className={BARBER_CARD_ACTION_CLASS}
+                title="Copy portal login link"
+            >
+                {copiedPortalSlug === barber.slug ? <Check className="w-3.5 h-3.5 text-savron-green" /> : <LinkIcon className="w-3.5 h-3.5" />}
+                <span>{copiedPortalSlug === barber.slug ? 'Copied' : 'Portal'}</span>
+            </button>
+            <button
+                type="button"
+                onClick={() => onCopyBookingLink(barber.slug)}
+                className={BARBER_CARD_ACTION_CLASS}
+                title="Copy client booking link"
+            >
+                {copiedSlug === barber.slug ? <Check className="w-3.5 h-3.5 text-savron-green" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedSlug === barber.slug ? 'Copied' : 'Booking'}</span>
+            </button>
+            <Link
+                href={adminBarberPortalPreviewUrl(barber.id)}
+                className={BARBER_CARD_ACTION_CLASS}
+                title="Preview barber portal"
+            >
+                <Eye className="w-3.5 h-3.5" />
+                <span>Preview</span>
+            </Link>
+            <Link
+                href={`/admin/barbers/${barber.id}/calendar`}
+                className={BARBER_CARD_ACTION_CLASS}
+                title="Open barber calendar"
+            >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Calendar</span>
+            </Link>
+            <button
+                type="button"
+                onClick={() => onOpenSettings(barber)}
+                className={BARBER_CARD_ACTION_CLASS}
+                title="Barber settings"
+            >
+                <Settings className="w-3.5 h-3.5" />
+                <span>Settings</span>
+            </button>
+            <button
+                type="button"
+                onClick={() => onArchive(barber)}
+                className="admin-action-btn w-full text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 rounded-savron transition-all"
+                title="Archive barber"
+            >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Archive</span>
+            </button>
+        </div>
+    );
+}
+
 export default function AdminBarbersPage() {
     const supabase = createClient();
     const services = useServices();
@@ -334,56 +414,23 @@ export default function AdminBarbersPage() {
                                 </div>
                             )}
 
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-2 border-t border-white/5 gap-3">
+                            <div className="space-y-3 pt-4 border-t border-white/5">
                                 <button
+                                    type="button"
                                     onClick={() => toggleActive(barber)}
                                     className="flex items-center gap-2 text-xs uppercase tracking-wider transition-all text-accent-blue hover:text-savron-cream font-medium"
                                 >
                                     <ToggleRight className="w-4 h-4" /> Active
                                 </button>
-                                <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-                                    <button
-                                        onClick={() => copyPortalLink(barber.slug)}
-                                        className="admin-action-btn text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
-                                        title="Copy portal login link"
-                                    >
-                                        {copiedPortalSlug === barber.slug ? <Check className="w-3.5 h-3.5 text-savron-green" /> : <LinkIcon className="w-3.5 h-3.5" />}
-                                        {copiedPortalSlug === barber.slug ? 'Copied' : 'Portal'}
-                                    </button>
-                                    <button
-                                        onClick={() => copyBookingLink(barber.slug)}
-                                        className="admin-action-btn text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
-                                        title="Copy client booking link"
-                                    >
-                                        {copiedSlug === barber.slug ? <Check className="w-3.5 h-3.5 text-savron-green" /> : <Copy className="w-3.5 h-3.5" />}
-                                        {copiedSlug === barber.slug ? 'Copied' : 'Booking'}
-                                    </button>
-                                    <Link
-                                        href={adminBarberPortalPreviewUrl(barber.id)}
-                                        className="admin-action-btn text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
-                                        title="Preview barber portal"
-                                    >
-                                        <Eye className="w-3.5 h-3.5" /> Preview
-                                    </Link>
-                                    <a
-                                        href={`/admin/barbers/${barber.id}/calendar`}
-                                        className="admin-action-btn text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
-                                    >
-                                        <Calendar className="w-3.5 h-3.5" /> Calendar
-                                    </a>
-                                    <button
-                                        onClick={() => openSettings(barber)}
-                                        className="admin-action-btn text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
-                                    >
-                                        <Settings className="w-3.5 h-3.5" /> Settings
-                                    </button>
-                                    <button
-                                        onClick={() => setConfirmDelete(barber)}
-                                        className="flex items-center gap-1 px-2.5 py-1.5 text-xs uppercase tracking-wider text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 rounded-savron transition-all"
-                                    >
-                                        <Trash2 className="w-3.5 h-3.5" /> Archive
-                                    </button>
-                                </div>
+                                <BarberCardActions
+                                    barber={barber}
+                                    copiedPortalSlug={copiedPortalSlug}
+                                    copiedSlug={copiedSlug}
+                                    onCopyPortalLink={copyPortalLink}
+                                    onCopyBookingLink={copyBookingLink}
+                                    onOpenSettings={openSettings}
+                                    onArchive={setConfirmDelete}
+                                />
                             </div>
                         </div>
                     ))}
