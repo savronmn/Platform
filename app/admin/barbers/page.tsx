@@ -6,12 +6,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Scissors, Copy, Check, ToggleLeft, ToggleRight, UserCheck,
     Link as LinkIcon, Settings, X, Save, ShieldCheck, Calendar, Clock,
-    Trash2, Camera, User,
+    Trash2, Camera, User, Eye, ExternalLink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import Link from 'next/link';
 import type { Barber } from '@/lib/types';
 import { useServices } from '@/lib/use-services';
+import {
+    adminBarberPortalPreviewUrl,
+    barberBookingPageUrl,
+    barberPortalLoginUrl,
+} from '@/lib/barber-portal-urls';
 
 // ─── Schedule types ────────────────────────────────────────────────────────────
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
@@ -58,11 +64,12 @@ export default function AdminBarbersPage() {
     const [barbers, setBarbers] = useState<Barber[]>([]);
     const [loading, setLoading] = useState(true);
     const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+    const [copiedPortalSlug, setCopiedPortalSlug] = useState<string | null>(null);
     const [copiedReg, setCopiedReg] = useState(false);
 
     // Settings panel
     const [settingsBarber, setSettingsBarber] = useState<Barber | null>(null);
-    const [activeTab, setActiveTab] = useState<'profile' | 'services' | 'schedule'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'services' | 'schedule' | 'links'>('profile');
     const [licenseInput, setLicenseInput] = useState('');
     const [instagramInput, setInstagramInput] = useState('');
     const [servicesOffered, setServicesOffered] = useState<string[]>([]);
@@ -80,7 +87,7 @@ export default function AdminBarbersPage() {
         load();
     }, []);
 
-    const openSettings = (barber: Barber, tab: 'profile' | 'services' | 'schedule' = 'profile') => {
+    const openSettings = (barber: Barber, tab: 'profile' | 'services' | 'schedule' | 'links' = 'profile') => {
         setSettingsBarber(barber);
         setActiveTab(tab);
         setPhotoError(null);
@@ -163,9 +170,15 @@ export default function AdminBarbersPage() {
     };
 
     const copyBookingLink = (slug: string) => {
-        navigator.clipboard.writeText(`${window.location.origin}/book/${slug}`);
+        navigator.clipboard.writeText(barberBookingPageUrl(slug, window.location.origin));
         setCopiedSlug(slug);
         setTimeout(() => setCopiedSlug(null), 2000);
+    };
+
+    const copyPortalLink = (slug: string) => {
+        navigator.clipboard.writeText(barberPortalLoginUrl(slug, window.location.origin));
+        setCopiedPortalSlug(slug);
+        setTimeout(() => setCopiedPortalSlug(null), 2000);
     };
 
     const copyRegistrationLink = () => {
@@ -330,12 +343,28 @@ export default function AdminBarbersPage() {
                                 </button>
                                 <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
                                     <button
+                                        onClick={() => copyPortalLink(barber.slug)}
+                                        className="admin-action-btn text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
+                                        title="Copy portal login link"
+                                    >
+                                        {copiedPortalSlug === barber.slug ? <Check className="w-3.5 h-3.5 text-savron-green" /> : <LinkIcon className="w-3.5 h-3.5" />}
+                                        {copiedPortalSlug === barber.slug ? 'Copied' : 'Portal'}
+                                    </button>
+                                    <button
                                         onClick={() => copyBookingLink(barber.slug)}
                                         className="admin-action-btn text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
+                                        title="Copy client booking link"
                                     >
                                         {copiedSlug === barber.slug ? <Check className="w-3.5 h-3.5 text-savron-green" /> : <Copy className="w-3.5 h-3.5" />}
-                                        {copiedSlug === barber.slug ? 'Copied' : 'Link'}
+                                        {copiedSlug === barber.slug ? 'Copied' : 'Booking'}
                                     </button>
+                                    <Link
+                                        href={adminBarberPortalPreviewUrl(barber.id)}
+                                        className="admin-action-btn text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
+                                        title="Preview barber portal"
+                                    >
+                                        <Eye className="w-3.5 h-3.5" /> Preview
+                                    </Link>
                                     <a
                                         href={`/admin/barbers/${barber.id}/calendar`}
                                         className="admin-action-btn text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all"
@@ -444,6 +473,7 @@ export default function AdminBarbersPage() {
                                 { key: 'profile',  label: 'Profile'   },
                                 { key: 'services', label: 'Services'  },
                                 { key: 'schedule', label: 'Schedule'  },
+                                { key: 'links',    label: 'Links'     },
                             ] as const).map(({ key, label }) => (
                                 <button
                                     key={key}
@@ -620,6 +650,72 @@ export default function AdminBarbersPage() {
                                                 </button>
                                             );
                                         })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ── LINKS TAB ────────────────────────────────────── */}
+                            {activeTab === 'links' && settingsBarber && (
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-2">
+                                            Portal Login Link
+                                        </label>
+                                        <p className="text-savron-silver/60 text-xs mb-3">
+                                            Send this to the barber so they can sign in and open their calendar portal.
+                                        </p>
+                                        <div className="flex items-center gap-3 bg-savron-charcoal border border-white/10 rounded-savron p-3">
+                                            <span className="text-savron-silver text-xs font-mono truncate flex-1">
+                                                {barberPortalLoginUrl(settingsBarber.slug, typeof window !== 'undefined' ? window.location.origin : '')}
+                                            </span>
+                                            <button
+                                                onClick={() => copyPortalLink(settingsBarber.slug)}
+                                                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-widest border border-white/10 text-savron-silver hover:text-white rounded-savron transition-all"
+                                            >
+                                                {copiedPortalSlug === settingsBarber.slug ? <Check className="w-3 h-3 text-savron-green" /> : <Copy className="w-3 h-3" />}
+                                                {copiedPortalSlug === settingsBarber.slug ? 'Copied' : 'Copy'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-2">
+                                            Client Booking Link
+                                        </label>
+                                        <p className="text-savron-silver/60 text-xs mb-3">
+                                            Public page where clients book appointments with this barber.
+                                        </p>
+                                        <div className="flex items-center gap-3 bg-savron-charcoal border border-white/10 rounded-savron p-3">
+                                            <span className="text-savron-silver text-xs font-mono truncate flex-1">
+                                                {barberBookingPageUrl(settingsBarber.slug, typeof window !== 'undefined' ? window.location.origin : '')}
+                                            </span>
+                                            <button
+                                                onClick={() => copyBookingLink(settingsBarber.slug)}
+                                                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-widest border border-white/10 text-savron-silver hover:text-white rounded-savron transition-all"
+                                            >
+                                                {copiedSlug === settingsBarber.slug ? <Check className="w-3 h-3 text-savron-green" /> : <Copy className="w-3 h-3" />}
+                                                {copiedSlug === settingsBarber.slug ? 'Copied' : 'Copy'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-3">
+                                        <Link
+                                            href={adminBarberPortalPreviewUrl(settingsBarber.id)}
+                                            className="flex items-center justify-center gap-2 py-3 text-[11px] uppercase tracking-widest bg-savron-green/10 text-savron-green border border-savron-green/30 hover:bg-savron-green/20 rounded-savron transition-all"
+                                        >
+                                            <Eye className="w-4 h-4" />
+                                            Preview Barber Portal
+                                        </Link>
+                                        <a
+                                            href={barberBookingPageUrl(settingsBarber.slug, typeof window !== 'undefined' ? window.location.origin : '')}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center justify-center gap-2 py-3 text-[11px] uppercase tracking-widest border border-white/10 text-savron-silver hover:text-white rounded-savron transition-all"
+                                        >
+                                            <ExternalLink className="w-4 h-4" />
+                                            Open Booking Page
+                                        </a>
                                     </div>
                                 </div>
                             )}

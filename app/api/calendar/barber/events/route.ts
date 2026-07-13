@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getValidAccessToken, type CalendarToken } from '@/lib/google-calendar';
 import { createServerSupabase } from '@/lib/supabase-server';
 import { createClient } from '@supabase/supabase-js';
+import { requireStaff } from '@/lib/staff-auth';
 
 const GOOGLE_CALENDAR_BASE = 'https://www.googleapis.com/calendar/v3';
 
@@ -62,17 +63,40 @@ export async function GET(request: NextRequest) {
     }
 
     const admin = getAdmin();
-    const { data: barber } = await admin
-        .from('barbers')
-        .select('id, google_calendar_id, google_calendar_tokens')
-        .eq('auth_id', user.id)
-        .maybeSingle();
+    const { searchParams } = request.nextUrl;
+    const previewBarberId = searchParams.get('barberId');
+
+    let barber: {
+        id: string;
+        google_calendar_id: string | null;
+        google_calendar_tokens: CalendarToken | null;
+    } | null = null;
+
+    if (previewBarberId) {
+        const staff = await requireStaff();
+        if (!staff.ok || !staff.user.isAdmin) {
+            return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+        }
+
+        const { data } = await admin
+            .from('barbers')
+            .select('id, google_calendar_id, google_calendar_tokens')
+            .eq('id', previewBarberId)
+            .maybeSingle();
+        barber = data;
+    } else {
+        const { data } = await admin
+            .from('barbers')
+            .select('id, google_calendar_id, google_calendar_tokens')
+            .eq('auth_id', user.id)
+            .maybeSingle();
+        barber = data;
+    }
 
     if (!barber) {
         return NextResponse.json({ error: 'Barber profile not found' }, { status: 404 });
     }
 
-    const { searchParams } = request.nextUrl;
     const dateStart = searchParams.get('dateStart');
     const dateEnd = searchParams.get('dateEnd');
 

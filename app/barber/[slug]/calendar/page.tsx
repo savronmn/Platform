@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
+import { isAdminUser } from '@/lib/admin-auth-client';
 import { motion } from 'framer-motion';
 import {
     format,
@@ -38,6 +39,8 @@ export default function BarberSlugCalendarPage() {
     const params = useParams();
     const slug = params.slug as string;
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const isAdminPreview = searchParams.get('adminPreview') === '1';
     const supabase = createClient();
     const services = useServices();
     const serviceColorMap = useMemo(() => Object.fromEntries(services.map(s => [s.name, s.color])), [services]);
@@ -97,7 +100,13 @@ export default function BarberSlugCalendarPage() {
                 return;
             }
 
-            if (barberData.auth_id !== user.id) {
+            if (isAdminPreview) {
+                const admin = await isAdminUser(supabase);
+                if (!admin) {
+                    router.replace('/admin/barbers');
+                    return;
+                }
+            } else if (barberData.auth_id !== user.id) {
                 await supabase.auth.signOut();
                 router.replace(`/barber/${slug}/login`);
                 return;
@@ -117,16 +126,19 @@ export default function BarberSlugCalendarPage() {
             setLoading(false);
         }
         load();
-    }, [slug, router]);
+    }, [slug, router, isAdminPreview, supabase]);
 
     const refreshCalendar = useCallback(async () => {
         if (!barber) return;
         setSyncing(true);
         try {
             const dateStr = format(selectedDate, 'yyyy-MM-dd');
+            const eventsUrl = isAdminPreview
+                ? `/api/calendar/barber/events?barberId=${barber.id}&dateStart=${rangeStart}&dateEnd=${rangeEnd}`
+                : `/api/calendar/barber/events?dateStart=${rangeStart}&dateEnd=${rangeEnd}`;
             const [busyRes, eventsRes] = await Promise.all([
                 fetch(`/api/calendar/busy?barberId=${barber.id}&date=${dateStr}`),
-                fetch(`/api/calendar/barber/events?dateStart=${rangeStart}&dateEnd=${rangeEnd}`, { credentials: 'include' }),
+                fetch(eventsUrl, { credentials: 'include' }),
             ]);
 
             if (busyRes.ok) {
@@ -144,7 +156,7 @@ export default function BarberSlugCalendarPage() {
             setGcalEvents([]);
         }
         setSyncing(false);
-    }, [barber, selectedDate, rangeStart, rangeEnd]);
+    }, [barber, selectedDate, rangeStart, rangeEnd, isAdminPreview]);
 
     useEffect(() => {
         if (!barber) return;
@@ -622,7 +634,7 @@ export default function BarberSlugCalendarPage() {
                         )}
 
                         <div className="flex flex-wrap gap-2">
-                            {selectedBooking.status === 'confirmed' && (
+                            {selectedBooking.status === 'confirmed' && !isAdminPreview && (
                                 <>
                                     <button
                                         onClick={() => handleStatusUpdate(selectedBooking.id, 'completed')}
