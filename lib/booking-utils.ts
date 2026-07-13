@@ -1,5 +1,13 @@
 import type { Barber } from '@/lib/types';
 import type { ServiceItem } from '@/lib/services-data';
+import {
+    BOOKING_SLOT_INTERVAL_MINS,
+    generateTimeSlots,
+    getShopScheduleForDate,
+    TIME_SLOTS,
+} from '@/lib/services-data';
+
+const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
 /** Match a service from a URL query param (id or name). */
 export function resolveServiceFromParam(
@@ -62,4 +70,23 @@ export function bookingTotals(
         price: `$${totalCents / 100}`,
         duration: `${durationMin} min`,
     };
+}
+
+/** Bookable time picker slots for a date — shop hours, then barber hours when set. */
+export function getBookingPickerSlots(date: Date, barber?: Barber | null): string[] {
+    if (barber?.working_hours) {
+        const dayKey = DAY_KEYS[date.getDay()];
+        const daySchedule = (barber.working_hours as Record<string, { open: string; close: string } | null>)[dayKey];
+        if (daySchedule) {
+            return generateTimeSlots(daySchedule.open, daySchedule.close, BOOKING_SLOT_INTERVAL_MINS);
+        }
+        return [];
+    }
+
+    const shopSchedule = getShopScheduleForDate(date);
+    if (shopSchedule) {
+        return generateTimeSlots(shopSchedule.open, shopSchedule.close, BOOKING_SLOT_INTERVAL_MINS);
+    }
+
+    return TIME_SLOTS;
 }

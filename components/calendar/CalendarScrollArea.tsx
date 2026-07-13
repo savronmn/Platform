@@ -34,7 +34,15 @@ export default function CalendarScrollArea({
         const content = contentRef.current;
         if (!wrapper || !content) return;
 
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+
+        if (reducedMotion || coarsePointer) {
+            wrapper.style.overflow = 'auto';
+            return;
+        }
+
+        wrapper.style.overflow = 'hidden';
 
         const lenis = new Lenis({
             wrapper,

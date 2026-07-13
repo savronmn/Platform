@@ -14,13 +14,13 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Barber, Booking } from '@/lib/types';
-import { HOST_TIME_SLOTS, BOOKING_HOST_TIME_SLOTS, serviceBlockStyle, getShopScheduleForDate, formatScheduleRange } from '@/lib/services-data';
+import { serviceBlockStyle, getShopScheduleForDate, formatScheduleRange } from '@/lib/services-data';
+import { getBookingPickerSlots } from '@/lib/booking-utils';
 import {
     timeToMins, formatTimeCompact, formatTimeRange, parseDurationMins, itemsInHour,
     CALENDAR_HOUR_HEIGHT_PX, minsToTime12, getCalendarHourStarts,
     getCalendarGridBounds, time24ToMins,
     HOST_CALENDAR_HOUR_HEIGHT_PX,
-    rangesOverlapMins,
 } from '@/lib/calendar-timeline';
 import TimelineDayGrid, { bookingToTimelineEvent, isoRangeToTimelineEvent, type TimelineEvent } from '@/components/calendar/TimelineDayGrid';
 import CalendarNavBar from '@/components/calendar/CalendarNavBar';
@@ -28,7 +28,7 @@ import { useServices } from '@/lib/use-services';
 import { triggerPostBooking, triggerCancelBooking } from '@/lib/confirm-booking';
 import EditBookingModal from '@/components/crm/EditBookingModal';
 import { LanguageProvider, useLanguage } from '@/lib/language-context';
-import { slotConflictsWithBusy } from '@/lib/time-helpers';
+import { slotConflictsWithBusy, isSlotInPast } from '@/lib/time-helpers';
 
 const QRScannerModal = dynamic(() => import('@/components/qr/QRScannerModal'), { ssr: false });
 
@@ -114,6 +114,8 @@ function HostDashboardInner() {
     });
     const [quickSubmitting, setQuickSubmitting] = useState(false);
     const [quickError, setQuickError] = useState<string | null>(null);
+    const [quickAddBusySlots, setQuickAddBusySlots] = useState<{ start: string; end: string }[]>([]);
+    const [quickAddLoadingBusy, setQuickAddLoadingBusy] = useState(false);
     const [cancelError, setCancelError] = useState<string | null>(null);
     const [cancellingExternalId, setCancellingExternalId] = useState<string | null>(null);
 
@@ -338,6 +340,34 @@ function HostDashboardInner() {
 
 
 
+    useEffect(() => {
+        if (!showQuickAdd || !quickForm.barberId) {
+            setQuickAddBusySlots([]);
+            return;
+        }
+        let cancelled = false;
+        const dateStr = format(quickFormDate, 'yyyy-MM-dd');
+
+        async function fetchQuickAddBusy() {
+            setQuickAddLoadingBusy(true);
+            try {
+                const res = await fetch(`/api/calendar/busy?barberId=${quickForm.barberId}&date=${dateStr}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (!cancelled) setQuickAddBusySlots(data.busy || []);
+                } else if (!cancelled) {
+                    setQuickAddBusySlots([]);
+                }
+            } catch {
+                if (!cancelled) setQuickAddBusySlots([]);
+            }
+            if (!cancelled) setQuickAddLoadingBusy(false);
+        }
+
+        void fetchQuickAddBusy();
+        return () => { cancelled = true; };
+    }, [showQuickAdd, quickForm.barberId, quickFormDate]);
+
     // Quick-Add walk-in — creates a booking directly from the host view
     const submitQuickAdd = async () => {
         if (!quickForm.service || !quickForm.barberId || !quickForm.time) {
@@ -359,23 +389,7 @@ function HostDashboardInner() {
                 }
             }
         } catch {
-            // Fall through — DB unique index is the final guard.
-        }
-
-        // Race-condition guard: re-check availability fresh from DB right before inserting
-        const { data: conflictCheck } = await supabase
-            .from('bookings')
-            .select('id')
-            .eq('barber_id', quickForm.barberId)
-            .eq('date', dateStr)
-            .eq('time', quickForm.time)
-            .in('status', ['confirmed', 'completed', 'no_show'])
-            .limit(1);
-        if (conflictCheck && conflictCheck.length > 0) {
-            setQuickError('That slot was just booked. Please choose a different time.');
-            setQuickSubmitting(false);
-            await fetchBookings(); // refresh so the UI reflects reality
-            return;
+            // Fall through — DB overlap trigger is the final guard.
         }
 
         const barber = barbers.find(b => b.id === quickForm.barberId);
@@ -473,40 +487,35 @@ function HostDashboardInner() {
         return svc?.durationMin ?? 45;
     }, [quickForm.service, services]);
 
-    // Slot availability — zero buffer between appointments; back-to-back bookings are allowed.
-    const slotTakenByBooking = (barberId: string, dateStr: string, slotMins: number, durationMins: number): boolean =>
-        scheduleBookings.some(b => {
-            if (b.barber_id !== barberId || b.date !== dateStr) return false;
-            if (!['confirmed', 'completed', 'no_show'].includes(b.status)) return false;
-            return rangesOverlapMins(slotMins, durationMins, timeToMins(b.time), bookingDurationMins(b));
-        });
+    const quickAddBarber = useMemo(
+        () => barbers.find(b => b.id === quickForm.barberId) ?? null,
+        [barbers, quickForm.barberId],
+    );
 
-    const slotTakenByExternal = (barberId: string, dateStr: string, slotMins: number, durationMins: number): boolean =>
-        deduplicatedExternal.some(e => {
-            if (e.barberId !== barberId || e.date !== dateStr) return false;
-            return rangesOverlapMins(slotMins, durationMins, timeToMins(e.time), externalDurationMins(e));
-        });
+    const quickAddPickerSlots = useMemo(
+        () => getBookingPickerSlots(quickFormDate, quickAddBarber),
+        [quickFormDate, quickAddBarber],
+    );
 
-    // Quick-Add slot availability — excludes past, booked (all active statuses), and GCal-occupied slots
+    // Quick-Add slot availability — uses live busy API (accurate on any date, including mobile)
     const allTimeSlotsWithStatus = useMemo(() => {
-        const dateStr = format(quickFormDate, 'yyyy-MM-dd');
-        const todayStr = format(new Date(), 'yyyy-MM-dd');
-        const isViewingToday = dateStr === todayStr;
-        const now = new Date();
-        const nowMins = now.getHours() * 60 + now.getMinutes();
-
-        return BOOKING_HOST_TIME_SLOTS.map(slot => {
-            const slotMins = timeToMins(slot);
-            if (isViewingToday && slotMins <= nowMins) return { slot, status: 'past' as const };
-            if (quickForm.barberId) {
-                const taken =
-                    slotTakenByBooking(quickForm.barberId, dateStr, slotMins, quickAddDurationMins) ||
-                    slotTakenByExternal(quickForm.barberId, dateStr, slotMins, quickAddDurationMins);
-                if (taken) return { slot, status: 'taken' as const };
+        return quickAddPickerSlots.map(slot => {
+            if (isSlotInPast(quickFormDate, slot, 0)) return { slot, status: 'past' as const };
+            if (!quickForm.barberId) return { slot, status: 'available' as const };
+            if (quickAddLoadingBusy) return { slot, status: 'taken' as const };
+            if (slotConflictsWithBusy(quickFormDate, slot, quickAddDurationMins, quickAddBusySlots)) {
+                return { slot, status: 'taken' as const };
             }
             return { slot, status: 'available' as const };
         });
-    }, [quickFormDate, quickForm.barberId, quickForm.service, quickAddDurationMins, scheduleBookings, deduplicatedExternal]);
+    }, [
+        quickAddPickerSlots,
+        quickFormDate,
+        quickForm.barberId,
+        quickAddDurationMins,
+        quickAddBusySlots,
+        quickAddLoadingBusy,
+    ]);
 
     const availableTimeSlots = allTimeSlotsWithStatus
         .filter(s => s.status === 'available')
@@ -646,13 +655,16 @@ function HostDashboardInner() {
         s === 'no_show'   ? 'bg-red-400' :
         s === 'cancelled' ? 'bg-white/20' : 'bg-savron-silver';
 
-    const confirmed  = bookings.filter(b => b.status === 'confirmed').length;
-    const completed  = bookings.filter(b => b.status === 'completed').length;
-    const noShow     = bookings.filter(b => b.status === 'no_show').length;
-    const cancelled  = bookings.filter(b => b.status === 'cancelled').length;
-    const totalToday = view === 'day'
-        ? bookings.filter(b => b.date === format(selectedDate, 'yyyy-MM-dd')).length
-        : bookings.length;
+    const dayStatsBookings = useMemo(() => {
+        const d = format(selectedDate, 'yyyy-MM-dd');
+        return bookings.filter(b => b.date === d && isBookingVisible(b));
+    }, [bookings, selectedDate, filteredBarberIds]);
+
+    const confirmed  = dayStatsBookings.filter(b => b.status === 'confirmed').length;
+    const completed  = dayStatsBookings.filter(b => b.status === 'completed').length;
+    const noShow     = dayStatsBookings.filter(b => b.status === 'no_show').length;
+    const cancelled  = dayStatsBookings.filter(b => b.status === 'cancelled').length;
+    const totalToday = dayStatsBookings.length;
 
     const weekDays = eachDayOfInterval({
         start: startOfWeek(selectedDate, { weekStartsOn: 1 }),
@@ -1652,6 +1664,10 @@ function HostDashboardInner() {
                                     <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">Time *</label>
                                     {!quickForm.barberId ? (
                                         <p className="text-savron-silver/40 text-xs uppercase tracking-widest py-3">Select a barber first.</p>
+                                    ) : quickAddLoadingBusy ? (
+                                        <p className="text-savron-silver/40 text-xs uppercase tracking-widest py-3">Loading availability…</p>
+                                    ) : quickAddPickerSlots.length === 0 ? (
+                                        <p className="text-yellow-400 text-xs uppercase tracking-widest py-3">Shop closed this day.</p>
                                     ) : availableTimeSlots.length === 0 ? (
                                         <p className="text-yellow-400 text-xs uppercase tracking-widest py-3">No available slots — barber is fully booked.</p>
                                     ) : (

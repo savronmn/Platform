@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useServices } from '@/lib/use-services';
-import { TIME_SLOTS, BOOKING_SLOT_INTERVAL_MINS, generateTimeSlots } from '@/lib/services-data';
+import { getBookingPickerSlots } from '@/lib/booking-utils';
 import type { Barber } from '@/lib/types';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 import { isSlotInPast, slotConflictsWithBusy } from '@/lib/time-helpers';
@@ -63,6 +63,8 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
     const selectedService = services.find(s => s.name === form.service);
     const durationMin = selectedService?.durationMin ?? 45;
     const selectedDate = form.date ? new Date(`${form.date}T12:00:00`) : new Date();
+    const selectedBarber = barbers.find(b => b.id === form.barberId) ?? null;
+    const pickerSlots = getBookingPickerSlots(selectedDate, selectedBarber);
 
     useEffect(() => {
         if (!open || !form.barberId || !form.date) {
@@ -89,25 +91,13 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
         return () => { cancelled = true; };
     }, [open, form.barberId, form.date]);
 
-    const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
-
-    const workingHoursSlots = (() => {
-        const barber = barbers.find(b => b.id === form.barberId);
-        if (!barber?.working_hours || !form.date) return TIME_SLOTS;
-        const dayIndex = new Date(`${form.date}T12:00:00`).getDay();
-        const dayKey = DAY_KEYS[dayIndex];
-        const daySchedule = (barber.working_hours as Record<string, { open: string; close: string } | null>)[dayKey];
-        if (!daySchedule) return [];
-        return generateTimeSlots(daySchedule.open, daySchedule.close, BOOKING_SLOT_INTERVAL_MINS);
-    })();
-
     const isSlotUnavailable = (timeStr: string) => {
         if (isSlotInPast(selectedDate, timeStr, 0)) return true;
         if (loadingBusy) return true;
         return slotConflictsWithBusy(selectedDate, timeStr, durationMin, busySlots);
     };
 
-    const availableSlots = workingHoursSlots.filter(t => !isSlotUnavailable(t));
+    const availableSlots = pickerSlots.filter(t => !isSlotUnavailable(t));
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -263,7 +253,7 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
                                                 className="w-full bg-white/5 border border-white/10 rounded-savron px-3 py-2 text-sm text-white focus:outline-none focus:border-savron-green/50 transition-colors appearance-none"
                                             >
                                                 <option value="" className="bg-savron-grey">
-                                                    {workingHoursSlots.length === 0
+                                                    {pickerSlots.length === 0
                                                         ? 'Barber off this day'
                                                         : availableSlots.length === 0
                                                             ? 'No available slots'

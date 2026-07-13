@@ -9,7 +9,6 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import type { Barber } from '@/lib/types';
-import { TIME_SLOTS, BOOKING_SLOT_INTERVAL_MINS, generateTimeSlots } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
@@ -20,6 +19,7 @@ import {
     barberOffersService,
     bookingTotals,
     formatBookingServices,
+    getBookingPickerSlots,
     resolveServiceFromParam,
     serviceNamesForIds,
 } from '@/lib/booking-utils';
@@ -163,16 +163,7 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
         fetchBusy();
     }, [selectedPro, selectedDate]);
 
-    const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
-    const selectedDayKey = DAY_KEYS[selectedDate.getDay()];
-
-    const availableSlots = (() => {
-        const wh = selectedPro?.working_hours as Record<string, { open: string; close: string } | null> | null;
-        if (!wh) return TIME_SLOTS;
-        const day = wh[selectedDayKey];
-        if (!day) return [];
-        return generateTimeSlots(day.open, day.close, BOOKING_SLOT_INTERVAL_MINS);
-    })();
+    const availableSlots = getBookingPickerSlots(selectedDate, selectedPro);
 
     const isBarberOffToday = selectedPro?.working_hours !== null && availableSlots.length === 0;
 

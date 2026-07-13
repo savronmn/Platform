@@ -319,7 +319,7 @@ export default function BookingsPage() {
                                             {/* Count badge */}
                                             {total > 0 && (
                                                 <span className={cn(
-                                                    "text-[9px] leading-none hidden sm:inline",
+                                                    "text-[9px] leading-none",
                                                     confirmed > 0 ? "text-accent-blue" : "text-savron-silver/50"
                                                 )}>
                                                     {confirmed > 0 && `${confirmed} conf`}

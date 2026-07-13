@@ -26,6 +26,7 @@ import CalendarNavBar from '@/components/calendar/CalendarNavBar';
 import EditBookingModal from '@/components/crm/EditBookingModal';
 import { useServices } from '@/lib/use-services';
 import { triggerCancelBooking } from '@/lib/confirm-booking';
+import { useBookingsRealtime } from '@/lib/use-bookings-realtime';
 import Image from 'next/image';
 
 type CalView = 'day' | 'week';
@@ -161,10 +162,24 @@ export default function BarberSlugCalendarPage() {
         load();
     }, [slug, router, isAdminPreview, supabase]);
 
+    const fetchBookings = useCallback(async () => {
+        if (!barber) return;
+        const { data } = await supabase
+            .from('bookings')
+            .select('*')
+            .eq('barber_id', barber.id)
+            .order('date')
+            .order('time');
+        if (data) setBookings(data);
+    }, [barber, supabase]);
+
+    useBookingsRealtime(fetchBookings, `barber-${slug}`, 800);
+
     const refreshCalendar = useCallback(async () => {
         if (!barber) return;
         setSyncing(true);
         try {
+            await fetchBookings();
             const dateStr = format(selectedDate, 'yyyy-MM-dd');
             const eventsUrl = isAdminPreview
                 ? `/api/calendar/barber/events?barberId=${barber.id}&dateStart=${rangeStart}&dateEnd=${rangeEnd}`
@@ -187,7 +202,7 @@ export default function BarberSlugCalendarPage() {
             setExternalEvents([]);
         }
         setSyncing(false);
-    }, [barber, selectedDate, rangeStart, rangeEnd, isAdminPreview]);
+    }, [barber, fetchBookings, selectedDate, rangeStart, rangeEnd, isAdminPreview]);
 
     useEffect(() => {
         if (!barber) return;

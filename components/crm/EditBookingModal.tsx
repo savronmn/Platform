@@ -6,7 +6,7 @@ import { X, Pencil } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { useServices } from '@/lib/use-services';
-import { TIME_SLOTS, BOOKING_SLOT_INTERVAL_MINS, generateTimeSlots } from '@/lib/services-data';
+import { getBookingPickerSlots } from '@/lib/booking-utils';
 import type { Barber, Booking } from '@/lib/types';
 import { triggerPostEditBooking } from '@/lib/confirm-booking';
 import { isSlotInPast, slotConflictsWithBusy } from '@/lib/time-helpers';
@@ -18,7 +18,6 @@ interface EditBookingModalProps {
     onSaved: (updated: Booking) => void;
 }
 
-const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
 export default function EditBookingModal({ booking, barbers, onClose, onSaved }: EditBookingModalProps) {
     const supabase = createClient();
@@ -67,6 +66,9 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
     const durationMin = selectedService?.durationMin ?? 45;
     const selectedDate = form.date ? new Date(`${form.date}T12:00:00`) : new Date();
 
+    const selectedBarber = barbers.find(b => b.id === form.barberId) ?? null;
+    const pickerSlots = getBookingPickerSlots(selectedDate, selectedBarber);
+
     useEffect(() => {
         if (!form.barberId || !form.date) {
             setBusySlots([]);
@@ -76,7 +78,12 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
         async function fetchBusy() {
             setLoadingBusy(true);
             try {
-                const res = await fetch(`/api/calendar/busy?barberId=${form.barberId}&date=${form.date}`);
+                const params = new URLSearchParams({
+                    barberId: form.barberId,
+                    date: form.date,
+                });
+                if (booking?.id) params.set('excludeBookingId', booking.id);
+                const res = await fetch(`/api/calendar/busy?${params.toString()}`);
                 if (res.ok) {
                     const data = await res.json();
                     if (!cancelled) setBusySlots(data.busy || []);
@@ -90,17 +97,7 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
         }
         fetchBusy();
         return () => { cancelled = true; };
-    }, [form.barberId, form.date]);
-
-    const workingHoursSlots = (() => {
-        const barber = barbers.find(b => b.id === form.barberId);
-        if (!barber?.working_hours || !form.date) return TIME_SLOTS;
-        const dayIndex = new Date(`${form.date}T12:00:00`).getDay();
-        const dayKey = DAY_KEYS[dayIndex];
-        const daySchedule = (barber.working_hours as Record<string, { open: string; close: string } | null>)[dayKey];
-        if (!daySchedule) return [];
-        return generateTimeSlots(daySchedule.open, daySchedule.close, BOOKING_SLOT_INTERVAL_MINS);
-    })();
+    }, [form.barberId, form.date, booking?.id]);
 
     const isCurrentSlot = (timeStr: string) =>
         !!booking
@@ -115,7 +112,7 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
         return slotConflictsWithBusy(selectedDate, timeStr, durationMin, busySlots);
     };
 
-    const availableSlots = workingHoursSlots.filter(t => !isSlotUnavailable(t) || isCurrentSlot(t));
+    const availableSlots = pickerSlots.filter(t => !isSlotUnavailable(t) || isCurrentSlot(t));
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
