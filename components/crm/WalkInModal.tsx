@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useServices } from '@/lib/use-services';
-import { generateTimeSlots } from '@/lib/services-data';
+import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
 import type { Barber } from '@/lib/types';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 import { isSlotInPast, slotConflictsWithBusy } from '@/lib/time-helpers';
@@ -93,7 +93,7 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
 
     const workingHoursSlots = (() => {
         const barber = barbers.find(b => b.id === form.barberId);
-        if (!barber?.working_hours || !form.date) return [];
+        if (!barber?.working_hours || !form.date) return TIME_SLOTS;
         const dayIndex = new Date(`${form.date}T12:00:00`).getDay();
         const dayKey = DAY_KEYS[dayIndex];
         const daySchedule = (barber.working_hours as Record<string, { open: string; close: string } | null>)[dayKey];
