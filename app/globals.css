@@ -251,4 +251,15 @@ body {
       0 0 48px rgba(26, 106, 138, 0.12);
   }
 
+  /* Smooth momentum for calendar panels (native fallback when Lenis is inactive) */
+  .calendar-scroll-area {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .calendar-scroll-area {
+      scroll-behavior: auto;
+    }
+  }
+
 }

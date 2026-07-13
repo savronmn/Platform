@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import type { Booking, Barber } from '@/lib/types';
 import CalendarNavBar from '@/components/calendar/CalendarNavBar';
+import CalendarScrollArea from '@/components/calendar/CalendarScrollArea';
 import { triggerCancelBooking } from '@/lib/confirm-booking';
 import { useBookingsRealtime } from '@/lib/use-bookings-realtime';
 
@@ -260,7 +261,13 @@ export default function BookingsPage() {
                     </div>
 
                     {/* Day cells */}
-                    <div className="grid grid-cols-7 flex-1 gap-px overflow-auto min-h-[240px]">
+                    <CalendarScrollArea
+                        fill
+                        gestureOrientation="vertical"
+                        maxHeightClass="min-h-[240px]"
+                        className="border-0 rounded-none"
+                    >
+                        <div className="grid grid-cols-7 gap-px">
                         {calendarDays.map(day => {
                             const key          = toDateKey(day);
                             const dayBookings  = bookingsByDay.get(key) ?? [];
@@ -322,7 +329,8 @@ export default function BookingsPage() {
                                 </button>
                             );
                         })}
-                    </div>
+                        </div>
+                    </CalendarScrollArea>
                 </div>
 
                 {/* ── Day Detail Panel ── */}
@@ -343,7 +351,12 @@ export default function BookingsPage() {
                     </div>
 
                     {/* Appointment list */}
-                    <div className="flex-1 overflow-y-auto space-y-2 pr-1 -mr-1">
+                    <CalendarScrollArea
+                        fill
+                        gestureOrientation="vertical"
+                        className="border-0 rounded-none -mr-1 pr-1"
+                    >
+                        <div className="space-y-2">
                         {loading ? (
                             <div className="flex items-center justify-center py-12">
                                 <div className="w-5 h-5 border-2 border-savron-green/30 border-t-savron-green rounded-full animate-spin" />
@@ -372,7 +385,8 @@ export default function BookingsPage() {
                                 />
                             ))
                         )}
-                    </div>
+                        </div>
+                    </CalendarScrollArea>
                 </div>
             </div>
 

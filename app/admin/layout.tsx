@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { Users, Scissors, LayoutDashboard, LogOut, MonitorPlay, CreditCard, Mail, ClipboardList, Layers, Inbox, Menu, X, Languages, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LanguageProvider, useLanguage } from '@/lib/language-context';
+import AdminSmoothScroll from '@/components/layout/AdminSmoothScroll';
 
 function NavContent({ onClose }: { onClose?: () => void }) {
     const pathname = usePathname();
@@ -181,7 +182,9 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     return (
         <LanguageProvider>
-            <AdminLayoutInner>{children}</AdminLayoutInner>
+            <AdminSmoothScroll>
+                <AdminLayoutInner>{children}</AdminLayoutInner>
+            </AdminSmoothScroll>
         </LanguageProvider>
     );
 }

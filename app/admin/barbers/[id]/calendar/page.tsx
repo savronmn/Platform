@@ -18,6 +18,7 @@ import {
 } from '@/lib/calendar-timeline';
 import TimelineDayGrid, { bookingToTimelineEvent, isoRangeToTimelineEvent, type TimelineEvent } from '@/components/calendar/TimelineDayGrid';
 import CalendarNavBar from '@/components/calendar/CalendarNavBar';
+import CalendarScrollArea from '@/components/calendar/CalendarScrollArea';
 import { useServices } from '@/lib/use-services';
 import Link from 'next/link';
 
@@ -284,7 +285,7 @@ export default function AdminBarberCalendarPage() {
 
             {/* Day View */}
             {view === 'day' && (
-                <div className="overflow-auto border border-white/5 rounded-savron">
+                <CalendarScrollArea>
                     <TimelineDayGrid
                         columns={[{
                             id: barber.id,
@@ -362,12 +363,12 @@ export default function AdminBarberCalendarPage() {
                             );
                         }}
                     />
-                </div>
+                </CalendarScrollArea>
             )}
 
             {/* Week View */}
             {view === 'week' && (
-                <div className="overflow-auto border border-white/5 rounded-savron">
+                <CalendarScrollArea>
                     <TimelineDayGrid
                         columns={weekDays.filter(d => !isSunday(d)).map(day => {
                             const dateStr = format(day, 'yyyy-MM-dd');
@@ -417,7 +418,7 @@ export default function AdminBarberCalendarPage() {
                             );
                         }}
                     />
-                </div>
+                </CalendarScrollArea>
             )}
         </motion.div>
     );
