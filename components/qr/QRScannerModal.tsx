@@ -71,6 +71,7 @@ export default function QRScannerModal({ open, onClose, onScanSuccess }: QRScann
                         const res = await fetch('/api/wallet/scan-checkin', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
                             body: JSON.stringify({ qrValue: decodedText }),
                         });
                         const data = await res.json();

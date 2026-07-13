@@ -158,7 +158,17 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ error: 'Failed to resend pass' }, { status: 500 });
             }
 
-            return NextResponse.json({ success: true, message: 'Updated pass sent to ' + subscriber.email });
+            const walletSync = await syncWalletsAfterCheckin(
+                subscriber,
+                subscriber.visit_count ?? 0,
+                subscriber.last_visit_at ?? new Date().toISOString(),
+            );
+
+            return NextResponse.json({
+                success: true,
+                message: 'Updated pass sent to ' + subscriber.email,
+                ...walletSync,
+            });
         }
 
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });

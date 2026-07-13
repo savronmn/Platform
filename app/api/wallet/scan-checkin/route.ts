@@ -48,6 +48,11 @@ export async function POST(req: NextRequest) {
         if (subscriber.last_visit_at) {
             const last = new Date(subscriber.last_visit_at).getTime();
             if (Number.isFinite(last) && Date.now() - last < SCAN_DEBOUNCE_MS) {
+                const walletSync = await syncWalletsAfterCheckin(
+                    subscriber,
+                    subscriber.visit_count,
+                    subscriber.last_visit_at,
+                );
                 return NextResponse.json({
                     success: true,
                     debounced: true,
@@ -58,6 +63,7 @@ export async function POST(req: NextRequest) {
                         visit_count: subscriber.visit_count,
                         last_visit_at: subscriber.last_visit_at,
                     },
+                    ...walletSync,
                     google_wallet_object_id: subscriber.google_pass_object_id ?? null,
                 });
             }
@@ -74,6 +80,11 @@ export async function POST(req: NextRequest) {
 
         if (updateErr) {
             if (updateErr.message?.includes('visit_debounced')) {
+                const walletSync = await syncWalletsAfterCheckin(
+                    subscriber,
+                    subscriber.visit_count,
+                    subscriber.last_visit_at ?? new Date().toISOString(),
+                );
                 return NextResponse.json({
                     success: true,
                     debounced: true,
@@ -84,6 +95,7 @@ export async function POST(req: NextRequest) {
                         visit_count: subscriber.visit_count,
                         last_visit_at: subscriber.last_visit_at,
                     },
+                    ...walletSync,
                     google_wallet_object_id: subscriber.google_pass_object_id ?? null,
                 });
             }
