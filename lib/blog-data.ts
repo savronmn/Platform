@@ -20,6 +20,155 @@ export interface BlogSection {
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: 'world-cup-2026-grooming-minneapolis',
+    title: 'World Cup 2026 Grooming: Look Sharp for the Beautiful Game in Minneapolis',
+    subtitle: 'FIFA fever is coming to North America. Your barbershop appointment should be part of the pre-match ritual.',
+    excerpt:
+      'World Cup 2026 lands across the USA, Mexico, and Canada. Whether you are hosting watch parties in Minneapolis or heading to a match, here is the SAVRON game-day grooming playbook.',
+    category: 'Style Guide',
+    readTime: '8 min read',
+    publishedAt: 'July 14, 2026',
+    publishedAtISO: '2026-07-14',
+    keywords: [
+      'World Cup 2026 grooming',
+      'FIFA World Cup Minneapolis',
+      'game day haircut men',
+      'soccer watch party look',
+      'World Cup barbershop Minneapolis',
+      'mens grooming before soccer',
+      'North Loop barbershop World Cup',
+      'SAVRON World Cup',
+    ],
+    content: [
+      {
+        type: 'intro',
+        text: 'The FIFA World Cup returns to North America in 2026, and Minneapolis will be alive with watch parties, rooftop gatherings, and street energy every time a big match kicks off. Soccer culture cares about presentation: crisp kits, clean boots, and a sharp lineup. Your haircut is part of that uniform. SAVRON Barbershop & Lounge in the North Loop is where Minneapolis men get match-ready without looking like they rushed it five minutes before kickoff.',
+      },
+      {
+        type: 'h2',
+        heading: 'Why grooming spikes during World Cup season',
+        text: 'Tournament months change routines. You are seeing friends you have not hosted since last year, cameras are out for group photos, and every bar screen becomes a backdrop. A fresh fade, defined beard lines, and clean eyebrows read intentional on camera and in person. World Cup season is basically a four-week excuse to book the barber and set a higher baseline.',
+      },
+      {
+        type: 'h2',
+        heading: 'The Minneapolis watch-party checklist',
+        text: 'If you are hosting or rolling through the North Loop before a USA, Mexico, Argentina, or Brazil match, timing matters. Book two to three days before the knockout round, not the morning of. Skin fades need a light settle. Beard lines look sharper after a day. You want peak shape when the anthem plays, not fresh-clippers shine that catches harsh TV light wrong.',
+      },
+      {
+        type: 'list',
+        heading: 'SAVRON game-day grooming stack',
+        items: [
+          'Mid or low skin fade for clean sides that survive beanie-on, beanie-off bar hops',
+          'Beard line-up and hot towel finish for sharp jaw definition in photos',
+          'Eyebrow cleanup add-on if you are on camera duty for the group chat',
+          'Matte styling product that holds through ninety minutes plus extra time',
+          'Standing appointment every three weeks through the tournament so form never drops',
+        ],
+      },
+      {
+        type: 'h2',
+        heading: 'FIFA energy without costume energy',
+        text: 'Jerseys are fair game. Face paint is optional. Your haircut should still look like you, just sharper. The best World Cup grooming does not compete with your kit. It frames it. Think international soccer broadcast close-up: clean hairline, controlled texture on top, no stray neckline fuzz under the collar. That is the bar.',
+      },
+      {
+        type: 'callout',
+        text: 'Knockout round coming up? Book at savronmn.com/booking and mention you want a match-ready fade. SAVRON barbers know the timeline.',
+      },
+      {
+        type: 'h2',
+        heading: 'North Loop bars, patios, and the walk to kickoff',
+        text: 'Minneapolis watch culture runs through downtown and the North Loop. You will walk outside, sit on patios, and move between venues. Humidity and wind test a haircut fast. A proper consultation at SAVRON accounts for that: fade height, top weight, and product that will not melt before halftime. Grooming for soccer season is grooming for real weather, not studio lighting.',
+      },
+      {
+        type: 'h2',
+        heading: 'Make it a ritual, not a one-off',
+        text: 'The World Cup is a sprint of appointments for barbershops that understand sports culture. Smart clients book the group stage maintenance fade, refresh before the round of sixteen, and reset if their team runs deep. Treat it like a season, because it is. SAVRON is walk-in friendly, but tournament month fills fast in a soccer-loving city.',
+      },
+      {
+        type: 'closing',
+        text: 'World Cup 2026 is the biggest stage in football. Show up looking like you belong on it, even if your role is leading the chant from a Minneapolis bar stool. SAVRON Barbershop & Lounge is in the North Loop at 250 N Third Avenue. Book your pre-match cut and let the grooming match the occasion.',
+      },
+    ],
+  },
+
+  {
+    slug: 'soccer-player-haircuts-fade-styles',
+    title: 'Soccer Player Haircuts: FIFA-Inspired Fades and Styles Your Barber Can Build',
+    subtitle: 'From the touchline to the North Loop. The fades, crops, and textures dominating football right now.',
+    excerpt:
+      'Soccer and FIFA stars set global grooming trends. Here is how to translate pitch-side haircuts into a style that works for your head shape at a Minneapolis barbershop.',
+    category: 'Style Guide',
+    readTime: '9 min read',
+    publishedAt: 'July 14, 2026',
+    publishedAtISO: '2026-07-14',
+    keywords: [
+      'soccer player haircuts',
+      'footballer fade haircut',
+      'FIFA player hairstyle men',
+      'World Cup haircut trends',
+      'skin fade soccer style',
+      'mens soccer hair Minneapolis',
+      'barbershop fade like footballer',
+      'SAVRON soccer haircut',
+    ],
+    content: [
+      {
+        type: 'intro',
+        text: 'Footballers are unofficial grooming influencers. Every World Cup cycle introduces a new wave of skin fades, textured crops, and bleached-top experiments that end up in barbershop reference folders worldwide. The trick is not copying a FIFA highlight screenshot. It is translating the idea to your hair density, face shape, and Minneapolis lifestyle. SAVRON barbers do that translation every day.',
+      },
+      {
+        type: 'h2',
+        heading: 'Why soccer hair trends hit harder than most sports',
+        text: 'Soccer is a global sport with a global style vocabulary. Players from Brazil, France, England, Spain, and Mexico all bring different fade maps and top textures to the same tournament. FIFA broadcasts put those details in 4K. Fans notice. Barbers notice faster. The result is steady demand for tight gradients, sharp temples, and controlled volume on top.',
+      },
+      {
+        type: 'h2',
+        heading: 'The classic footballer skin fade',
+        text: 'The most common soccer-inspired request is a clean skin fade with a textured or curly top. Low fade for a stretched, professional gradient. Mid fade for the broadcast-standard look you see on midfielders and forwards who want contrast without going too aggressive. High fade when you want maximum edge. Tell your SAVRON barber the player vibe you are chasing, then let them adjust the map to your crown and cowlicks.',
+      },
+      {
+        type: 'list',
+        heading: 'Soccer-inspired styles that work off the pitch',
+        items: [
+          'Low skin fade + tight curls or coils on top (popular across Premier League and Liga MX rosters)',
+          'Mid fade + textured crop forward (clean, modern, works in Minneapolis offices)',
+          'Burst fade + longer top for athletes who want shape without daily styling',
+          'Temple fade with sharp lineup (Edgar-influenced looks common in South American football culture)',
+          'Scissor taper + medium length flow for the "playmaker" silhouette without a full fade',
+        ],
+      },
+      {
+        type: 'h2',
+        heading: 'Bleached tops and bold color: proceed with caution',
+        text: 'World Cup cycles love a bleached fringe or platinum top. It looks electric on a player with a team stylist on standby. For most men, the maintenance and regrowth reality is harsher. If you want FIFA-level drama, talk to your barber about whether your hair can handle it and how fast you will need refresh appointments. Sometimes a sharp fade and clean beard line delivers the same energy without chemical commitment.',
+      },
+      {
+        type: 'h2',
+        heading: 'Beard and stubble on the football aesthetic',
+        text: 'Soccer grooming is not hair only. Many players run tight stubble or shaped beards that frame the jaw for camera angles and kit collars. A barbershop finish with hot towel line work makes that geometry intentional. If you are going for the full footballer package, book fade and beard architecture in the same SAVRON visit.',
+      },
+      {
+        type: 'callout',
+        text: 'Bring a screenshot, but also say what you like about it: fade height, top length, texture, or beard shape. That helps your barber build a soccer-inspired cut that is actually yours.',
+      },
+      {
+        type: 'h2',
+        heading: 'From FIFA reference to Minneapolis reality',
+        text: 'Minnesota winters, office dress codes, and bike commutes change what a footballer fade looks like in practice. SAVRON consultations cover that gap. Maybe you need a slightly higher fade to survive hat hair. Maybe you need less weight on top for fine hair. Craftsmanship is adapting the trend, not stapling it on.',
+      },
+      {
+        type: 'h2',
+        heading: 'World Cup 2026 is the perfect excuse',
+        text: 'North America hosts FIFA World Cup 2026. Soccer culture in Minneapolis will be louder than it has been in years. If you have been thinking about upgrading your fade or finally cleaning up your beard lines, tournament season is the moment. Walk into watch parties looking sharp. Walk out of SAVRON looking like you planned it.',
+      },
+      {
+        type: 'closing',
+        text: 'Want a soccer player-inspired cut built for your head, not a poster? Book at SAVRON Barbershop & Lounge in the North Loop. Our barbers speak fade, football, and Minneapolis weather fluently. Game on.',
+      },
+    ],
+  },
+
+  {
     slug: 'best-barbershop-minneapolis',
     title: 'The Best Barbershop in Minneapolis: Why SAVRON Leads the North Loop',
     subtitle: 'Craft, atmosphere, and consistency. What separates a great barbershop from the best one in the city.',
