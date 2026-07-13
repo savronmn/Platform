@@ -71,7 +71,7 @@ export async function cancelBooking(
         ? booking.barbers[0] ?? null
         : booking.barbers;
 
-    if (!options.skipEmail && !alreadyCancelled && !booking.shop_google_event_id) {
+    if (!options.skipEmail && !alreadyCancelled && !booking.shop_google_event_id && !booking.google_event_id) {
         try {
             const emailResult = await sendCancellationEmails({
                 ...booking,

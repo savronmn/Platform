@@ -1,11 +1,12 @@
 // POST /api/calendar/sync
-// Called after a booking is confirmed to push the event to the barber's Google Calendar.
+// Called after a booking is confirmed to push the event to Google Calendar.
 // Also called on booking cancellation (action: "delete") or edit (action: "update").
 // Body: { bookingId: string, action: "create" | "delete" | "update", previousBarberId?: string, previousDate?: string, previousTime?: string }
 //
-// Invite model:
-// - Savron shop calendar (savronmn@gmail.com) = Google invite to client + barber
-// - Barber personal calendar = silent busy block only when shop calendar is unavailable
+// Invite model (priority):
+// 1. Barber calendar connected → appointment on barber's calendar, client invited (Albe-style)
+// 2. Shop calendar only → invite from savronmn@gmail.com with client + barber as attendees
+// 3. Neither → no Google invite (Resend + ICS fallback if email route is called)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -13,14 +14,13 @@ import {
     getValidAccessToken,
     createCalendarEvent,
     updateCalendarEvent,
-    toIsoString,
     type CalendarToken,
 } from '@/lib/google-calendar';
 import { deleteAllBookingCalendarEvents } from '@/lib/booking-calendar-cleanup';
+import { buildBookingCalendarPayload } from '@/lib/booking-calendar-payload';
 import { isShopCalendarConnected, upsertShopInviteEvent } from '@/lib/shop-calendar';
 import { requireStaff } from '@/lib/staff-auth';
-import { SERVICES } from '@/lib/services-data';
-import { SHOP_CALENDAR_DISPLAY_NAME, SHOP_CALENDAR_EMAIL, SHOP_NAME } from '@/lib/shop';
+import { SHOP_CALENDAR_DISPLAY_NAME, SHOP_CALENDAR_EMAIL } from '@/lib/shop';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,51 +34,11 @@ type BarberCalendarInfo = {
     google_calendar_tokens: CalendarToken | null;
 };
 
-function buildEventPayload(booking: {
-    date: string;
-    time: string;
-    service: string;
-    client_name: string | null;
-    client_phone: string | null;
-    client_email: string | null;
-    price: string | null;
-}) {
-    const service = SERVICES.find(s => s.name === booking.service);
-    const durationMin = service?.durationMin ?? 45;
-
-    const startIso = toIsoString(booking.date, booking.time);
-
-    const [timePart, meridiem] = booking.time.split(' ');
-    let [hours, minutes] = timePart.split(':').map(Number);
-    if (meridiem === 'PM' && hours !== 12) hours += 12;
-    if (meridiem === 'AM' && hours === 12) hours = 0;
-    const endMinutes = hours * 60 + minutes + durationMin;
-    const endH = Math.floor(endMinutes / 60) % 24;
-    const endM = endMinutes % 60;
-    const endMeridiem = endH >= 12 ? 'PM' : 'AM';
-    const endH12 = endH > 12 ? endH - 12 : endH || 12;
-    const endTimeStr = `${endH12}:${String(endM).padStart(2, '0')} ${endMeridiem}`;
-    const endIso = toIsoString(booking.date, endTimeStr);
-
-    const summary = `✂️ ${booking.client_name ?? 'Client'} — ${booking.service}`;
-    const description = [
-        `Service: ${booking.service}`,
-        `Duration: ${durationMin} min`,
-        booking.client_phone ? `Phone: ${booking.client_phone}` : '',
-        booking.client_email ? `Email: ${booking.client_email}` : '',
-        `Price: ${booking.price ?? ''}`,
-        '',
-        'You will receive a Google Calendar invitation from SAVRON (savronmn@gmail.com).',
-        'Tap Yes to confirm, or No to cancel — declining frees the slot automatically.',
-    ].filter(Boolean).join('\n');
-
-    return { summary, description, startIso, endIso, durationMin };
-}
-
 async function removeBookingFromCalendars(
     booking: {
         id: string;
         google_event_id: string | null;
+        shop_google_event_id?: string | null;
         barber_id: string | null;
         date: string;
         time: string;
@@ -102,25 +62,26 @@ async function syncShopInvite(
         date: string;
         time: string;
         price: string | null;
+        duration?: string | null;
     },
+    barberName: string | null,
     barberEmail: string | null,
 ) {
-    const { description, startIso, endIso } = buildEventPayload(booking);
-    const clientSummary = booking.client_name
-        ? `${booking.service} — ${booking.client_name} @ ${SHOP_NAME}`
-        : `${booking.service} — ${SHOP_NAME}`;
+    const payload = buildBookingCalendarPayload(booking, barberName);
     const shopDescription = [
-        description,
+        payload.staffDescription,
         '',
         `Organizer: ${SHOP_CALENDAR_EMAIL} (${SHOP_CALENDAR_DISPLAY_NAME})`,
     ].join('\n');
+
     const shopEventId = await upsertShopInviteEvent({
         bookingId: booking.id,
         shopEventId: booking.shop_google_event_id,
-        summary: clientSummary,
+        summary: payload.clientSummary,
         description: shopDescription,
-        startIso,
-        endIso,
+        location: payload.location,
+        startIso: payload.startIso,
+        endIso: payload.endIso,
         clientEmail: booking.client_email,
         barberEmail,
     });
@@ -135,18 +96,19 @@ async function syncShopInvite(
     return shopEventId;
 }
 
-async function syncBarberCalendar(
+/** Barber-owned Google Calendar appointment — client receives invite from the barber's account. */
+async function syncBarberAppointmentInvite(
     booking: {
         id: string;
         google_event_id: string | null;
-        barber_id: string | null;
-        date: string;
-        time: string;
+        client_email: string | null;
         client_name: string | null;
         client_phone: string | null;
-        client_email: string | null;
         service: string;
+        date: string;
+        time: string;
         price: string | null;
+        duration?: string | null;
     },
     barber: BarberCalendarInfo,
     options: { barberChanged?: boolean } = {},
@@ -157,15 +119,27 @@ async function syncBarberCalendar(
 
     try {
         const accessToken = await getValidAccessToken(barber.google_calendar_tokens);
-        const { summary, description, startIso, endIso } = buildEventPayload(booking);
+        const payload = buildBookingCalendarPayload(booking, barber.name);
+        const attendeeEmails = booking.client_email ? [booking.client_email] : [];
+        const sendUpdates = attendeeEmails.length > 0 ? 'all' as const : 'none' as const;
+
+        const eventFields = {
+            summary: payload.clientSummary,
+            description: payload.clientDescription,
+            location: payload.location,
+            startIso: payload.startIso,
+            endIso: payload.endIso,
+            attendeeEmails,
+            bookingId: booking.id,
+        };
 
         if (booking.google_event_id && !options.barberChanged) {
             const eventId = await updateCalendarEvent(
                 accessToken,
                 barber.google_calendar_id,
                 booking.google_event_id,
-                { summary, description, startIso, endIso, attendeeEmails: [], bookingId: booking.id },
-                'none',
+                eventFields,
+                sendUpdates,
             );
             return { eventId, updated: true };
         }
@@ -173,22 +147,56 @@ async function syncBarberCalendar(
         const eventId = await createCalendarEvent(
             accessToken,
             barber.google_calendar_id,
-            {
-                summary,
-                description,
-                startIso,
-                endIso,
-                attendeeEmails: [],
-                bookingId: booking.id,
-            },
-            'none',
+            eventFields,
+            sendUpdates,
         );
         await getAdmin().from('bookings').update({ google_event_id: eventId }).eq('id', booking.id);
         return { eventId, created: true };
     } catch (error) {
-        console.error('[calendar/sync] barber calendar failed:', error);
+        console.error('[calendar/sync] barber appointment invite failed:', error);
         return { eventId: booking.google_event_id, error: String(error) };
     }
+}
+
+async function upsertClientCrm(booking: {
+    client_name: string | null;
+    client_email: string | null;
+    client_phone: string | null;
+    date: string;
+    price: string | null;
+}) {
+    if (!booking.client_name) return;
+
+    const supabaseAdmin = getAdmin();
+    let query = supabaseAdmin.from('clients').select('id, total_visits, total_spent').eq('name', booking.client_name);
+    if (booking.client_email) query = query.or(`email.eq.${booking.client_email}`);
+
+    const { data: existingClients } = await query;
+    const existing = existingClients?.[0];
+    const priceNum = parseFloat(String(booking.price || '0').replace(/[^0-9.]/g, '')) || 0;
+
+    if (existing) {
+        await supabaseAdmin.from('clients').update({
+            last_booking_date: booking.date,
+            total_visits: (existing.total_visits || 0) + 1,
+            total_spent: (existing.total_spent || 0) + priceNum,
+            phone: booking.client_phone || undefined,
+            email: booking.client_email || undefined,
+        }).eq('id', existing.id);
+    } else {
+        await supabaseAdmin.from('clients').insert({
+            name: booking.client_name,
+            email: booking.client_email || null,
+            phone: booking.client_phone || null,
+            last_booking_date: booking.date,
+            total_visits: 1,
+            total_spent: priceNum,
+        });
+    }
+}
+
+function barberCalendarReady(barber: BarberCalendarInfo | null): barber is BarberCalendarInfo {
+    return !!(barber?.google_calendar_tokens && barber.google_calendar_id);
 }
 
 export async function POST(request: NextRequest) {
@@ -204,7 +212,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Missing bookingId or action' }, { status: 400 });
     }
 
-    // Public book flow may create once shortly after insert; edits/deletes require staff.
     if (action === 'update' || action === 'delete') {
         const staff = await requireStaff();
         if (!staff.ok) {
@@ -229,8 +236,6 @@ export async function POST(request: NextRequest) {
         if (!staff.ok) {
             const createdAt = booking.created_at ? new Date(booking.created_at).getTime() : 0;
             const ageMs = Date.now() - createdAt;
-            // Unauthenticated create only allowed within 10 minutes of booking insert
-            // (public BookingFlow immediately after insert).
             if (!Number.isFinite(createdAt) || ageMs < 0 || ageMs > 10 * 60_000) {
                 return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
             }
@@ -240,6 +245,7 @@ export async function POST(request: NextRequest) {
     const barber = booking.barbers as BarberCalendarInfo | null;
     const barberEmail = barber?.email ?? null;
     const shopConnected = await isShopCalendarConnected();
+    const barberReady = barberCalendarReady(barber);
 
     if (action === 'delete') {
         await removeBookingFromCalendars(booking, { barberId: booking.barber_id ?? undefined });
@@ -267,156 +273,101 @@ export async function POST(request: NextRequest) {
             booking.shop_google_event_id = null;
         }
 
-        let shopEventId: string | null = null;
-        try {
-            shopEventId = await syncShopInvite(booking, barberEmail);
-        } catch (error) {
-            console.error('[calendar/sync] shop calendar failed:', error);
+        if (barberReady) {
+            const barberResult = await syncBarberAppointmentInvite(booking, barber, { barberChanged: !!barberChanged });
+            return NextResponse.json({
+                success: !!barberResult.eventId,
+                eventId: barberResult.eventId,
+                inviteModel: 'barber_appointment',
+                updated: barberResult.updated,
+                created: barberResult.created,
+                warning: barberResult.error,
+            });
         }
 
         if (shopConnected) {
+            let shopEventId: string | null = null;
+            try {
+                shopEventId = await syncShopInvite(booking, barber?.name ?? null, barberEmail);
+            } catch (error) {
+                console.error('[calendar/sync] shop calendar failed:', error);
+            }
             return NextResponse.json({
                 success: !!shopEventId,
                 shopEventId,
-                inviteModel: 'google_calendar',
+                inviteModel: 'shop_calendar',
                 skipped: !shopEventId ? true : undefined,
                 reason: !shopEventId ? 'shop_calendar_failed' : undefined,
             });
         }
 
-        if (!barber?.google_calendar_tokens || !barber.google_calendar_id) {
-            return NextResponse.json({
-                success: !!shopEventId,
-                shopEventId,
-                skipped: !shopEventId ? true : undefined,
-                reason: !shopEventId ? 'no_calendar_connected' : undefined,
-            });
-        }
-
-        const barberResult = await syncBarberCalendar(booking, barber, { barberChanged: !!barberChanged });
         return NextResponse.json({
-            success: true,
-            eventId: barberResult.eventId,
-            shopEventId,
-            updated: barberResult.updated,
-            created: barberResult.created,
-            warning: barberResult.error,
+            success: false,
+            skipped: true,
+            reason: 'no_calendar_connected',
         });
     }
 
     // action === 'create'
-    // Idempotent when both calendars are already linked (prevents abuse with known booking IDs).
-    if (booking.google_event_id && booking.shop_google_event_id) {
+    if (barberReady && booking.google_event_id) {
         return NextResponse.json({
             success: true,
             skipped: true,
             reason: 'already_synced',
             eventId: booking.google_event_id,
-            shopEventId: booking.shop_google_event_id,
+            inviteModel: 'barber_appointment',
         });
     }
 
-    let shopEventId: string | null = booking.shop_google_event_id ?? null;
-    if (!shopEventId) {
-        try {
-            shopEventId = await syncShopInvite(booking, barberEmail);
-        } catch (error) {
-            console.error('[calendar/sync] shop calendar failed:', error);
-        }
+    if (!barberReady && booking.shop_google_event_id) {
+        return NextResponse.json({
+            success: true,
+            skipped: true,
+            reason: 'already_synced',
+            shopEventId: booking.shop_google_event_id,
+            inviteModel: 'shop_calendar',
+        });
+    }
+
+    if (barberReady) {
+        const barberResult = await syncBarberAppointmentInvite(booking, barber);
+        await upsertClientCrm(booking);
+
+        return NextResponse.json({
+            success: !!barberResult.eventId,
+            eventId: barberResult.eventId,
+            inviteModel: 'barber_appointment',
+            created: barberResult.created,
+            warning: barberResult.error,
+            skipped: !barberResult.eventId ? true : undefined,
+            reason: !barberResult.eventId ? 'barber_calendar_failed' : undefined,
+        });
     }
 
     if (shopConnected) {
-        if (booking.client_name) {
-            let query = supabaseAdmin.from('clients').select('id, total_visits, total_spent').eq('name', booking.client_name);
-            if (booking.client_email) query = query.or(`email.eq.${booking.client_email}`);
-
-            const { data: existingClients } = await query;
-            const existing = existingClients?.[0];
-            const priceNum = parseFloat(String(booking.price || '0').replace(/[^0-9.]/g, '')) || 0;
-
-            if (existing) {
-                await supabaseAdmin.from('clients').update({
-                    last_booking_date: booking.date,
-                    total_visits: (existing.total_visits || 0) + 1,
-                    total_spent: (existing.total_spent || 0) + priceNum,
-                    phone: booking.client_phone || undefined,
-                    email: booking.client_email || undefined,
-                }).eq('id', existing.id);
-            } else {
-                await supabaseAdmin.from('clients').insert({
-                    name: booking.client_name,
-                    email: booking.client_email || null,
-                    phone: booking.client_phone || null,
-                    last_booking_date: booking.date,
-                    total_visits: 1,
-                    total_spent: priceNum,
-                });
+        let shopEventId: string | null = booking.shop_google_event_id ?? null;
+        if (!shopEventId) {
+            try {
+                shopEventId = await syncShopInvite(booking, barber?.name ?? null, barberEmail);
+            } catch (error) {
+                console.error('[calendar/sync] shop calendar failed:', error);
             }
         }
+
+        await upsertClientCrm(booking);
 
         return NextResponse.json({
             success: !!shopEventId,
             shopEventId,
-            inviteModel: 'google_calendar',
+            inviteModel: 'shop_calendar',
             skipped: !shopEventId ? true : undefined,
             reason: !shopEventId ? 'shop_calendar_failed' : undefined,
         });
     }
 
-    if (!barber?.google_calendar_tokens || !barber.google_calendar_id) {
-        return NextResponse.json({
-            success: !!shopEventId,
-            shopEventId,
-            skipped: !shopEventId ? true : undefined,
-            reason: !shopEventId ? 'no_calendar_connected' : undefined,
-        });
-    }
-
-    if (booking.google_event_id) {
-        return NextResponse.json({
-            success: true,
-            eventId: booking.google_event_id,
-            shopEventId,
-        });
-    }
-
-    const barberResult = await syncBarberCalendar(booking, barber);
-
-    if (booking.client_name) {
-        let query = supabaseAdmin.from('clients').select('id, total_visits, total_spent').eq('name', booking.client_name);
-        if (booking.client_email) query = query.or(`email.eq.${booking.client_email}`);
-
-        const { data: existingClients } = await query;
-        const existing = existingClients?.[0];
-
-        const priceNum = parseFloat(String(booking.price || '0').replace(/[^0-9.]/g, '')) || 0;
-
-        if (existing) {
-            await supabaseAdmin.from('clients').update({
-                last_booking_date: booking.date,
-                total_visits: (existing.total_visits || 0) + 1,
-                total_spent: (existing.total_spent || 0) + priceNum,
-                phone: booking.client_phone || undefined,
-                email: booking.client_email || undefined,
-            }).eq('id', existing.id);
-        } else {
-            await supabaseAdmin.from('clients').insert({
-                name: booking.client_name,
-                email: booking.client_email || null,
-                phone: booking.client_phone || null,
-                last_booking_date: booking.date,
-                total_visits: 1,
-                total_spent: priceNum,
-            });
-        }
-    }
-
     return NextResponse.json({
-        success: true,
-        eventId: barberResult.eventId,
-        shopEventId,
-        created: barberResult.created,
-        updated: barberResult.updated,
-        warning: barberResult.error,
+        success: false,
+        skipped: true,
+        reason: 'no_calendar_connected',
     });
 }

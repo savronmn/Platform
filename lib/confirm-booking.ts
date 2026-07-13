@@ -1,5 +1,5 @@
 // Client-side helper — fires calendar sync after a booking is inserted.
-// Google Calendar (savronmn@gmail.com) sends invites to client + barber.
+// Barber Google Calendar sends the client appointment invite when connected; shop calendar is fallback.
 
 async function logSideEffectFailure(label: string, res: Response | undefined): Promise<void> {
     if (!res) {

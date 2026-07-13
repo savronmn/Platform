@@ -4,6 +4,7 @@ import {
     SHOP_CALENDAR_EMAIL,
     SHOP_NAME,
 } from '@/lib/shop';
+import { buildClientAppointmentSummary } from '@/lib/booking-calendar-payload';
 
 export function icsEscape(value: string): string {
     return String(value || '')
@@ -68,7 +69,7 @@ export function buildBookingIcs(
     const status = method === 'CANCEL' ? 'CANCELLED' : 'CONFIRMED';
     const summary = method === 'CANCEL'
         ? `CANCELLED — ${icsEscape(booking.service)}`
-        : icsEscape(`${booking.service} — ${SHOP_NAME}`);
+        : icsEscape(buildClientAppointmentSummary(booking.service, barberName));
 
     const lines = [
         'BEGIN:VCALENDAR',

@@ -82,6 +82,7 @@ export async function createCalendarEvent(
     event: {
         summary: string;
         description?: string;
+        location?: string;
         startIso: string;  // "2026-04-01T10:00:00-05:00"
         endIso: string;
         attendeeEmails?: string[];
@@ -96,7 +97,18 @@ export async function createCalendarEvent(
         description: event.description,
         start: { dateTime: event.startIso, timeZone: 'America/Chicago' },
         end: { dateTime: event.endIso, timeZone: 'America/Chicago' },
+        transparency: 'opaque',
+        reminders: {
+            useDefault: false,
+            overrides: [
+                { method: 'email', minutes: 24 * 60 },
+                { method: 'popup', minutes: 60 },
+            ],
+        },
     };
+    if (event.location) {
+        body.location = event.location;
+    }
     if (event.bookingId) {
         body.extendedProperties = { private: { savronBookingId: event.bookingId } };
     }
@@ -137,6 +149,7 @@ export async function updateCalendarEvent(
     event: {
         summary: string;
         description?: string;
+        location?: string;
         startIso: string;
         endIso: string;
         attendeeEmails?: string[];
@@ -151,7 +164,18 @@ export async function updateCalendarEvent(
         description: event.description,
         start: { dateTime: event.startIso, timeZone: 'America/Chicago' },
         end: { dateTime: event.endIso, timeZone: 'America/Chicago' },
+        transparency: 'opaque',
+        reminders: {
+            useDefault: false,
+            overrides: [
+                { method: 'email', minutes: 24 * 60 },
+                { method: 'popup', minutes: 60 },
+            ],
+        },
     };
+    if (event.location) {
+        body.location = event.location;
+    }
     if (event.bookingId) {
         body.extendedProperties = { private: { savronBookingId: event.bookingId } };
     }
