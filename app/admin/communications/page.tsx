@@ -2,11 +2,50 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
-import { Mail, Send, Users, CheckCircle2, AlertCircle, Search } from 'lucide-react';
+import { Mail, Send, Users, CheckCircle2, AlertCircle, Search, History, RefreshCw, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 type Recipient = { email: string; name?: string };
+
+type EmailHistoryItem = {
+    id: string;
+    to: string[];
+    from: string;
+    subject: string | null;
+    created_at: string;
+    last_event: string | null;
+};
+
+function formatHistoryDate(value: string): string {
+    if (!value) return '—';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+}
+
+function eventBadgeClass(event: string | null): string {
+    switch (event) {
+        case 'delivered':
+            return 'bg-savron-green/15 text-accent-blue border-savron-green/25';
+        case 'opened':
+        case 'clicked':
+            return 'bg-blue-500/15 text-blue-300 border-blue-500/25';
+        case 'bounced':
+        case 'complained':
+            return 'bg-red-500/15 text-red-300 border-red-500/25';
+        case 'delivery_delayed':
+            return 'bg-amber-500/15 text-amber-300 border-amber-500/25';
+        default:
+            return 'bg-white/5 text-savron-silver border-white/10';
+    }
+}
 
 export default function CommunicationsPage() {
     const supabase = createClient();
@@ -23,6 +62,11 @@ export default function CommunicationsPage() {
     const [subscribers, setSubscribers] = useState<Recipient[]>([]);
     const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
     const [recipientSearch, setRecipientSearch] = useState('');
+    const [history, setHistory] = useState<EmailHistoryItem[]>([]);
+    const [historyLoading, setHistoryLoading] = useState(true);
+    const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
+    const [historyError, setHistoryError] = useState('');
+    const [historyHasMore, setHistoryHasMore] = useState(false);
 
     useEffect(() => {
         async function fetchData() {
@@ -41,7 +85,38 @@ export default function CommunicationsPage() {
             setLoading(false);
         }
         fetchData();
+        void fetchHistory();
     }, []);
+
+    async function fetchHistory(options: { after?: string; append?: boolean } = {}) {
+        if (options.append) setHistoryLoadingMore(true);
+        else setHistoryLoading(true);
+        setHistoryError('');
+
+        try {
+            const params = new URLSearchParams({ limit: '25' });
+            if (options.after) params.set('after', options.after);
+
+            const res = await fetch(`/api/email/history?${params.toString()}`);
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to load email history');
+            }
+
+            const emails = (data.emails ?? []) as EmailHistoryItem[];
+            setHistory(prev => options.append ? [...prev, ...emails] : emails);
+            setHistoryHasMore(Boolean(data.hasMore));
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Failed to load email history';
+            setHistoryError(message);
+            if (!options.append) setHistory([]);
+            setHistoryHasMore(false);
+        } finally {
+            setHistoryLoading(false);
+            setHistoryLoadingMore(false);
+        }
+    }
 
     const activeRecipients = useMemo(() => {
         let pool: Recipient[] = [];
@@ -143,6 +218,7 @@ export default function CommunicationsPage() {
                 setStatus('success');
                 setSubject('');
                 setContent('');
+                void fetchHistory();
             } else {
                 setStatus('error');
                 setErrorMsg(data.error || 'Failed to send campaign');
@@ -360,6 +436,103 @@ export default function CommunicationsPage() {
                         </ul>
                     </div>
                 </div>
+            </div>
+
+            <div className="card-savron">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
+                    <div className="flex items-center gap-3">
+                        <History className="text-savron-silver w-4 h-4" />
+                        <div>
+                            <h2 className="font-heading text-lg uppercase tracking-widest text-white">Send History</h2>
+                            <p className="text-savron-silver/70 text-[11px] uppercase tracking-widest mt-0.5">
+                                Recent emails sent through Resend
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => void fetchHistory()}
+                        disabled={historyLoading}
+                        className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border border-white/10 text-savron-silver hover:text-white hover:border-white/20 rounded-savron transition-all disabled:opacity-50"
+                    >
+                        <RefreshCw className={cn('w-3.5 h-3.5', historyLoading && 'animate-spin')} />
+                        Refresh
+                    </button>
+                </div>
+
+                {historyError && (
+                    <div className="mb-4 bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-savron flex items-center gap-3">
+                        <AlertCircle size={16} />
+                        <span className="text-xs uppercase tracking-widest">{historyError}</span>
+                    </div>
+                )}
+
+                {historyLoading ? (
+                    <div className="flex items-center justify-center py-16">
+                        <div className="w-5 h-5 border-2 border-savron-green/30 border-t-savron-green rounded-full animate-spin" />
+                    </div>
+                ) : history.length === 0 ? (
+                    <div className="py-12 text-center">
+                        <Mail className="w-8 h-8 text-savron-silver/20 mx-auto mb-3" />
+                        <p className="text-savron-silver/50 text-sm uppercase tracking-wider">No sent emails found in Resend yet</p>
+                    </div>
+                ) : (
+                    <>
+                        <div className="overflow-x-auto -mx-1">
+                            <table className="w-full min-w-[720px] text-left">
+                                <thead>
+                                    <tr className="border-b border-white/10 text-[10px] uppercase tracking-widest text-savron-silver/60">
+                                        <th className="px-3 py-3 font-medium">Sent</th>
+                                        <th className="px-3 py-3 font-medium">Subject</th>
+                                        <th className="px-3 py-3 font-medium">Recipient</th>
+                                        <th className="px-3 py-3 font-medium">From</th>
+                                        <th className="px-3 py-3 font-medium">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {history.map(email => (
+                                        <tr key={email.id} className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.02] transition-colors">
+                                            <td className="px-3 py-4 text-xs text-savron-silver whitespace-nowrap">
+                                                {formatHistoryDate(email.created_at)}
+                                            </td>
+                                            <td className="px-3 py-4 text-sm text-white max-w-[240px]">
+                                                <span className="block truncate">{email.subject || '(No subject)'}</span>
+                                            </td>
+                                            <td className="px-3 py-4 text-xs text-savron-silver max-w-[220px]">
+                                                <span className="block truncate">{email.to.join(', ') || '—'}</span>
+                                            </td>
+                                            <td className="px-3 py-4 text-xs text-savron-silver max-w-[180px]">
+                                                <span className="block truncate">{email.from || '—'}</span>
+                                            </td>
+                                            <td className="px-3 py-4">
+                                                <span className={cn(
+                                                    'inline-flex px-2 py-0.5 rounded-full border text-[9px] uppercase tracking-widest',
+                                                    eventBadgeClass(email.last_event),
+                                                )}>
+                                                    {email.last_event?.replace(/_/g, ' ') || 'sent'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {historyHasMore && (
+                            <div className="pt-5 flex justify-center">
+                                <button
+                                    type="button"
+                                    onClick={() => void fetchHistory({ after: history[history.length - 1]?.id, append: true })}
+                                    disabled={historyLoadingMore}
+                                    className="flex items-center gap-2 px-5 py-2.5 text-[10px] uppercase tracking-widest border border-white/10 text-savron-silver hover:text-white hover:border-white/20 rounded-savron transition-all disabled:opacity-50"
+                                >
+                                    {historyLoadingMore ? 'Loading...' : 'Load more'}
+                                    {!historyLoadingMore && <ChevronDown className="w-3.5 h-3.5" />}
+                                </button>
+                            </div>
+                        )}
+                    </>
+                )}
             </div>
         </div>
     );
