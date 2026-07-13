@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import ShopSocialLinks from '@/components/layout/ShopSocialLinks';
 
 const pillars = [
     { title: "Intentional.", body: "Every detail considered. Nothing left to chance." },
@@ -84,9 +85,11 @@ const About = () => {
                             lineHeight: 1.9,
                             color: "rgba(232,228,220,0.78)",
                             maxWidth: 380,
+                            marginBottom: 24,
                         }}>
                             Located in the North Loop, Minneapolis. SAVRON is built on quality craft and a straightforward approach to barbering. Appointments and walk-ins both welcome.
                         </p>
+                        <ShopSocialLinks variant="inline" />
                     </motion.div>
 
                     {/* Right: pillars */}

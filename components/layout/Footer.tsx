@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import MembershipSignupForm from '@/components/home/MembershipSignupForm';
+import ShopSocialLinks from '@/components/layout/ShopSocialLinks';
 
 const Footer = () => {
     return (
@@ -153,6 +154,13 @@ const Footer = () => {
                                 </a>
                             </li>
                         </ul>
+                    </div>
+
+                    <div>
+                        <p style={{ fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: "rgba(232,228,220,0.25)", marginBottom: 20 }}>
+                            Follow
+                        </p>
+                        <ShopSocialLinks />
                     </div>
                 </div>
             </div>
