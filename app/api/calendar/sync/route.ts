@@ -195,7 +195,12 @@ async function upsertClientCrm(booking: {
     }
 }
 
-function barberCalendarReady(barber: BarberCalendarInfo | null): barber is BarberCalendarInfo {
+type BarberCalendarReady = BarberCalendarInfo & {
+    google_calendar_tokens: CalendarToken;
+    google_calendar_id: string;
+};
+
+function barberCalendarReady(barber: BarberCalendarInfo | null): barber is BarberCalendarReady {
     return !!(barber?.google_calendar_tokens && barber.google_calendar_id);
 }
 
@@ -243,6 +248,7 @@ export async function POST(request: NextRequest) {
     }
 
     const barber = booking.barbers as BarberCalendarInfo | null;
+    const barberName = barber?.name ?? null;
     const barberEmail = barber?.email ?? null;
     const shopConnected = await isShopCalendarConnected();
     const barberReady = barberCalendarReady(barber);
@@ -288,7 +294,7 @@ export async function POST(request: NextRequest) {
         if (shopConnected) {
             let shopEventId: string | null = null;
             try {
-                shopEventId = await syncShopInvite(booking, barber?.name ?? null, barberEmail);
+                shopEventId = await syncShopInvite(booking, barberName, barberEmail);
             } catch (error) {
                 console.error('[calendar/sync] shop calendar failed:', error);
             }
@@ -348,7 +354,7 @@ export async function POST(request: NextRequest) {
         let shopEventId: string | null = booking.shop_google_event_id ?? null;
         if (!shopEventId) {
             try {
-                shopEventId = await syncShopInvite(booking, barber?.name ?? null, barberEmail);
+                shopEventId = await syncShopInvite(booking, barberName, barberEmail);
             } catch (error) {
                 console.error('[calendar/sync] shop calendar failed:', error);
             }
