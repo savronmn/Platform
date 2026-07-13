@@ -12,6 +12,7 @@ import {
     extractServiceFromEventSummary,
     isoDateTimeToTimeSlot,
 } from '@/lib/calendar-event-sync';
+import { CALENDAR_VISIBLE_BOOKING_STATUSES, mergeLinkedCalendarMeta, bookingCalendarMetaFromGoogleEvent } from '@/lib/calendar-dedup';
 
 const GOOGLE_CALENDAR_BASE = 'https://www.googleapis.com/calendar/v3';
 
@@ -127,14 +128,13 @@ export async function GET(request: NextRequest) {
     const linkedEventIds = new Set<string>();
     const bookingByEventId = new Map<string, string>();
     for (const booking of linkedBookings ?? []) {
-        if (booking.status !== 'confirmed') continue;
-        if (booking.shop_google_event_id) {
-            linkedEventIds.add(booking.shop_google_event_id);
-            bookingByEventId.set(booking.shop_google_event_id, booking.id);
+        if (!CALENDAR_VISIBLE_BOOKING_STATUSES.includes(booking.status as typeof CALENDAR_VISIBLE_BOOKING_STATUSES[number])) {
+            continue;
         }
-        if (booking.google_event_id) {
-            linkedEventIds.add(booking.google_event_id);
-            bookingByEventId.set(booking.google_event_id, booking.id);
+        for (const eventId of [booking.google_event_id, booking.shop_google_event_id]) {
+            if (!eventId) continue;
+            linkedEventIds.add(eventId);
+            bookingByEventId.set(eventId, booking.id);
         }
     }
 
@@ -152,8 +152,28 @@ export async function GET(request: NextRequest) {
             idsToFetch.map(id => listEvents(accessToken, id, timeMin, timeMax)),
         );
 
-        const mapped = allRaw
-            .flat()
+        const rawEvents = allRaw.flat();
+        const linkedCalendarByBookingId: Record<string, ReturnType<typeof bookingCalendarMetaFromGoogleEvent>> = {};
+
+        for (const e of rawEvents) {
+            if (e.status === 'cancelled' || !e.start?.dateTime) continue;
+            if (eventHasClientCalendarCancellationSignal(e)) continue;
+            const bookingId = bookingByEventId.get(e.id);
+            if (!bookingId || !linkedEventIds.has(e.id)) continue;
+            mergeLinkedCalendarMeta(
+                linkedCalendarByBookingId,
+                bookingId,
+                bookingCalendarMetaFromGoogleEvent({
+                    id: e.id,
+                    summary: e.summary ?? null,
+                    htmlLink: e.htmlLink ?? null,
+                    start: e.start.dateTime,
+                    end: e.end?.dateTime ?? e.start.dateTime,
+                }),
+            );
+        }
+
+        const mapped = rawEvents
             .filter(e => e.status !== 'cancelled' && e.start?.dateTime)
             .filter(e => !eventHasClientCalendarCancellationSignal(e))
             .filter(e => !linkedEventIds.has(e.id))
@@ -205,7 +225,11 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        return NextResponse.json({ events: Array.from(globalSeen.values()), connected: true });
+        return NextResponse.json({
+            events: Array.from(globalSeen.values()),
+            linkedCalendarByBookingId,
+            connected: true,
+        });
     } catch (err) {
         console.error('[calendar/barber/events]', err);
         return NextResponse.json({ events: [], connected: true, warning: 'fetch_failed' });

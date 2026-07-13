@@ -20,7 +20,8 @@ import { serviceBlockStyle } from '@/lib/services-data';
 import {
     formatTimeCompact, formatTimeRange, time24ToMins, timeToMins, getCalendarGridBounds, getTimelineLayout,
 } from '@/lib/calendar-timeline';
-import { extractServiceFromEventSummary, namesMatch } from '@/lib/calendar-event-sync';
+import { dedupeExternalEventsAgainstBookings, mergeCalendarMetaMaps } from '@/lib/calendar-dedup';
+import type { BookingCalendarMeta } from '@/lib/calendar-dedup';
 import TimelineDayGrid, { bookingToTimelineEvent, isoRangeToTimelineEvent, type TimelineEvent } from '@/components/calendar/TimelineDayGrid';
 import CalendarNavBar from '@/components/calendar/CalendarNavBar';
 import EditBookingModal from '@/components/crm/EditBookingModal';
@@ -61,12 +62,6 @@ function externalDurationMins(e: ExternalEvent): number {
     return Number.isFinite(duration) && duration > 0 ? duration : 45;
 }
 
-function servicesRoughMatch(a: string, b: string): boolean {
-    const left = a.toLowerCase().trim();
-    const right = b.toLowerCase().trim();
-    return left === right || left.includes(right) || right.includes(left);
-}
-
 export default function BarberSlugCalendarPage() {
     const params = useParams();
     const slug = params.slug as string;
@@ -83,6 +78,7 @@ export default function BarberSlugCalendarPage() {
     const [barber, setBarber] = useState<Barber | null>(null);
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [externalEvents, setExternalEvents] = useState<ExternalEvent[]>([]);
+    const [linkedCalendarByBookingId, setLinkedCalendarByBookingId] = useState<Record<string, BookingCalendarMeta>>({});
     const [workingHours, setWorkingHours] = useState<WorkingHours | null>(null);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
@@ -182,9 +178,11 @@ export default function BarberSlugCalendarPage() {
             if (eventsRes.ok) {
                 const data = await eventsRes.json();
                 setExternalEvents(data.events || []);
+                setLinkedCalendarByBookingId(data.linkedCalendarByBookingId ?? {});
             }
         } catch {
             setExternalEvents([]);
+            setLinkedCalendarByBookingId({});
         }
         setSyncing(false);
     }, [barber, selectedDate, rangeStart, rangeEnd, isAdminPreview]);
@@ -224,25 +222,20 @@ export default function BarberSlugCalendarPage() {
         [bookings],
     );
 
-    // Hide GCal copies when the same appointment exists in the platform (name + time + service).
-    const deduplicatedExternal = useMemo(() => {
-        return externalEvents.filter(e => {
-            const eMins = timeToMins(e.time);
-            const eService = e.service || extractServiceFromEventSummary(e.summary);
+    const { deduplicatedExternal, calendarMetaByBookingId } = useMemo(() => {
+        const deduped = dedupeExternalEventsAgainstBookings(externalEvents, activeBookings);
+        return {
+            deduplicatedExternal: deduped.externalEvents,
+            calendarMetaByBookingId: mergeCalendarMetaMaps(
+                linkedCalendarByBookingId,
+                deduped.calendarMetaByBookingId,
+            ),
+        };
+    }, [externalEvents, activeBookings, linkedCalendarByBookingId]);
 
-            return !activeBookings.some(b => {
-                if (b.date !== e.date) return false;
-                if (e.bookingId && e.bookingId === b.id) return true;
-
-                const timeClose = Math.abs(timeToMins(b.time) - eMins) <= 22;
-                if (!timeClose) return false;
-
-                const nameMatch = namesMatch(e.clientName, b.client_name);
-                const serviceMatch = servicesRoughMatch(eService, b.service);
-                return (nameMatch && serviceMatch) || (nameMatch && timeClose) || (serviceMatch && timeClose);
-            });
-        });
-    }, [externalEvents, activeBookings]);
+    const selectedBookingCalendarMeta = selectedBooking
+        ? calendarMetaByBookingId.get(selectedBooking.id) ?? null
+        : null;
 
     const dayTimelineMap = useMemo(() => {
         const map = new Map<string, DayTimelineItem>();
@@ -711,6 +704,16 @@ export default function BarberSlugCalendarPage() {
                         )}
 
                         <div className="flex flex-wrap gap-2">
+                            {selectedBookingCalendarMeta?.htmlLink && (
+                                <a
+                                    href={selectedBookingCalendarMeta.htmlLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1 px-3 py-2 bg-blue-500/10 text-blue-300 border border-blue-500/20 rounded-savron text-xs uppercase tracking-wider hover:bg-blue-500/20"
+                                >
+                                    <ExternalLink className="w-3 h-3" /> Open in Google Calendar
+                                </a>
+                            )}
                             {selectedBooking.status === 'confirmed' && !isAdminPreview && (
                                 <>
                                     <button

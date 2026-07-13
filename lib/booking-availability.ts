@@ -42,7 +42,7 @@ export async function getBarberDatabaseBusySlots(
     const supabaseAdmin = getAdmin();
     let query = supabaseAdmin
         .from('bookings')
-        .select('id, time, duration, status, google_event_id')
+        .select('id, time, duration, status, google_event_id, shop_google_event_id')
         .eq('barber_id', barberId)
         .eq('date', date)
         .in('status', [...BLOCKING_BOOKING_STATUSES]);
@@ -59,7 +59,7 @@ export async function getBarberDatabaseBusySlots(
 
     const linkedGoogleEventIds = new Set(
         (dbBookings ?? [])
-            .map(booking => booking.google_event_id)
+            .flatMap(booking => [booking.google_event_id, booking.shop_google_event_id])
             .filter((id): id is string => Boolean(id)),
     );
 
