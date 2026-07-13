@@ -12,6 +12,7 @@ import {
     extractClientNameFromEvent,
     isoDateTimeToTimeSlot,
 } from '@/lib/calendar-event-sync';
+import { CALENDAR_VISIBLE_BOOKING_STATUSES, mergeLinkedCalendarMeta, bookingCalendarMetaFromGoogleEvent } from '@/lib/calendar-dedup';
 
 const GOOGLE_CALENDAR_BASE = 'https://www.googleapis.com/calendar/v3';
 
@@ -96,25 +97,27 @@ export async function GET(req: NextRequest) {
     const barberIds = barbers.map(barber => barber.id);
     const { data: linkedBookings } = await supabase
         .from('bookings')
-        .select('id, shop_google_event_id, barber_id, status')
+        .select('id, shop_google_event_id, google_event_id, barber_id, status')
         .in('barber_id', barberIds)
         .gte('date', dateStart)
-        .lte('date', dateEnd)
-        .not('shop_google_event_id', 'is', null);
+        .lte('date', dateEnd);
 
-    const linkedEventIds = new Set(
-        (linkedBookings ?? [])
-            .filter(booking => booking.status === 'confirmed' && booking.shop_google_event_id)
-            .map(booking => booking.shop_google_event_id as string),
-    );
-    const bookingByEventId = new Map(
-        (linkedBookings ?? [])
-            .filter(booking => booking.shop_google_event_id)
-            .map(booking => [booking.shop_google_event_id as string, booking.id as string]),
-    );
+    const linkedEventIds = new Set<string>();
+    const bookingByEventId = new Map<string, string>();
+    for (const booking of linkedBookings ?? []) {
+        if (!CALENDAR_VISIBLE_BOOKING_STATUSES.includes(booking.status as typeof CALENDAR_VISIBLE_BOOKING_STATUSES[number])) {
+            continue;
+        }
+        for (const eventId of [booking.google_event_id, booking.shop_google_event_id]) {
+            if (!eventId) continue;
+            linkedEventIds.add(eventId);
+            bookingByEventId.set(eventId, booking.id);
+        }
+    }
 
     const timeMin = `${dateStart}T00:00:00-05:00`;
     const timeMax = `${dateEnd}T23:59:59-05:00`;
+    const linkedCalendarByBookingId: Record<string, ReturnType<typeof bookingCalendarMetaFromGoogleEvent>> = {};
 
     const settled = await Promise.allSettled(
         barbers.map(async (barber) => {
@@ -130,6 +133,25 @@ export async function GET(req: NextRequest) {
                 idsToFetch.map(id => listEvents(accessToken, id, timeMin, timeMax))
             );
             const events = allRaw.flat();
+
+            for (const e of events) {
+                if (e.status === 'cancelled' || !e.start?.dateTime) continue;
+                if (eventHasClientCalendarCancellationSignal(e)) continue;
+                const eventId = e.id as string;
+                const bookingId = bookingByEventId.get(eventId);
+                if (!bookingId || !linkedEventIds.has(eventId)) continue;
+                mergeLinkedCalendarMeta(
+                    linkedCalendarByBookingId,
+                    bookingId,
+                    bookingCalendarMetaFromGoogleEvent({
+                        id: eventId,
+                        summary: (e.summary as string | undefined) ?? null,
+                        htmlLink: (e.htmlLink as string | undefined) ?? null,
+                        start: e.start.dateTime as string,
+                        end: (e.end?.dateTime ?? e.start.dateTime) as string,
+                    }),
+                );
+            }
 
             const mapped = events
                 .filter((e) => e.status !== 'cancelled' && e.start?.dateTime)
@@ -194,5 +216,8 @@ export async function GET(req: NextRequest) {
         }
     }
 
-    return NextResponse.json(Array.from(globalSeen.values()));
+    return NextResponse.json({
+        events: Array.from(globalSeen.values()),
+        linkedCalendarByBookingId,
+    });
 }

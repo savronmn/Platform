@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import type { Booking, Client, Barber, Applicant } from '@/lib/types';
 import Link from 'next/link';
 import DateRangeFilter, { type DateRange, bookingInRange } from '@/components/crm/DateRangeFilter';
+import { statPageHref } from '@/lib/admin-stat-routes';
 
 export type StatKey =
     | 'todayAppointments'
@@ -236,7 +237,7 @@ function clientsWithBookingsInRange(clients: Client[], bookings: Booking[]): Cli
     );
 }
 
-const STAT_TITLES: Record<StatKey, { title: string; subtitle: string }> = {
+export const STAT_TITLES: Record<StatKey, { title: string; subtitle: string }> = {
     todayAppointments: { title: "Today's Appointments", subtitle: 'Who is coming in today, what they booked, and how much they paid' },
     todayRevenue: { title: "Today's Revenue", subtitle: 'Per-service earnings and each client\'s booking value today' },
     pipeline: { title: 'Pipeline (Upcoming)', subtitle: 'Future confirmed bookings — who, when, service, and expected revenue' },
@@ -874,16 +875,40 @@ interface StatDetailModalProps {
     onClose: () => void;
 }
 
+export function StatDetailView({
+    statKey,
+    data,
+    cutoff,
+    showDateFilter = true,
+}: {
+    statKey: StatKey;
+    data: StatDetailData;
+    cutoff: string;
+    showDateFilter?: boolean;
+}) {
+    const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange(statKey));
+
+    useEffect(() => {
+        setDateRange(getDefaultDateRange(statKey));
+    }, [statKey]);
+
+    return (
+        <div className="space-y-4">
+            {showDateFilter && DATE_FILTER_STATS.includes(statKey) && (
+                <DateRangeFilter
+                    start={dateRange.start}
+                    end={dateRange.end}
+                    onChange={setDateRange}
+                />
+            )}
+            {renderContent(statKey, data, cutoff, dateRange)}
+        </div>
+    );
+}
+
 export default function StatDetailModal({ statKey, data, cutoff, onClose }: StatDetailModalProps) {
     const modalRef = useRef<HTMLDivElement>(null);
     const scrollLockRef = useRef(0);
-    const [dateRange, setDateRange] = useState<DateRange>({ start: '', end: '' });
-
-    useEffect(() => {
-        if (statKey) {
-            setDateRange(getDefaultDateRange(statKey));
-        }
-    }, [statKey]);
 
     useEffect(() => {
         if (!statKey) return;
@@ -915,17 +940,7 @@ export default function StatDetailModal({ statKey, data, cutoff, onClose }: Stat
     if (!statKey) return null;
 
     const { title, subtitle } = STAT_TITLES[statKey];
-    const linkHref = statKey === 'dueForVisit' || statKey === 'totalClients'
-        ? '/admin/clients'
-        : statKey === 'recentCancellations' || statKey === 'todayAppointments' || statKey === 'pipeline'
-            || statKey === 'todayRevenue' || statKey === 'totalRevenue' || statKey === 'totalAppointments'
-            || statKey === 'avgTicket' || statKey === 'topService'
-            ? '/admin/bookings'
-            : statKey === 'pendingApplicants'
-                ? '/admin/applicants'
-                : statKey === 'barbersActive'
-                    ? '/admin/barbers'
-                    : null;
+    const linkHref = statPageHref(statKey);
 
     const modal = (
         <AnimatePresence>
@@ -960,27 +975,18 @@ export default function StatDetailModal({ statKey, data, cutoff, onClose }: Stat
                                 </button>
                             </div>
 
-                            <div className="overflow-y-auto flex-1 px-5 min-h-0">
-                                {DATE_FILTER_STATS.includes(statKey) && (
-                                    <DateRangeFilter
-                                        start={dateRange.start}
-                                        end={dateRange.end}
-                                        onChange={setDateRange}
-                                    />
-                                )}
-                                {renderContent(statKey, data, cutoff, dateRange)}
+                            <div className="overflow-y-auto flex-1 px-5 min-h-0 py-4">
+                                <StatDetailView statKey={statKey} data={data} cutoff={cutoff} />
                             </div>
 
-                            {linkHref && (
-                                <div className="p-4 border-t border-white/[0.06] shrink-0">
-                                    <Link
-                                        href={linkHref}
-                                        className="block text-center text-xs uppercase tracking-widest text-accent-blue hover:text-savron-cream transition-colors"
-                                    >
-                                        Open full page →
-                                    </Link>
-                                </div>
-                            )}
+                            <div className="p-4 border-t border-white/[0.06] shrink-0">
+                                <Link
+                                    href={linkHref}
+                                    className="block text-center text-xs uppercase tracking-widest text-accent-blue hover:text-savron-cream transition-colors"
+                                >
+                                    Open full page →
+                                </Link>
+                            </div>
                         </motion.div>
                     </div>
                 </motion.div>

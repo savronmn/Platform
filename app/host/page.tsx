@@ -29,6 +29,8 @@ import { triggerPostBooking, triggerCancelBooking } from '@/lib/confirm-booking'
 import EditBookingModal from '@/components/crm/EditBookingModal';
 import { LanguageProvider, useLanguage } from '@/lib/language-context';
 import { slotConflictsWithBusy, isSlotInPast } from '@/lib/time-helpers';
+import { dedupeExternalEventsAgainstBookings, mergeCalendarMetaMaps } from '@/lib/calendar-dedup';
+import type { BookingCalendarMeta } from '@/lib/calendar-dedup';
 
 const QRScannerModal = dynamic(() => import('@/components/qr/QRScannerModal'), { ssr: false });
 
@@ -100,6 +102,7 @@ function HostDashboardInner() {
 
     // External Google Calendar events
     const [externalEvents, setExternalEvents] = useState<ExternalEvent[]>([]);
+    const [linkedCalendarByBookingId, setLinkedCalendarByBookingId] = useState<Record<string, BookingCalendarMeta>>({});
     const [activeExternal, setActiveExternal] = useState<ExternalEvent | null>(null);
 
     // Burger nav
@@ -173,7 +176,16 @@ function HostDashboardInner() {
             const res = await fetch(`/api/calendar/events?${params.toString()}`, {
                 credentials: 'include',
             });
-            if (res.ok) setExternalEvents(await res.json());
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    setExternalEvents(data);
+                    setLinkedCalendarByBookingId({});
+                } else {
+                    setExternalEvents(data.events ?? []);
+                    setLinkedCalendarByBookingId(data.linkedCalendarByBookingId ?? {});
+                }
+            }
         } catch { /* silent — platform bookings still show */ }
     }, [rangeStart, rangeEnd]);
 
@@ -466,19 +478,24 @@ function HostDashboardInner() {
         return Number.isFinite(duration) && duration > 0 ? duration : 45;
     };
 
-    // Deduplicate: hide GCal events that overlap with an active platform booking
-    // (same barber + date, event time within 22 mins of booking time).
-    const deduplicatedExternal = useMemo(() => {
-        return externalEvents.filter(e => {
-            const eMins = timeToMins(e.time);
-            return !scheduleBookings.some(b =>
-                b.barber_id === e.barberId &&
-                b.date === e.date &&
-                ['confirmed', 'completed', 'no_show'].includes(b.status) &&
-                Math.abs(timeToMins(b.time) - eMins) <= 22
-            );
-        });
-    }, [externalEvents, scheduleBookings]);
+    const { deduplicatedExternal, calendarMetaByBookingId } = useMemo(() => {
+        const deduped = dedupeExternalEventsAgainstBookings(
+            externalEvents,
+            scheduleBookings,
+            { requireBarberMatch: true },
+        );
+        return {
+            deduplicatedExternal: deduped.externalEvents,
+            calendarMetaByBookingId: mergeCalendarMetaMaps(
+                linkedCalendarByBookingId,
+                deduped.calendarMetaByBookingId,
+            ),
+        };
+    }, [externalEvents, scheduleBookings, linkedCalendarByBookingId]);
+
+    const activeBookingCalendarMeta = activeBooking
+        ? calendarMetaByBookingId.get(activeBooking.id) ?? null
+        : null;
 
     const bookingDurationMins = (b: Booking): number => parseDurationMins(b.duration);
 
@@ -1349,6 +1366,17 @@ function HostDashboardInner() {
                                     <p className="text-savron-silver/50 text-xs leading-relaxed border-t border-white/5 pt-3">
                                         {activeBooking.notes}
                                     </p>
+                                )}
+
+                                {activeBookingCalendarMeta?.htmlLink && (
+                                    <a
+                                        href={activeBookingCalendarMeta.htmlLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-center gap-2 w-full py-2.5 text-[10px] uppercase tracking-widest font-medium bg-white/5 hover:bg-white/10 text-savron-silver hover:text-white border border-white/10 hover:border-white/20 rounded-savron transition-all"
+                                    >
+                                        <Pencil className="w-3 h-3" /> {t('host.open_gcal')}
+                                    </a>
                                 )}
 
                                 {/* Client photo */}
