@@ -6,6 +6,12 @@ import { getValidAccessToken, type CalendarToken } from '@/lib/google-calendar';
 import { createServerSupabase } from '@/lib/supabase-server';
 import { createClient } from '@supabase/supabase-js';
 import { requireStaff } from '@/lib/staff-auth';
+import {
+    eventHasClientCalendarCancellationSignal,
+    extractClientNameFromEvent,
+    extractServiceFromEventSummary,
+    isoDateTimeToTimeSlot,
+} from '@/lib/calendar-event-sync';
 
 const GOOGLE_CALENDAR_BASE = 'https://www.googleapis.com/calendar/v3';
 
@@ -52,6 +58,7 @@ async function listEvents(
         htmlLink?: string;
         start?: { dateTime?: string };
         end?: { dateTime?: string };
+        attendees?: Array<{ email?: string; displayName?: string }>;
     }>;
 }
 
@@ -68,6 +75,7 @@ export async function GET(request: NextRequest) {
 
     let barber: {
         id: string;
+        name: string;
         google_calendar_id: string | null;
         google_calendar_tokens: CalendarToken | null;
     } | null = null;
@@ -80,14 +88,14 @@ export async function GET(request: NextRequest) {
 
         const { data } = await admin
             .from('barbers')
-            .select('id, google_calendar_id, google_calendar_tokens')
+            .select('id, name, google_calendar_id, google_calendar_tokens')
             .eq('id', previewBarberId)
             .maybeSingle();
         barber = data;
     } else {
         const { data } = await admin
             .from('barbers')
-            .select('id, google_calendar_id, google_calendar_tokens')
+            .select('id, name, google_calendar_id, google_calendar_tokens')
             .eq('auth_id', user.id)
             .maybeSingle();
         barber = data;
@@ -111,17 +119,24 @@ export async function GET(request: NextRequest) {
 
     const { data: linkedBookings } = await admin
         .from('bookings')
-        .select('id, shop_google_event_id, status')
+        .select('id, shop_google_event_id, google_event_id, status')
         .eq('barber_id', barber.id)
         .gte('date', dateStart)
-        .lte('date', dateEnd)
-        .not('shop_google_event_id', 'is', null);
+        .lte('date', dateEnd);
 
-    const linkedEventIds = new Set(
-        (linkedBookings ?? [])
-            .filter(b => b.status === 'confirmed' && b.shop_google_event_id)
-            .map(b => b.shop_google_event_id as string),
-    );
+    const linkedEventIds = new Set<string>();
+    const bookingByEventId = new Map<string, string>();
+    for (const booking of linkedBookings ?? []) {
+        if (booking.status !== 'confirmed') continue;
+        if (booking.shop_google_event_id) {
+            linkedEventIds.add(booking.shop_google_event_id);
+            bookingByEventId.set(booking.shop_google_event_id, booking.id);
+        }
+        if (booking.google_event_id) {
+            linkedEventIds.add(booking.google_event_id);
+            bookingByEventId.set(booking.google_event_id, booking.id);
+        }
+    }
 
     try {
         const accessToken = await getValidAccessToken(tokens);
@@ -137,19 +152,60 @@ export async function GET(request: NextRequest) {
             idsToFetch.map(id => listEvents(accessToken, id, timeMin, timeMax)),
         );
 
-        const events = allRaw
+        const mapped = allRaw
             .flat()
             .filter(e => e.status !== 'cancelled' && e.start?.dateTime)
+            .filter(e => !eventHasClientCalendarCancellationSignal(e))
             .filter(e => !linkedEventIds.has(e.id))
-            .map(e => ({
-                id: e.id,
-                summary: e.summary || 'Busy',
-                start: e.start!.dateTime!,
-                end: e.end?.dateTime ?? e.start!.dateTime!,
-                htmlLink: e.htmlLink ?? null,
-            }));
+            .map(e => {
+                const clientName = extractClientNameFromEvent(e);
+                const summary = e.summary || 'Appointment';
+                return {
+                    id: e.id,
+                    barberId: barber!.id,
+                    barberName: barber!.name,
+                    summary,
+                    service: extractServiceFromEventSummary(summary),
+                    clientName,
+                    attendee: clientName,
+                    start: e.start!.dateTime!,
+                    end: e.end?.dateTime ?? e.start!.dateTime!,
+                    date: e.start!.dateTime!.slice(0, 10),
+                    time: isoDateTimeToTimeSlot(e.start!.dateTime!),
+                    bookingId: bookingByEventId.get(e.id) ?? null,
+                    htmlLink: e.htmlLink ?? null,
+                    source: 'google' as const,
+                };
+            });
 
-        return NextResponse.json({ events, connected: true });
+        // Dedup: one event per date+time (prefer entry with a real client name).
+        const slotMap = new Map<string, typeof mapped[number]>();
+        for (const ev of mapped) {
+            const slotKey = `${ev.date}|${ev.time}`;
+            const existing = slotMap.get(slotKey);
+            if (!existing) {
+                slotMap.set(slotKey, ev);
+                continue;
+            }
+            if (ev.clientName && !existing.clientName) slotMap.set(slotKey, ev);
+        }
+
+        const pass1 = Array.from(slotMap.values());
+
+        // Dedup: same client name + date + time across calendars.
+        const globalSeen = new Map<string, typeof pass1[number]>();
+        for (const ev of pass1) {
+            const normalName = (ev.clientName ?? ev.summary).toLowerCase().trim().replace(/\s+/g, ' ');
+            const globalKey = `${normalName}|${ev.date}|${ev.time}`;
+            if (!globalSeen.has(globalKey)) {
+                globalSeen.set(globalKey, ev);
+            } else {
+                const existing = globalSeen.get(globalKey)!;
+                if (ev.clientName && !existing.clientName) globalSeen.set(globalKey, ev);
+            }
+        }
+
+        return NextResponse.json({ events: Array.from(globalSeen.values()), connected: true });
     } catch (err) {
         console.error('[calendar/barber/events]', err);
         return NextResponse.json({ events: [], connected: true, warning: 'fetch_failed' });

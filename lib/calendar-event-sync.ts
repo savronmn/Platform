@@ -139,6 +139,21 @@ export function extractClientNameFromEvent(event: CalendarSyncEvent): string | n
     return null;
 }
 
+/** Parse service label from a Google Calendar event summary. */
+export function extractServiceFromEventSummary(summary: string): string {
+    const trimmed = summary.trim();
+    const scissorsMatch = trimmed.match(/^✂️?\s*.+?\s*[—–-]\s*(.+)$/);
+    if (scissorsMatch) return scissorsMatch[1].trim();
+
+    const withBarberMatch = trimmed.match(/^(.+?)\s+with\s+/i);
+    if (withBarberMatch) return withBarberMatch[1].trim();
+
+    const shopMatch = trimmed.match(/^(.+?)\s*·/);
+    if (shopMatch) return shopMatch[1].trim();
+
+    return trimmed || 'Appointment';
+}
+
 export function isoDateTimeToTimeSlot(iso: string): string {
     const match = iso.match(/T(\d{2}):(\d{2})/);
     if (!match) return '9:00 AM';

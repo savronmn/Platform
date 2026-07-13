@@ -12,16 +12,18 @@ import {
 } from 'date-fns';
 import {
     RefreshCw, ExternalLink, Link2, Link2Off, XCircle,
-    CheckCircle, User, Clock, CalendarDays,
+    CheckCircle, User, Clock, CalendarDays, Pencil,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Barber, Booking } from '@/lib/types';
 import { serviceBlockStyle } from '@/lib/services-data';
 import {
-    formatTimeCompact, formatTimeRange, time24ToMins, getCalendarGridBounds, getTimelineLayout,
+    formatTimeCompact, formatTimeRange, time24ToMins, timeToMins, getCalendarGridBounds, getTimelineLayout,
 } from '@/lib/calendar-timeline';
+import { extractServiceFromEventSummary, namesMatch } from '@/lib/calendar-event-sync';
 import TimelineDayGrid, { bookingToTimelineEvent, isoRangeToTimelineEvent, type TimelineEvent } from '@/components/calendar/TimelineDayGrid';
 import CalendarNavBar from '@/components/calendar/CalendarNavBar';
+import EditBookingModal from '@/components/crm/EditBookingModal';
 import { useServices } from '@/lib/use-services';
 import { triggerCancelBooking } from '@/lib/confirm-booking';
 import Image from 'next/image';
@@ -33,7 +35,37 @@ const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 type DayKey = typeof DAY_KEYS[number];
 type WorkingHours = Partial<Record<DayKey, { open: string; close: string } | null>>;
 
-type GcalEvent = { id: string; summary: string; start: string; end: string; htmlLink: string | null };
+type ExternalEvent = {
+    id: string;
+    barberId: string;
+    barberName: string;
+    summary: string;
+    service: string;
+    clientName: string | null;
+    attendee: string | null;
+    start: string;
+    end: string;
+    date: string;
+    time: string;
+    htmlLink: string | null;
+    bookingId: string | null;
+    source: 'google';
+};
+
+type DayTimelineItem =
+    | { kind: 'booking'; b: Booking }
+    | { kind: 'external'; e: ExternalEvent };
+
+function externalDurationMins(e: ExternalEvent): number {
+    const duration = Math.round((new Date(e.end).getTime() - new Date(e.start).getTime()) / 60000);
+    return Number.isFinite(duration) && duration > 0 ? duration : 45;
+}
+
+function servicesRoughMatch(a: string, b: string): boolean {
+    const left = a.toLowerCase().trim();
+    const right = b.toLowerCase().trim();
+    return left === right || left.includes(right) || right.includes(left);
+}
 
 export default function BarberSlugCalendarPage() {
     const params = useParams();
@@ -50,14 +82,15 @@ export default function BarberSlugCalendarPage() {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [barber, setBarber] = useState<Barber | null>(null);
     const [bookings, setBookings] = useState<Booking[]>([]);
-    const [googleBusy, setGoogleBusy] = useState<{ start: string; end: string }[]>([]);
-    const [gcalEvents, setGcalEvents] = useState<GcalEvent[]>([]);
+    const [externalEvents, setExternalEvents] = useState<ExternalEvent[]>([]);
     const [workingHours, setWorkingHours] = useState<WorkingHours | null>(null);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
     const [calConnected, setCalConnected] = useState(false);
     const [calError, setCalError] = useState<string | null>(null);
     const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+    const [selectedExternal, setSelectedExternal] = useState<ExternalEvent | null>(null);
+    const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
 
     const today = new Date().toISOString().split('T')[0];
@@ -143,17 +176,15 @@ export default function BarberSlugCalendarPage() {
 
             if (busyRes.ok) {
                 const data = await busyRes.json();
-                setGoogleBusy(data.busy || []);
                 if (data.workingHours) setWorkingHours(data.workingHours);
             }
 
             if (eventsRes.ok) {
                 const data = await eventsRes.json();
-                setGcalEvents(data.events || []);
+                setExternalEvents(data.events || []);
             }
         } catch {
-            setGoogleBusy([]);
-            setGcalEvents([]);
+            setExternalEvents([]);
         }
         setSyncing(false);
     }, [barber, selectedDate, rangeStart, rangeEnd, isAdminPreview]);
@@ -188,27 +219,41 @@ export default function BarberSlugCalendarPage() {
 
     const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
 
+    const activeBookings = useMemo(
+        () => bookings.filter(b => ['confirmed', 'completed', 'no_show'].includes(b.status)),
+        [bookings],
+    );
+
+    // Hide GCal copies when the same appointment exists in the platform (name + time + service).
+    const deduplicatedExternal = useMemo(() => {
+        return externalEvents.filter(e => {
+            const eMins = timeToMins(e.time);
+            const eService = e.service || extractServiceFromEventSummary(e.summary);
+
+            return !activeBookings.some(b => {
+                if (b.date !== e.date) return false;
+                if (e.bookingId && e.bookingId === b.id) return true;
+
+                const timeClose = Math.abs(timeToMins(b.time) - eMins) <= 22;
+                if (!timeClose) return false;
+
+                const nameMatch = namesMatch(e.clientName, b.client_name);
+                const serviceMatch = servicesRoughMatch(eService, b.service);
+                return (nameMatch && serviceMatch) || (nameMatch && timeClose) || (serviceMatch && timeClose);
+            });
+        });
+    }, [externalEvents, activeBookings]);
+
     const dayTimelineMap = useMemo(() => {
-        const map = new Map<string, { kind: 'booking'; b: Booking } | { kind: 'gcal'; start: string; end: string; summary: string; htmlLink: string | null }>();
+        const map = new Map<string, DayTimelineItem>();
         for (const b of bookings.filter(bk => bk.date === selectedDateStr && bk.status !== 'cancelled')) {
             map.set(`b-${b.id}`, { kind: 'booking', b });
         }
-        const seen = new Set<string>();
-        for (const block of googleBusy) {
-            const key = `${block.start}|${block.end}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            const match = gcalEvents.find(e => e.start === block.start && e.end === block.end);
-            map.set(`g-${key}`, {
-                kind: 'gcal',
-                start: block.start,
-                end: block.end,
-                summary: match?.summary ?? 'External',
-                htmlLink: match?.htmlLink ?? null,
-            });
+        for (const e of deduplicatedExternal.filter(ev => ev.date === selectedDateStr)) {
+            map.set(`e-${e.id}`, { kind: 'external', e });
         }
         return map;
-    }, [bookings, googleBusy, gcalEvents, selectedDateStr]);
+    }, [bookings, deduplicatedExternal, selectedDateStr]);
 
     const dayTimelineEvents = useMemo((): TimelineEvent[] => {
         const events: TimelineEvent[] = [];
@@ -216,24 +261,36 @@ export default function BarberSlugCalendarPage() {
             if (item.kind === 'booking') {
                 events.push(bookingToTimelineEvent(id, item.b.time, item.b.duration));
             } else {
-                events.push(isoRangeToTimelineEvent(id, item.start, item.end));
+                events.push(isoRangeToTimelineEvent(id, item.e.start, item.e.end));
             }
         });
         return events;
     }, [dayTimelineMap]);
 
-    const bookingTimelineMap = useMemo(() => {
-        const map = new Map<string, Booking>();
-        for (const booking of bookings) {
-            if (booking.status !== 'cancelled') map.set(`b-${booking.id}`, booking);
+    const weekTimelineMap = useMemo(() => {
+        const map = new Map<string, DayTimelineItem>();
+        for (const b of bookings.filter(bk => bk.status !== 'cancelled')) {
+            map.set(`b-${b.id}`, { kind: 'booking', b });
+        }
+        for (const e of deduplicatedExternal) {
+            map.set(`e-${e.id}`, { kind: 'external', e });
         }
         return map;
-    }, [bookings]);
+    }, [bookings, deduplicatedExternal]);
 
-    const timelineEventsForDate = (dateStr: string): TimelineEvent[] =>
-        bookingsForDate(dateStr).map(booking =>
-            bookingToTimelineEvent(`b-${booking.id}`, booking.time, booking.duration),
-        );
+    const timelineEventsForDate = (dateStr: string): TimelineEvent[] => {
+        const events: TimelineEvent[] = [];
+        weekTimelineMap.forEach((item, id) => {
+            if (item.kind === 'booking') {
+                if (item.b.date !== dateStr) return;
+                events.push(bookingToTimelineEvent(id, item.b.time, item.b.duration));
+            } else {
+                if (item.e.date !== dateStr) return;
+                events.push(isoRangeToTimelineEvent(id, item.e.start, item.e.end));
+            }
+        });
+        return events;
+    };
 
     const getScheduleForDate = (date: Date): { open: string; close: string } | null => {
         if (!workingHours) return null;
@@ -494,7 +551,7 @@ export default function BarberSlugCalendarPage() {
                                         return (
                                             <button
                                                 type="button"
-                                                onClick={() => setSelectedBooking(booking)}
+                                                onClick={() => { setSelectedExternal(null); setSelectedBooking(booking); }}
                                                 className={cn(
                                                     'h-full w-full rounded-lg border overflow-hidden flex flex-col justify-center text-left shadow-lg shadow-black/20 cursor-pointer hover:brightness-110 transition-all',
                                                     tight ? 'px-3 py-2' : 'p-3',
@@ -509,25 +566,24 @@ export default function BarberSlugCalendarPage() {
                                             </button>
                                         );
                                     }
-                                    const gcalTime = formatTimeCompact(new Date(item.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }));
-                                    const content = (
-                                        <div className={cn(
-                                            'h-full rounded-lg border overflow-hidden flex flex-col justify-center bg-blue-950/90 border-blue-400/60 text-blue-100 shadow-lg shadow-black/20',
-                                            tight ? 'px-3 py-2' : 'p-3',
-                                            item.htmlLink && 'cursor-pointer hover:brightness-110',
-                                        )}>
-                                            <span className="font-semibold text-white truncate text-sm">{item.summary}</span>
-                                            {!tight && <span className="text-blue-200/75 text-[10px] mt-0.5">{gcalTime}</span>}
-                                        </div>
+                                    const external = item.e;
+                                    const displayName = external.clientName ?? external.attendee ?? external.summary;
+                                    return (
+                                        <button
+                                            type="button"
+                                            onClick={() => { setSelectedBooking(null); setSelectedExternal(external); }}
+                                            className={cn(
+                                                'h-full w-full rounded-lg border overflow-hidden flex flex-col justify-center text-left bg-blue-950/90 border-blue-400/60 text-blue-100 shadow-lg shadow-black/20 cursor-pointer hover:brightness-110 transition-all',
+                                                tight ? 'px-3 py-2' : 'p-3',
+                                            )}
+                                        >
+                                            <p className="font-semibold text-white truncate text-sm">{displayName}</p>
+                                            {!tight && <p className="text-blue-200/75 truncate text-xs mt-0.5">{external.service}</p>}
+                                            <p className={cn('text-blue-200/60 font-mono truncate', tight ? 'text-[10px] mt-0.5' : 'text-[11px] mt-1')}>
+                                                {formatTimeRange(external.time, externalDurationMins(external))}
+                                            </p>
+                                        </button>
                                     );
-                                    if (item.htmlLink) {
-                                        return (
-                                            <a href={item.htmlLink} target="_blank" rel="noopener noreferrer" className="block h-full">
-                                                {content}
-                                            </a>
-                                        );
-                                    }
-                                    return content;
                                 }}
                             />
                         </div>
@@ -565,22 +621,43 @@ export default function BarberSlugCalendarPage() {
                                 columnWidth="min-w-[140px] sm:min-w-[200px] md:min-w-[220px]"
                                 getEventsForColumn={timelineEventsForDate}
                                 renderEvent={(event) => {
-                                    const booking = bookingTimelineMap.get(event.id);
-                                    if (!booking) return null;
+                                    const item = weekTimelineMap.get(event.id);
+                                    if (!item) return null;
                                     const tight = event.durationMins <= 30;
+
+                                    if (item.kind === 'booking') {
+                                        const booking = item.b;
+                                        return (
+                                            <button
+                                                type="button"
+                                                onClick={() => { setSelectedDate(new Date(`${booking.date}T12:00:00`)); setView('day'); setSelectedExternal(null); setSelectedBooking(booking); }}
+                                                className={cn(
+                                                    'h-full w-full rounded-lg border text-xs overflow-hidden flex flex-col justify-center text-left cursor-pointer shadow-xl shadow-black/25 hover:brightness-110 transition-all',
+                                                    tight ? 'px-3 py-2' : 'p-3',
+                                                )}
+                                                style={timelineServiceStyle(booking.service)}
+                                            >
+                                                <p className="font-mono text-[10px] uppercase tracking-wider opacity-80">{formatTimeCompact(booking.time)}</p>
+                                                <p className="text-white font-semibold truncate">{booking.client_name || 'Walk-in'}</p>
+                                                {!tight && <p className="opacity-85 truncate">{booking.service}</p>}
+                                            </button>
+                                        );
+                                    }
+
+                                    const external = item.e;
+                                    const displayName = external.clientName ?? external.attendee ?? external.summary;
                                     return (
                                         <button
                                             type="button"
-                                            onClick={() => { setSelectedDate(new Date(`${booking.date}T12:00:00`)); setView('day'); setSelectedBooking(booking); }}
+                                            onClick={() => { setSelectedDate(new Date(`${external.date}T12:00:00`)); setView('day'); setSelectedBooking(null); setSelectedExternal(external); }}
                                             className={cn(
-                                                'h-full w-full rounded-lg border text-xs overflow-hidden flex flex-col justify-center text-left cursor-pointer shadow-xl shadow-black/25 hover:brightness-110 transition-all',
+                                                'h-full w-full rounded-lg border text-xs overflow-hidden flex flex-col justify-center text-left cursor-pointer shadow-xl shadow-black/25 hover:brightness-110 transition-all bg-blue-950/90 border-blue-400/60 text-blue-100',
                                                 tight ? 'px-3 py-2' : 'p-3',
                                             )}
-                                            style={timelineServiceStyle(booking.service)}
                                         >
-                                            <p className="font-mono text-[10px] uppercase tracking-wider opacity-80">{formatTimeCompact(booking.time)}</p>
-                                            <p className="text-white font-semibold truncate">{booking.client_name || 'Walk-in'}</p>
-                                            {!tight && <p className="opacity-85 truncate">{booking.service}</p>}
+                                            <p className="font-mono text-[10px] uppercase tracking-wider opacity-80">{formatTimeCompact(external.time)}</p>
+                                            <p className="text-white font-semibold truncate">{displayName}</p>
+                                            {!tight && <p className="text-blue-200/75 truncate">{external.service}</p>}
                                         </button>
                                     );
                                 }}
@@ -637,6 +714,12 @@ export default function BarberSlugCalendarPage() {
                             {selectedBooking.status === 'confirmed' && !isAdminPreview && (
                                 <>
                                     <button
+                                        onClick={() => { setEditingBooking(selectedBooking); setSelectedBooking(null); }}
+                                        className="flex items-center gap-1 px-3 py-2 bg-savron-green/15 text-savron-blue-light border border-savron-green/30 rounded-savron text-xs uppercase tracking-wider hover:bg-savron-green/25"
+                                    >
+                                        <Pencil className="w-3 h-3" /> Edit
+                                    </button>
+                                    <button
                                         onClick={() => handleStatusUpdate(selectedBooking.id, 'completed')}
                                         className="flex items-center gap-1 px-3 py-2 bg-green-500/10 text-green-400 border border-green-500/20 rounded-savron text-xs uppercase tracking-wider hover:bg-green-500/20"
                                     >
@@ -660,6 +743,55 @@ export default function BarberSlugCalendarPage() {
                     </div>
                 </div>
             )}
+
+            {/* External Google Calendar detail panel */}
+            {selectedExternal && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedExternal(null)}>
+                    <div
+                        className="bg-savron-grey border border-white/10 rounded-savron p-6 w-full max-w-md space-y-4"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-[10px] uppercase tracking-[0.3em] text-blue-300/70 mb-1 flex items-center gap-1.5">
+                                    <CalendarDays className="w-3 h-3" /> Google Calendar
+                                </p>
+                                <p className="font-heading text-lg uppercase tracking-widest text-white">
+                                    {selectedExternal.clientName ?? selectedExternal.attendee ?? selectedExternal.summary}
+                                </p>
+                                <p className="text-savron-silver text-sm mt-1">{selectedExternal.service}</p>
+                                <p className="text-savron-silver text-xs">{selectedExternal.date} at {selectedExternal.time}</p>
+                                <p className="text-savron-silver/50 text-xs mt-1">{selectedExternal.barberName}</p>
+                            </div>
+                            <button onClick={() => setSelectedExternal(null)} className="text-savron-silver hover:text-white p-1">
+                                <XCircle className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {selectedExternal.htmlLink && (
+                            <a
+                                href={selectedExternal.htmlLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center gap-2 w-full py-2.5 text-xs uppercase tracking-widest text-savron-silver border border-white/10 rounded-savron hover:bg-white/5 hover:text-white transition-all"
+                            >
+                                <ExternalLink className="w-3.5 h-3.5" /> Open in Google Calendar
+                            </a>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            <EditBookingModal
+                booking={editingBooking}
+                barbers={barber ? [barber] : []}
+                onClose={() => setEditingBooking(null)}
+                onSaved={(updated) => {
+                    setBookings(prev => prev.map(b => b.id === updated.id ? updated : b));
+                    setEditingBooking(null);
+                    void refreshCalendar();
+                }}
+            />
         </motion.div>
     );
 }
