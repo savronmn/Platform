@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { SHOP_CONTACT_EMAIL } from '@/lib/shop';
 
 export default function PrivacyPolicy() {
     return (
@@ -15,7 +16,7 @@ export default function PrivacyPolicy() {
 
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
                     <h1 className="font-heading text-4xl md:text-5xl text-white tracking-wider uppercase">Privacy Policy</h1>
-                    <p className="text-xs uppercase tracking-widest text-savron-silver/50">Last Updated: May 2026</p>
+                    <p className="text-xs uppercase tracking-widest text-savron-silver/50">Last Updated: July 2026</p>
                 </motion.div>
 
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="space-y-8 font-light text-sm leading-relaxed text-savron-silver/80">
@@ -39,25 +40,46 @@ export default function PrivacyPolicy() {
                         </ul>
                     </section>
 
-                    <section className="space-y-4">
-                        <h2 className="text-xl font-heading text-white tracking-widest uppercase">3. Information Sharing</h2>
-                        <p>We do not sell your personal information. We may share your information with trusted third-party service providers (such as payment processors, calendar syncing providers, or hosting services) only to the extent necessary for them to perform services on our behalf.</p>
+                    <section id="cookies" className="space-y-4 scroll-mt-24">
+                        <h2 className="text-xl font-heading text-white tracking-widest uppercase">3. Cookies & Similar Technologies</h2>
+                        <p>We use cookies and similar technologies (such as browser local storage) to operate our website and services.</p>
+                        <ul className="list-disc pl-5 space-y-2 text-savron-silver/70">
+                            <li><strong className="text-savron-silver">Essential cookies</strong> — required for secure login, session management, appointment booking, membership passes, and fraud prevention. These cannot be disabled if you use our online services.</li>
+                            <li><strong className="text-savron-silver">Functional storage</strong> — remembers preferences such as language settings to improve your experience.</li>
+                            <li><strong className="text-savron-silver">Analytics cookies</strong> — optional, off by default unless you allow them in our cookie preferences. We do not use analytics cookies for targeted advertising.</li>
+                        </ul>
+                        <p>You can change your cookie preferences at any time using the cookie banner on your first visit, or by clearing site data in your browser and revisiting savron.com.</p>
                     </section>
 
                     <section className="space-y-4">
-                        <h2 className="text-xl font-heading text-white tracking-widest uppercase">4. Data Security</h2>
+                        <h2 className="text-xl font-heading text-white tracking-widest uppercase">4. Information Sharing</h2>
+                        <p>We do not sell your personal information. We do not process personal data for targeted advertising across non-affiliated websites. We may share your information with trusted third-party service providers (such as payment processors, calendar syncing providers, email delivery, or hosting services) only to the extent necessary for them to perform services on our behalf.</p>
+                    </section>
+
+                    <section className="space-y-4">
+                        <h2 className="text-xl font-heading text-white tracking-widest uppercase">5. Data Security</h2>
                         <p>We implement reasonable security measures to protect your personal information from unauthorized access, alteration, or disclosure. However, no method of transmission over the Internet is 100% secure, and we cannot guarantee absolute security.</p>
                     </section>
 
-                    <section className="space-y-4">
-                        <h2 className="text-xl font-heading text-white tracking-widest uppercase">5. Your Rights</h2>
-                        <p>You have the right to access, correct, or delete your personal information. If you have created an account on our platform, you may update your information by logging in. For deletion requests, please contact us.</p>
+                    <section id="privacy-rights" className="space-y-4 scroll-mt-24">
+                        <h2 className="text-xl font-heading text-white tracking-widest uppercase">6. Your Privacy Rights (Minnesota)</h2>
+                        <p>If you are a Minnesota resident, the Minnesota Consumer Data Privacy Act (MCDPA) may provide you with the following rights regarding your personal data:</p>
+                        <ul className="list-disc pl-5 space-y-2 text-savron-silver/70">
+                            <li><strong className="text-savron-silver">Access</strong> — request to know what personal data we hold about you</li>
+                            <li><strong className="text-savron-silver">Correction</strong> — request correction of inaccurate personal data</li>
+                            <li><strong className="text-savron-silver">Deletion</strong> — request deletion of personal data we collected from you</li>
+                            <li><strong className="text-savron-silver">Opt out</strong> — opt out of the sale of personal data (we do not sell personal data) and opt out of targeted advertising (we do not engage in cross-site targeted advertising)</li>
+                            <li><strong className="text-savron-silver">Data portability</strong> — request a copy of personal data you provided, where applicable</li>
+                        </ul>
+                        <p>To exercise these rights, email us at <a href={`mailto:${SHOP_CONTACT_EMAIL}`} className="text-white hover:underline">{SHOP_CONTACT_EMAIL}</a> with the subject line &quot;Privacy Rights Request.&quot; We will verify your request and respond as required by law. You will not be discriminated against for exercising your privacy rights.</p>
+                        <p>If you have an account, you may also update certain information by logging in to your membership or booking profile.</p>
                     </section>
 
                     <section className="space-y-4">
-                        <h2 className="text-xl font-heading text-white tracking-widest uppercase">6. Contact Us</h2>
-                        <p>If you have any questions about this Privacy Policy, please contact us at:</p>
-                        <p className="text-white">info@savronmn.com</p>
+                        <h2 className="text-xl font-heading text-white tracking-widest uppercase">7. Contact Us</h2>
+                        <p>If you have any questions about this Privacy Policy or our data practices, please contact us at:</p>
+                        <p className="text-white">{SHOP_CONTACT_EMAIL}</p>
+                        <p className="text-savron-silver/60 text-xs">SAVRON Barbershop · Minneapolis, Minnesota</p>
                     </section>
                 </motion.div>
             </div>

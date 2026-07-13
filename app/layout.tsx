@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Montserrat, Inter, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import LayoutShell from '@/components/layout/LayoutShell';
+import CookieConsentBanner from '@/components/layout/CookieConsentBanner';
 
 const montserrat = Montserrat({
     subsets: ['latin'],
@@ -99,6 +100,7 @@ export default function RootLayout({
                 <LayoutShell>
                     {children}
                 </LayoutShell>
+                <CookieConsentBanner />
             </body>
         </html>
     );
