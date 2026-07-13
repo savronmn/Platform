@@ -68,6 +68,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     const dateStart = searchParams.get('dateStart');
     const dateEnd = searchParams.get('dateEnd');
+    const skipDeclineSweep = searchParams.get('skipDeclineSweep') === '1';
 
     if (!dateStart || !dateEnd) {
         return NextResponse.json({ error: 'dateStart and dateEnd required' }, { status: 400 });
@@ -78,8 +79,10 @@ export async function GET(req: NextRequest) {
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Cancel bookings when clients decline in Google Calendar before building host view data.
-    await processDeclinedCalendarEvents(supabase, dateStart, dateEnd);
+    if (!skipDeclineSweep) {
+        // Cancel bookings when clients decline in Google Calendar before building host view data.
+        await processDeclinedCalendarEvents(supabase, dateStart, dateEnd);
+    }
 
     const { data: barbers } = await supabase
         .from('barbers')

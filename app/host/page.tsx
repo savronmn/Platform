@@ -161,19 +161,30 @@ function HostDashboardInner() {
         setBookings(data ?? []);
     }, [rangeStart, rangeEnd]);
 
-    const fetchExternalEvents = useCallback(async () => {
+    const fetchExternalEvents = useCallback(async (options: { skipDeclineSweep?: boolean } = {}) => {
         try {
-            const res = await fetch(`/api/calendar/events?dateStart=${rangeStart}&dateEnd=${rangeEnd}`, {
+            const params = new URLSearchParams({
+                dateStart: rangeStart,
+                dateEnd: rangeEnd,
+            });
+            if (options.skipDeclineSweep) params.set('skipDeclineSweep', '1');
+            const res = await fetch(`/api/calendar/events?${params.toString()}`, {
                 credentials: 'include',
             });
             if (res.ok) setExternalEvents(await res.json());
         } catch { /* silent — platform bookings still show */ }
     }, [rangeStart, rangeEnd]);
 
-    const refreshCalendarData = useCallback(async () => {
-        // Process Google declines first, then reload bookings so declined appointments disappear.
-        await fetchExternalEvents();
-        await fetchBookings();
+    const refreshCalendarData = useCallback(async (options: { skipDeclineSweep?: boolean } = {}) => {
+        await Promise.all([
+            fetchExternalEvents(options),
+            fetchBookings(),
+        ]);
+    }, [fetchBookings, fetchExternalEvents]);
+
+    const refreshAfterCancel = useCallback(() => {
+        void fetchBookings();
+        void fetchExternalEvents({ skipDeclineSweep: true });
     }, [fetchBookings, fetchExternalEvents]);
 
     const scheduleBookings = useMemo(
@@ -241,7 +252,6 @@ function HostDashboardInner() {
         if (status === 'cancelled') {
             const result = await triggerCancelBooking(booking.id);
             if (result.success) {
-                await refreshCalendarData();
                 setBookings(prev => prev.map(b =>
                     b.barber_id === booking.barber_id &&
                     b.date === booking.date &&
@@ -263,6 +273,7 @@ function HostDashboardInner() {
                             : prev
                 );
                 setCancelError(result.warning ?? null);
+                refreshAfterCancel();
             } else {
                 setCancelError(result.error ?? 'Could not cancel appointment');
             }
@@ -293,11 +304,11 @@ function HostDashboardInner() {
             return;
         }
         setBookings(prev => prev.filter(b => b.id !== booking.id));
-        await refreshCalendarData();
         setCancelError(result.warning ?? null);
         setDeletingId(null);
         setConfirmDelete(false);
         setActiveBooking(null);
+        refreshAfterCancel();
     };
 
     const cancelExternalEvent = async (event: ExternalEvent) => {
@@ -316,7 +327,7 @@ function HostDashboardInner() {
             }
             setExternalEvents(prev => prev.filter(item => item.id !== event.id));
             setActiveExternal(null);
-            await refreshCalendarData();
+            refreshAfterCancel();
             setCancelError(data.warning ?? null);
         } catch {
             setCancelError('Could not cancel calendar event');
