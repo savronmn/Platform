@@ -146,7 +146,6 @@ export const TIME_SLOTS = generateTimeSlots('10:00', '19:00', BOOKING_SLOT_INTER
 
 // Legacy 45-min grid — host calendar week view and timeline layout only
 export const CALENDAR_GRID_SLOT_INTERVAL_MINS = 45;
-export const TIME_SLOTS_LEGACY_45 = generateTimeSlots('10:00', '19:00', CALENDAR_GRID_SLOT_INTERVAL_MINS);
 
 export const BOOKING_HOST_TIME_SLOTS = generateTimeSlots(SHOP_GRID_OPEN, SHOP_GRID_CLOSE, BOOKING_SLOT_INTERVAL_MINS);
 
