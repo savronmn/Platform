@@ -61,7 +61,11 @@ async function collectBarberTargets(
     booking: BookingCalendarTarget,
     fallbackDate?: string,
     fallbackTime?: string,
-): Promise<{ targets: Array<{ calendarId: string; eventId: string }>; calendarIds: string[] }> {
+): Promise<{
+    targets: Array<{ calendarId: string; eventId: string }>;
+    calendarIds: string[];
+    accessToken: string | null;
+}> {
     const supabase = getAdmin();
     const { data: barber } = await supabase
         .from('barbers')
@@ -70,10 +74,20 @@ async function collectBarberTargets(
         .single();
 
     if (!barber?.google_calendar_tokens || !barber.google_calendar_id) {
-        return { targets: [], calendarIds: [] };
+        return { targets: [], calendarIds: [], accessToken: null };
     }
 
     const accessToken = await getValidAccessToken(barber.google_calendar_tokens as CalendarToken);
+
+    // Fast path: stored event id avoids scanning every connected calendar.
+    if (booking.google_event_id) {
+        return {
+            targets: [{ calendarId: barber.google_calendar_id, eventId: booking.google_event_id }],
+            calendarIds: [barber.google_calendar_id],
+            accessToken,
+        };
+    }
+
     const calendarIds = await listAccountCalendarIds(accessToken);
     const idsToSearch = calendarIds.length > 0 ? calendarIds : [barber.google_calendar_id];
 
@@ -87,16 +101,9 @@ async function collectBarberTargets(
         targets.push({ calendarId, eventId });
     };
 
-    // Best match: events tagged with our booking id when created/updated.
     const byBookingId = await findEventsByBookingId(accessToken, idsToSearch, booking.id);
     byBookingId.forEach(t => addTarget(t.calendarId, t.eventId));
 
-    // Stored google_event_id on the barber's primary calendar.
-    if (booking.google_event_id) {
-        addTarget(barber.google_calendar_id, booking.google_event_id);
-    }
-
-    // Legacy fallback: match by old slot when date/time/barber changed.
     const matchBooking = {
         date: fallbackDate ?? booking.date,
         time: fallbackTime ?? booking.time,
@@ -113,19 +120,33 @@ async function collectBarberTargets(
     );
     fallbackMatches.forEach(t => addTarget(t.calendarId, t.eventId));
 
-    return { targets, calendarIds: idsToSearch };
+    return { targets, calendarIds: idsToSearch, accessToken };
 }
 
 async function collectShopTargets(
     booking: BookingCalendarTarget,
     fallbackDate?: string,
     fallbackTime?: string,
-): Promise<{ targets: Array<{ calendarId: string; eventId: string }>; calendarIds: string[] }> {
+): Promise<{
+    targets: Array<{ calendarId: string; eventId: string }>;
+    calendarIds: string[];
+    accessToken: string | null;
+}> {
     const tokens = await getShopCalendarTokens();
-    if (!tokens) return { targets: [], calendarIds: [] };
+    if (!tokens) return { targets: [], calendarIds: [], accessToken: null };
 
     const accessToken = await getValidAccessToken(tokens);
     const primaryId = await getShopCalendarId();
+
+    // Fast path: stored shop event id avoids scanning every connected calendar.
+    if (booking.shop_google_event_id) {
+        return {
+            targets: [{ calendarId: primaryId, eventId: booking.shop_google_event_id }],
+            calendarIds: [primaryId],
+            accessToken,
+        };
+    }
+
     const calendarIds = await listAccountCalendarIds(accessToken);
     const idsToSearch = calendarIds.length > 0
         ? Array.from(new Set([primaryId, ...calendarIds]))
@@ -144,10 +165,6 @@ async function collectShopTargets(
     const byBookingId = await findEventsByBookingId(accessToken, idsToSearch, booking.id);
     byBookingId.forEach(t => addTarget(t.calendarId, t.eventId));
 
-    if (booking.shop_google_event_id) {
-        addTarget(primaryId, booking.shop_google_event_id);
-    }
-
     const matchBooking = {
         date: fallbackDate ?? booking.date,
         time: fallbackTime ?? booking.time,
@@ -164,7 +181,56 @@ async function collectShopTargets(
     );
     fallbackMatches.forEach(t => addTarget(t.calendarId, t.eventId));
 
-    return { targets, calendarIds: idsToSearch };
+    return { targets, calendarIds: idsToSearch, accessToken };
+}
+
+async function cleanupBarberCalendarEvents(
+    barberId: string,
+    booking: BookingCalendarTarget,
+    fallbackDate?: string,
+    fallbackTime?: string,
+): Promise<CalendarCleanupResult> {
+    const { targets, calendarIds, accessToken } = await collectBarberTargets(
+        barberId,
+        booking,
+        fallbackDate,
+        fallbackTime,
+    );
+
+    if (!accessToken || targets.length === 0) {
+        return { deleted: 0, failed: 0, calendarsChecked: [] };
+    }
+
+    const result = await deleteTargets(accessToken, targets, 'all');
+    return {
+        deleted: result.deleted,
+        failed: result.failed,
+        calendarsChecked: calendarIds.map(id => `barber:${id}`),
+    };
+}
+
+async function cleanupShopCalendarEvents(
+    booking: BookingCalendarTarget,
+    fallbackDate?: string,
+    fallbackTime?: string,
+): Promise<CalendarCleanupResult> {
+    const { targets, calendarIds, accessToken } = await collectShopTargets(
+        booking,
+        fallbackDate,
+        fallbackTime,
+    );
+
+    if (!accessToken || targets.length === 0) {
+        return { deleted: 0, failed: 0, calendarsChecked: [] };
+    }
+
+    // Notify attendees that the Google invite was cancelled.
+    const result = await deleteTargets(accessToken, targets, 'all');
+    return {
+        deleted: result.deleted,
+        failed: result.failed,
+        calendarsChecked: calendarIds.map(id => `shop:${id}`),
+    };
 }
 
 /** Remove all Google Calendar blocks for a booking from barber + Savron shop calendars. */
@@ -177,53 +243,22 @@ export async function deleteAllBookingCalendarEvents(
     } = {},
 ): Promise<CalendarCleanupResult> {
     const barberId = options.barberId ?? booking.barber_id;
-    let deleted = 0;
-    let failed = 0;
-    const calendarsChecked: string[] = [];
+    const fallbackDate = options.fallbackDate;
+    const fallbackTime = options.fallbackTime;
 
+    const cleanupTasks: Array<Promise<CalendarCleanupResult>> = [];
     if (barberId) {
-        const { targets, calendarIds } = await collectBarberTargets(
-            barberId,
-            booking,
-            options.fallbackDate,
-            options.fallbackTime,
-        );
-        calendarsChecked.push(...calendarIds.map(id => `barber:${id}`));
-
-        if (targets.length > 0) {
-            const supabase = getAdmin();
-            const { data: barber } = await supabase
-                .from('barbers')
-                .select('google_calendar_tokens')
-                .eq('id', barberId)
-                .single();
-
-            if (barber?.google_calendar_tokens) {
-                const accessToken = await getValidAccessToken(barber.google_calendar_tokens as CalendarToken);
-                const result = await deleteTargets(accessToken, targets, 'all');
-                deleted += result.deleted;
-                failed += result.failed;
-            }
-        }
+        cleanupTasks.push(cleanupBarberCalendarEvents(barberId, booking, fallbackDate, fallbackTime));
     }
+    cleanupTasks.push(cleanupShopCalendarEvents(booking, fallbackDate, fallbackTime));
 
-    const shopTokens = await getShopCalendarTokens();
-    if (shopTokens) {
-        const { targets, calendarIds } = await collectShopTargets(
-            booking,
-            options.fallbackDate,
-            options.fallbackTime,
-        );
-        calendarsChecked.push(...calendarIds.map(id => `shop:${id}`));
-
-        if (targets.length > 0) {
-            const accessToken = await getValidAccessToken(shopTokens);
-            // Notify attendees that the Google invite was cancelled.
-            const result = await deleteTargets(accessToken, targets, 'all');
-            deleted += result.deleted;
-            failed += result.failed;
-        }
-    }
-
-    return { deleted, failed, calendarsChecked };
+    const results = await Promise.all(cleanupTasks);
+    return results.reduce<CalendarCleanupResult>(
+        (acc, result) => ({
+            deleted: acc.deleted + result.deleted,
+            failed: acc.failed + result.failed,
+            calendarsChecked: [...acc.calendarsChecked, ...result.calendarsChecked],
+        }),
+        { deleted: 0, failed: 0, calendarsChecked: [] },
+    );
 }

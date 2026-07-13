@@ -71,69 +71,80 @@ export async function cancelBooking(
         ? booking.barbers[0] ?? null
         : booking.barbers;
 
-    if (!options.skipEmail && !alreadyCancelled && !booking.shop_google_event_id && !booking.google_event_id) {
-        try {
-            const emailResult = await sendCancellationEmails({
-                ...booking,
-                barbers: barberRelation
-                    ? { name: barberRelation.name, email: barberRelation.email }
-                    : null,
-            });
-            emailSent = emailResult.success;
-            if (!emailResult.success) {
-                warnings.push(emailResult.error ?? 'Cancellation email could not be sent');
-            }
-        } catch (error) {
+    const shouldSendEmail = !options.skipEmail
+        && !alreadyCancelled
+        && !booking.shop_google_event_id
+        && !booking.google_event_id;
+    const shouldCleanupCalendar = !options.skipCalendar;
+
+    const emailPromise = shouldSendEmail
+        ? sendCancellationEmails({
+            ...booking,
+            barbers: barberRelation
+                ? { name: barberRelation.name, email: barberRelation.email }
+                : null,
+        }).catch((error) => {
             console.error('Failed to send cancellation emails:', error);
-            warnings.push('Cancellation email could not be sent');
+            return { success: false, error: 'Cancellation email could not be sent' };
+        })
+        : Promise.resolve(null);
+
+    const calendarPromise = shouldCleanupCalendar
+        ? deleteAllBookingCalendarEvents(
+            {
+                id: booking.id,
+                google_event_id: booking.google_event_id,
+                shop_google_event_id: booking.shop_google_event_id,
+                barber_id: booking.barber_id,
+                date: options.fallbackDate ?? booking.date,
+                time: options.fallbackTime ?? booking.time,
+                client_name: booking.client_name,
+                client_email: booking.client_email,
+                service: booking.service,
+            },
+            {
+                barberId: booking.barber_id,
+                fallbackDate: options.fallbackDate ?? booking.date,
+                fallbackTime: options.fallbackTime ?? booking.time,
+            },
+        ).catch((error) => {
+            console.error('Failed to delete calendar events:', error);
+            return { deleted: 0, failed: 1, calendarsChecked: [] as string[] };
+        })
+        : Promise.resolve(null);
+
+    const [emailResult, cleanup] = await Promise.all([emailPromise, calendarPromise]);
+
+    if (emailResult) {
+        emailSent = emailResult.success;
+        if (!emailResult.success) {
+            warnings.push(emailResult.error ?? 'Cancellation email could not be sent');
         }
     }
 
-    if (!options.skipCalendar) {
-        try {
-            const cleanup = await deleteAllBookingCalendarEvents(
-                {
-                    id: booking.id,
-                    google_event_id: booking.google_event_id,
-                    shop_google_event_id: booking.shop_google_event_id,
-                    barber_id: booking.barber_id,
-                    date: options.fallbackDate ?? booking.date,
-                    time: options.fallbackTime ?? booking.time,
-                    client_name: booking.client_name,
-                    client_email: booking.client_email,
-                    service: booking.service,
-                },
-                {
-                    barberId: booking.barber_id,
-                    fallbackDate: options.fallbackDate ?? booking.date,
-                    fallbackTime: options.fallbackTime ?? booking.time,
-                },
-            );
+    if (cleanup) {
+        calendarDeleted = cleanup.failed === 0;
 
-            calendarDeleted = cleanup.failed === 0;
+        const rowIds = cancelledRows.length
+            ? cancelledRows.map(r => r.id)
+            : [booking.id];
 
-            const rowIds = cancelledRows.length
-                ? cancelledRows.map(r => r.id)
-                : [booking.id];
+        await supabase
+            .from('bookings')
+            .update({ google_event_id: null, shop_google_event_id: null })
+            .in('id', rowIds);
 
-            await supabase
-                .from('bookings')
-                .update({ google_event_id: null, shop_google_event_id: null })
-                .in('id', rowIds);
-
-            if (cleanup.failed > 0) {
-                console.error('[cancel-booking] Calendar cleanup partial failure:', cleanup);
-                warnings.push(
-                    'Some Google Calendar events could not be removed. The slot is available in the app; retry cancel or check barber/Savron calendar connection.',
-                );
-            }
-        } catch (error) {
-            console.error('Failed to delete calendar events:', error);
-            calendarDeleted = false;
+        if (cleanup.failed > 0) {
+            console.error('[cancel-booking] Calendar cleanup partial failure:', cleanup);
             warnings.push(
-                'Google Calendar cleanup failed. The slot is available in the app; verify barber and Savron calendars are connected.',
+                'Some Google Calendar events could not be removed. The slot is available in the app; retry cancel or check barber/Savron calendar connection.',
             );
         }
+    } else if (shouldCleanupCalendar) {
+        calendarDeleted = false;
+        warnings.push(
+            'Google Calendar cleanup failed. The slot is available in the app; verify barber and Savron calendars are connected.',
+        );
     }
 
     return {

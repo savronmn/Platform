@@ -142,8 +142,11 @@ export default function BookingsPage() {
             setStatusError(null);
             const result = await triggerCancelBooking(booking.id);
             if (result.success) {
-                await fetchAll();
+                setBookings(prev => prev.map(b =>
+                    b.id === booking.id ? { ...b, status: 'cancelled' } : b
+                ));
                 setStatusError(result.warning ?? null);
+                void fetchAll();
             } else {
                 setStatusError(result.error ?? 'Could not cancel appointment');
             }
