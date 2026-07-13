@@ -28,20 +28,39 @@ export async function refreshAccessToken(refreshToken: string): Promise<string> 
 }
 
 // Build the OAuth authorization URL for a barber
-export function buildAuthUrl(state: string): string {
+export function buildAuthUrl(state: string, options: { includeLoginScopes?: boolean } = {}): string {
+    const scopes = [
+        'https://www.googleapis.com/auth/calendar.events',
+        'https://www.googleapis.com/auth/calendar.readonly',
+    ];
+    if (options.includeLoginScopes) {
+        scopes.push(
+            'openid',
+            'https://www.googleapis.com/auth/userinfo.email',
+            'https://www.googleapis.com/auth/userinfo.profile',
+        );
+    }
+
     const params = new URLSearchParams({
         client_id: process.env.GOOGLE_CLIENT_ID!,
         redirect_uri: process.env.GOOGLE_REDIRECT_URI!,
         response_type: 'code',
-        scope: [
-            'https://www.googleapis.com/auth/calendar.events',
-            'https://www.googleapis.com/auth/calendar.readonly',
-        ].join(' '),
+        scope: scopes.join(' '),
         access_type: 'offline',
         prompt: 'consent',
         state,
     });
     return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+}
+
+export async function fetchGoogleUserEmail(accessToken: string): Promise<string | null> {
+    const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        next: { revalidate: 0 },
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as { email?: string };
+    return data.email?.toLowerCase().trim() ?? null;
 }
 
 // Exchange auth code for tokens

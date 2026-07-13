@@ -3,23 +3,42 @@
 // `state` param = barber's UUID
 
 import { NextRequest, NextResponse } from 'next/server';
-import { exchangeCodeForTokens, getValidAccessToken, getInitialSyncToken, watchCalendar } from '@/lib/google-calendar';
+import { exchangeCodeForTokens, getValidAccessToken, getInitialSyncToken, watchCalendar, fetchGoogleUserEmail } from '@/lib/google-calendar';
 import { createClient } from '@supabase/supabase-js';
 import { saveShopWebhookState } from '@/lib/shop-calendar';
+import { establishBarberSession, emailsMatch } from '@/lib/barber-google-auth';
+
+function parseOAuthState(stateVal: string): { barberId: string; redirectPath: string; login: boolean } {
+    const parts = stateVal.split('|');
+    return {
+        barberId: parts[0] ?? '',
+        redirectPath: parts[1] || '/barber',
+        login: parts[2] === 'login',
+    };
+}
+
+function loginRedirectFromCalendarPath(path: string): string {
+    const match = path.match(/^\/barber\/([^/]+)\/calendar/);
+    if (match) return `/barber/${match[1]}/login`;
+    return path;
+}
+
+function errorRedirect(request: NextRequest, login: boolean, calendarPath: string, code: string) {
+    const path = login ? loginRedirectFromCalendarPath(calendarPath) : calendarPath;
+    return NextResponse.redirect(new URL(`${path}?cal_error=${code}`, request.url));
+}
 
 export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl;
     const code = searchParams.get('code');
     const stateVal = searchParams.get('state') || '';
-    const [barberId, redirectPath] = stateVal.includes('|') ? stateVal.split('|') : [stateVal, '/barber'];
+    const { barberId, redirectPath, login } = parseOAuthState(stateVal);
     const error = searchParams.get('error');
 
     const targetRedirect = redirectPath || '/barber';
 
     if (error || !code || !barberId) {
-        return NextResponse.redirect(
-            new URL(`${targetRedirect}?cal_error=${error ?? 'missing_params'}`, request.url)
-        );
+        return errorRedirect(request, login, targetRedirect, error ?? 'missing_params');
     }
 
     try {
@@ -60,6 +79,30 @@ export async function GET(request: NextRequest) {
             );
         }
 
+        const { data: barber } = await supabase
+            .from('barbers')
+            .select('id, email, auth_id, slug')
+            .eq('id', barberId)
+            .maybeSingle();
+
+        if (!barber) {
+            return errorRedirect(request, login, targetRedirect, 'barber_not_found');
+        }
+
+        if (login) {
+            const accessToken = await getValidAccessToken(tokens);
+            const googleEmail = await fetchGoogleUserEmail(accessToken);
+            if (!googleEmail) {
+                return errorRedirect(request, login, targetRedirect, 'google_email_unavailable');
+            }
+            if (!emailsMatch(googleEmail, barber.email)) {
+                return errorRedirect(request, login, targetRedirect, 'email_mismatch');
+            }
+            if (!barber.auth_id) {
+                return errorRedirect(request, login, targetRedirect, 'account_not_linked');
+            }
+        }
+
         // Initialize webhook watch for real-time calendar un-booking
         let syncToken = null;
         let channelId = null;
@@ -92,13 +135,19 @@ export async function GET(request: NextRequest) {
             })
             .eq('id', barberId);
 
+        if (login && barber.email) {
+            const sessionResult = await establishBarberSession(barber.email);
+            if (!sessionResult.ok) {
+                console.error('[calendar/callback] Barber session failed:', sessionResult.error);
+                return errorRedirect(request, login, targetRedirect, 'login_failed');
+            }
+        }
+
         return NextResponse.redirect(
-            new URL(`${targetRedirect}?cal_connected=1`, request.url)
+            new URL(`${targetRedirect}?cal_connected=1${login ? '&google_login=1' : ''}`, request.url)
         );
     } catch (err) {
         console.error('Calendar OAuth error:', err);
-        return NextResponse.redirect(
-            new URL(`${targetRedirect}?cal_error=token_exchange_failed`, request.url)
-        );
+        return errorRedirect(request, login, targetRedirect, 'token_exchange_failed');
     }
 }
