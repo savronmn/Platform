@@ -9,6 +9,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/admin/', '/barber/', '/membership/', '/api/', '/host/', '/epass/'],
       },
     ],
-    sitemap: 'https://savron.com/sitemap.xml',
+    sitemap: 'https://savronmn.com/sitemap.xml',
+    host: 'https://savronmn.com',
   };
 }

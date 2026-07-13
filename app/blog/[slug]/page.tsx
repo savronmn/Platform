@@ -91,7 +91,7 @@ function renderContent(post: BlogPost) {
             <ul className="space-y-3">
               {section.items?.map((item, j) => (
                 <li key={j} className="flex gap-3 text-savron-silver/65 text-sm leading-relaxed">
-                  <span className="text-savron-green-light mt-1 shrink-0">—</span>
+                  <span className="text-savron-green-light mt-1 shrink-0">•</span>
                   <span>{item}</span>
                 </li>
               ))}
@@ -213,7 +213,7 @@ export default function BlogPostPage({ params }: Props) {
 
         {/* Book CTA */}
         <div className="mt-20 bg-savron-charcoal border border-white/8 rounded-savron p-8 md:p-10">
-          <p className="chapter-label mb-3">SAVRON — Minneapolis</p>
+          <p className="chapter-label mb-3">SAVRON - Minneapolis</p>
           <h3 className="font-heading text-xl md:text-2xl font-light text-white mb-3">
             Ready to book?
           </h3>

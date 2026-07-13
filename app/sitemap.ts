@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { blogPosts } from '@/lib/blog-data';
 
-const BASE_URL = 'https://savron.com';
+const BASE_URL = 'https://savronmn.com';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes: MetadataRoute.Sitemap = [
