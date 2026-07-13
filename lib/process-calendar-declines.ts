@@ -6,7 +6,7 @@ import {
     type CalendarCancellationReason,
     type CalendarSyncEvent,
 } from '@/lib/calendar-event-sync';
-import { getValidAccessToken, listAccountCalendarIds, type CalendarToken } from '@/lib/google-calendar';
+import { getValidAccessToken, getCalendarEvent, listAccountCalendarIds, type CalendarToken } from '@/lib/google-calendar';
 import { getShopCalendarId, getShopCalendarTokens } from '@/lib/shop-calendar';
 
 const GOOGLE_CALENDAR_BASE = 'https://www.googleapis.com/calendar/v3';
@@ -54,7 +54,8 @@ export async function notifyStaffOfCalendarAction(params: {
     if (!process.env.RESEND_API_KEY) return;
 
     const reasonLabel =
-        params.reason === 'client_declined' ? 'declined the invite'
+        params.reason === 'invitee_declined' || params.reason === 'client_declined'
+            ? 'declined the calendar invite'
             : params.reason === 'event_time_changed' ? 'changed the event time'
                 : 'removed the calendar event';
 
@@ -95,6 +96,24 @@ export async function notifyStaffOfCalendarAction(params: {
     } catch (err) {
         console.error('[calendar-declines] Staff notification failed:', err);
     }
+}
+
+/** Load full attendee response data — incremental sync payloads are often partial. */
+export async function enrichEventsWithFullDetails(
+    accessToken: string,
+    calendarId: string,
+    events: CalendarSyncEvent[],
+): Promise<CalendarSyncEvent[]> {
+    return Promise.all(events.map(async (event) => {
+        if (!event.id) return event;
+        try {
+            const full = await getCalendarEvent(accessToken, calendarId, event.id);
+            return { ...event, ...full } as CalendarSyncEvent;
+        } catch (err) {
+            console.error('[calendar-declines] Failed to enrich event attendees:', err);
+            return event;
+        }
+    }));
 }
 
 /** Process a batch of changed calendar events (webhook or sweep). */
@@ -159,7 +178,10 @@ export async function processDeclinedCalendarEvents(
         const idsToFetch = calendarIds.length > 0 ? calendarIds : [barber.google_calendar_id as string];
 
         const events = (
-            await Promise.all(idsToFetch.map(calendarId => listEvents(accessToken, calendarId, timeMin, timeMax)))
+            await Promise.all(idsToFetch.map(async calendarId => {
+                const raw = await listEvents(accessToken, calendarId, timeMin, timeMax);
+                return enrichEventsWithFullDetails(accessToken, calendarId, raw);
+            }))
         ).flat();
 
         const result = await processCalendarEventChanges(supabase, barber.id, barber.name, events, seenEventIds);
@@ -179,7 +201,10 @@ export async function processDeclinedCalendarEvents(
                 : [shopCalendarId];
 
             const events = (
-                await Promise.all(idsToFetch.map(calendarId => listEvents(accessToken, calendarId, timeMin, timeMax)))
+                await Promise.all(idsToFetch.map(async calendarId => {
+                    const raw = await listEvents(accessToken, calendarId, timeMin, timeMax);
+                    return enrichEventsWithFullDetails(accessToken, calendarId, raw);
+                }))
             ).flat();
 
             const shopResult = await processCalendarEventChanges(supabase, null, 'Savron Shop', events, seenEventIds);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getValidAccessToken, getChangedEvents, getInitialSyncToken, getCalendarEvent, watchCalendar, type CalendarToken } from '@/lib/google-calendar';
-import { processCalendarEventChanges } from '@/lib/process-calendar-declines';
+import { getValidAccessToken, getChangedEvents, getInitialSyncToken, watchCalendar, type CalendarToken } from '@/lib/google-calendar';
+import { processCalendarEventChanges, enrichEventsWithFullDetails } from '@/lib/process-calendar-declines';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -102,20 +102,11 @@ export async function POST(req: NextRequest) {
         let cancelledCount = 0;
         const reasons: string[] = [];
 
-        const enrichedEvents = [];
-        for (const event of events) {
-            if (!event.id) continue;
-
-            let eventData = event;
-            if (!event.attendees?.length) {
-                try {
-                    eventData = await getCalendarEvent(accessToken, barber.google_calendar_id, event.id);
-                } catch (fetchErr) {
-                    console.error('[calendar/webhook] Failed to load event attendees:', fetchErr);
-                }
-            }
-            enrichedEvents.push(eventData);
-        }
+        const enrichedEvents = await enrichEventsWithFullDetails(
+            accessToken,
+            barber.google_calendar_id as string,
+            events.filter(event => event.id),
+        );
 
         const result = await processCalendarEventChanges(
             supabase,

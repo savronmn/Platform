@@ -33,6 +33,7 @@ export interface BookingDeclineTarget {
 export type CalendarCancellationReason =
     | 'event_deleted'
     | 'client_declined'
+    | 'invitee_declined'
     | 'event_time_changed';
 
 function clientMatchesAttendee(
@@ -197,6 +198,11 @@ export function eventHasDeclinedClient(event: CalendarSyncEvent): boolean {
     return eventHasClientCalendarCancellationSignal(event);
 }
 
+/** True when any invited guest (not organizer / shop system accounts) declined. */
+export function anyInviteeDeclined(event: CalendarSyncEvent): boolean {
+    return eventHasClientCalendarCancellationSignal(event);
+}
+
 export function shouldCancelBookingFromCalendarEvent(
     event: CalendarSyncEvent,
     booking: BookingDeclineTarget,
@@ -207,8 +213,9 @@ export function shouldCancelBookingFromCalendarEvent(
         return { skipCalendar: true, reason: 'event_deleted' };
     }
 
-    if (clientDeclinedInvite(event, booking)) {
-        return { skipCalendar: false, reason: 'client_declined' };
+    // Any invitee tapping "No" cancels the booking and deletes the Google event.
+    if (anyInviteeDeclined(event) || clientDeclinedInvite(event, booking)) {
+        return { skipCalendar: false, reason: 'invitee_declined' };
     }
 
     // Accepting an invite (including after an edit) confirms attendance — never auto-cancel.

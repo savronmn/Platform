@@ -4,7 +4,6 @@ import {
     getValidAccessToken,
     getChangedEvents,
     getInitialSyncToken,
-    getCalendarEvent,
     watchCalendar,
 } from '@/lib/google-calendar';
 import {
@@ -14,7 +13,7 @@ import {
     saveShopWebhookState,
     saveShopSyncTokenIfUnchanged,
 } from '@/lib/shop-calendar';
-import { processCalendarEventChanges } from '@/lib/process-calendar-declines';
+import { processCalendarEventChanges, enrichEventsWithFullDetails } from '@/lib/process-calendar-declines';
 import type { CalendarSyncEvent } from '@/lib/calendar-event-sync';
 
 const getAdmin = () => createClient(
@@ -97,20 +96,11 @@ export async function POST(req: NextRequest) {
             nextSyncToken = changed.nextSyncToken;
         }
 
-        const enrichedEvents: CalendarSyncEvent[] = [];
-        for (const event of events) {
-            if (!event.id) continue;
-            if (!event.attendees?.length) {
-                try {
-                    const full = await getCalendarEvent(accessToken, calendarId, event.id);
-                    enrichedEvents.push(full as CalendarSyncEvent);
-                    continue;
-                } catch (fetchErr) {
-                    console.error('[calendar/webhook-shop] Failed to load event attendees:', fetchErr);
-                }
-            }
-            enrichedEvents.push(event);
-        }
+        const enrichedEvents = await enrichEventsWithFullDetails(
+            accessToken,
+            calendarId,
+            events.filter(event => event.id),
+        );
 
         const result = await processCalendarEventChanges(
             supabase,
