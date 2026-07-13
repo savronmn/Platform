@@ -111,6 +111,7 @@ export async function upsertShopInviteEvent(params: {
     shopEventId?: string | null;
     summary: string;
     description: string;
+    location: string;
     startIso: string;
     endIso: string;
     clientEmail: string | null;
@@ -145,6 +146,7 @@ export async function upsertShopInviteEvent(params: {
                 {
                     summary: params.summary,
                     description: params.description,
+                    location: params.location,
                     startIso: params.startIso,
                     endIso: params.endIso,
                     attendeeEmails,
@@ -164,6 +166,7 @@ export async function upsertShopInviteEvent(params: {
         {
             summary: params.summary,
             description: params.description,
+            location: params.location,
             startIso: params.startIso,
             endIso: params.endIso,
             attendeeEmails,

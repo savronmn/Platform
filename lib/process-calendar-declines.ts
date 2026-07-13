@@ -151,7 +151,23 @@ export async function processDeclinedCalendarEvents(
     const reasons: string[] = [];
     const seenEventIds = new Set<string>();
 
-    // 1) Shop calendar — this is where client RSVPs land (Google invite with attendees).
+    // 1) Barber calendars — primary client appointment invites (barber is organizer).
+    for (const barber of barbers ?? []) {
+        const tokens = barber.google_calendar_tokens as CalendarToken;
+        const accessToken = await getValidAccessToken(tokens);
+        const calendarIds = await listAccountCalendarIds(accessToken);
+        const idsToFetch = calendarIds.length > 0 ? calendarIds : [barber.google_calendar_id as string];
+
+        const events = (
+            await Promise.all(idsToFetch.map(calendarId => listEvents(accessToken, calendarId, timeMin, timeMax)))
+        ).flat();
+
+        const result = await processCalendarEventChanges(supabase, barber.id, barber.name, events, seenEventIds);
+        cancelled += result.cancelled;
+        reasons.push(...result.reasons);
+    }
+
+    // 2) Shop calendar — legacy invites when barber calendar was not connected.
     const shopTokens = await getShopCalendarTokens();
     if (shopTokens) {
         try {
@@ -172,22 +188,6 @@ export async function processDeclinedCalendarEvents(
         } catch (err) {
             console.error('[calendar-declines] Shop calendar sweep failed:', err);
         }
-    }
-
-    // 2) Barber calendars — legacy invites / manual declines on busy blocks (if any attendees exist).
-    for (const barber of barbers ?? []) {
-        const tokens = barber.google_calendar_tokens as CalendarToken;
-        const accessToken = await getValidAccessToken(tokens);
-        const calendarIds = await listAccountCalendarIds(accessToken);
-        const idsToFetch = calendarIds.length > 0 ? calendarIds : [barber.google_calendar_id as string];
-
-        const events = (
-            await Promise.all(idsToFetch.map(calendarId => listEvents(accessToken, calendarId, timeMin, timeMax)))
-        ).flat();
-
-        const result = await processCalendarEventChanges(supabase, barber.id, barber.name, events, seenEventIds);
-        cancelled += result.cancelled;
-        reasons.push(...result.reasons);
     }
 
     return { cancelled, reasons };

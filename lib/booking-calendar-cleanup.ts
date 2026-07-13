@@ -1,5 +1,6 @@
-// Delete booking events from the Savron shop Google Calendar (and legacy barber blocks).
-// Shop calendar holds the single Google invite (client + barber attendees).
+// Delete booking events from barber + Savron shop Google Calendars.
+// Barber calendar holds the client-facing appointment invite when connected.
+// Shop calendar holds the invite when barber calendar is unavailable.
 
 import { createClient } from '@supabase/supabase-js';
 import {
@@ -166,7 +167,7 @@ async function collectShopTargets(
     return { targets, calendarIds: idsToSearch };
 }
 
-/** Remove all Google Calendar events for a booking (shop calendar + legacy barber blocks). */
+/** Remove all Google Calendar blocks for a booking from barber + Savron shop calendars. */
 export async function deleteAllBookingCalendarEvents(
     booking: BookingCalendarTarget,
     options: {
@@ -199,7 +200,7 @@ export async function deleteAllBookingCalendarEvents(
 
             if (barber?.google_calendar_tokens) {
                 const accessToken = await getValidAccessToken(barber.google_calendar_tokens as CalendarToken);
-                const result = await deleteTargets(accessToken, targets);
+                const result = await deleteTargets(accessToken, targets, 'all');
                 deleted += result.deleted;
                 failed += result.failed;
             }
