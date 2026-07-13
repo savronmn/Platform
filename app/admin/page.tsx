@@ -4,34 +4,18 @@ import { useEffect, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase';
 import StatCard from '@/components/crm/StatCard';
-import StatDetailModal, { buildStatDetailData, type StatKey, type StatDetailData } from '@/components/crm/StatDetailModal';
+import { type StatKey } from '@/components/crm/StatDetailModal';
 import { Users, Calendar, DollarSign, Clock, ArrowRight, TrendingUp, Scissors, UserCheck, ClipboardList, Layers, ScanLine, Inbox, UserPlus, PhoneCall } from 'lucide-react';
-import type { Booking, Client, Barber, Applicant } from '@/lib/types';
-import { format, subDays } from 'date-fns';
+import type { Booking } from '@/lib/types';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useBookingsRealtime } from '@/lib/use-bookings-realtime';
+import { fetchAdminDashboardData } from '@/lib/admin-dashboard-data';
+import { statPageHref } from '@/lib/admin-stat-routes';
 
 const QRScannerModal = dynamic(() => import('@/components/qr/QRScannerModal'), { ssr: false });
 const WalkInModal = dynamic(() => import('@/components/crm/WalkInModal'), { ssr: false });
-
-const EMPTY_DETAIL_DATA: StatDetailData = {
-    todaySchedule: [],
-    upcomingSchedule: [],
-    dueClients: [],
-    allClients: [],
-    activeBarbers: [],
-    pendingApplicants: [],
-    recentCancellations: [],
-    allBookings: [],
-    activeBookings: [],
-    serviceBreakdown: [],
-    revenueByMonth: [],
-    avgTicketStats: { avg: 0, min: 0, max: 0, total: 0, count: 0 },
-    barberWorkloads: [],
-    pipelineValue: 0,
-    pipelineDateRange: null,
-};
 
 export default function AdminDashboard() {
     const supabase = createClient();
@@ -54,9 +38,6 @@ export default function AdminDashboard() {
     });
     const [todaySchedule, setTodaySchedule] = useState<Booking[]>([]);
     const [upcomingSchedule, setUpcomingSchedule] = useState<Booking[]>([]);
-    const [detailData, setDetailData] = useState<StatDetailData>(EMPTY_DETAIL_DATA);
-    const [dueCutoff, setDueCutoff] = useState('');
-    const [activeStat, setActiveStat] = useState<StatKey | null>(null);
     const [loading, setLoading] = useState(true);
     const [showScanner, setShowScanner] = useState(false);
     const [showWalkIn, setShowWalkIn] = useState(false);
@@ -64,38 +45,18 @@ export default function AdminDashboard() {
 
     async function fetchData() {
         try {
-            const todayStr = format(new Date(), 'yyyy-MM-dd');
-            const thirtyDaysAgo = format(subDays(new Date(), 30), 'yyyy-MM-dd');
-            const sixWeeksAgo = new Date();
-            sixWeeksAgo.setDate(sixWeeksAgo.getDate() - 42);
-            const cutoff = format(sixWeeksAgo, 'yyyy-MM-dd');
-            setDueCutoff(cutoff);
+            const data = await fetchAdminDashboardData(supabase);
+            const todayActive = data.todaySchedule;
+            const upcoming = data.upcomingSchedule;
+            const allClients = data.detailData.allClients;
+            const allBarbers = data.detailData.activeBarbers;
+            const allBookings = data.detailData.allBookings;
+            const recentCancelled = data.detailData.recentCancellations;
+            const pendingApplicants = data.detailData.pendingApplicants;
+            const activeBookings = data.detailData.activeBookings;
+            const cutoff = data.dueCutoff;
 
-            const [clientsRes, todayBookingsRes, upcomingRes, applicantsRes, barbersRes, allBookingsRes, cancelledRes] = await Promise.all([
-                supabase.from('clients').select('*'),
-                supabase.from('bookings').select('*').eq('date', todayStr).order('time', { ascending: true }),
-                supabase.from('bookings').select('*').gt('date', todayStr).eq('status', 'confirmed').order('date', { ascending: true }).order('time', { ascending: true }).limit(50),
-                supabase.from('applicants').select('*').eq('status', 'pending').order('created_at', { ascending: false }),
-                supabase.from('barbers').select('*'),
-                supabase.from('bookings').select('*').order('created_at', { ascending: false }),
-                supabase.from('bookings').select('*').in('status', ['cancelled', 'no_show']).gte('date', thirtyDaysAgo).order('date', { ascending: false }).order('time', { ascending: false }).limit(50),
-            ]);
-
-            if (clientsRes.error) throw new Error(`Clients: ${clientsRes.error.message}`);
-            if (todayBookingsRes.error) throw new Error(`Today Bookings: ${todayBookingsRes.error.message}`);
-            if (barbersRes.error) throw new Error(`Barbers: ${barbersRes.error.message}`);
-            if (allBookingsRes.error) throw new Error(`All Bookings: ${allBookingsRes.error.message}`);
-
-            const allClients: Client[] = clientsRes.data ?? [];
-            const todayAll: Booking[] = todayBookingsRes.data ?? [];
-            const upcoming: Booking[] = upcomingRes.data ?? [];
-            const allBarbers: Barber[] = barbersRes.data ?? [];
-            const allBookings: Booking[] = allBookingsRes.data ?? [];
-            const recentCancelled: Booking[] = cancelledRes.data ?? [];
-            const pendingApplicants: Applicant[] = applicantsRes.data ?? [];
-
-            const todayActive = todayAll.filter(b => ['confirmed', 'completed'].includes(b.status));
-            const todayCompleted = todayAll.filter(b => b.status === 'completed');
+            const todayCompleted = todayActive.filter(b => b.status === 'completed');
 
             const todayRevenue = todayActive.reduce((sum, b) => {
                 const priceStr = String(b.price || '$0');
@@ -110,10 +71,6 @@ export default function AdminDashboard() {
             ).length;
 
             const activeBarbersCount = allBarbers.filter(b => b.active).length;
-
-            const activeBookings = allBookings.filter(b =>
-                b.status === 'confirmed' || b.status === 'completed'
-            );
 
             const totalRevenue = activeBookings.reduce((sum, b) => {
                 const priceStr = String(b.price || '$0');
@@ -155,16 +112,6 @@ export default function AdminDashboard() {
 
             setTodaySchedule(todayActive);
             setUpcomingSchedule(upcoming);
-            setDetailData(buildStatDetailData(
-                allClients,
-                todayActive,
-                upcoming,
-                allBookings,
-                allBarbers,
-                pendingApplicants,
-                recentCancelled,
-                cutoff,
-            ));
             setDebugError(null);
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Failed to fetch data';
@@ -180,8 +127,6 @@ export default function AdminDashboard() {
     }, []);
 
     useBookingsRealtime(fetchData, 'admin-dashboard');
-
-    const openStat = (key: StatKey) => setActiveStat(key);
 
     const statCards = useMemo(() => [
         {
@@ -345,12 +290,6 @@ export default function AdminDashboard() {
 
             <QRScannerModal open={showScanner} onClose={() => setShowScanner(false)} />
             <WalkInModal open={showWalkIn} onClose={() => setShowWalkIn(false)} onBooked={fetchData} />
-            <StatDetailModal
-                statKey={activeStat}
-                data={detailData}
-                cutoff={dueCutoff}
-                onClose={() => setActiveStat(null)}
-            />
 
             {/* Empty State / Demo Data Seeder Banner */}
             {stats.clients === 0 && stats.totalBookings === 0 && (
@@ -386,7 +325,7 @@ export default function AdminDashboard() {
                         sub={card.sub}
                         alert={card.alert}
                         className={card.className}
-                        onClick={() => openStat(card.key)}
+                        href={statPageHref(card.key)}
                     />
                 ))}
             </div>
@@ -398,7 +337,7 @@ export default function AdminDashboard() {
                         <h2 className="font-heading text-lg uppercase tracking-widest text-white">Today&apos;s Schedule</h2>
                         <p className="text-savron-silver/75 text-[11px] uppercase tracking-widest mt-0.5">{stats.todayBookings} appointment{stats.todayBookings !== 1 ? 's' : ''}</p>
                     </div>
-                    <Link href="/admin/bookings" className="text-xs uppercase tracking-widest text-accent-blue hover:text-savron-cream flex items-center gap-1 transition-colors">
+                    <Link href={statPageHref('todayAppointments')} className="text-xs uppercase tracking-widest text-accent-blue hover:text-savron-cream flex items-center gap-1 transition-colors">
                         Full View <ArrowRight className="w-3 h-3" />
                     </Link>
                 </div>
@@ -437,7 +376,7 @@ export default function AdminDashboard() {
                 <div className="card-savron relative overflow-hidden">
                     <div className="flex items-center justify-between mb-5">
                         <h2 className="font-heading text-lg uppercase tracking-widest text-white">Upcoming Bookings</h2>
-                        <Link href="/admin/bookings" className="text-xs uppercase tracking-widest text-accent-blue hover:text-savron-cream flex items-center gap-1 transition-colors">
+                        <Link href={statPageHref('pipeline')} className="text-xs uppercase tracking-widest text-accent-blue hover:text-savron-cream flex items-center gap-1 transition-colors">
                             Calendar <ArrowRight className="w-3 h-3" />
                         </Link>
                     </div>

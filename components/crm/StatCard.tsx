@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 interface StatCardProps {
@@ -12,6 +13,7 @@ interface StatCardProps {
     alert?: boolean;
     className?: string;
     onClick?: () => void;
+    href?: string;
 }
 
 const motionProps = {
@@ -20,7 +22,7 @@ const motionProps = {
     transition: { duration: 0.4 },
 };
 
-export default function StatCard({ label, value, change, icon, sub, alert, className, onClick }: StatCardProps) {
+export default function StatCard({ label, value, change, icon, sub, alert, className, onClick, href }: StatCardProps) {
     const content = (
         <>
             <div className="flex items-center justify-between">
@@ -39,7 +41,7 @@ export default function StatCard({ label, value, change, icon, sub, alert, class
                 )}
             </div>
             {sub && <div className="text-savron-silver/60 text-[11px] uppercase tracking-wider -mt-1 leading-relaxed">{sub}</div>}
-            {onClick && (
+            {(onClick || href) && (
                 <span className="text-[10px] uppercase tracking-widest text-savron-silver/40 group-hover:text-accent-blue transition-colors">
                     View details →
                 </span>
@@ -50,9 +52,19 @@ export default function StatCard({ label, value, change, icon, sub, alert, class
     const classNames = cn(
         "card-savron flex flex-col gap-4 text-left w-full",
         alert && "border-red-500/20 bg-red-500/5",
-        onClick && "cursor-pointer hover:border-savron-green/25 hover:bg-white/[0.04] transition-all group",
+        (onClick || href) && "cursor-pointer hover:border-savron-green/25 hover:bg-white/[0.04] transition-all group",
         className
     );
+
+    if (href) {
+        return (
+            <motion.div {...motionProps}>
+                <Link href={href} className={classNames}>
+                    {content}
+                </Link>
+            </motion.div>
+        );
+    }
 
     if (onClick) {
         return (
