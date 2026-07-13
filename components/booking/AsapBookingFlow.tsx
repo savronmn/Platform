@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import type { Barber } from '@/lib/types';
-import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
+import { TIME_SLOTS, BOOKING_SLOT_INTERVAL_MINS, generateTimeSlots } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
@@ -81,9 +81,9 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
         const slotSet = new Set<string>();
         for (const barber of allBarbers) {
             const wh = barber.working_hours as Record<string, { open: string; close: string } | null> | null;
-            if (!wh) { generateTimeSlots('10:00', '19:00').forEach(s => slotSet.add(s)); continue; }
+            if (!wh) { generateTimeSlots('10:00', '19:00', BOOKING_SLOT_INTERVAL_MINS).forEach(s => slotSet.add(s)); continue; }
             const day = wh[dayKey];
-            if (day) generateTimeSlots(day.open, day.close).forEach(s => slotSet.add(s));
+            if (day) generateTimeSlots(day.open, day.close, BOOKING_SLOT_INTERVAL_MINS).forEach(s => slotSet.add(s));
         }
         // Sort by time-of-day
         return Array.from(slotSet).sort((a, b) => {

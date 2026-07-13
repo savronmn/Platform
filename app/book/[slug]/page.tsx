@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 import { Button } from '@/components/ui/Button';
 import Image from 'next/image';
 import type { Barber } from '@/lib/types';
-import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
+import { TIME_SLOTS, BOOKING_SLOT_INTERVAL_MINS, generateTimeSlots } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { DatePicker } from '@/components/booking/DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
@@ -345,7 +345,7 @@ function BarberBookingContent() {
                                         ) : (() => {
                                             const daySchedule = workingHours?.[selectedDayKey];
                                             const availableSlots = daySchedule
-                                                ? generateTimeSlots(daySchedule.open, daySchedule.close)
+                                                ? generateTimeSlots(daySchedule.open, daySchedule.close, BOOKING_SLOT_INTERVAL_MINS)
                                                 : TIME_SLOTS;
                                             if (availableSlots.length === 0) {
                                                 return (

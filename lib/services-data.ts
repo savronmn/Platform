@@ -141,10 +141,17 @@ export function getShopScheduleForDate(date: Date): DaySchedule | null {
 }
 
 // Shop time slots — weekday fallback when a barber has no working_hours set
-export const TIME_SLOTS = generateTimeSlots('10:00', '19:00', 45);
+export const BOOKING_SLOT_INTERVAL_MINS = 15;
+export const TIME_SLOTS = generateTimeSlots('10:00', '19:00', BOOKING_SLOT_INTERVAL_MINS);
+
+// Legacy 45-min grid — host calendar week view and timeline layout only
+export const CALENDAR_GRID_SLOT_INTERVAL_MINS = 45;
+export const TIME_SLOTS_LEGACY_45 = generateTimeSlots('10:00', '19:00', CALENDAR_GRID_SLOT_INTERVAL_MINS);
+
+export const BOOKING_HOST_TIME_SLOTS = generateTimeSlots(SHOP_GRID_OPEN, SHOP_GRID_CLOSE, BOOKING_SLOT_INTERVAL_MINS);
 
 // Host calendar grid: 9 AM – 7 PM (covers full weekly schedule without dead space)
-export const HOST_TIME_SLOTS = generateTimeSlots(SHOP_GRID_OPEN, SHOP_GRID_CLOSE, 45);
+export const HOST_TIME_SLOTS = generateTimeSlots(SHOP_GRID_OPEN, SHOP_GRID_CLOSE, CALENDAR_GRID_SLOT_INTERVAL_MINS);
 
 // Generate 12h-format time slots from 24h open/close strings (e.g. "10:00", "19:00")
 export function generateTimeSlots(open: string, close: string, intervalMin = 45): string[] {

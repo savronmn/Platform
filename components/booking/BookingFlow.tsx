@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import type { Barber } from '@/lib/types';
-import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
+import { TIME_SLOTS, BOOKING_SLOT_INTERVAL_MINS, generateTimeSlots } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
@@ -171,7 +171,7 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
         if (!wh) return TIME_SLOTS;
         const day = wh[selectedDayKey];
         if (!day) return [];
-        return generateTimeSlots(day.open, day.close);
+        return generateTimeSlots(day.open, day.close, BOOKING_SLOT_INTERVAL_MINS);
     })();
 
     const isBarberOffToday = selectedPro?.working_hours !== null && availableSlots.length === 0;

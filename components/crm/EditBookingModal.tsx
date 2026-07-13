@@ -6,7 +6,7 @@ import { X, Pencil } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { useServices } from '@/lib/use-services';
-import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
+import { TIME_SLOTS, BOOKING_SLOT_INTERVAL_MINS, generateTimeSlots } from '@/lib/services-data';
 import type { Barber, Booking } from '@/lib/types';
 import { triggerPostEditBooking } from '@/lib/confirm-booking';
 import { isSlotInPast, slotConflictsWithBusy } from '@/lib/time-helpers';
@@ -99,7 +99,7 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
         const dayKey = DAY_KEYS[dayIndex];
         const daySchedule = (barber.working_hours as Record<string, { open: string; close: string } | null>)[dayKey];
         if (!daySchedule) return [];
-        return generateTimeSlots(daySchedule.open, daySchedule.close);
+        return generateTimeSlots(daySchedule.open, daySchedule.close, BOOKING_SLOT_INTERVAL_MINS);
     })();
 
     const isCurrentSlot = (timeStr: string) =>

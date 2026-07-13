@@ -2,7 +2,7 @@
 // Centralized so both BookingFlow and AsapBookingFlow stay consistent.
 
 import { format, addDays } from 'date-fns';
-import { TIME_SLOTS, getShopScheduleForDate, generateTimeSlots } from './services-data';
+import { TIME_SLOTS, BOOKING_SLOT_INTERVAL_MINS, getShopScheduleForDate, generateTimeSlots } from './services-data';
 
 // Central Time (-05:00). TODO: replace with proper TZ handling (date-fns-tz) for DST safety.
 const TZ_OFFSET = '-05:00';
@@ -43,7 +43,7 @@ export function nextBookableDate(from: Date = new Date()): Date {
     for (let i = 0; i < 14; i++) {
         const schedule = getShopScheduleForDate(cursor);
         const slots = schedule
-            ? generateTimeSlots(schedule.open, schedule.close, 45)
+            ? generateTimeSlots(schedule.open, schedule.close, BOOKING_SLOT_INTERVAL_MINS)
             : TIME_SLOTS;
         const hasFutureSlot = slots.some((t) => !isSlotInPast(cursor, t, 5));
         if (hasFutureSlot) return cursor;

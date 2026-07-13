@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Barber, Booking } from '@/lib/types';
-import { HOST_TIME_SLOTS, serviceBlockStyle, getShopScheduleForDate, formatScheduleRange } from '@/lib/services-data';
+import { HOST_TIME_SLOTS, BOOKING_HOST_TIME_SLOTS, serviceBlockStyle, getShopScheduleForDate, formatScheduleRange } from '@/lib/services-data';
 import {
     timeToMins, formatTimeCompact, formatTimeRange, parseDurationMins, itemsInHour,
     CALENDAR_HOUR_HEIGHT_PX, minsToTime12, getCalendarHourStarts,
@@ -495,7 +495,7 @@ function HostDashboardInner() {
         const now = new Date();
         const nowMins = now.getHours() * 60 + now.getMinutes();
 
-        return HOST_TIME_SLOTS.map(slot => {
+        return BOOKING_HOST_TIME_SLOTS.map(slot => {
             const slotMins = timeToMins(slot);
             if (isViewingToday && slotMins <= nowMins) return { slot, status: 'past' as const };
             if (quickForm.barberId) {

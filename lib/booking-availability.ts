@@ -2,12 +2,11 @@ import { createClient } from '@supabase/supabase-js';
 import {
     getValidAccessToken,
     getEventBusySlots,
-    listAccountCalendarIds,
     toIsoString,
     type CalendarToken,
 } from '@/lib/google-calendar';
 import { parseDurationMins, timeToMins } from '@/lib/calendar-timeline';
-import { slotConflictsWithBusy } from '@/lib/time-helpers';
+import { slotConflictsWithBusy, slotToMs } from '@/lib/time-helpers';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,6 +15,8 @@ const getAdmin = () => createClient(
 
 /** Statuses that block new bookings on the same barber/day. */
 export const BLOCKING_BOOKING_STATUSES = ['confirmed', 'completed', 'no_show'] as const;
+
+const PLATFORM_BOOKING_MATCH_TOLERANCE_MINS = 22;
 
 function minsToTimeStr(totalMins: number): string {
     const h24 = Math.floor(totalMins / 60) % 24;
@@ -34,15 +35,35 @@ export function bookingToBusySlot(date: string, time: string, duration: string |
     };
 }
 
+/** True when a GCal event is the same platform appointment already counted from DB. */
+export function googleEventMatchesPlatformBooking(
+    eventStartIso: string,
+    date: string,
+    bookingTimes: string[],
+    toleranceMins = PLATFORM_BOOKING_MATCH_TOLERANCE_MINS,
+): boolean {
+    if (bookingTimes.length === 0) return false;
+    const eventStartMs = new Date(eventStartIso).getTime();
+    const dayAnchor = new Date(`${date}T12:00:00`);
+    return bookingTimes.some((bookingTime) => {
+        const bookingStartMs = slotToMs(dayAnchor, bookingTime);
+        return Math.abs(eventStartMs - bookingStartMs) <= toleranceMins * 60_000;
+    });
+}
+
 export async function getBarberDatabaseBusySlots(
     barberId: string,
     date: string,
     options: { excludeBookingId?: string } = {},
-): Promise<{ busy: { start: string; end: string }[]; linkedGoogleEventIds: Set<string> }> {
+): Promise<{
+    busy: { start: string; end: string }[];
+    linkedGoogleEventIds: Set<string>;
+    bookingTimes: string[];
+}> {
     const supabaseAdmin = getAdmin();
     let query = supabaseAdmin
         .from('bookings')
-        .select('id, time, duration, status, google_event_id')
+        .select('id, time, duration, status, google_event_id, shop_google_event_id')
         .eq('barber_id', barberId)
         .eq('date', date)
         .in('status', [...BLOCKING_BOOKING_STATUSES]);
@@ -59,44 +80,34 @@ export async function getBarberDatabaseBusySlots(
 
     const linkedGoogleEventIds = new Set(
         (dbBookings ?? [])
-            .map(booking => booking.google_event_id)
+            .flatMap(booking => [booking.google_event_id, booking.shop_google_event_id])
             .filter((id): id is string => Boolean(id)),
     );
 
-    return { busy, linkedGoogleEventIds };
+    const bookingTimes = (dbBookings ?? []).map(booking => booking.time);
+
+    return { busy, linkedGoogleEventIds, bookingTimes };
 }
 
 export async function getBarberGoogleBusySlots(
     accessToken: string,
+    calendarId: string,
     date: string,
     linkedGoogleEventIds: Set<string>,
+    bookingTimes: string[],
 ): Promise<{ start: string; end: string }[]> {
-    const calendarIds = await listAccountCalendarIds(accessToken);
-    if (calendarIds.length === 0) return [];
-
     const timeMin = `${date}T00:00:00-05:00`;
     const timeMax = `${date}T23:59:59-05:00`;
 
-    const perCalendar = await Promise.all(
-        calendarIds.map(calendarId =>
-            getEventBusySlots(accessToken, calendarId, timeMin, timeMax).catch(() => []),
-        ),
-    );
+    const slots = await getEventBusySlots(accessToken, calendarId, timeMin, timeMax).catch(() => []);
 
-    const seen = new Set<string>();
-    const merged: { start: string; end: string }[] = [];
-
-    for (const slots of perCalendar) {
-        for (const slot of slots) {
-            if (slot.id && linkedGoogleEventIds.has(slot.id)) continue;
-            const key = slot.id ?? `${slot.start}|${slot.end}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            merged.push({ start: slot.start, end: slot.end });
-        }
-    }
-
-    return merged;
+    return slots
+        .filter(slot => {
+            if (slot.id && linkedGoogleEventIds.has(slot.id)) return false;
+            if (googleEventMatchesPlatformBooking(slot.start, date, bookingTimes)) return false;
+            return true;
+        })
+        .map(({ start, end }) => ({ start, end }));
 }
 
 export async function getBarberAvailability(
@@ -120,18 +131,23 @@ export async function getBarberAvailability(
     }
 
     const workingHours = (barber.working_hours ?? null) as Record<string, { open: string; close: string } | null> | null;
+    // Platform bookings from DB are canonical — GCal only adds external blocks.
     let busy = [...dbAvailability.busy];
 
     const tokens = barber.google_calendar_tokens as CalendarToken | null;
-    if (tokens) {
+    const calendarId = barber.google_calendar_id;
+
+    if (tokens && calendarId) {
         try {
             const accessToken = await getValidAccessToken(tokens);
             const gcalBusy = await getBarberGoogleBusySlots(
                 accessToken,
+                calendarId,
                 date,
                 dbAvailability.linkedGoogleEventIds,
+                dbAvailability.bookingTimes,
             );
-            busy = [...gcalBusy, ...busy];
+            busy = [...busy, ...gcalBusy];
         } catch (err) {
             console.error('[booking-availability] Google busy fetch failed:', err);
         }
