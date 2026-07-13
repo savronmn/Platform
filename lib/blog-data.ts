@@ -241,6 +241,293 @@ export const blogPosts: BlogPost[] = [
   },
 
   {
+    slug: 'barber-craftsmanship-minneapolis',
+    title: 'Barber Craftsmanship: Why Detail Beats Speed in a Minneapolis Barbershop',
+    subtitle: 'High quality grooming is not a faster clipper. It is time, technique, and a barber who refuses to rush the finish.',
+    excerpt:
+      'The best barbershops in Minneapolis are built on craftsmanship, not turnover. Here is what that means in the chair: consultation, precision, and finishing work that separates a good cut from a great one.',
+    category: 'Barbering',
+    readTime: '9 min read',
+    publishedAt: 'July 10, 2026',
+    publishedAtISO: '2026-07-10',
+    keywords: [
+      'barber craftsmanship Minneapolis',
+      'high quality mens haircut',
+      'attention to detail barbershop',
+      'luxury barber Minneapolis',
+      'professional mens grooming MN',
+      'SAVRON craftsmanship',
+      'premium barbershop North Loop',
+    ],
+    content: [
+      {
+        type: 'intro',
+        text: 'A barbershop can sound like a lawnmower and still produce something that passes from ten feet away. Up close, the story is different: uneven blend, rushed neckline, a top that was never shaped for your head. Craftsmanship is the opposite of that experience. At SAVRON Barbershop & Lounge in Minneapolis, every appointment is built around deliberate technique, not how many chairs can be turned in an hour.',
+      },
+      {
+        type: 'h2',
+        heading: 'What craftsmanship actually means in barbering',
+        text: 'Craftsmanship is not a marketing word. It is a set of visible decisions: guard transitions that disappear into the top, cheek lines that follow your bone structure, and a finish that holds under office lighting and street photography. It also means saying no to shortcuts. No guessing on recession lines. No skipping the consultation because the next client is waiting. The best Minneapolis barbers treat each head as a unique project, not a template.',
+      },
+      {
+        type: 'h2',
+        heading: 'Speed culture vs. quality culture',
+        text: 'Corporate barbershop models often reward volume. Artists under pressure move clients in and out, and small imperfections compound into a haircut that looks generic. Independent, craft-focused shops flip that incentive. Barbers are measured on repeat bookings, referrals, and the kind of work clients are proud to walk into a meeting with. SAVRON was designed around that quality culture: lounge pacing, consultation time, and technical standards that do not bend when the schedule fills up.',
+      },
+      {
+        type: 'list',
+        heading: 'Where craftsmanship shows up in your appointment',
+        items: [
+          'Consultation before clippers: head shape, hair texture, growth patterns, and maintenance honesty',
+          'Fade work through multiple guard passes, not a single aggressive blend',
+          'Scissor-over-comb and point cutting on top for movement, not blunt weight',
+          'Beard and neckline geometry checked from front, side, and three-quarter angles',
+          'Hot towel prep and razor finish where the style calls for it',
+          'Final styling with product matched to your hair type and daily routine',
+        ],
+      },
+      {
+        type: 'h2',
+        heading: 'The relationship between barber and client',
+        text: 'Craftsmanship deepens when your barber knows how you actually live. Do you wear a hard hat, a helmet, or a beanie six months a year? Do you need a conservative line for client-facing work or a sharper fade for weekends? That context changes guard height, top weight, and product choice. Shops that prioritize craft build long-term relationships because the work improves every visit. Your barber learns what grew out well, what needed adjustment, and what you will realistically maintain.',
+      },
+      {
+        type: 'callout',
+        text: 'If your last haircut looked fine for two days and then fell apart, that is usually a craft issue, not a styling issue. Book a consultation-heavy appointment at SAVRON and compare the grow-out.',
+      },
+      {
+        type: 'h2',
+        heading: 'High quality service is all-inclusive, not upsell-driven',
+        text: 'Premium barbering should not feel like a menu of hidden charges. A high quality service includes the full experience: wash when appropriate, precise cut, thoughtful styling, and clear aftercare guidance. You should leave knowing what products were used, why they were chosen, and when to come back. That transparency is part of craftsmanship. You are paying for outcomes and education, not surprise add-ons at checkout.',
+      },
+      {
+        type: 'h2',
+        heading: 'Why Minneapolis men notice the difference',
+        text: 'Twin Cities professionals compete on presentation in ways that are subtle but real. A sharp fade, clean beard architecture, and healthy scalp read as discipline before you speak. Craftsmanship is how you signal that discipline without trying. In a North Loop barbershop and lounge built for that standard, the mirror test is the only marketing that matters.',
+      },
+      {
+        type: 'closing',
+        text: 'SAVRON exists for men who care how the details look on day seven, not just day one. If you want barber craftsmanship in Minneapolis, Minnesota, book at savronmn.com/booking or walk into our North Loop lounge. Bring your standards. We match them in the chair.',
+      },
+    ],
+  },
+
+  {
+    slug: 'consultation-first-haircut-guide',
+    title: 'The Consultation-First Haircut: How Top Barbers Customize Every Style',
+    subtitle: 'Fade or scissor cut, short or medium length. The right answer starts with your head shape and lifestyle, not a trend photo.',
+    excerpt:
+      'A high quality haircut begins before the first clipper buzz. Here is what a real consultation covers and how SAVRON barbers tailor fades, tapers, and scissor work to you.',
+    category: 'Style Guide',
+    readTime: '8 min read',
+    publishedAt: 'July 11, 2026',
+    publishedAtISO: '2026-07-11',
+    keywords: [
+      'barber consultation mens haircut',
+      'custom haircut Minneapolis',
+      'fade vs scissor cut men',
+      'haircut for head shape',
+      'mens hairstyle consultation',
+      'SAVRON barber consultation',
+      'personalized mens grooming',
+    ],
+    content: [
+      {
+        type: 'intro',
+        text: 'Walking in with a reference photo is smart. Walking in without a conversation is a gamble. The best barbershops in Minneapolis treat consultation as the product, not a preamble. Your head shape, hair density, cowlicks, and weekly routine matter as much as the image on your phone. SAVRON barbers start there every time.',
+      },
+      {
+        type: 'h2',
+        heading: 'Head shape and hair behavior',
+        text: 'Round, oval, square, and diamond face shapes each favor different fade heights and top lengths. Cowlicks at the crown or temple can fight a clean part if they are ignored. Fine hair needs different weight removal than coarse hair. A consultation names these variables out loud so the cut is designed around your anatomy, not copied from someone with a different skull and strand type.',
+      },
+      {
+        type: 'h2',
+        heading: 'Not every great cut is a skin fade',
+        text: 'Fades dominate social feeds, but scissor cuts and tapers remain some of the most wearable, professional styles in Minneapolis offices. A standard cut with a blended or disconnected undercut can look sharper than an over-faded silhouette on the wrong head shape. Medium length styles add options: layers, flow backs, textured tops, and controlled perimeters that grow out gracefully. Your barber should tell you when a fade is the right tool and when scissor architecture will serve you better.',
+      },
+      {
+        type: 'list',
+        heading: 'Questions a strong consultation should cover',
+        items: [
+          'How often will you realistically visit the shop for maintenance?',
+          'Do you style at home daily, or do you need a low-effort default shape?',
+          'What is your work dress code and social calendar this season?',
+          'Are you growing length on top, or keeping it tight for the next three months?',
+          'Do you wear hats, helmets, or headphones that affect how the sides sit?',
+          'Are beard and eyebrow lines part of this appointment or a separate focus?',
+        ],
+      },
+      {
+        type: 'h2',
+        heading: 'Fade customization: low, mid, high, and skin',
+        text: 'If you choose a fade, precision language matters. How short should the bottom land: true skin, a #1, or a #2? How high should the transition start: low near the temple, mid at the ear, or high for maximum contrast? A low fade stretches the gradient and reads subtle under business attire. A high fade compresses contrast and pairs with bold tops. Your consultation should map those choices to your face and wardrobe, not just your Pinterest board.',
+      },
+      {
+        type: 'h2',
+        heading: 'Medium and longer lengths done with intention',
+        text: 'Hair between the ears and shoulders opens real styling range when the cut is intentional. Layers create movement without bulk. Tapered sides keep the silhouette clean while the top grows. Undercuts let you tie back or push forward depending on the week. None of that works without a plan. Consultation-first barbers document the plan in how they section, clip, and texturize, so you leave with a style roadmap, not just shorter hair.',
+      },
+      {
+        type: 'callout',
+        text: 'Bring two or three photos, but let your SAVRON barber tell you which elements will actually work on your hair. Adaptation is customization. Replication is luck.',
+      },
+      {
+        type: 'h2',
+        heading: 'Aftercare as part of the consultation',
+        text: 'A customized cut includes customized maintenance advice. Product type, blow-dry direction, brush choice, and re-booking interval should match the style you chose. That is the difference between a haircut that collapses on day four and one that still looks intentional at week three. High quality service ends with clarity, not confusion.',
+      },
+      {
+        type: 'closing',
+        text: 'The consultation-first approach is how SAVRON delivers luxury barbering in Minneapolis without guesswork. Book online or walk in to our North Loop shop, talk through your goals, and leave with a cut built for your head, not just the trend cycle.',
+      },
+    ],
+  },
+
+  {
+    slug: 'hot-towel-barbershop-finish',
+    title: 'The Hot Towel Finish: Traditional Barbershop Craft in a Modern Lounge',
+    subtitle: 'Shampoo, hot towel, razor line, and styling. Why finishing separates premium barbershops from quick-cut shops.',
+    excerpt:
+      'Craftsmanship does not end when the clippers stop. The hot towel ritual, neckline detail, and professional styling are what make a Minneapolis barbershop visit feel complete.',
+    category: 'Barbering',
+    readTime: '8 min read',
+    publishedAt: 'July 12, 2026',
+    publishedAtISO: '2026-07-12',
+    keywords: [
+      'hot towel shave Minneapolis',
+      'traditional barbershop finish',
+      'beard line up barber',
+      'premium barbershop service',
+      'mens grooming ritual',
+      'SAVRON hot towel',
+      'luxury barbershop experience',
+    ],
+    content: [
+      {
+        type: 'intro',
+        text: 'Anyone can shorten hair. Fewer shops finish it. The traditional barbershop sequence, hot towel, precise line work, cleanse, and style, is where craftsmanship becomes something you feel, not just see. SAVRON Barbershop & Lounge keeps that ritual alive inside a modern Minneapolis lounge because the finish is half the appointment.',
+      },
+      {
+        type: 'h2',
+        heading: 'Why the hot towel still matters',
+        text: 'Heat softens the skin, opens pores, and relaxes the neck muscles that tighten under clippers. A proper hot towel pass calms irritation before razor work and makes perimeter lines sharper with less drag. It also signals pacing. You are not being rushed out mid-fluff. You are in a chair where the last ten minutes are protected for quality, the same way the first ten minutes are protected for consultation.',
+      },
+      {
+        type: 'h2',
+        heading: 'Line-ups, necklines, and beard architecture',
+        text: 'Beard shaping is geometry. Cheek lines should follow growth, not fantasy. Necklines should sit two finger widths above the Adam\'s apple and curve naturally under the jaw. A hot towel straight-razor pass cleans the perimeter and removes the fuzzy edge that home trimmers leave behind. This is the craftsmanship clients notice in elevator mirrors and conference room cameras, even when they cannot name what changed.',
+      },
+      {
+        type: 'list',
+        heading: 'What a full-service finish includes at a premium shop',
+        items: [
+          'Removal of loose clippings and skin refresh after the cut',
+          'Targeted shampoo when needed to clear residue and prep for styling',
+          'Hot towel application before detailed razor or trimmer line work',
+          'Beard and sideburn symmetry checked at multiple angles',
+          'Styling with professional-grade product suited to your hair type',
+          'Honest rebooking guidance based on your fade height and growth rate',
+        ],
+      },
+      {
+        type: 'h2',
+        heading: 'Styling is not an afterthought',
+        text: 'High quality barbershops do not hand you a mirror while your hair is still dusty with clippings. Styling proves the cut works in the real world. A matte clay on thick hair. A light cream on fine hair. A blow-dry direction that trains your recession the way you will repeat at home. The goal is to leave looking finished, not merely shorter. That is the lounge standard SAVRON clients expect from a North Loop appointment.',
+      },
+      {
+        type: 'h2',
+        heading: 'Craftsmanship you can maintain at home',
+        text: 'The best finish includes teaching. Your barber should show you where the neckline was set, which product amount actually works, and which spots will need professional reset in three or four weeks. Maintenance is part of the service philosophy. Craftsmanship is not creating dependence. It is creating a standard you can recognize when it slips.',
+      },
+      {
+        type: 'callout',
+        text: 'Booking beard shaping or a fade at SAVRON? Ask for the full finish. The difference is visible in natural light and in how confident you feel walking back into the North Loop after the appointment.',
+      },
+      {
+        type: 'h2',
+        heading: 'Ambiance and craft belong together',
+        text: 'A flickering fluorescent shop can still cut hair. It rarely inspires loyalty. Lounge ambiance, clean audio, intentional lighting, and unhurried chair time reinforce that your appointment is a craft service, not a commodity. Minneapolis has plenty of quick options. Men who choose SAVRON choose a barbershop and lounge where craftsmanship, hot towel finishing, and high quality service are the default, not the upgrade.',
+      },
+      {
+        type: 'closing',
+        text: 'Experience the full sequence at SAVRON Barbershop & Lounge, 250 N Third Avenue in Minneapolis. Book your appointment at savronmn.com/booking or walk in when you are ready for a cut that is finished the way traditional barbering intended.',
+      },
+    ],
+  },
+
+  {
+    slug: 'scissor-cuts-and-medium-length-styles',
+    title: 'Beyond the Fade: Scissor Cuts and Medium-Length Styles for Minneapolis Men',
+    subtitle: 'Not every sharp look requires scalp exposure. Scissor architecture, tapers, and medium length cuts built with the same craft as a skin fade.',
+    excerpt:
+      'High quality barbering is more than fades. Learn when scissor cuts, tapers, and medium-length styles are the better choice for your head shape and professional life in Minneapolis.',
+    category: 'Style Guide',
+    readTime: '9 min read',
+    publishedAt: 'July 13, 2026',
+    publishedAtISO: '2026-07-13',
+    keywords: [
+      'scissor cut mens hair Minneapolis',
+      'medium length mens haircut',
+      'taper haircut men',
+      'non fade mens haircut',
+      'professional mens haircut Minneapolis',
+      'undercut medium hair men',
+      'SAVRON scissor cut',
+    ],
+    content: [
+      {
+        type: 'intro',
+        text: 'Minneapolis barbershop culture talks a lot about fades. That makes sense: a clean gradient is one of the hardest technical skills to master. But craftsmanship also lives in scissor-only work, controlled tapers, and medium-length styles that grow out with dignity. SAVRON barbers spend equal care on clients who never want to show scalp and clients who want a razor-sharp skin fade.',
+      },
+      {
+        type: 'h2',
+        heading: 'When a scissor cut beats a fade',
+        text: 'If your workplace is conservative, your hair is fine or thinning at the crown, or you dislike frequent touch-ups, a scissor cut with tapered sides may outperform a high skin fade. You keep more perimeter density, soften facial angles, and extend time between appointments. The craft shows in shear work: even weight, clean perimeter, and a top shaped to how your hair actually grows.',
+      },
+      {
+        type: 'h2',
+        heading: 'Short styles without maximum contrast',
+        text: 'Short does not always mean bald. A #2 or #3 guard with scissor work on top delivers a disciplined look that survives Minneapolis winters under hats better than a fresh zero fade. Disconnected undercuts add edge when you want separation without shaving the sides clean. Your barber should recommend contrast level based on density and lifestyle, not default to the shortest option.',
+      },
+      {
+        type: 'h2',
+        heading: 'Medium length: layers, flow, and control',
+        text: 'Medium hair, grazing the ears or collar, unlocks styles that fades cannot replicate. Layered texture for a natural finish. Tapered sides that narrow the silhouette while the top keeps movement. Growth toward a flow back or man bun with a shaped undercut foundation. These cuts demand consultation and sectioning discipline. They are not "just grow it out." They are architecture with a longer timeline.',
+      },
+      {
+        type: 'list',
+        heading: 'Popular medium-length directions at craft barbershops',
+        items: [
+          'Layered scissor cut with natural texture and soft fringe',
+          'Tapered sides with longer top brushed back for business settings',
+          'Undercut base preparing for tied-back or top knot styles',
+          'Controlled mullet-influenced shape with clean temple work',
+          'Scissor crop with blunt or point-cut fringe for fine hair',
+        ],
+      },
+      {
+        type: 'h2',
+        heading: 'Professional polish without trendy extremes',
+        text: 'Law firms, clinics, sales floors, and hospitality leadership roles still favor grooming that reads competent and calm. Medium and scissor-short styles signal that polish when they are cut with intention. Uneven perimeter, bulky crown weight, or undefined neckline reads sloppy within a week. Craftsmanship keeps the silhouette intentional through the grow-out phase, which is where cheap cuts fail.',
+      },
+      {
+        type: 'h2',
+        heading: 'Maintenance reality check',
+        text: 'Medium styles need trimming every six to eight weeks to hold shape. Short scissor cuts often need four to five. Your barber should set that expectation in the consultation so you are not surprised when the style softens. High quality service includes that honesty. SAVRON books standing appointments so maintenance stays automatic, not a crisis fix before an event.',
+      },
+      {
+        type: 'callout',
+        text: 'Not sure whether to fade or scissor? Bring your calendar and your dress code to the consultation. The right cut fits both.',
+      },
+      {
+        type: 'closing',
+        text: 'SAVRON Barbershop & Lounge in Minneapolis builds fades, tapers, and scissor cuts with the same craftsmanship standard. Book at savronmn.com/booking and ask for the approach that fits your length goals, not just the trend of the month.',
+      },
+    ],
+  },
+
+  {
     slug: 'summer-2026-haircuts',
     title: 'Summer 2026 Haircuts: The Cuts Defining the Season',
     subtitle: 'From textured crops to modern fades: what to ask for at your next appointment.',
