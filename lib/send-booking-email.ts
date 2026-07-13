@@ -32,7 +32,7 @@ async function sendResendEmail(payload: {
     subject: string;
     html: string;
     icsContent?: string;
-    icsMethod?: 'PUBLISH' | 'CANCEL';
+    icsMethod?: 'PUBLISH' | 'REQUEST' | 'CANCEL';
 }): Promise<void> {
     if (!process.env.RESEND_API_KEY) {
         throw new Error('Email service not configured');
@@ -230,7 +230,7 @@ export async function sendBookingUpdateEmail(bookingId: string): Promise<SendBoo
   </td></tr></table>
 </body></html>`;
 
-    const icsString = buildBookingIcs(booking, barberName, { method: 'PUBLISH', sequence: 2 });
+    const icsString = buildBookingIcs(booking, barberName, { method: 'REQUEST', sequence: 2 });
 
     try {
         await sendResendEmail({
@@ -238,7 +238,7 @@ export async function sendBookingUpdateEmail(bookingId: string): Promise<SendBoo
             subject: `Your appointment has been updated — ${booking.time}, ${dateFormatted}`,
             html: htmlBody,
             icsContent: icsString,
-            icsMethod: 'PUBLISH',
+            icsMethod: 'REQUEST',
         });
 
         if (barberEmail) {
@@ -252,7 +252,7 @@ export async function sendBookingUpdateEmail(bookingId: string): Promise<SendBoo
                 subject: `Updated booking: ${booking.client_name || 'Walk-in'} — ${booking.time}, ${dateFormatted}`,
                 html: barberHtml,
                 icsContent: icsString,
-                icsMethod: 'PUBLISH',
+                icsMethod: 'REQUEST',
             });
         }
 

@@ -9,6 +9,8 @@ import { useServices } from '@/lib/use-services';
 import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
 import type { Barber, Booking } from '@/lib/types';
 import { triggerPostEditBooking } from '@/lib/confirm-booking';
+import { bookingTotals, formatBookingServices, parseBookingServiceField } from '@/lib/booking-utils';
+import { EyebrowsAddon } from '@/components/booking/EyebrowsAddon';
 import { isSlotInPast, slotConflictsWithBusy } from '@/lib/time-helpers';
 
 interface EditBookingModalProps {
@@ -27,6 +29,7 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
     const [error, setError] = useState<string | null>(null);
     const [busySlots, setBusySlots] = useState<{ start: string; end: string }[]>([]);
     const [loadingBusy, setLoadingBusy] = useState(false);
+    const [addEyebrows, setAddEyebrows] = useState(false);
 
     const [form, setForm] = useState({
         clientName: '',
@@ -43,11 +46,13 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
     useEffect(() => {
         if (!booking) return;
         setError(null);
+        const { primaryService, includeEyebrows } = parseBookingServiceField(booking.service ?? '');
+        setAddEyebrows(includeEyebrows);
         setForm({
             clientName: booking.client_name ?? '',
             clientPhone: booking.client_phone ?? '',
             clientEmail: booking.client_email ?? '',
-            service: booking.service ?? '',
+            service: primaryService,
             barberId: booking.barber_id ?? '',
             date: booking.date ?? '',
             time: booking.time ?? '',
@@ -59,12 +64,18 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
         setForm(f => {
             const next = { ...f, [k]: v };
             if (k === 'barberId' || k === 'date' || k === 'service') next.time = '';
+            if (k === 'service' && !v) setAddEyebrows(false);
             return next;
         });
     };
 
     const selectedService = services.find(s => s.name === form.service);
-    const durationMin = selectedService?.durationMin ?? 45;
+    const totals = bookingTotals(
+        selectedService?.priceCents ?? 0,
+        selectedService?.durationMin ?? 45,
+        addEyebrows,
+    );
+    const durationMin = totals.durationMin;
     const selectedDate = form.date ? new Date(`${form.date}T12:00:00`) : new Date();
 
     useEffect(() => {
@@ -76,7 +87,12 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
         async function fetchBusy() {
             setLoadingBusy(true);
             try {
-                const res = await fetch(`/api/calendar/busy?barberId=${form.barberId}&date=${form.date}`);
+                const params = new URLSearchParams({
+                    barberId: form.barberId,
+                    date: form.date,
+                });
+                if (booking?.id) params.set('excludeBookingId', booking.id);
+                const res = await fetch(`/api/calendar/busy?${params.toString()}`);
                 if (res.ok) {
                     const data = await res.json();
                     if (!cancelled) setBusySlots(data.busy || []);
@@ -90,7 +106,7 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
         }
         fetchBusy();
         return () => { cancelled = true; };
-    }, [form.barberId, form.date]);
+    }, [form.barberId, form.date, booking?.id]);
 
     const workingHoursSlots = (() => {
         const barber = barbers.find(b => b.id === form.barberId);
@@ -133,7 +149,10 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
         setError(null);
 
         const barber = barbers.find(b => b.id === form.barberId);
-        const selected = services.find(s => s.name === form.service);
+        const serviceLabel = formatBookingServices(
+            form.service ? [form.service] : [],
+            addEyebrows,
+        );
 
         const slotChanged =
             form.barberId !== booking.barber_id
@@ -163,13 +182,13 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
                 client_name: form.clientName.trim() || 'Walk-in',
                 client_phone: form.clientPhone.trim() || null,
                 client_email: form.clientEmail.trim() || null,
-                service: form.service,
+                service: serviceLabel,
                 barber_id: form.barberId,
                 barber_name: barber?.name ?? booking.barber_name,
                 date: form.date,
                 time: form.time,
-                duration: selected?.duration ?? booking.duration,
-                price: selected?.price ?? booking.price,
+                duration: totals.duration,
+                price: totals.price,
                 notes: form.notes.trim() || null,
             })
             .eq('id', booking.id)
@@ -268,6 +287,12 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
                                     ))}
                                 </select>
                             </div>
+
+                            <EyebrowsAddon
+                                visible={!!form.service}
+                                checked={addEyebrows}
+                                onChange={setAddEyebrows}
+                            />
 
                             {/* Barber */}
                             <div>

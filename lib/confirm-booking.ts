@@ -24,7 +24,7 @@ export async function triggerPostBooking(bookingId: string): Promise<void> {
     await logSideEffectFailure('calendar sync', calendarRes);
 }
 
-/** Fire calendar sync after a booking is edited. */
+/** Fire calendar sync and update email after a booking is edited. */
 export async function triggerPostEditBooking(
     bookingId: string,
     options: {
@@ -49,6 +49,17 @@ export async function triggerPostEditBooking(
         return undefined;
     });
     await logSideEffectFailure('calendar update', calendarRes);
+
+    const emailRes = await fetch('/api/email/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ bookingId }),
+    }).catch((err) => {
+        console.error('[post-edit] update email network error:', err);
+        return undefined;
+    });
+    await logSideEffectFailure('update email', emailRes);
 }
 
 /** Cancel a booking via the shared API (email + calendar delete). */

@@ -1,19 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isShopCalendarConnected } from '@/lib/shop-calendar';
+import { bookingUsesGoogleCalendarInvite } from '@/lib/booking-calendar-invite';
 import { sendBookingUpdateEmail } from '@/lib/send-booking-email';
+import { requireStaff } from '@/lib/staff-auth';
 
 export async function POST(request: NextRequest) {
+    const staff = await requireStaff();
+    if (!staff.ok) {
+        return NextResponse.json({ error: staff.error }, { status: staff.status });
+    }
+
     const { bookingId } = await request.json() as { bookingId?: string };
 
     if (!bookingId) {
         return NextResponse.json({ error: 'Missing bookingId' }, { status: 400 });
     }
 
-    if (await isShopCalendarConnected()) {
+    if (await bookingUsesGoogleCalendarInvite(bookingId)) {
         return NextResponse.json({
             skipped: true,
             reason: 'google_calendar_invite',
-            message: 'Attendees receive an updated Google Calendar invitation from savronmn@gmail.com',
+            message: 'Client receives an updated Google Calendar invitation from their barber or SAVRON',
         });
     }
 

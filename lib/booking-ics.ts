@@ -44,7 +44,7 @@ interface BookingIcsInput {
 export function buildBookingIcs(
     booking: BookingIcsInput,
     barberName: string,
-    options: { method?: 'PUBLISH' | 'CANCEL'; sequence?: number } = {},
+    options: { method?: 'PUBLISH' | 'REQUEST' | 'CANCEL'; sequence?: number } = {},
 ): string {
     const method = options.method ?? 'PUBLISH';
     const sequence = options.sequence ?? (method === 'CANCEL' ? 1 : 0);

@@ -50,6 +50,17 @@ export function formatBookingServices(
     return names.join(', ');
 }
 
+/** Parse the composite service label stored on bookings (e.g. "Signature Cut, Eyebrows"). */
+export function parseBookingServiceField(service: string): {
+    primaryService: string;
+    includeEyebrows: boolean;
+} {
+    const parts = service.split(',').map((part) => part.trim()).filter(Boolean);
+    const includeEyebrows = parts.some((part) => part.toLowerCase() === 'eyebrows');
+    const primaryService = parts.find((part) => part.toLowerCase() !== 'eyebrows') ?? service.trim();
+    return { primaryService, includeEyebrows };
+}
+
 export function bookingTotals(
     priceCents: number,
     durationMin: number,

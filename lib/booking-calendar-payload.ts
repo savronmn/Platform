@@ -1,3 +1,4 @@
+import { parseBookingServiceField } from '@/lib/booking-utils';
 import { SERVICES } from '@/lib/services-data';
 import { SHOP_ADDRESS, SHOP_CONTACT_EMAIL, SHOP_NAME } from '@/lib/shop';
 import { toIsoString } from '@/lib/google-calendar';
@@ -60,7 +61,8 @@ export function buildBookingCalendarPayload(
     booking: BookingCalendarInput,
     barberName: string | null,
 ): BookingCalendarPayload {
-    const service = SERVICES.find(s => s.name === booking.service);
+    const { primaryService } = parseBookingServiceField(booking.service);
+    const service = SERVICES.find(s => s.name === primaryService);
     const durationMatch = booking.duration?.match(/\d+/);
     const durationMin = service?.durationMin
         ?? (durationMatch ? parseInt(durationMatch[0], 10) : 45);
