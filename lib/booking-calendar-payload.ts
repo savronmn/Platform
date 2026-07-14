@@ -1,4 +1,4 @@
-import { SERVICES } from '@/lib/services-data';
+import { parseDurationMins } from '@/lib/calendar-timeline';
 import { SHOP_ADDRESS, SHOP_CONTACT_EMAIL, SHOP_NAME } from '@/lib/shop';
 import { toIsoString } from '@/lib/google-calendar';
 
@@ -60,10 +60,8 @@ export function buildBookingCalendarPayload(
     booking: BookingCalendarInput,
     barberName: string | null,
 ): BookingCalendarPayload {
-    const service = SERVICES.find(s => s.name === booking.service);
-    const durationMatch = booking.duration?.match(/\d+/);
-    const durationMin = service?.durationMin
-        ?? (durationMatch ? parseInt(durationMatch[0], 10) : 45);
+    // Use the duration stored on the booking (set from live admin/service settings at booking time).
+    const durationMin = parseDurationMins(booking.duration);
 
     const startIso = toIsoString(booking.date, booking.time);
     const endIso = computeEndIso(booking.date, booking.time, durationMin);
