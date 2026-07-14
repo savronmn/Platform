@@ -9,6 +9,13 @@ import {
     generateApplePassBuffer,
     isAppleWalletConfigured,
 } from '@/lib/apple-wallet';
+import {
+    buildGoogleObjectId,
+    buildGoogleSaveUrl,
+    createGooglePassObject,
+    isGoogleWalletConfigured,
+    updateGoogleWalletPass,
+} from '@/lib/google-wallet';
 
 function getSupabaseAdmin() {
     return createClient(
@@ -24,9 +31,50 @@ async function resendFullPass(subscriber: {
     email: string;
     visit_count: number;
     wallet_auth_token?: string | null;
+    google_pass_object_id?: string | null;
 }): Promise<void> {
     const resend = new Resend(process.env.RESEND_API_KEY!);
+    const supabase = getSupabaseAdmin();
     const authToken = await ensureWalletAuthToken(subscriber.id, subscriber.wallet_auth_token);
+
+    let googleObjectId = subscriber.google_pass_object_id ?? null;
+    let googleSaveUrl: string | null = null;
+
+    if (isGoogleWalletConfigured()) {
+        if (!googleObjectId) {
+            const newObjectId = buildGoogleObjectId();
+            if (newObjectId) {
+                const created = await createGooglePassObject(
+                    newObjectId,
+                    subscriber.name,
+                    subscriber.email,
+                    subscriber.visit_count,
+                );
+                if (created) {
+                    googleObjectId = newObjectId;
+                    await supabase
+                        .from('email_subscribers')
+                        .update({ google_pass_object_id: newObjectId })
+                        .eq('id', subscriber.id);
+                }
+            }
+        } else {
+            await updateGoogleWalletPass(
+                googleObjectId,
+                subscriber.name,
+                subscriber.email,
+                subscriber.visit_count,
+            );
+        }
+
+        if (googleObjectId) {
+            try {
+                googleSaveUrl = buildGoogleSaveUrl(googleObjectId);
+            } catch (err) {
+                console.error('[GWallet] JWT sign failed on resend:', err);
+            }
+        }
+    }
 
     const applePassBuffer = isAppleWalletConfigured()
         ? generateApplePassBuffer(subscriber, authToken)
@@ -49,7 +97,7 @@ async function resendFullPass(subscriber: {
         from: process.env.RESEND_FROM_EMAIL || 'noreply@savronmn.com',
         to: subscriber.email,
         subject: 'SAVRON — Your Membership Pass',
-        html: buildMembershipEmail(subscriber.name, downloadUrl),
+        html: buildMembershipEmail(subscriber.name, downloadUrl, googleSaveUrl),
         attachments: attachments as ResendAttachment[],
     });
 }
