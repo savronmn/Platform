@@ -20,6 +20,11 @@ export interface CalendarSyncEvent {
     sequence?: number;
     start?: { dateTime?: string };
     attendees?: CalendarAttendee[];
+    extendedProperties?: {
+        private?: {
+            savronBookingId?: string;
+        };
+    };
 }
 
 export interface BookingDeclineTarget {
@@ -100,6 +105,30 @@ export function namesMatch(a: string | null | undefined, b: string | null | unde
 function isSystemAttendee(email: string | null | undefined): boolean {
     if (!email) return false;
     return SYSTEM_EMAILS.has(email.toLowerCase());
+}
+
+function guestAttendeeEmails(event: CalendarSyncEvent): string[] {
+    return Array.from(new Set(
+        (event.attendees ?? [])
+            .filter(attendee => !attendee.organizer && attendee.email && !isSystemAttendee(attendee.email))
+            .map(attendee => attendee.email!.toLowerCase()),
+    ));
+}
+
+function declinedGuestEmails(event: CalendarSyncEvent): string[] {
+    return Array.from(new Set(
+        (event.attendees ?? [])
+            .filter(attendee => !attendee.organizer
+                && attendee.email
+                && !isSystemAttendee(attendee.email)
+                && attendee.responseStatus === 'declined')
+            .map(attendee => attendee.email!.toLowerCase()),
+    ));
+}
+
+export function extractSavronBookingId(event: CalendarSyncEvent): string | null {
+    const bookingId = event.extendedProperties?.private?.savronBookingId?.trim();
+    return bookingId || null;
 }
 
 /** Extract a clean client name from GCal event data. */
@@ -242,6 +271,8 @@ export function shouldCancelBookingFromCalendarEvent(
     return null;
 }
 
+const BOOKING_LOOKUP_SELECT = 'id, status, client_email, client_name, date, time';
+
 export async function findBookingForCalendarEvent(
     supabase: SupabaseClient,
     barberId: string | null,
@@ -254,17 +285,27 @@ export async function findBookingForCalendarEvent(
     date: string;
     time: string;
 } | null> {
+    const savronBookingId = extractSavronBookingId(event);
+    if (savronBookingId) {
+        const { data: byEmbeddedId } = await supabase
+            .from('bookings')
+            .select(BOOKING_LOOKUP_SELECT)
+            .eq('id', savronBookingId)
+            .maybeSingle();
+        if (byEmbeddedId) return byEmbeddedId;
+    }
+
     if (event.id) {
         const { data: byBarberEvent } = await supabase
             .from('bookings')
-            .select('id, status, client_email, client_name, date, time')
+            .select(BOOKING_LOOKUP_SELECT)
             .eq('google_event_id', event.id)
             .maybeSingle();
         if (byBarberEvent) return byBarberEvent;
 
         const { data: byShopEvent } = await supabase
             .from('bookings')
-            .select('id, status, client_email, client_name, date, time')
+            .select(BOOKING_LOOKUP_SELECT)
             .eq('shop_google_event_id', event.id)
             .maybeSingle();
         if (byShopEvent) return byShopEvent;
@@ -278,7 +319,7 @@ export async function findBookingForCalendarEvent(
 
     let query = supabase
         .from('bookings')
-        .select('id, status, client_email, client_name, date, time')
+        .select(BOOKING_LOOKUP_SELECT)
         .eq('date', slot.date)
         .eq('time', slot.time)
         .in('status', ['confirmed']);
@@ -290,16 +331,18 @@ export async function findBookingForCalendarEvent(
     const { data: slotBookings } = await query;
     if (!slotBookings?.length) return null;
 
-    const eventClientEmail = (event.attendees ?? [])
-        .find(a => !a.organizer && a.email && !SYSTEM_EMAILS.has(a.email.toLowerCase()))
-        ?.email
-        ?.toLowerCase();
+    const matchByClientEmail = (email: string) => slotBookings.find(
+        booking => booking.client_email?.toLowerCase() === email,
+    ) ?? null;
 
-    if (eventClientEmail) {
-        const byEmail = slotBookings.find(
-            booking => booking.client_email?.toLowerCase() === eventClientEmail,
-        );
-        if (byEmail) return byEmail;
+    for (const email of declinedGuestEmails(event)) {
+        const byDeclinedEmail = matchByClientEmail(email);
+        if (byDeclinedEmail) return byDeclinedEmail;
+    }
+
+    for (const email of guestAttendeeEmails(event)) {
+        const byGuestEmail = matchByClientEmail(email);
+        if (byGuestEmail) return byGuestEmail;
     }
 
     const eventClientName = extractClientNameFromEvent(event);
@@ -308,8 +351,12 @@ export async function findBookingForCalendarEvent(
         if (matched) return matched;
     }
 
-    // Without barber scope, never guess — wrong booking risk across barbers.
-    if (!barberId) return null;
+    // Shop calendar webhook has no barber scope — only accept a unique slot match.
+    if (!barberId) {
+        if (slotBookings.length === 1 && anyInviteeDeclined(event)) return slotBookings[0];
+        return null;
+    }
+
     if (slotBookings.length === 1) return slotBookings[0];
     return null;
 }

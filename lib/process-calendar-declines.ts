@@ -103,16 +103,27 @@ export async function enrichEventsWithFullDetails(
     accessToken: string,
     calendarId: string,
     events: CalendarSyncEvent[],
+    fallbackCalendarIds: string[] = [],
 ): Promise<CalendarSyncEvent[]> {
+    const calendarIdsToTry = Array.from(new Set([
+        calendarId,
+        ...fallbackCalendarIds.filter(id => id && id !== calendarId),
+    ]));
+
     return Promise.all(events.map(async (event) => {
         if (!event.id) return event;
-        try {
-            const full = await getCalendarEvent(accessToken, calendarId, event.id);
-            return { ...event, ...full } as CalendarSyncEvent;
-        } catch (err) {
-            console.error('[calendar-declines] Failed to enrich event attendees:', err);
-            return event;
+
+        for (const candidateCalendarId of calendarIdsToTry) {
+            try {
+                const full = await getCalendarEvent(accessToken, candidateCalendarId, event.id);
+                return { ...event, ...full } as CalendarSyncEvent;
+            } catch {
+                continue;
+            }
         }
+
+        console.error('[calendar-declines] Failed to enrich event attendees:', event.id);
+        return event;
     }));
 }
 
@@ -137,7 +148,12 @@ export async function processCalendarEventChanges(
         const action = shouldCancelBookingFromCalendarEvent(event, booking);
         if (!action) continue;
 
-        const result = await cancelBooking(booking.id, { skipCalendar: action.skipCalendar });
+        const sendDeclineConfirmation =
+            action.reason === 'invitee_declined' || action.reason === 'client_declined';
+        const result = await cancelBooking(booking.id, {
+            skipCalendar: action.skipCalendar,
+            forceEmail: sendDeclineConfirmation,
+        });
         if (result.success && !result.alreadyCancelled) {
             cancelled += 1;
             reasons.push(action.reason);
@@ -180,7 +196,7 @@ export async function processDeclinedCalendarEvents(
         const events = (
             await Promise.all(idsToFetch.map(async calendarId => {
                 const raw = await listEvents(accessToken, calendarId, timeMin, timeMax);
-                return enrichEventsWithFullDetails(accessToken, calendarId, raw);
+                return enrichEventsWithFullDetails(accessToken, calendarId, raw, idsToFetch);
             }))
         ).flat();
 
@@ -203,7 +219,7 @@ export async function processDeclinedCalendarEvents(
             const events = (
                 await Promise.all(idsToFetch.map(async calendarId => {
                     const raw = await listEvents(accessToken, calendarId, timeMin, timeMax);
-                    return enrichEventsWithFullDetails(accessToken, calendarId, raw);
+                    return enrichEventsWithFullDetails(accessToken, calendarId, raw, idsToFetch);
                 }))
             ).flat();
 

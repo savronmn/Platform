@@ -539,7 +539,15 @@ export async function getCalendarEvent(
     accessToken: string,
     calendarId: string,
     eventId: string,
-): Promise<{ id?: string; status?: string; sequence?: number; attendees?: Array<{ email?: string; responseStatus?: string; organizer?: boolean }> }> {
+): Promise<{
+    id?: string;
+    status?: string;
+    sequence?: number;
+    attendees?: Array<{ email?: string; responseStatus?: string; organizer?: boolean; displayName?: string }>;
+    extendedProperties?: { private?: { savronBookingId?: string } };
+    summary?: string;
+    start?: { dateTime?: string };
+}> {
     const res = await fetch(
         `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
         { headers: { Authorization: `Bearer ${accessToken}` } },

@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getValidAccessToken, getChangedEvents, getInitialSyncToken, watchCalendar, type CalendarToken } from '@/lib/google-calendar';
+import {
+    getValidAccessToken,
+    getChangedEvents,
+    getInitialSyncToken,
+    listAccountCalendarIds,
+    watchCalendar,
+    type CalendarToken,
+} from '@/lib/google-calendar';
 import { processCalendarEventChanges, enrichEventsWithFullDetails } from '@/lib/process-calendar-declines';
 
 const getAdmin = () => createClient(
@@ -102,10 +109,16 @@ export async function POST(req: NextRequest) {
         let cancelledCount = 0;
         const reasons: string[] = [];
 
+        const accountCalendarIds = await listAccountCalendarIds(accessToken);
+        const calendarIdsToTry = accountCalendarIds.length > 0
+            ? Array.from(new Set([barber.google_calendar_id as string, ...accountCalendarIds]))
+            : [barber.google_calendar_id as string];
+
         const enrichedEvents = await enrichEventsWithFullDetails(
             accessToken,
             barber.google_calendar_id as string,
             events.filter(event => event.id),
+            calendarIdsToTry,
         );
 
         const result = await processCalendarEventChanges(

@@ -4,6 +4,7 @@ import {
     getValidAccessToken,
     getChangedEvents,
     getInitialSyncToken,
+    listAccountCalendarIds,
     watchCalendar,
 } from '@/lib/google-calendar';
 import {
@@ -96,10 +97,16 @@ export async function POST(req: NextRequest) {
             nextSyncToken = changed.nextSyncToken;
         }
 
+        const accountCalendarIds = await listAccountCalendarIds(accessToken);
+        const calendarIdsToTry = accountCalendarIds.length > 0
+            ? Array.from(new Set([calendarId, ...accountCalendarIds]))
+            : [calendarId];
+
         const enrichedEvents = await enrichEventsWithFullDetails(
             accessToken,
             calendarId,
             events.filter(event => event.id),
+            calendarIdsToTry,
         );
 
         const result = await processCalendarEventChanges(
