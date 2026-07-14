@@ -5,14 +5,15 @@ import './globals.css';
 import LayoutShell from '@/components/layout/LayoutShell';
 import CookieConsentBanner from '@/components/layout/CookieConsentBanner';
 import GoogleAnalytics from '@/components/analytics/GoogleAnalytics';
-import { GA_MEASUREMENT_ID } from '@/lib/ga-measurement-id';
+
+const GA_ID = 'G-HL5DCE0PK8';
 
 const googleTagInitScript = `
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
 
-  gtag('config', '${GA_MEASUREMENT_ID}');
+  gtag('config', '${GA_ID}');
 `;
 
 const montserrat = Montserrat({
@@ -111,7 +112,7 @@ export default function RootLayout({
                 {/* Google tag (gtag.js) */}
                 <script
                     async
-                    src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+                    src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
                 />
                 <script dangerouslySetInnerHTML={{ __html: googleTagInitScript }} />
             </head>
