@@ -71,15 +71,20 @@ async function getWalletClient() {
     assertConfigured();
     warnIfClassIdMisconfigured();
 
-    const auth = new GoogleAuth({
-        credentials: {
-            client_email: SERVICE_ACCOUNT_EMAIL!,
-            private_key: GOOGLE_PRIVATE_KEY!,
-        },
-        scopes: ['https://www.googleapis.com/auth/wallet_object.issuer'],
-    });
+    try {
+        const auth = new GoogleAuth({
+            credentials: {
+                client_email: SERVICE_ACCOUNT_EMAIL!,
+                private_key: GOOGLE_PRIVATE_KEY!,
+            },
+            scopes: ['https://www.googleapis.com/auth/wallet_object.issuer'],
+        });
 
-    return auth.getClient();
+        return await auth.getClient();
+    } catch (err) {
+        logGoogleWalletError('Auth getClient', err);
+        throw err;
+    }
 }
 
 function logGoogleWalletError(context: string, err: unknown) {
@@ -201,7 +206,12 @@ export async function createGooglePassObject(
     const classOk = await ensureGooglePassClass();
     if (!classOk) return false;
 
-    const client = await getWalletClient();
+    let client;
+    try {
+        client = await getWalletClient();
+    } catch {
+        return false;
+    }
     const passObject = buildGooglePassObjectPayload(objectId, name, email, visitCount);
 
     try {
@@ -243,7 +253,14 @@ export async function updateGoogleWalletPass(
     }
 
     await ensureGooglePassClass();
-    const client = await getWalletClient();
+
+    let client;
+    try {
+        client = await getWalletClient();
+    } catch {
+        return false;
+    }
+
     const passObject = buildGooglePassObjectPayload(objectId, name, email, visitCount);
 
     try {

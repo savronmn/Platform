@@ -190,21 +190,23 @@ export function generateApplePassBuffer(
     }
 }
 
-function sendApnsPassUpdate(pushToken: string, p12Buffer: Buffer): Promise<boolean> {
-    return new Promise((resolve) => {
-        const host = process.env.APNS_USE_SANDBOX === 'true'
-            ? 'https://api.sandbox.push.apple.com'
-            : 'https://api.push.apple.com';
+type ApnsPushResult = 'ok' | 'gone' | 'fail';
 
+function sendApnsPassUpdateToHost(
+    pushToken: string,
+    p12Buffer: Buffer,
+    host: string,
+): Promise<ApnsPushResult> {
+    return new Promise((resolve) => {
         const client = http2.connect(host, {
             pfx: p12Buffer,
             passphrase: PASSPHRASE,
         });
 
         client.on('error', (err) => {
-            console.warn('[Apple Wallet] APNs connection error:', err);
+            console.warn('[Apple Wallet] APNs connection error:', host, err);
             client.close();
-            resolve(false);
+            resolve('fail');
         });
 
         const req = client.request({
@@ -213,20 +215,28 @@ function sendApnsPassUpdate(pushToken: string, p12Buffer: Buffer): Promise<boole
             'apns-topic': PASS_TYPE_ID!,
             'apns-push-type': 'background',
             'apns-priority': '5',
+            'apns-expiration': '0',
             'content-type': 'application/json',
         });
 
         req.on('response', (headers) => {
-            const status = headers[':status'];
-            if (status !== 200) {
-                console.warn('[Apple Wallet] APNs push rejected:', status, pushToken.slice(0, 8) + '…');
+            const status = Number(headers[':status']);
+            if (status === 200) {
+                resolve('ok');
+                return;
             }
-            resolve(status === 200);
+            if (status === 410) {
+                console.warn('[Apple Wallet] APNs token gone (410):', pushToken.slice(0, 8) + '…');
+                resolve('gone');
+                return;
+            }
+            console.warn('[Apple Wallet] APNs push rejected:', status, host, pushToken.slice(0, 8) + '…');
+            resolve('fail');
         });
 
         req.on('error', (err) => {
-            console.warn('[Apple Wallet] APNs request error:', err);
-            resolve(false);
+            console.warn('[Apple Wallet] APNs request error:', host, err);
+            resolve('fail');
         });
 
         req.end('{}');
@@ -234,40 +244,116 @@ function sendApnsPassUpdate(pushToken: string, p12Buffer: Buffer): Promise<boole
     });
 }
 
+/** Try production first; fall back to sandbox for dev/TestFlight wallet builds. */
+async function sendApnsPassUpdate(pushToken: string, p12Buffer: Buffer): Promise<ApnsPushResult> {
+    const useSandboxFirst = process.env.APNS_USE_SANDBOX === 'true';
+    const primary = useSandboxFirst
+        ? 'https://api.sandbox.push.apple.com'
+        : 'https://api.push.apple.com';
+    const fallback = useSandboxFirst
+        ? 'https://api.push.apple.com'
+        : 'https://api.sandbox.push.apple.com';
+
+    const primaryResult = await sendApnsPassUpdateToHost(pushToken, p12Buffer, primary);
+    if (primaryResult === 'ok' || primaryResult === 'gone') {
+        return primaryResult;
+    }
+
+    return sendApnsPassUpdateToHost(pushToken, p12Buffer, fallback);
+}
+
+interface PassRegistrationRow {
+    id: string;
+    push_token: string;
+    device_library_identifier: string;
+}
+
+async function fetchPassRegistrations(
+    subscriberId: string,
+    serialNumber: string,
+): Promise<PassRegistrationRow[]> {
+    const supabase = getSupabaseAdmin();
+    const filters = [`subscriber_id.eq.${subscriberId}`];
+    if (serialNumber) {
+        filters.push(`serial_number.eq.${serialNumber}`);
+    }
+
+    const { data, error } = await supabase
+        .from('wallet_pass_registrations')
+        .select('id, push_token, device_library_identifier')
+        .or(filters.join(','));
+
+    if (error) {
+        console.warn('[Apple Wallet] Registration lookup failed:', error.message);
+        return [];
+    }
+
+    const byToken = new Map<string, PassRegistrationRow>();
+    for (const reg of data ?? []) {
+        if (!reg.push_token) continue;
+        byToken.set(reg.push_token, reg);
+    }
+    return Array.from(byToken.values());
+}
+
 /** Notify registered Apple Wallet devices to pull the latest pass. */
-export async function pushApplePassUpdates(serialNumber: string): Promise<number> {
-    if (!isAppleWalletConfigured()) return 0;
+export async function pushApplePassUpdates(
+    serialNumber: string,
+    subscriberId?: string,
+): Promise<{ notified: number; registered: number }> {
+    if (!isAppleWalletConfigured()) return { notified: 0, registered: 0 };
 
     const materials = loadSignerMaterials();
-    if (!materials) return 0;
+    if (!materials) return { notified: 0, registered: 0 };
+
+    if (!subscriberId && !serialNumber) {
+        return { notified: 0, registered: 0 };
+    }
+
+    const registrations = await fetchPassRegistrations(subscriberId ?? '', serialNumber);
+    if (!registrations.length) {
+        console.warn(
+            '[Apple Wallet] No device registrations for pass',
+            serialNumber,
+            subscriberId ? `(subscriber ${subscriberId})` : '',
+        );
+        return { notified: 0, registered: 0 };
+    }
 
     const supabase = getSupabaseAdmin();
-    const { data: registrations } = await supabase
-        .from('wallet_pass_registrations')
-        .select('push_token')
-        .eq('serial_number', serialNumber);
+    const results = await Promise.all(
+        registrations.map(async (reg) => {
+            const result = await sendApnsPassUpdate(reg.push_token, materials.p12Buffer);
+            if (result === 'gone') {
+                await supabase
+                    .from('wallet_pass_registrations')
+                    .delete()
+                    .eq('id', reg.id);
+            }
+            return result === 'ok';
+        }),
+    );
 
-    if (!registrations?.length) {
-        console.warn('[Apple Wallet] No device registrations for pass', serialNumber);
-        return 0;
-    }
-
-    const pushTokens = Array.from(new Set(registrations.map((reg) => reg.push_token).filter(Boolean)));
-    let pushed = 0;
-    for (const pushToken of pushTokens) {
-        const ok = await sendApnsPassUpdate(pushToken, materials.p12Buffer);
-        if (ok) pushed++;
-    }
-
-    console.log(`[Apple Wallet] APNs pushed ${pushed}/${pushTokens.length} device(s) for ${serialNumber}`);
-    return pushed;
+    const notified = results.filter(Boolean).length;
+    console.log(
+        `[Apple Wallet] APNs pushed ${notified}/${registrations.length} device(s) for ${serialNumber}`,
+    );
+    return { notified, registered: registrations.length };
 }
 
 export async function notifyWalletPassesUpdated(
     subscriberId: string,
     serialNumber: string,
-): Promise<{ pass_updated_at: string; apple_devices_notified: number }> {
+): Promise<{
+    pass_updated_at: string;
+    apple_devices_notified: number;
+    apple_devices_registered: number;
+}> {
     const pass_updated_at = await touchPassUpdatedAt(subscriberId);
-    const apple_devices_notified = await pushApplePassUpdates(serialNumber);
-    return { pass_updated_at, apple_devices_notified };
+    const { notified, registered } = await pushApplePassUpdates(serialNumber, subscriberId);
+    return {
+        pass_updated_at,
+        apple_devices_notified: notified,
+        apple_devices_registered: registered,
+    };
 }

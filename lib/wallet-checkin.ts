@@ -20,7 +20,9 @@ interface SubscriberRow {
 export interface WalletSyncResult {
     google_wallet_updated: boolean;
     apple_devices_notified: number;
+    apple_devices_registered: number;
     pass_updated_at: string;
+    wallet_sync_errors?: string[];
 }
 
 function getSupabaseAdmin() {
@@ -78,35 +80,61 @@ export async function syncWalletsAfterCheckin(
     newCount: number,
     lastVisitAt: string,
 ): Promise<WalletSyncResult> {
+    const syncErrors: string[] = [];
     const fresh = await fetchSubscriberForSync(subscriber.id);
     const row = fresh ?? subscriber;
     const visitCount = fresh?.visit_count ?? newCount;
 
     let google_wallet_updated = false;
-    const googleObjectId = await ensureGooglePassObjectId(row, visitCount);
-
-    if (googleObjectId) {
-        google_wallet_updated = await updateGoogleWalletPass(
-            googleObjectId,
-            row.name,
-            row.email,
-            visitCount,
-        );
+    try {
+        const googleObjectId = await ensureGooglePassObjectId(row, visitCount);
+        if (googleObjectId) {
+            google_wallet_updated = await updateGoogleWalletPass(
+                googleObjectId,
+                row.name,
+                row.email,
+                visitCount,
+            );
+        }
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn('[wallet-checkin] Google Wallet sync failed (non-fatal):', msg);
+        syncErrors.push(`google: ${msg}`);
     }
 
-    const { pass_updated_at, apple_devices_notified } = await notifyWalletPassesUpdated(
-        row.id,
-        row.pass_serial_number,
-    );
+    let pass_updated_at = new Date().toISOString();
+    let apple_devices_notified = 0;
+    let apple_devices_registered = 0;
+    try {
+        const appleResult = await notifyWalletPassesUpdated(
+            row.id,
+            row.pass_serial_number,
+        );
+        pass_updated_at = appleResult.pass_updated_at;
+        apple_devices_notified = appleResult.apple_devices_notified;
+        apple_devices_registered = appleResult.apple_devices_registered;
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn('[wallet-checkin] Apple Wallet sync failed (non-fatal):', msg);
+        syncErrors.push(`apple: ${msg}`);
+    }
 
-    await broadcastEpassVisitUpdate(row.email, {
-        visit_count: visitCount,
-        last_visit_at: lastVisitAt,
-    });
+    try {
+        await broadcastEpassVisitUpdate(row.email, {
+            visit_count: visitCount,
+            last_visit_at: lastVisitAt,
+        });
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn('[wallet-checkin] ePass broadcast failed (non-fatal):', msg);
+        syncErrors.push(`epass: ${msg}`);
+    }
 
     return {
         google_wallet_updated,
         apple_devices_notified,
+        apple_devices_registered,
         pass_updated_at,
+        ...(syncErrors.length ? { wallet_sync_errors: syncErrors } : {}),
     };
 }
