@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { Montserrat, Inter, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import LayoutShell from '@/components/layout/LayoutShell';
 import CookieConsentBanner from '@/components/layout/CookieConsentBanner';
+import GoogleAnalytics from '@/components/analytics/GoogleAnalytics';
 
 const montserrat = Montserrat({
     subsets: ['latin'],
@@ -97,6 +99,9 @@ export default function RootLayout({
     return (
         <html lang="en" className="scroll-smooth">
             <body className={`${montserrat.variable} ${inter.variable} ${playfair.variable} font-sans bg-savron-black text-white antialiased`}>
+                <Suspense fallback={null}>
+                    <GoogleAnalytics />
+                </Suspense>
                 <LayoutShell>
                     {children}
                 </LayoutShell>
