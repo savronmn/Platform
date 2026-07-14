@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Phone, Mail, Star, AlertCircle, ChevronDown } from 'lucide-react';
+import { X, Phone, Mail, Star, AlertCircle, ChevronDown, Trash2, AlertTriangle } from 'lucide-react';
 import { format, formatDistanceToNow, differenceInDays, parseISO, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { Booking, Client, Barber, Applicant } from '@/lib/types';
 import Link from 'next/link';
 import DateRangeFilter, { type DateRange, bookingInRange } from '@/components/crm/DateRangeFilter';
 import { statPageHref } from '@/lib/admin-stat-routes';
+import { triggerCancelBooking } from '@/lib/confirm-booking';
 
 export type StatKey =
     | 'todayAppointments'
@@ -506,7 +507,17 @@ function BookingDetailItem({ booking, clients, showQualification = true, compact
     );
 }
 
-function CancellationDetailItem({ booking, clients }: { booking: Booking; clients: Client[] }) {
+function CancellationDetailItem({
+    booking,
+    clients,
+    onDelete,
+    deleting,
+}: {
+    booking: Booking;
+    clients: Client[];
+    onDelete?: (booking: Booking) => void;
+    deleting?: boolean;
+}) {
     const client = getClientForBooking(booking, clients);
     const daysSinceAppt = differenceInDays(new Date(), parseISO(booking.date));
     const isFuture = daysSinceAppt < 0;
@@ -558,6 +569,21 @@ function CancellationDetailItem({ booking, clients }: { booking: Booking; client
                         <Phone className="w-3 h-3" /> Call to reschedule
                     </a>
                 )}
+                {onDelete && (
+                    <button
+                        type="button"
+                        onClick={() => onDelete(booking)}
+                        disabled={deleting}
+                        className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 text-[10px] uppercase tracking-widest text-red-400 border border-red-500/25 rounded-savron hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                    >
+                        {deleting ? (
+                            <div className="w-3 h-3 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                        ) : (
+                            <Trash2 className="w-3 h-3" />
+                        )}
+                        Delete report
+                    </button>
+                )}
             </div>
         </DetailRow>
     );
@@ -602,7 +628,17 @@ function ClientDetailItem({ client, showDaysOverdue = false, cutoff }: { client:
     );
 }
 
-function renderContent(statKey: StatKey, data: StatDetailData, cutoff: string, dateRange: DateRange) {
+function renderContent(
+    statKey: StatKey,
+    data: StatDetailData,
+    cutoff: string,
+    dateRange: DateRange,
+    options?: {
+        onDeleteCancellation?: (booking: Booking) => void;
+        deletingCancellationId?: string | null;
+        deleteCancellationError?: string | null;
+    },
+) {
     const today = todayDateStr();
     const filteredActive = filterActiveBookings(data.allBookings, dateRange);
     const filteredCancellations = filterCancellations(data.allBookings, dateRange);
@@ -853,13 +889,25 @@ function renderContent(statKey: StatKey, data: StatDetailData, cutoff: string, d
             return filteredCancellations.length === 0
                 ? <EmptyState message="No cancellations in this date range" />
                 : <>
+                    {options?.deleteCancellationError && (
+                        <div className="mb-4 p-3 border border-red-500/30 bg-red-500/10 rounded-savron text-red-400 text-xs flex items-center gap-2">
+                            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                            {options.deleteCancellationError}
+                        </div>
+                    )}
                     <SummaryBanner items={[
                         { label: 'Total', value: String(filteredCancellations.length) },
                         { label: 'Cancelled', value: String(filteredCancellations.filter(b => b.status === 'cancelled').length) },
                         { label: 'No-shows', value: String(filteredCancellations.filter(b => b.status === 'no_show').length) },
                     ]} />
                     {filteredCancellations.map(b => (
-                        <CancellationDetailItem key={b.id} booking={b} clients={data.allClients} />
+                        <CancellationDetailItem
+                            key={b.id}
+                            booking={b}
+                            clients={data.allClients}
+                            onDelete={options?.onDeleteCancellation}
+                            deleting={options?.deletingCancellationId === b.id}
+                        />
                     ))}
                 </>;
 
@@ -880,17 +928,45 @@ export function StatDetailView({
     data,
     cutoff,
     showDateFilter = true,
+    onDataChange,
 }: {
     statKey: StatKey;
     data: StatDetailData;
     cutoff: string;
     showDateFilter?: boolean;
+    onDataChange?: (next: StatDetailData) => void;
 }) {
     const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange(statKey));
+    const [deletingCancellationId, setDeletingCancellationId] = useState<string | null>(null);
+    const [deleteCancellationError, setDeleteCancellationError] = useState<string | null>(null);
 
     useEffect(() => {
         setDateRange(getDefaultDateRange(statKey));
     }, [statKey]);
+
+    async function handleDeleteCancellation(booking: Booking) {
+        if (!confirm(`Delete this ${booking.status === 'no_show' ? 'no-show' : 'cancellation'} report for ${booking.client_name || 'this client'}? This permanently removes the booking record.`)) {
+            return;
+        }
+
+        setDeletingCancellationId(booking.id);
+        setDeleteCancellationError(null);
+
+        const result = await triggerCancelBooking(booking.id, { hardDelete: true });
+        if (!result.success) {
+            setDeleteCancellationError(result.error ?? 'Could not delete report entry');
+            setDeletingCancellationId(null);
+            return;
+        }
+
+        const nextData: StatDetailData = {
+            ...data,
+            allBookings: data.allBookings.filter(b => b.id !== booking.id),
+            recentCancellations: data.recentCancellations.filter(b => b.id !== booking.id),
+        };
+        onDataChange?.(nextData);
+        setDeletingCancellationId(null);
+    }
 
     return (
         <div className="space-y-4">
@@ -901,7 +977,11 @@ export function StatDetailView({
                     onChange={setDateRange}
                 />
             )}
-            {renderContent(statKey, data, cutoff, dateRange)}
+            {renderContent(statKey, data, cutoff, dateRange, statKey === 'recentCancellations' ? {
+                onDeleteCancellation: handleDeleteCancellation,
+                deletingCancellationId,
+                deleteCancellationError,
+            } : undefined)}
         </div>
     );
 }

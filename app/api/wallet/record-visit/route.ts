@@ -224,6 +224,60 @@ export async function POST(req: NextRequest) {
             });
         }
 
+        if (action === 'update_profile') {
+            const { name, email, phone } = body as {
+                name?: string;
+                email?: string;
+                phone?: string | null;
+            };
+
+            const updates: { name?: string; email?: string; phone?: string | null } = {};
+            if (typeof name === 'string' && name.trim()) updates.name = name.trim();
+            if (typeof email === 'string' && email.trim()) updates.email = email.trim();
+            if (phone !== undefined) updates.phone = phone?.trim() || null;
+
+            if (Object.keys(updates).length === 0) {
+                return NextResponse.json({ error: 'No profile fields to update' }, { status: 400 });
+            }
+
+            const { data: updated, error: updateError } = await supabase
+                .from('email_subscribers')
+                .update(updates)
+                .eq('id', subscriber_id)
+                .select('*')
+                .single();
+
+            if (updateError || !updated) {
+                if (updateError?.code === '23505') {
+                    return NextResponse.json({ error: 'That email is already on the membership list.' }, { status: 409 });
+                }
+                return NextResponse.json({ error: updateError?.message ?? 'Failed to update member' }, { status: 500 });
+            }
+
+            let googleWalletUpdated = false;
+            if (isGoogleWalletConfigured() && updated.google_pass_object_id) {
+                googleWalletUpdated = await updateGoogleWalletPass(
+                    updated.google_pass_object_id,
+                    updated.name,
+                    updated.email,
+                    updated.visit_count ?? 0,
+                );
+            }
+
+            const passUpdatedAt = new Date().toISOString();
+            await supabase
+                .from('email_subscribers')
+                .update({ pass_updated_at: passUpdatedAt })
+                .eq('id', subscriber_id);
+
+            return NextResponse.json({
+                success: true,
+                subscriber: updated,
+                google_wallet_updated: googleWalletUpdated,
+                pass_updated_at: passUpdatedAt,
+            });
+        }
+
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     } catch (error) {
         console.error('record-visit route failed:', error);

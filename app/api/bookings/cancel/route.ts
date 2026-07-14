@@ -35,6 +35,23 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
+    // Staff can remove cancelled/no-show tombstones from the cancellation report without re-running cancel.
+    if (hardDelete && isStaff && (booking.status === 'cancelled' || booking.status === 'no_show')) {
+        const { error: deleteError } = await supabaseAdmin
+            .from('bookings')
+            .delete()
+            .eq('id', bookingId);
+
+        if (deleteError) {
+            return NextResponse.json(
+                { error: `Could not delete report entry: ${deleteError.message}` },
+                { status: 500 },
+            );
+        }
+
+        return NextResponse.json({ success: true, deleted: true });
+    }
+
     // Repeated requests for an already-cancelled booking remain idempotent.
     if (booking.status !== 'confirmed' && booking.status !== 'cancelled') {
         return NextResponse.json({ error: 'Only confirmed bookings can be cancelled' }, { status: 400 });

@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase';
 import type { EmailSubscriber } from '@/lib/types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, UserCheck, Clock, Send, Plus, RefreshCw, UserPlus, X, Minus, Trash2, ScanLine } from 'lucide-react';
+import { Search, UserCheck, Clock, Send, Plus, RefreshCw, UserPlus, X, Minus, Trash2, ScanLine, Edit3, Check, AlertTriangle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +22,11 @@ export default function MembershipPage() {
     const [showScanner, setShowScanner] = useState(false);
     const [addForm, setAddForm] = useState({ name: '', email: '', phone: '' });
     const [addLoading, setAddLoading] = useState(false);
+    const [selected, setSelected] = useState<EmailSubscriber | null>(null);
+    const [editing, setEditing] = useState(false);
+    const [editData, setEditData] = useState({ name: '', email: '', phone: '' });
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
 
     const showToast = (text: string, type: 'success' | 'error' = 'success') => {
         setToast({ text, type });
@@ -132,6 +137,56 @@ export default function MembershipPage() {
         } finally {
             setActionLoading(null);
         }
+    }
+
+    async function saveMemberEdit() {
+        if (!selected) return;
+        setSaving(true);
+        setSaveError(null);
+        try {
+            const res = await fetch('/api/wallet/record-visit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    subscriber_id: selected.id,
+                    action: 'update_profile',
+                    name: editData.name.trim(),
+                    email: editData.email.trim(),
+                    phone: editData.phone.trim() || null,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setSubscribers(prev =>
+                    prev.map(s => s.id === selected.id ? { ...s, ...data.subscriber } : s)
+                );
+                showToast(
+                    `Updated ${editData.name.trim()}` +
+                    (data.google_wallet_updated ? ' — Google Wallet synced.' : '')
+                );
+                setEditing(false);
+                setSelected(null);
+            } else if (res.status === 409) {
+                setSaveError('That email is already on the membership list.');
+            } else {
+                setSaveError(data?.error || 'Failed to update member');
+            }
+        } catch {
+            setSaveError('Network error');
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    function openMemberDetail(subscriber: EmailSubscriber) {
+        setSelected(subscriber);
+        setEditData({
+            name: subscriber.name,
+            email: subscriber.email,
+            phone: subscriber.phone || '',
+        });
+        setEditing(false);
+        setSaveError(null);
     }
 
     async function deleteMember(subscriber: EmailSubscriber) {
@@ -366,7 +421,8 @@ export default function MembershipPage() {
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: i * 0.03 }}
-                                className="border-b border-white/[0.04] hover:bg-white/[0.015] transition-colors"
+                                className="border-b border-white/[0.04] hover:bg-white/[0.015] transition-colors cursor-pointer group"
+                                onClick={() => openMemberDetail(subscriber)}
                             >
                                 {/* Desktop Row */}
                                 <div className="hidden md:grid gap-4 px-6 py-5 items-center"
@@ -399,7 +455,14 @@ export default function MembershipPage() {
                                     </p>
 
                                     {/* Actions */}
-                                    <div className="flex items-center gap-2 flex-wrap">
+                                    <div className="flex items-center gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
+                                        <button
+                                            onClick={() => openMemberDetail(subscriber)}
+                                            title="Edit member"
+                                            className="flex items-center justify-center w-7 h-7 text-white/40 border border-white/[0.1] rounded-full hover:border-white/25 hover:text-white hover:bg-white/5 transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                                        >
+                                            <Edit3 size={10} />
+                                        </button>
                                         <button
                                             onClick={() => removeVisit(subscriber)}
                                             disabled={actionLoading === `remove-visit-${subscriber.id}` || subscriber.visit_count <= 0}
@@ -455,8 +518,14 @@ export default function MembershipPage() {
                                             <span className="text-2xl font-light text-white font-heading block mt-0.5">{subscriber.visit_count}</span>
                                         </div>
                                     </div>
-                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3.5 border-t border-white/5">
+                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3.5 border-t border-white/5" onClick={e => e.stopPropagation()}>
                                         <div className="flex items-center gap-2 flex-wrap">
+                                            <button
+                                                onClick={() => openMemberDetail(subscriber)}
+                                                className="admin-icon-btn text-white/40 border border-white/[0.1] rounded-full hover:border-white/25 hover:text-white hover:bg-white/5 transition-all"
+                                            >
+                                                <Edit3 size={14} />
+                                            </button>
                                             <button
                                                 onClick={() => removeVisit(subscriber)}
                                                 disabled={actionLoading === `remove-visit-${subscriber.id}` || subscriber.visit_count <= 0}
@@ -497,9 +566,98 @@ export default function MembershipPage() {
 
                 <p className="text-[10px] text-white/20 mt-4 tracking-wider">
                     {filtered.length} of {subscribers.length} subscriber{subscribers.length !== 1 ? 's' : ''}
+                    &nbsp;·&nbsp; Click a row to edit member info.
                     &nbsp;·&nbsp; Visit button updates Google Wallet live on device + records to DB.
                     Pass button re-sends updated Apple Wallet .pkpass via email.
                 </p>
+
+            {/* Member Detail / Edit Modal */}
+            <AnimatePresence>
+                {selected && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+                        onClick={() => { setSelected(null); setEditing(false); setSaveError(null); }}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-savron-grey border border-white/10 rounded-savron w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between p-6 border-b border-white/5">
+                                <div>
+                                    <h2 className="text-white font-heading text-xl uppercase tracking-wider">{selected.name}</h2>
+                                    <p className="text-savron-silver/60 text-xs mt-1">{selected.email}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => { setEditing(!editing); setSaveError(null); }} className="text-savron-silver hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-colors">
+                                        <Edit3 className="w-4 h-4" />
+                                    </button>
+                                    <button onClick={() => { setSelected(null); setEditing(false); setSaveError(null); }} className="text-savron-silver hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-colors">
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="p-6 space-y-4">
+                                {editing ? (
+                                    <>
+                                        <div className="space-y-3">
+                                            <input value={editData.name} onChange={e => setEditData(p => ({ ...p, name: e.target.value }))} placeholder="FULL NAME" className={inputStyle} />
+                                            <input type="email" value={editData.email} onChange={e => setEditData(p => ({ ...p, email: e.target.value }))} placeholder="EMAIL" className={inputStyle} />
+                                            <input type="tel" value={editData.phone} onChange={e => setEditData(p => ({ ...p, phone: e.target.value }))} placeholder="PHONE" className={inputStyle} />
+                                        </div>
+                                        {saveError && (
+                                            <p className="text-red-400 text-xs flex items-center gap-1.5">
+                                                <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {saveError}
+                                            </p>
+                                        )}
+                                        <div className="flex justify-end gap-3 pt-2">
+                                            <button onClick={() => { setEditing(false); setSaveError(null); }} className="px-4 py-2 text-xs uppercase tracking-widest text-savron-silver border border-white/10 rounded-savron hover:text-white transition-all">Cancel</button>
+                                            <button onClick={saveMemberEdit} disabled={saving || !editData.name.trim() || !editData.email.trim()} className="px-4 py-2 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all flex items-center gap-2 disabled:opacity-50">
+                                                {saving ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check className="w-3 h-3" />}
+                                                Save
+                                            </button>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <span className="text-savron-silver text-xs uppercase tracking-wider">Email</span>
+                                                <p className="text-white text-sm">{selected.email}</p>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-savron-silver text-xs uppercase tracking-wider">Phone</span>
+                                                <p className="text-white text-sm">{selected.phone || '—'}</p>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-savron-silver text-xs uppercase tracking-wider">Visits</span>
+                                                <p className="text-white text-sm font-mono">{selected.visit_count}</p>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-savron-silver text-xs uppercase tracking-wider">Joined</span>
+                                                <p className="text-white text-sm">{formatDistanceToNow(new Date(selected.issued_at), { addSuffix: true })}</p>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            {!editing && (
+                                <div className="p-6 border-t border-white/5 flex justify-end">
+                                    <button
+                                        onClick={() => setEditing(true)}
+                                        className="px-4 py-2 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all flex items-center gap-2"
+                                    >
+                                        <Edit3 className="w-3 h-3" /> Edit
+                                    </button>
+                                </div>
+                            )}
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

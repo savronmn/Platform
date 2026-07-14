@@ -120,7 +120,7 @@ export default function AdminStatDetailPage() {
             </div>
 
             <div className="card-savron">
-                <StatDetailView statKey={statKey} data={detailData} cutoff={dueCutoff} />
+                <StatDetailView statKey={statKey} data={detailData} cutoff={dueCutoff} onDataChange={setDetailData} />
             </div>
         </div>
     );

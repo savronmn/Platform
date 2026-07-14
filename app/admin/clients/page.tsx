@@ -28,6 +28,8 @@ export default function ClientsPage() {
     const [showBulkDelete, setShowBulkDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [fetchError, setFetchError] = useState<string | null>(null);
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
 
     // Bulk selection
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -110,7 +112,24 @@ export default function ClientsPage() {
 
     async function saveEdit() {
         if (!selected) return;
-        await supabase.from('clients').update(editData).eq('id', selected.id);
+        setSaving(true);
+        setSaveError(null);
+        const { error } = await supabase
+            .from('clients')
+            .update({
+                name: editData.name?.trim() || selected.name,
+                email: editData.email?.trim() || null,
+                phone: editData.phone?.trim() || null,
+                notes: editData.notes?.trim() || null,
+                preferences: editData.preferences?.trim() || null,
+                membership_status: editData.membership_status || selected.membership_status,
+            })
+            .eq('id', selected.id);
+        setSaving(false);
+        if (error) {
+            setSaveError(error.code === '23505' ? 'That email is already used by another client.' : error.message);
+            return;
+        }
         setEditing(false);
         setSelected(null);
         fetchClients();
@@ -327,7 +346,7 @@ export default function ClientsPage() {
                                     <tr
                                         key={c.id}
                                         className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors cursor-pointer group"
-                                        onClick={() => { setSelected(c); setEditData(c); setEditing(false); }}
+                                        onClick={() => { setSelected(c); setEditData(c); setEditing(false); setSaveError(null); }}
                                     >
                                         <td className="px-4 py-4" onClick={e => e.stopPropagation()}>
                                             <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => toggleSelect(c.id)} className="admin-checkbox" />
@@ -384,7 +403,7 @@ export default function ClientsPage() {
                                     <div className="mt-1"><StatusBadge status={selected.membership_status} /></div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <button onClick={() => setEditing(!editing)} className="text-savron-silver hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-colors">
+                                    <button onClick={() => { setEditing(!editing); setSaveError(null); }} className="text-savron-silver hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-colors">
                                         <Edit3 className="w-4 h-4" />
                                     </button>
                                     <button onClick={() => setSelected(null)} className="text-savron-silver hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-colors">
@@ -412,10 +431,16 @@ export default function ClientsPage() {
                                                 <option value="vip">VIP</option>
                                             </select>
                                         </div>
+                                        {saveError && (
+                                            <p className="text-red-400 text-xs flex items-center gap-1.5">
+                                                <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {saveError}
+                                            </p>
+                                        )}
                                         <div className="flex justify-end gap-3 pt-2">
-                                            <button onClick={() => setEditing(false)} className="px-4 py-2 text-xs uppercase tracking-widest text-savron-silver border border-white/10 rounded-savron hover:text-white transition-all">Cancel</button>
-                                            <button onClick={saveEdit} className="px-4 py-2 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all flex items-center gap-2">
-                                                <Check className="w-3 h-3" /> Save
+                                            <button onClick={() => { setEditing(false); setSaveError(null); }} className="px-4 py-2 text-xs uppercase tracking-widest text-savron-silver border border-white/10 rounded-savron hover:text-white transition-all">Cancel</button>
+                                            <button onClick={saveEdit} disabled={saving} className="px-4 py-2 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all flex items-center gap-2 disabled:opacity-50">
+                                                {saving ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check className="w-3 h-3" />}
+                                                Save
                                             </button>
                                         </div>
                                     </>
