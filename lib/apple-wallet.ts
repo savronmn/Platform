@@ -247,7 +247,7 @@ export async function pushApplePassUpdates(serialNumber: string): Promise<number
         return 0;
     }
 
-    const pushTokens = [...new Set(registrations.map((reg) => reg.push_token).filter(Boolean))];
+    const pushTokens = Array.from(new Set(registrations.map((reg) => reg.push_token).filter(Boolean)));
     let pushed = 0;
     for (const pushToken of pushTokens) {
         const ok = await sendApnsPassUpdate(pushToken, materials.p12Buffer);
