@@ -7,21 +7,11 @@ import CookieConsentBanner from '@/components/layout/CookieConsentBanner';
 import GoogleAnalytics from '@/components/analytics/GoogleAnalytics';
 import { GA_MEASUREMENT_ID } from '@/lib/ga-measurement-id';
 
-const googleConsentDefaultScript = `
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('consent', 'default', {
-    'analytics_storage': 'denied',
-    'ad_storage': 'denied',
-    'ad_user_data': 'denied',
-    'ad_personalization': 'denied'
-  });
-`;
-
 const googleTagInitScript = `
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
+
   gtag('config', '${GA_MEASUREMENT_ID}');
 `;
 
@@ -118,8 +108,7 @@ export default function RootLayout({
     return (
         <html lang="en" className="scroll-smooth">
             <head>
-                <script dangerouslySetInnerHTML={{ __html: googleConsentDefaultScript }} />
-                {/* Google tag (gtag.js) — single site-wide tag in root layout */}
+                {/* Google tag (gtag.js) */}
                 <script
                     async
                     src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
