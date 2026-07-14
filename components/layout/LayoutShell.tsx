@@ -10,15 +10,25 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     const pathname = usePathname();
 
     // Hide Header/Footer on dashboard routes (they have their own sidebar layouts)
-    const isDashboard =
+    const hideShell =
         pathname.startsWith('/admin') ||
         pathname.startsWith('/barber') ||
         pathname.startsWith('/membership') ||
-        pathname.startsWith('/host') ||
-        pathname.startsWith('/epass');
+        pathname.startsWith('/host');
 
-    if (isDashboard) {
+    const isEpass = pathname.startsWith('/epass');
+
+    if (hideShell) {
         return <>{children}</>;
+    }
+
+    if (isEpass) {
+        return (
+            <>
+                {children}
+                <Footer />
+            </>
+        );
     }
 
     return (
