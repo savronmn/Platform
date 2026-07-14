@@ -67,7 +67,8 @@ export default function BarberSlugCalendarPage() {
     const slug = params.slug as string;
     const router = useRouter();
     const searchParams = useSearchParams();
-    const isAdminPreview = searchParams.get('adminPreview') === '1';
+    const isAdminManage = searchParams.get('adminManage') === '1';
+    const [canManageBookings, setCanManageBookings] = useState(false);
     const supabase = createClient();
     const services = useServices();
     const serviceColorMap = useMemo(() => Object.fromEntries(services.map(s => [s.name, s.color])), [services]);
@@ -129,16 +130,19 @@ export default function BarberSlugCalendarPage() {
                 return;
             }
 
-            if (isAdminPreview) {
+            if (isAdminManage) {
                 const admin = await isAdminUser(supabase);
                 if (!admin) {
                     router.replace('/admin/barbers');
                     return;
                 }
+                setCanManageBookings(true);
             } else if (barberData.auth_id !== user.id) {
                 await supabase.auth.signOut();
                 router.replace(`/barber/${slug}/login`);
                 return;
+            } else {
+                setCanManageBookings(true);
             }
 
             setBarber(barberData);
@@ -155,14 +159,14 @@ export default function BarberSlugCalendarPage() {
             setLoading(false);
         }
         load();
-    }, [slug, router, isAdminPreview, supabase]);
+    }, [slug, router, isAdminManage, supabase]);
 
     const refreshCalendar = useCallback(async () => {
         if (!barber) return;
         setSyncing(true);
         try {
             const dateStr = format(selectedDate, 'yyyy-MM-dd');
-            const eventsUrl = isAdminPreview
+            const eventsUrl = isAdminManage
                 ? `/api/calendar/barber/events?barberId=${barber.id}&dateStart=${rangeStart}&dateEnd=${rangeEnd}`
                 : `/api/calendar/barber/events?dateStart=${rangeStart}&dateEnd=${rangeEnd}`;
             const [busyRes, eventsRes] = await Promise.all([
@@ -185,7 +189,7 @@ export default function BarberSlugCalendarPage() {
             setLinkedCalendarByBookingId({});
         }
         setSyncing(false);
-    }, [barber, selectedDate, rangeStart, rangeEnd, isAdminPreview]);
+    }, [barber, selectedDate, rangeStart, rangeEnd, isAdminManage]);
 
     useEffect(() => {
         if (!barber) return;
@@ -714,7 +718,7 @@ export default function BarberSlugCalendarPage() {
                                     <ExternalLink className="w-3 h-3" /> Open in Google Calendar
                                 </a>
                             )}
-                            {selectedBooking.status === 'confirmed' && !isAdminPreview && (
+                            {selectedBooking.status === 'confirmed' && canManageBookings && (
                                 <>
                                     <button
                                         onClick={() => { setEditingBooking(selectedBooking); setSelectedBooking(null); }}

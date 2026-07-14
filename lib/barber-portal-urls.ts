@@ -10,6 +10,11 @@ export function barberBookingPageUrl(slug: string, origin = ''): string {
     return `${origin}/book/${slug}`;
 }
 
+export function adminBarberPortalUrl(barberId: string, slug: string, origin = ''): string {
+    return `${origin}/barber/${slug}/calendar?adminManage=1`;
+}
+
+/** @deprecated Use adminBarberPortalUrl */
 export function adminBarberPortalPreviewUrl(barberId: string, origin = ''): string {
     return `${origin}/admin/barbers/${barberId}/portal`;
 }

@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Scissors, Copy, Check, ToggleLeft, ToggleRight, UserCheck,
     Link as LinkIcon, Settings, X, Save, ShieldCheck, Calendar, Clock,
-    Trash2, Camera, User, Eye, ExternalLink,
+    Trash2, Camera, User, ExternalLink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
@@ -14,7 +14,7 @@ import Link from 'next/link';
 import type { Barber } from '@/lib/types';
 import { useServices } from '@/lib/use-services';
 import {
-    adminBarberPortalPreviewUrl,
+    adminBarberPortalUrl,
     barberBookingPageUrl,
     barberPortalLoginUrl,
 } from '@/lib/barber-portal-urls';
@@ -101,17 +101,17 @@ function BarberCardActions({
                 <span>{copiedSlug === barber.slug ? 'Copied' : 'Booking'}</span>
             </button>
             <Link
-                href={adminBarberPortalPreviewUrl(barber.id)}
+                href={adminBarberPortalUrl(barber.id, barber.slug)}
                 className={BARBER_CARD_ACTION_CLASS}
-                title="Preview barber portal"
+                title="Open barber portal (admin can edit)"
             >
-                <Eye className="w-3.5 h-3.5" />
-                <span>Preview</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Portal</span>
             </Link>
             <Link
                 href={`/admin/barbers/${barber.id}/calendar`}
                 className={BARBER_CARD_ACTION_CLASS}
-                title="Open barber calendar"
+                title="Open barber calendar overview"
             >
                 <Calendar className="w-3.5 h-3.5" />
                 <span>Calendar</span>
@@ -748,11 +748,11 @@ export default function AdminBarbersPage() {
 
                                     <div className="grid grid-cols-1 gap-3">
                                         <Link
-                                            href={adminBarberPortalPreviewUrl(settingsBarber.id)}
+                                            href={adminBarberPortalUrl(settingsBarber.id, settingsBarber.slug)}
                                             className="flex items-center justify-center gap-2 py-3 text-[11px] uppercase tracking-widest bg-savron-green/10 text-savron-green border border-savron-green/30 hover:bg-savron-green/20 rounded-savron transition-all"
                                         >
-                                            <Eye className="w-4 h-4" />
-                                            Preview Barber Portal
+                                            <ExternalLink className="w-4 h-4" />
+                                            Open Barber Portal
                                         </Link>
                                         <a
                                             href={barberBookingPageUrl(settingsBarber.slug, typeof window !== 'undefined' ? window.location.origin : '')}
