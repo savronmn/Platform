@@ -1,3 +1,5 @@
+import { dispatchCookieConsentChanged } from '@/lib/cookie-consent-events';
+
 export const COOKIE_CONSENT_STORAGE_KEY = 'savron_cookie_consent';
 export const COOKIE_CONSENT_VERSION = 1;
 
@@ -36,6 +38,7 @@ export function writeCookieConsent(choice: CookieConsentChoice, analytics: boole
         updatedAt: new Date().toISOString(),
     };
     localStorage.setItem(COOKIE_CONSENT_STORAGE_KEY, JSON.stringify(record));
+    dispatchCookieConsentChanged();
     return record;
 }
 

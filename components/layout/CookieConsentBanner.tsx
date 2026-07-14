@@ -26,7 +26,9 @@ export default function CookieConsentBanner() {
     }, []);
 
     const saveChoice = (choice: CookieConsentChoice) => {
-        writeCookieConsent(choice, analyticsEnabled);
+        const allowAnalytics =
+            choice === 'all' && (showPreferences ? analyticsEnabled : true);
+        writeCookieConsent(choice, allowAnalytics);
         setVisible(false);
         setShowPreferences(false);
     };
