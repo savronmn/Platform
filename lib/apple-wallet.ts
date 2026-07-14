@@ -4,7 +4,7 @@ import path from 'path';
 import http2 from 'http2';
 import forge from 'node-forge';
 import { createClient } from '@supabase/supabase-js';
-import { getSiteUrl } from '@/lib/shop';
+import { getSiteUrl, SHOP_EPASS_URL } from '@/lib/shop';
 
 const WALLET_PRIVATE_KEY = process.env.WALLET_PRIVATE_KEY;
 const WALLET_WWDR_CERT = process.env.WALLET_WWDR_CERT;
@@ -171,6 +171,11 @@ export function generateApplePassBuffer(
             },
             { key: 'email', label: 'EMAIL', value: subscriber.email, textAlignment: 'PKTextAlignmentRight' },
         );
+        pass.backFields.push({
+            key: 'live_pass',
+            label: 'View Live Pass',
+            value: SHOP_EPASS_URL,
+        });
         pass.setBarcodes({
             message: subscriber.email,
             format: 'PKBarcodeFormatQR',
