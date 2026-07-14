@@ -5,6 +5,29 @@ import './globals.css';
 import LayoutShell from '@/components/layout/LayoutShell';
 import CookieConsentBanner from '@/components/layout/CookieConsentBanner';
 import GoogleAnalytics from '@/components/analytics/GoogleAnalytics';
+import { GA_MEASUREMENT_ID } from '@/lib/ga-measurement-id';
+
+const googleTagBootstrapScript = `
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+
+  gtag('consent', 'default', {
+    'analytics_storage': 'denied',
+    'ad_storage': 'denied',
+    'ad_user_data': 'denied',
+    'ad_personalization': 'denied'
+  });
+
+  gtag('js', new Date());
+  gtag('config', '${GA_MEASUREMENT_ID}', { send_page_view: true });
+
+  (function () {
+    var script = document.createElement('script');
+    script.async = true;
+    script.src = 'https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}';
+    document.head.appendChild(script);
+  })();
+`;
 
 const montserrat = Montserrat({
     subsets: ['latin'],
@@ -98,6 +121,9 @@ export default function RootLayout({
 }) {
     return (
         <html lang="en" className="scroll-smooth">
+            <head>
+                <script dangerouslySetInnerHTML={{ __html: googleTagBootstrapScript }} />
+            </head>
             <body className={`${montserrat.variable} ${inter.variable} ${playfair.variable} font-sans bg-savron-black text-white antialiased`}>
                 <Suspense fallback={null}>
                     <GoogleAnalytics />

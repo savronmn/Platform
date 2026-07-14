@@ -1,7 +1,7 @@
 import { analyticsAllowed } from '@/lib/cookie-consent';
+import { GA_MEASUREMENT_ID } from '@/lib/ga-measurement-id';
 
-export const GA_MEASUREMENT_ID =
-    process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? 'G-HL5DCE0PK8';
+export { GA_MEASUREMENT_ID } from '@/lib/ga-measurement-id';
 
 declare global {
     interface Window {
@@ -18,7 +18,9 @@ export function setAnalyticsConsent(granted: boolean) {
 }
 
 export function syncAnalyticsConsentFromStorage() {
-    setAnalyticsConsent(analyticsAllowed());
+    if (analyticsAllowed()) {
+        setAnalyticsConsent(true);
+    }
 }
 
 export function pageview(url: string) {
