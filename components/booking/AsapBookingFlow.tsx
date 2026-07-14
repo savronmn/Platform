@@ -21,17 +21,23 @@ const STEP_TRANSITION = { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as const };
 
 type AsapBookingFlowProps = {
     preselectedServiceName?: string | null;
+    prefillName?: string;
+    prefillEmail?: string;
 };
 
-export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingFlowProps) {
+export default function AsapBookingFlow({
+    preselectedServiceName,
+    prefillName,
+    prefillEmail,
+}: AsapBookingFlowProps) {
     const supabase = createClient();
     const services = useServices();
     const [step, setStep] = useState(1);
     const [selectedDate, setSelectedDate] = useState<Date>(() => nextBookableDate());
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
     const [selectedService, setSelectedService] = useState<number | null>(null);
-    const [clientName, setClientName] = useState('');
-    const [clientEmail, setClientEmail] = useState('');
+    const [clientName, setClientName] = useState(prefillName ?? '');
+    const [clientEmail, setClientEmail] = useState(prefillEmail ?? '');
     const [clientPhone, setClientPhone] = useState('');
     const [clientMessage, setClientMessage] = useState('');
     const [submitting, setSubmitting] = useState(false);
@@ -46,6 +52,14 @@ export default function AsapBookingFlow({ preselectedServiceName }: AsapBookingF
 
     const skipServiceStep = Boolean(preselectedServiceName && selectedService !== null && preselectionApplied);
     const totalSteps = skipServiceStep ? 2 : 3;
+
+    useEffect(() => {
+        if (prefillName) setClientName(prefillName);
+    }, [prefillName]);
+
+    useEffect(() => {
+        if (prefillEmail) setClientEmail(prefillEmail);
+    }, [prefillEmail]);
 
     useEffect(() => {
         if (preselectionApplied || !preselectedServiceName) return;

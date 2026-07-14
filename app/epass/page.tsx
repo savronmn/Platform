@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
 import { createClient } from '@/lib/supabase';
 import { SHOP_ADDRESS, SHOP_MAPS_URL } from '@/lib/shop';
+import InlineBookingSection from '@/components/booking/InlineBookingSection';
 
 type PageState = 'email' | 'otp' | 'profile' | 'not_found';
 type TierId = 'standard' | 'inner_circle' | 'vip';
@@ -413,7 +414,7 @@ export default function EPassPage() {
     }
 
     return (
-        <div className="w-full max-w-sm">
+        <div className={cn('w-full', pageState === 'profile' ? 'max-w-4xl' : 'max-w-sm')}>
             <div className="text-center mb-10">
                 <div className="relative w-36 h-9 mx-auto mb-4">
                     <Image src="/logo.png" alt="SAVRON" fill className="object-contain drop-shadow-[0_0_20px_rgba(18,84,112,0.35)]" priority />
@@ -567,6 +568,13 @@ export default function EPassPage() {
                             >
                                 {SHOP_ADDRESS}
                             </a>
+                        </GlassPanel>
+
+                        <GlassPanel className="p-6 sm:p-8">
+                            <InlineBookingSection
+                                prefillName={subscriber.name}
+                                prefillEmail={subscriber.email}
+                            />
                         </GlassPanel>
 
                         <button

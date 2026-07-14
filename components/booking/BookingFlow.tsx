@@ -37,9 +37,11 @@ const PLACEHOLDER_BARBERS: Barber[] = [
 
 type BookingFlowProps = {
     preselectedServiceName?: string | null;
+    prefillName?: string;
+    prefillEmail?: string;
 };
 
-const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
+const BookingFlow = ({ preselectedServiceName, prefillName, prefillEmail }: BookingFlowProps) => {
     const supabase = createClient();
     const services = useServices();
     const [step, setStep] = useState(1);
@@ -48,8 +50,8 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
     const [selectedPro, setSelectedPro] = useState<Barber | null>(null);
     const [selectedDate, setSelectedDate] = useState<Date>(() => nextBookableDate());
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
-    const [clientEmail, setClientEmail] = useState('');
-    const [clientName, setClientName] = useState('');
+    const [clientEmail, setClientEmail] = useState(prefillEmail ?? '');
+    const [clientName, setClientName] = useState(prefillName ?? '');
     const [clientPhone, setClientPhone] = useState('');
     const [clientMessage, setClientMessage] = useState('');
     const [barbers, setBarbers] = useState<Barber[]>([]);
@@ -64,6 +66,14 @@ const BookingFlow = ({ preselectedServiceName }: BookingFlowProps) => {
     const [addEyebrows, setAddEyebrows] = useState(false);
     const flowRef = useRef<HTMLDivElement>(null);
     const skipStepScroll = useRef(true);
+
+    useEffect(() => {
+        if (prefillName) setClientName(prefillName);
+    }, [prefillName]);
+
+    useEffect(() => {
+        if (prefillEmail) setClientEmail(prefillEmail);
+    }, [prefillEmail]);
 
     useEffect(() => {
         if (preselectionApplied || !preselectedServiceName) return;
