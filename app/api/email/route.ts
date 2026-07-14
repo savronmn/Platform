@@ -11,12 +11,11 @@ const getAdmin = () => createClient(
 async function bookingUsesGoogleCalendarInvite(bookingId: string): Promise<boolean> {
     const { data: booking } = await getAdmin()
         .from('bookings')
-        .select('barbers(google_calendar_tokens, google_calendar_id)')
+        .select('shop_google_event_id')
         .eq('id', bookingId)
         .single();
 
-    const barber = Array.isArray(booking?.barbers) ? booking.barbers[0] : booking?.barbers;
-    if (barber?.google_calendar_tokens && barber?.google_calendar_id) {
+    if (booking?.shop_google_event_id) {
         return true;
     }
 
@@ -34,7 +33,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       skipped: true,
       reason: 'google_calendar_invite',
-      message: 'Client receives a Google Calendar appointment invitation from their barber or SAVRON',
+      message: 'Client receives a Google Calendar appointment invitation from SAVRON (savronmn@gmail.com)',
     });
   }
 

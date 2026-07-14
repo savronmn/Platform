@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForTokens, getValidAccessToken, getInitialSyncToken, watchCalendar, fetchGoogleUserEmail } from '@/lib/google-calendar';
 import { createClient } from '@supabase/supabase-js';
 import { saveShopWebhookState } from '@/lib/shop-calendar';
+import { SHOP_GOOGLE_CALENDAR_ID } from '@/lib/shop';
 import { establishBarberSession, emailsMatch } from '@/lib/barber-google-auth';
 
 function parseOAuthState(stateVal: string): { barberId: string; redirectPath: string; login: boolean } {
@@ -51,9 +52,10 @@ export async function GET(request: NextRequest) {
 
         // Savron shop calendar (savronmn@gmail.com) — used for cleanup + optional shop events
         if (barberId === 'shop') {
+            const shopCalendarId = process.env.SAVRON_GOOGLE_CALENDAR_ID || SHOP_GOOGLE_CALENDAR_ID;
             await supabase.from('system_config').upsert([
                 { key: 'savron_google_calendar_tokens', value: tokens },
-                { key: 'savron_google_calendar_id', value: 'primary' },
+                { key: 'savron_google_calendar_id', value: shopCalendarId },
             ]);
 
             try {
@@ -62,8 +64,8 @@ export async function GET(request: NextRequest) {
                 const appUrl = process.env.NEXT_PUBLIC_APP_URL
                     ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://savronmn.com');
                 const [syncToken, watchRes] = await Promise.all([
-                    getInitialSyncToken(accessToken, 'primary'),
-                    watchCalendar(accessToken, 'primary', channelId, `${appUrl}/api/calendar/webhook-shop`),
+                    getInitialSyncToken(accessToken, shopCalendarId),
+                    watchCalendar(accessToken, shopCalendarId, channelId, `${appUrl}/api/calendar/webhook-shop`),
                 ]);
                 await saveShopWebhookState({
                     channel_id: channelId,

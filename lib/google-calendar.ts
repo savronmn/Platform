@@ -142,7 +142,7 @@ export async function createCalendarEvent(
     }
     body.guestsCanModify = false;
     body.guestsCanInviteOthers = false;
-    body.guestsCanSeeOtherGuests = false;
+    body.guestsCanSeeOtherGuests = true;
 
     const res = await fetch(
         `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=${sendUpdates}`,
@@ -209,7 +209,7 @@ export async function updateCalendarEvent(
     }
     body.guestsCanModify = false;
     body.guestsCanInviteOthers = false;
-    body.guestsCanSeeOtherGuests = false;
+    body.guestsCanSeeOtherGuests = true;
 
     const res = await fetch(
         `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=${sendUpdates}`,

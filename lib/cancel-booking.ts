@@ -73,8 +73,7 @@ export async function cancelBooking(
 
     const shouldSendEmail = !options.skipEmail
         && !alreadyCancelled
-        && !booking.shop_google_event_id
-        && !booking.google_event_id;
+        && !booking.shop_google_event_id;
     const shouldCleanupCalendar = !options.skipCalendar;
 
     const emailPromise = shouldSendEmail

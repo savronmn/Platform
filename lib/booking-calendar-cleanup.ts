@@ -1,6 +1,5 @@
 // Delete booking events from barber + Savron shop Google Calendars.
-// Barber calendar holds the client-facing appointment invite when connected.
-// Shop calendar holds the invite when barber calendar is unavailable.
+// Shop calendar (savronmn@gmail.com) owns client-facing invites when connected.
 
 import { createClient } from '@supabase/supabase-js';
 import {
@@ -201,7 +200,12 @@ async function cleanupBarberCalendarEvents(
         return { deleted: 0, failed: 0, calendarsChecked: [] };
     }
 
-    const result = await deleteTargets(accessToken, targets, 'all');
+    // Shop-owned invites send cancellation email from savronmn@gmail.com — not the barber account.
+    const result = await deleteTargets(
+        accessToken,
+        targets,
+        booking.shop_google_event_id ? 'none' : 'all',
+    );
     return {
         deleted: result.deleted,
         failed: result.failed,

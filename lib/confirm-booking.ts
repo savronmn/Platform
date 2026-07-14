@@ -1,5 +1,5 @@
-// Client-side helper — fires calendar sync after a booking is inserted.
-// Barber Google Calendar sends the client appointment invite when connected; shop calendar is fallback.
+// Client-side helper — fires shop calendar sync after a booking is inserted.
+// savronmn@gmail.com sends the Google Calendar invite to client + barber when shop is connected.
 
 async function logSideEffectFailure(label: string, res: Response | undefined): Promise<void> {
     if (!res) {
@@ -22,6 +22,24 @@ export async function triggerPostBooking(bookingId: string): Promise<void> {
         return undefined;
     });
     await logSideEffectFailure('calendar sync', calendarRes);
+
+    let usedShopInvite = false;
+    if (calendarRes?.ok) {
+        const data = await calendarRes.json().catch(() => ({}));
+        usedShopInvite = data.inviteModel === 'shop_calendar' && !!data.success;
+    }
+
+    if (!usedShopInvite) {
+        const emailRes = await fetch('/api/email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookingId }),
+        }).catch((err) => {
+            console.error('[post-booking] confirmation email network error:', err);
+            return undefined;
+        });
+        await logSideEffectFailure('confirmation email', emailRes);
+    }
 }
 
 /** Fire calendar sync after a booking is edited. */
@@ -49,6 +67,24 @@ export async function triggerPostEditBooking(
         return undefined;
     });
     await logSideEffectFailure('calendar update', calendarRes);
+
+    let usedShopInvite = false;
+    if (calendarRes?.ok) {
+        const data = await calendarRes.json().catch(() => ({}));
+        usedShopInvite = data.inviteModel === 'shop_calendar' && !!data.success;
+    }
+
+    if (!usedShopInvite) {
+        const emailRes = await fetch('/api/email/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookingId }),
+        }).catch((err) => {
+            console.error('[post-edit] update email network error:', err);
+            return undefined;
+        });
+        await logSideEffectFailure('update email', emailRes);
+    }
 }
 
 /** Cancel a booking via the shared API (email + calendar delete). */
