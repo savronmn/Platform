@@ -11,6 +11,7 @@ import {
     type CalendarToken,
 } from '@/lib/google-calendar';
 import { getShopCalendarId, getShopCalendarTokens } from '@/lib/shop-calendar';
+import { SHOP_CALENDAR_EMAIL, SHOP_GOOGLE_CALENDAR_ID } from '@/lib/shop';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -136,20 +137,13 @@ async function collectShopTargets(
 
     const accessToken = await getValidAccessToken(tokens);
     const primaryId = await getShopCalendarId();
-
-    // Fast path: stored shop event id avoids scanning every connected calendar.
-    if (booking.shop_google_event_id) {
-        return {
-            targets: [{ calendarId: primaryId, eventId: booking.shop_google_event_id }],
-            calendarIds: [primaryId],
-            accessToken,
-        };
-    }
-
     const calendarIds = await listAccountCalendarIds(accessToken);
-    const idsToSearch = calendarIds.length > 0
-        ? Array.from(new Set([primaryId, ...calendarIds]))
-        : [primaryId];
+    const idsToSearch = Array.from(new Set([
+        primaryId,
+        SHOP_GOOGLE_CALENDAR_ID,
+        SHOP_CALENDAR_EMAIL,
+        ...calendarIds,
+    ]));
 
     const targets: Array<{ calendarId: string; eventId: string }> = [];
     const seen = new Set<string>();
@@ -160,6 +154,13 @@ async function collectShopTargets(
         seen.add(key);
         targets.push({ calendarId, eventId });
     };
+
+    // Stored shop event id may live on primary, group, or account calendar — try all.
+    if (booking.shop_google_event_id) {
+        for (const calendarId of idsToSearch) {
+            addTarget(calendarId, booking.shop_google_event_id);
+        }
+    }
 
     const byBookingId = await findEventsByBookingId(accessToken, idsToSearch, booking.id);
     byBookingId.forEach(t => addTarget(t.calendarId, t.eventId));
@@ -230,9 +231,19 @@ async function cleanupShopCalendarEvents(
 
     // Notify attendees that the Google invite was cancelled.
     const result = await deleteTargets(accessToken, targets, 'all');
+
+    // Retry any savron-tagged events still on the shop account (wrong calendarId 404s are silent).
+    const remaining = await findEventsByBookingId(accessToken, calendarIds, booking.id);
+    const retryTargets = remaining.filter(
+        r => !targets.some(t => t.calendarId === r.calendarId && t.eventId === r.eventId),
+    );
+    const retry = retryTargets.length > 0
+        ? await deleteTargets(accessToken, retryTargets, 'all')
+        : { deleted: 0, failed: 0 };
+
     return {
-        deleted: result.deleted,
-        failed: result.failed,
+        deleted: result.deleted + retry.deleted,
+        failed: result.failed + retry.failed,
         calendarsChecked: calendarIds.map(id => `shop:${id}`),
     };
 }

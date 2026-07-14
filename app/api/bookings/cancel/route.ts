@@ -35,6 +35,21 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
+    // Auth: client may cancel own booking; staff (admin/barber/host) may cancel any
+    const supabase = createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { isStaff, ownsBooking } = await resolveBookingActor(
+        supabaseAdmin,
+        user.id,
+        user.email,
+        booking,
+    );
+
     // Staff can remove cancelled/no-show tombstones from the cancellation report without re-running cancel.
     if (hardDelete && isStaff && (booking.status === 'cancelled' || booking.status === 'no_show')) {
         const { error: deleteError } = await supabaseAdmin
@@ -56,21 +71,6 @@ export async function POST(request: NextRequest) {
     if (booking.status !== 'confirmed' && booking.status !== 'cancelled') {
         return NextResponse.json({ error: 'Only confirmed bookings can be cancelled' }, { status: 400 });
     }
-
-    // Auth: client may cancel own booking; staff (admin/barber/host) may cancel any
-    const supabase = createServerSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { isStaff, ownsBooking } = await resolveBookingActor(
-        supabaseAdmin,
-        user.id,
-        user.email,
-        booking,
-    );
 
     if (hardDelete && !isStaff) {
         return NextResponse.json({ error: 'Only staff can delete bookings' }, { status: 403 });
