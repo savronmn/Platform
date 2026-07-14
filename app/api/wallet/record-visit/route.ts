@@ -69,7 +69,12 @@ async function resendFullPass(subscriber: {
 
         if (googleObjectId) {
             try {
-                googleSaveUrl = buildGoogleSaveUrl(googleObjectId);
+                googleSaveUrl = buildGoogleSaveUrl(
+                    googleObjectId,
+                    subscriber.name,
+                    subscriber.email,
+                    subscriber.visit_count,
+                );
             } catch (err) {
                 console.error('[GWallet] JWT sign failed on resend:', err);
             }

@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import {
     getShopGoogleWalletModules,
     getShopMerchantLocations,
+    getSiteUrl,
     SHOP_NAME,
 } from '@/lib/shop';
 
@@ -23,8 +24,52 @@ function assertConfigured() {
     }
 }
 
+function warnIfClassIdMisconfigured() {
+    if (CLASS_ID && ISSUER_ID && !CLASS_ID.startsWith(`${ISSUER_ID}.`)) {
+        console.warn(
+            `[GWallet] GOOGLE_WALLET_CLASS_ID should start with "${ISSUER_ID}." (got "${CLASS_ID}")`,
+        );
+    }
+}
+
+function getProgramLogoUri(): string {
+    return process.env.GOOGLE_WALLET_LOGO_URL || `${getSiteUrl()}/logo.png`;
+}
+
+function buildProgramLogo() {
+    return {
+        sourceUri: { uri: getProgramLogoUri() },
+        contentDescription: {
+            defaultValue: { language: 'en-US', value: 'SAVRON' },
+        },
+    };
+}
+
+/** Domains approved for Add to Google Wallet JWT links. */
+function getWalletOrigins(): string[] {
+    const siteUrl = getSiteUrl().replace(/\/$/, '');
+    const origins = new Set<string>([siteUrl]);
+
+    try {
+        const host = new URL(siteUrl).hostname;
+        origins.add(`https://${host}`);
+        if (host.startsWith('www.')) {
+            origins.add(`https://${host.slice(4)}`);
+        } else {
+            origins.add(`https://www.${host}`);
+        }
+    } catch {
+        origins.add('https://savronmn.com');
+        origins.add('https://www.savronmn.com');
+    }
+
+    return [...origins];
+}
+
 async function getWalletClient() {
     assertConfigured();
+    warnIfClassIdMisconfigured();
+
     const auth = new GoogleAuth({
         credentials: {
             client_email: SERVICE_ACCOUNT_EMAIL!,
@@ -48,20 +93,27 @@ function buildGoogleClassPayload() {
     return {
         id: CLASS_ID,
         issuerName: SHOP_NAME,
-        reviewStatus: 'DRAFT',
+        reviewStatus: 'UNDER_REVIEW',
         programName: 'SAVRON Members Club',
+        programLogo: buildProgramLogo(),
         merchantLocations: getShopMerchantLocations(),
         ...getShopGoogleWalletModules(),
     };
 }
 
-export function buildGooglePassObject(
+/** Object fields only — keep JWT/API payloads valid for loyaltyObject. */
+function buildGooglePassObjectPayload(
     objectId: string,
     name: string,
     email: string,
     visitCount: number,
 ) {
     assertConfigured();
+    const { textModulesData, linksModuleData, merchantLocations } = {
+        merchantLocations: getShopMerchantLocations(),
+        ...getShopGoogleWalletModules(),
+    };
+
     return {
         id: objectId,
         classId: CLASS_ID,
@@ -73,12 +125,22 @@ export function buildGooglePassObject(
             label: 'Visits',
             balance: { int: visitCount },
         },
-        merchantLocations: getShopMerchantLocations(),
-        ...getShopGoogleWalletModules(),
+        merchantLocations,
+        textModulesData,
+        linksModuleData,
     };
 }
 
-/** Create class if missing, then patch locations/address onto existing class. */
+export function buildGooglePassObject(
+    objectId: string,
+    name: string,
+    email: string,
+    visitCount: number,
+) {
+    return buildGooglePassObjectPayload(objectId, name, email, visitCount);
+}
+
+/** Create class if missing, then patch required fields onto existing class. */
 export async function ensureGooglePassClass(): Promise<boolean> {
     if (classSynced) return true;
     if (!isGoogleWalletConfigured()) return false;
@@ -95,9 +157,14 @@ export async function ensureGooglePassClass(): Promise<boolean> {
             url: `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass/${encodeURIComponent(CLASS_ID!)}`,
             method: 'PATCH',
             data: {
+                programLogo: classPayload.programLogo,
+                programName: classPayload.programName,
+                issuerName: classPayload.issuerName,
+                reviewStatus: classPayload.reviewStatus,
                 merchantLocations: classPayload.merchantLocations,
                 textModulesData: classPayload.textModulesData,
                 linksModuleData: classPayload.linksModuleData,
+                appLinkData: classPayload.appLinkData,
             },
         });
         classSynced = true;
@@ -134,7 +201,7 @@ export async function createGooglePassObject(
     if (!classOk) return false;
 
     const client = await getWalletClient();
-    const passObject = buildGooglePassObject(objectId, name, email, visitCount);
+    const passObject = buildGooglePassObjectPayload(objectId, name, email, visitCount);
 
     try {
         await client.request({
@@ -176,10 +243,9 @@ export async function updateGoogleWalletPass(
 
     await ensureGooglePassClass();
     const client = await getWalletClient();
-    const passObject = buildGooglePassObject(objectId, name, email, visitCount);
+    const passObject = buildGooglePassObjectPayload(objectId, name, email, visitCount);
 
     try {
-        // Full PUT keeps object in sync; notifyOnUpdate triggers push for loyaltyPoints.balance
         await client.request({
             url: `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${encodeURIComponent(objectId)}`,
             method: 'PUT',
@@ -212,15 +278,34 @@ export async function updateGoogleWalletPass(
     }
 }
 
-export function buildGoogleSaveUrl(objectId: string): string {
+/**
+ * Build an Add to Google Wallet link.
+ * Embeds the full loyalty class + object in the JWT (Google's recommended jwtNew
+ * pattern) so save works even if the REST object create had a transient failure.
+ */
+export function buildGoogleSaveUrl(
+    objectId: string,
+    name: string,
+    email: string,
+    visitCount: number,
+): string {
     assertConfigured();
+
+    const loyaltyClass = buildGoogleClassPayload();
+    const loyaltyObject = buildGooglePassObjectPayload(objectId, name, email, visitCount);
+
     const jwtPayload = {
         iss: SERVICE_ACCOUNT_EMAIL,
         aud: 'google',
         typ: 'savetowallet',
         iat: Math.floor(Date.now() / 1000),
-        payload: { loyaltyObjects: [{ id: objectId }] },
+        origins: getWalletOrigins(),
+        payload: {
+            loyaltyClasses: [loyaltyClass],
+            loyaltyObjects: [loyaltyObject],
+        },
     };
+
     const token = jwt.sign(jwtPayload, GOOGLE_PRIVATE_KEY!, { algorithm: 'RS256' });
     return `https://pay.google.com/gp/v/save/${token}`;
 }

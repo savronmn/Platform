@@ -103,7 +103,12 @@ export async function POST(req: NextRequest) {
                     .from('email_subscribers')
                     .update({ google_pass_object_id: googleObjectId })
                     .eq('id', insertedSubscriber.id);
-                googleSaveUrl = buildGoogleSaveUrl(googleObjectId);
+                googleSaveUrl = buildGoogleSaveUrl(
+                    googleObjectId,
+                    name.trim(),
+                    email.toLowerCase().trim(),
+                    0,
+                );
             } catch (err) {
                 console.error('[GWallet] JWT sign failed:', err);
             }
