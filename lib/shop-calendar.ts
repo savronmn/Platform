@@ -24,9 +24,6 @@ function parseShopTokensFromEnv(): CalendarToken | null {
 }
 
 export async function getShopCalendarTokens(): Promise<CalendarToken | null> {
-    const fromEnv = parseShopTokensFromEnv();
-    if (fromEnv) return fromEnv;
-
     const supabase = getAdmin();
     const { data } = await supabase
         .from('system_config')
@@ -34,8 +31,9 @@ export async function getShopCalendarTokens(): Promise<CalendarToken | null> {
         .eq('key', 'savron_google_calendar_tokens')
         .maybeSingle();
 
-    if (!data?.value) return null;
-    return data.value as CalendarToken;
+    if (data?.value) return data.value as CalendarToken;
+
+    return parseShopTokensFromEnv();
 }
 
 export async function getShopCalendarId(): Promise<string> {

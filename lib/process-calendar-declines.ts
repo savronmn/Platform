@@ -1,12 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cancelBooking } from '@/lib/cancel-booking';
 import {
+    extractSavronBookingId,
     findBookingForCalendarEvent,
     shouldCancelBookingFromCalendarEvent,
+    anyInviteeDeclined,
     type CalendarCancellationReason,
     type CalendarSyncEvent,
 } from '@/lib/calendar-event-sync';
-import { getValidAccessToken, getCalendarEvent, listAccountCalendarIds, type CalendarToken } from '@/lib/google-calendar';
+import { getValidAccessToken, getCalendarEvent, findEventsByBookingId, listAccountCalendarIds, type CalendarToken } from '@/lib/google-calendar';
 import { getShopCalendarId, getShopCalendarTokens } from '@/lib/shop-calendar';
 
 const GOOGLE_CALENDAR_BASE = 'https://www.googleapis.com/calendar/v3';
@@ -122,9 +124,40 @@ export async function enrichEventsWithFullDetails(
             }
         }
 
+        const bookingId = extractSavronBookingId(event);
+        if (bookingId) {
+            const located = await findEventsByBookingId(accessToken, calendarIdsToTry, bookingId);
+            for (const match of located) {
+                try {
+                    const full = await getCalendarEvent(accessToken, match.calendarId, match.eventId);
+                    return { ...event, ...full, id: match.eventId } as CalendarSyncEvent;
+                } catch {
+                    continue;
+                }
+            }
+        }
+
         console.error('[calendar-declines] Failed to enrich event attendees:', event.id);
         return event;
     }));
+}
+
+async function resolveBookingForDecline(
+    supabase: SupabaseClient,
+    barberId: string | null,
+    event: CalendarSyncEvent,
+) {
+    const embeddedBookingId = extractSavronBookingId(event);
+    if (embeddedBookingId) {
+        const { data: byEmbeddedId } = await supabase
+            .from('bookings')
+            .select('id, status, client_email, client_name, date, time')
+            .eq('id', embeddedBookingId)
+            .maybeSingle();
+        if (byEmbeddedId) return byEmbeddedId;
+    }
+
+    return findBookingForCalendarEvent(supabase, barberId, event);
 }
 
 /** Process a batch of changed calendar events (webhook or sweep). */
@@ -142,8 +175,19 @@ export async function processCalendarEventChanges(
         if (!event.id || seenEventIds.has(event.id)) continue;
         seenEventIds.add(event.id);
 
-        const booking = await findBookingForCalendarEvent(supabase, barberId, event);
-        if (!booking) continue;
+        if (!anyInviteeDeclined(event) && event.status !== 'cancelled') continue;
+
+        const booking = await resolveBookingForDecline(supabase, barberId, event);
+        if (!booking) {
+            if (anyInviteeDeclined(event)) {
+                console.warn(
+                    '[calendar-declines] Decline detected but no booking match',
+                    event.id,
+                    extractSavronBookingId(event),
+                );
+            }
+            continue;
+        }
 
         const action = shouldCancelBookingFromCalendarEvent(event, booking);
         if (!action) continue;

@@ -14,8 +14,9 @@ import {
     saveShopWebhookState,
     saveShopSyncTokenIfUnchanged,
 } from '@/lib/shop-calendar';
-import { processCalendarEventChanges, enrichEventsWithFullDetails } from '@/lib/process-calendar-declines';
+import { processCalendarEventChanges, enrichEventsWithFullDetails, processDeclinedCalendarEvents } from '@/lib/process-calendar-declines';
 import type { CalendarSyncEvent } from '@/lib/calendar-event-sync';
+import { addDays, format } from 'date-fns';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -116,6 +117,19 @@ export async function POST(req: NextRequest) {
             enrichedEvents,
         );
 
+        let sweepCancelled = 0;
+        if (result.cancelled === 0 && enrichedEvents.some(event => (event.attendees ?? []).some(
+            attendee => attendee.responseStatus === 'declined',
+        ))) {
+            const today = new Date();
+            const sweep = await processDeclinedCalendarEvents(
+                supabase,
+                format(today, 'yyyy-MM-dd'),
+                format(addDays(today, 45), 'yyyy-MM-dd'),
+            );
+            sweepCancelled = sweep.cancelled;
+        }
+
         const saved = await saveShopSyncTokenIfUnchanged(
             webhookState.channel_id,
             webhookState.resource_id,
@@ -129,8 +143,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
             success: true,
             eventsProcessed: enrichedEvents.length,
-            bookingsCancelled: result.cancelled,
+            bookingsCancelled: result.cancelled + sweepCancelled,
             reasons: result.reasons,
+            sweepFallback: sweepCancelled > 0,
         });
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);

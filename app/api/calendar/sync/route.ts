@@ -18,7 +18,6 @@ import { deleteAllBookingCalendarEvents } from '@/lib/booking-calendar-cleanup';
 import { buildBookingCalendarPayload } from '@/lib/booking-calendar-payload';
 import { isShopCalendarConnected, upsertShopInviteEvent } from '@/lib/shop-calendar';
 import { requireStaff } from '@/lib/staff-auth';
-import { SHOP_CALENDAR_DISPLAY_NAME, SHOP_CALENDAR_EMAIL } from '@/lib/shop';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -66,11 +65,7 @@ async function syncShopInvite(
     barberEmail: string | null,
 ) {
     const payload = buildBookingCalendarPayload(booking, barberName);
-    const shopDescription = [
-        payload.staffDescription,
-        '',
-        `Organizer: ${SHOP_CALENDAR_EMAIL} (${SHOP_CALENDAR_DISPLAY_NAME})`,
-    ].join('\n');
+    const shopDescription = payload.clientDescription;
 
     const shopEventId = await upsertShopInviteEvent({
         bookingId: booking.id,

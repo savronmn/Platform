@@ -82,8 +82,8 @@ export function buildBookingCalendarPayload(
         `Duration: ${durationMin} min`,
         booking.price ? `Price: ${booking.price}` : '',
         '',
-        'Tap Yes on this invite to confirm your appointment.',
-        'Tap No to cancel — declining frees your time slot automatically.',
+        'Please tap Yes to confirm — we look forward to seeing you.',
+        'Need to cancel? It is as easy as tapping No on this invite.',
         '',
         `Questions? ${SHOP_CONTACT_EMAIL}`,
     ].filter(Boolean).join('\n');

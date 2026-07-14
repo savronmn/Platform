@@ -311,6 +311,24 @@ export async function findBookingForCalendarEvent(
         if (byShopEvent) return byShopEvent;
     }
 
+    if (!barberId && declinedGuestEmails(event).length) {
+        const slot = eventSlot(event);
+        for (const email of declinedGuestEmails(event)) {
+            let query = supabase
+                .from('bookings')
+                .select(BOOKING_LOOKUP_SELECT)
+                .eq('client_email', email)
+                .eq('status', 'confirmed');
+
+            if (slot) {
+                query = query.eq('date', slot.date).eq('time', slot.time);
+            }
+
+            const { data: matches } = await query.order('date', { ascending: true }).limit(1);
+            if (matches?.[0]) return matches[0];
+        }
+    }
+
     // Cancelled Google events without a stored event id must not cancel by slot guesswork.
     if (event.status === 'cancelled') return null;
 
