@@ -72,7 +72,15 @@ export async function POST(
         if (!pushToken) return new NextResponse('pushToken required', { status: 400 });
 
         const supabase = getSupabaseAdmin();
-        await supabase.from('wallet_pass_registrations').upsert(
+        const { data: existingRegistration } = await supabase
+            .from('wallet_pass_registrations')
+            .select('id')
+            .eq('device_library_identifier', deviceId)
+            .eq('pass_type_identifier', passTypeId)
+            .eq('serial_number', serialNumber)
+            .maybeSingle();
+
+        const { error: upsertError } = await supabase.from('wallet_pass_registrations').upsert(
             {
                 subscriber_id: subscriber.id,
                 device_library_identifier: deviceId,
@@ -84,7 +92,14 @@ export async function POST(
             { onConflict: 'device_library_identifier,pass_type_identifier,serial_number' },
         );
 
-        return new NextResponse(null, { status: 201 });
+        if (upsertError) {
+            console.error('[Apple Wallet] Device registration failed:', upsertError.message);
+            return new NextResponse('Registration failed', { status: 500 });
+        }
+
+        // 201 = new device registered, 200 = same device re-registered (PassKit spec).
+        // Multiple phones per member each get their own device_library_identifier.
+        return new NextResponse(null, { status: existingRegistration ? 200 : 201 });
     }
 
     return new NextResponse('Not found', { status: 404 });

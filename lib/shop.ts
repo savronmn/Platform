@@ -41,7 +41,12 @@ export const SHOP_SOCIAL_LINK_LIST = [
 ] as const;
 
 export function getSiteUrl(): string {
-    return process.env.NEXT_PUBLIC_SITE_URL || 'https://savronmn.com';
+    return process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://savronmn.com';
+}
+
+/** Dark SAVRON mark used on wallet passes (Google programLogo + Apple pass assets). */
+export function getWalletLogoUrl(): string {
+    return process.env.GOOGLE_WALLET_LOGO_URL || `${getSiteUrl()}/icon.png`;
 }
 
 export const SHOP_EPASS_URL = getSiteUrl() + '/epass';

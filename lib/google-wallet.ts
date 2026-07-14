@@ -4,6 +4,7 @@ import {
     getShopGoogleWalletModules,
     getShopMerchantLocations,
     getSiteUrl,
+    getWalletLogoUrl,
     SHOP_NAME,
 } from '@/lib/shop';
 
@@ -33,7 +34,7 @@ function warnIfClassIdMisconfigured() {
 }
 
 function getProgramLogoUri(): string {
-    return process.env.GOOGLE_WALLET_LOGO_URL || `${getSiteUrl()}/logo.png`;
+    return getWalletLogoUrl();
 }
 
 function buildProgramLogo() {

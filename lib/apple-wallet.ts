@@ -4,6 +4,7 @@ import path from 'path';
 import http2 from 'http2';
 import forge from 'node-forge';
 import { createClient } from '@supabase/supabase-js';
+import { getSiteUrl } from '@/lib/shop';
 
 const WALLET_PRIVATE_KEY = process.env.WALLET_PRIVATE_KEY;
 const WALLET_WWDR_CERT = process.env.WALLET_WWDR_CERT;
@@ -32,9 +33,27 @@ export function isAppleWalletConfigured(): boolean {
 }
 
 export function getWalletWebServiceBaseUrl(): string | null {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    const baseUrl = getSiteUrl();
     if (!baseUrl) return null;
     return `${baseUrl.replace(/\/$/, '')}/api/wallet/apple/`;
+}
+
+function loadPassImageBuffers(): Record<string, Buffer> {
+    const buffers: Record<string, Buffer> = {};
+    const iconPath = path.join(process.cwd(), 'public', 'icon.png');
+    const logoPath = path.join(process.cwd(), 'public', 'logo.png');
+
+    if (fs.existsSync(iconPath)) {
+        const iconBuffer = fs.readFileSync(iconPath);
+        buffers['icon.png'] = iconBuffer;
+        buffers['logo.png'] = iconBuffer;
+    } else if (fs.existsSync(logoPath)) {
+        const logoBuffer = fs.readFileSync(logoPath);
+        buffers['logo.png'] = logoBuffer;
+        buffers['icon.png'] = logoBuffer;
+    }
+
+    return buffers;
 }
 
 function loadSignerMaterials(): {
@@ -109,13 +128,7 @@ export function generateApplePassBuffer(
     if (!materials) return null;
 
     try {
-        const buffers: Record<string, Buffer> = {};
-        const logoPath = path.join(process.cwd(), 'public', 'logo.png');
-        if (fs.existsSync(logoPath)) {
-            const logoBuffer = fs.readFileSync(logoPath);
-            buffers['logo.png'] = logoBuffer;
-            buffers['icon.png'] = logoBuffer;
-        }
+        const buffers = loadPassImageBuffers();
 
         const passProps: Record<string, string> = {
             description: 'SAVRON Membership',
@@ -150,7 +163,12 @@ export function generateApplePassBuffer(
         pass.primaryFields.push({ key: 'tier', label: 'MEMBER', value: 'SAVRON MEMBER' });
         pass.secondaryFields.push({ key: 'name', label: 'NAME', value: subscriber.name });
         pass.auxiliaryFields.push(
-            { key: 'visits', label: 'VISITS', value: subscriber.visit_count.toString() },
+            {
+                key: 'visits',
+                label: 'VISITS',
+                value: subscriber.visit_count.toString(),
+                changeMessage: 'Visits updated to %@',
+            },
             { key: 'email', label: 'EMAIL', value: subscriber.email, textAlignment: 'PKTextAlignmentRight' },
         );
         pass.setBarcodes({
@@ -189,11 +207,15 @@ function sendApnsPassUpdate(pushToken: string, p12Buffer: Buffer): Promise<boole
             ':path': `/3/device/${pushToken}`,
             'apns-topic': PASS_TYPE_ID!,
             'apns-push-type': 'background',
+            'apns-priority': '5',
             'content-type': 'application/json',
         });
 
         req.on('response', (headers) => {
             const status = headers[':status'];
+            if (status !== 200) {
+                console.warn('[Apple Wallet] APNs push rejected:', status, pushToken.slice(0, 8) + '…');
+            }
             resolve(status === 200);
         });
 
@@ -220,14 +242,19 @@ export async function pushApplePassUpdates(serialNumber: string): Promise<number
         .select('push_token')
         .eq('serial_number', serialNumber);
 
-    if (!registrations?.length) return 0;
+    if (!registrations?.length) {
+        console.warn('[Apple Wallet] No device registrations for pass', serialNumber);
+        return 0;
+    }
 
+    const pushTokens = [...new Set(registrations.map((reg) => reg.push_token).filter(Boolean))];
     let pushed = 0;
-    for (const reg of registrations) {
-        const ok = await sendApnsPassUpdate(reg.push_token, materials.p12Buffer);
+    for (const pushToken of pushTokens) {
+        const ok = await sendApnsPassUpdate(pushToken, materials.p12Buffer);
         if (ok) pushed++;
     }
 
+    console.log(`[Apple Wallet] APNs pushed ${pushed}/${pushTokens.length} device(s) for ${serialNumber}`);
     return pushed;
 }
 
