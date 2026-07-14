@@ -11,6 +11,7 @@ export default function FloatingBookButton() {
     const hidden =
         pathname.startsWith('/booking') ||
         pathname.startsWith('/book/') ||
+        pathname.startsWith('/epass') ||
         pathname.startsWith('/admin') ||
         pathname.startsWith('/barber') ||
         pathname.startsWith('/host') ||
