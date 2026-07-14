@@ -63,7 +63,7 @@ function getWalletOrigins(): string[] {
         origins.add('https://www.savronmn.com');
     }
 
-    return [...origins];
+    return Array.from(origins);
 }
 
 async function getWalletClient() {
