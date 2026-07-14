@@ -7,26 +7,22 @@ import CookieConsentBanner from '@/components/layout/CookieConsentBanner';
 import GoogleAnalytics from '@/components/analytics/GoogleAnalytics';
 import { GA_MEASUREMENT_ID } from '@/lib/ga-measurement-id';
 
-const googleTagBootstrapScript = `
+const googleConsentDefaultScript = `
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
-
   gtag('consent', 'default', {
     'analytics_storage': 'denied',
     'ad_storage': 'denied',
     'ad_user_data': 'denied',
     'ad_personalization': 'denied'
   });
+`;
 
+const googleTagInitScript = `
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-  gtag('config', '${GA_MEASUREMENT_ID}', { send_page_view: true });
-
-  (function () {
-    var script = document.createElement('script');
-    script.async = true;
-    script.src = 'https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}';
-    document.head.appendChild(script);
-  })();
+  gtag('config', '${GA_MEASUREMENT_ID}');
 `;
 
 const montserrat = Montserrat({
@@ -122,7 +118,13 @@ export default function RootLayout({
     return (
         <html lang="en" className="scroll-smooth">
             <head>
-                <script dangerouslySetInnerHTML={{ __html: googleTagBootstrapScript }} />
+                <script dangerouslySetInnerHTML={{ __html: googleConsentDefaultScript }} />
+                {/* Google tag (gtag.js) — single site-wide tag in root layout */}
+                <script
+                    async
+                    src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+                />
+                <script dangerouslySetInnerHTML={{ __html: googleTagInitScript }} />
             </head>
             <body className={`${montserrat.variable} ${inter.variable} ${playfair.variable} font-sans bg-savron-black text-white antialiased`}>
                 <Suspense fallback={null}>
