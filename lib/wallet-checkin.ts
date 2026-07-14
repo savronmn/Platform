@@ -1,4 +1,10 @@
-import { updateGoogleWalletPass } from '@/lib/google-wallet';
+import { createClient } from '@supabase/supabase-js';
+import {
+    buildGoogleObjectId,
+    createGooglePassObject,
+    isGoogleWalletConfigured,
+    updateGoogleWalletPass,
+} from '@/lib/google-wallet';
 import { broadcastEpassVisitUpdate } from '@/lib/epass-broadcast';
 import { notifyWalletPassesUpdated } from '@/lib/apple-wallet';
 
@@ -17,30 +23,84 @@ export interface WalletSyncResult {
     pass_updated_at: string;
 }
 
-/** After a visit is recorded, sync Google Wallet, Apple Wallet, and the /epass web view. */
+function getSupabaseAdmin() {
+    return createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
+}
+
+async function fetchSubscriberForSync(subscriberId: string): Promise<SubscriberRow | null> {
+    const supabase = getSupabaseAdmin();
+    const { data } = await supabase
+        .from('email_subscribers')
+        .select('id, name, email, visit_count, pass_serial_number, google_pass_object_id')
+        .eq('id', subscriberId)
+        .eq('active', true)
+        .maybeSingle();
+
+    return data;
+}
+
+/** Create a Google Wallet object when signup missed storing google_pass_object_id. */
+async function ensureGooglePassObjectId(
+    subscriber: SubscriberRow,
+    visitCount: number,
+): Promise<string | null> {
+    if (subscriber.google_pass_object_id) {
+        return subscriber.google_pass_object_id;
+    }
+    if (!isGoogleWalletConfigured()) return null;
+
+    const objectId = buildGoogleObjectId();
+    if (!objectId) return null;
+
+    const created = await createGooglePassObject(
+        objectId,
+        subscriber.name,
+        subscriber.email,
+        visitCount,
+    );
+    if (!created) return null;
+
+    const supabase = getSupabaseAdmin();
+    await supabase
+        .from('email_subscribers')
+        .update({ google_pass_object_id: objectId })
+        .eq('id', subscriber.id);
+
+    return objectId;
+}
+
+/** After a visit is recorded (or retried), sync Google Wallet, Apple Wallet, and the /epass web view. */
 export async function syncWalletsAfterCheckin(
     subscriber: SubscriberRow,
     newCount: number,
     lastVisitAt: string,
 ): Promise<WalletSyncResult> {
-    let google_wallet_updated = false;
+    const fresh = await fetchSubscriberForSync(subscriber.id);
+    const row = fresh ?? subscriber;
+    const visitCount = fresh?.visit_count ?? newCount;
 
-    if (subscriber.google_pass_object_id) {
+    let google_wallet_updated = false;
+    const googleObjectId = await ensureGooglePassObjectId(row, visitCount);
+
+    if (googleObjectId) {
         google_wallet_updated = await updateGoogleWalletPass(
-            subscriber.google_pass_object_id,
-            subscriber.name,
-            subscriber.email,
-            newCount,
+            googleObjectId,
+            row.name,
+            row.email,
+            visitCount,
         );
     }
 
     const { pass_updated_at, apple_devices_notified } = await notifyWalletPassesUpdated(
-        subscriber.id,
-        subscriber.pass_serial_number,
+        row.id,
+        row.pass_serial_number,
     );
 
-    await broadcastEpassVisitUpdate(subscriber.email, {
-        visit_count: newCount,
+    await broadcastEpassVisitUpdate(row.email, {
+        visit_count: visitCount,
         last_visit_at: lastVisitAt,
     });
 

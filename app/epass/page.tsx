@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, type ReactNode, type MouseEvent, type TouchEvent } from 'react';
+import { useState, useEffect, useRef, useMemo, type ReactNode, type MouseEvent, type TouchEvent } from 'react';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Mail, Shield, QrCode, LogOut, Crown, Sparkles, Award } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -214,7 +214,7 @@ export default function EPassPage() {
     const [subscriber, setSubscriber] = useState<Subscriber | null>(null);
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
     const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
-    const supabase = createClient();
+    const supabase = useMemo(() => createClient(), []);
 
     useEffect(() => {
         const saved = localStorage.getItem(SESSION_KEY);
@@ -257,7 +257,7 @@ export default function EPassPage() {
             if (document.visibilityState === 'visible') {
                 loadProfile(normalizedEmail, { quiet: true });
             }
-        }, 5000);
+        }, 2000);
 
         return () => {
             supabase.removeChannel(channel);
@@ -291,7 +291,17 @@ export default function EPassPage() {
             });
             const data = await res.json();
             if (res.ok && data.subscriber) {
-                setSubscriber(data.subscriber);
+                setSubscriber(prev => {
+                    const next = data.subscriber as Subscriber;
+                    if (
+                        prev
+                        && prev.visit_count === next.visit_count
+                        && prev.last_visit_at === next.last_visit_at
+                    ) {
+                        return prev;
+                    }
+                    return next;
+                });
                 const url = await QRCode.toDataURL(data.subscriber.email, {
                     width: 240,
                     margin: 2,

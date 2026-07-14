@@ -12,8 +12,7 @@ function getSupabaseAdmin() {
     );
 }
 
-/** Push a live visit update to any open /epass session for this member. */
-export async function broadcastEpassVisitUpdate(
+async function sendBroadcastOnce(
     email: string,
     payload: EpassVisitPayload,
 ): Promise<void> {
@@ -36,7 +35,7 @@ export async function broadcastEpassVisitUpdate(
             });
         });
 
-        await channel.send({
+        const sendStatus = await channel.send({
             type: 'broadcast',
             event: 'visit_update',
             payload: {
@@ -44,9 +43,28 @@ export async function broadcastEpassVisitUpdate(
                 ...payload,
             },
         });
-    } catch (err) {
-        console.warn('[ePass] Broadcast failed (non-fatal):', err);
+
+        if (sendStatus !== 'ok') {
+            throw new Error(`Broadcast send status: ${sendStatus}`);
+        }
     } finally {
         await supabase.removeChannel(channel);
+    }
+}
+
+/** Push a live visit update to any open /epass session for this member. */
+export async function broadcastEpassVisitUpdate(
+    email: string,
+    payload: EpassVisitPayload,
+): Promise<void> {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+            await sendBroadcastOnce(email, payload);
+            return;
+        } catch (err) {
+            if (attempt === 2) {
+                console.warn('[ePass] Broadcast failed after retries (non-fatal):', err);
+            }
+        }
     }
 }
