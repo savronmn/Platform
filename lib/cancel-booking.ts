@@ -25,7 +25,13 @@ export interface CancelBookingResult {
  */
 export async function cancelBooking(
     bookingId: string,
-    options: { skipEmail?: boolean; skipCalendar?: boolean; fallbackDate?: string; fallbackTime?: string } = {},
+    options: {
+        skipEmail?: boolean;
+        skipCalendar?: boolean;
+        forceEmail?: boolean;
+        fallbackDate?: string;
+        fallbackTime?: string;
+    } = {},
 ): Promise<CancelBookingResult> {
     const supabase = getAdmin();
 
@@ -73,7 +79,7 @@ export async function cancelBooking(
 
     const shouldSendEmail = !options.skipEmail
         && !alreadyCancelled
-        && !booking.shop_google_event_id;
+        && (!booking.shop_google_event_id || options.forceEmail);
     const shouldCleanupCalendar = !options.skipCalendar;
 
     const emailPromise = shouldSendEmail
@@ -82,7 +88,7 @@ export async function cancelBooking(
             barbers: barberRelation
                 ? { name: barberRelation.name, email: barberRelation.email }
                 : null,
-        }).catch((error) => {
+        }, { forceSend: options.forceEmail }).catch((error) => {
             console.error('Failed to send cancellation emails:', error);
             return { success: false, error: 'Cancellation email could not be sent' };
         })

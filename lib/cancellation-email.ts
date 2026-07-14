@@ -48,8 +48,11 @@ function buildCancelIcs(
 
 export async function sendCancellationEmails(
     booking: CancellationBooking,
+    options: { forceSend?: boolean } = {},
 ): Promise<CancellationEmailResult> {
-    if (booking.shop_google_event_id) {
+    // Shop-owned invites normally rely on Google delete notifications; calendar declines
+    // still need an explicit Resend confirmation to the guest who tapped "No".
+    if (booking.shop_google_event_id && !options.forceSend) {
         return { success: true, sent: 0, failed: 0 };
     }
 

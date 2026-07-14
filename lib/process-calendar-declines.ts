@@ -137,7 +137,12 @@ export async function processCalendarEventChanges(
         const action = shouldCancelBookingFromCalendarEvent(event, booking);
         if (!action) continue;
 
-        const result = await cancelBooking(booking.id, { skipCalendar: action.skipCalendar });
+        const sendDeclineConfirmation =
+            action.reason === 'invitee_declined' || action.reason === 'client_declined';
+        const result = await cancelBooking(booking.id, {
+            skipCalendar: action.skipCalendar,
+            forceEmail: sendDeclineConfirmation,
+        });
         if (result.success && !result.alreadyCancelled) {
             cancelled += 1;
             reasons.push(action.reason);
