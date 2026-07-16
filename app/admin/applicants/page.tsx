@@ -25,6 +25,8 @@ export default function AdminApplicantsPage() {
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
     const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
     const [showArchived, setShowArchived] = useState(false);
+    const [purgeEmail, setPurgeEmail] = useState('');
+    const [purging, setPurging] = useState(false);
 
     useEffect(() => {
         if (!openDropdown) return;
@@ -39,7 +41,7 @@ export default function AdminApplicantsPage() {
             const res = await fetch('/api/applicants/admin');
             const data = await res.json().catch(() => ({}));
 
-            if (res.status === 403 && !retry) {
+            if ((res.status === 401 || res.status === 403) && !retry) {
                 await fetch('/api/admin/ensure-role', { method: 'POST' });
                 return load(true);
             }
@@ -92,6 +94,30 @@ export default function AdminApplicantsPage() {
         setApplicants(prev => prev.filter(a => a.id !== applicant.id));
         setDeletingId(null);
         setConfirmDelete(null);
+    };
+
+    const purgeByEmail = async () => {
+        const email = purgeEmail.trim().toLowerCase();
+        if (!email) return;
+
+        setPurging(true);
+        setLoadError('');
+        const res = await fetch('/api/applicants/admin', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+            setLoadError(data.error || 'Failed to remove application for that email.');
+            setPurging(false);
+            return;
+        }
+
+        setApplicants(prev => prev.filter(a => a.email.toLowerCase() !== email));
+        setPurgeEmail('');
+        setPurging(false);
     };
 
     const counts = {
@@ -147,6 +173,32 @@ export default function AdminApplicantsPage() {
                     {loadError}
                 </div>
             )}
+
+            <div className="card-savron border-white/10 bg-white/[0.02] p-4 space-y-3">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-savron-silver/50">
+                    Blocked email recovery
+                </p>
+                <p className="text-savron-silver/70 text-sm">
+                    If someone sees &ldquo;email already used&rdquo; but no application appears here, remove the hidden record by email.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                        type="email"
+                        value={purgeEmail}
+                        onChange={e => setPurgeEmail(e.target.value)}
+                        placeholder="EMAIL TO REMOVE"
+                        className="input-savron flex-1"
+                    />
+                    <button
+                        type="button"
+                        onClick={purgeByEmail}
+                        disabled={purging || !purgeEmail.trim()}
+                        className="px-4 py-3 text-[10px] uppercase tracking-widest border border-red-500/30 text-red-300 hover:bg-red-500/10 rounded-savron transition-all disabled:opacity-50"
+                    >
+                        {purging ? 'Removing…' : 'Remove By Email'}
+                    </button>
+                </div>
+            </div>
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5 lg:gap-6">

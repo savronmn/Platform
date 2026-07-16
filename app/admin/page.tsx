@@ -45,14 +45,20 @@ export default function AdminDashboard() {
 
     async function fetchData() {
         try {
-            const data = await fetchAdminDashboardData(supabase);
+            const [data, applicantsRes] = await Promise.all([
+                fetchAdminDashboardData(supabase),
+                fetch('/api/applicants/admin'),
+            ]);
+            const applicantsData = await applicantsRes.json().catch(() => ({}));
+            const allApplicants = applicantsRes.ok ? (applicantsData.applicants ?? []) : data.detailData.pendingApplicants;
+            const pendingApplicants = allApplicants.filter((a: { status: string }) => a.status === 'pending');
+
             const todayActive = data.todaySchedule;
             const upcoming = data.upcomingSchedule;
             const allClients = data.detailData.allClients;
             const allBarbers = data.detailData.activeBarbers;
             const allBookings = data.detailData.allBookings;
             const recentCancelled = data.detailData.recentCancellations;
-            const pendingApplicants = data.detailData.pendingApplicants;
             const activeBookings = data.detailData.activeBookings;
             const cutoff = data.dueCutoff;
 
