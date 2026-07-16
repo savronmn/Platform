@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024; // 100 MB
+const VIDEO_BUCKET = 'applicant-videos';
+
+async function ensureApplicantVideosBucket(supabase: SupabaseClient) {
+    const { data: bucket } = await supabase.storage.getBucket(VIDEO_BUCKET);
+    if (bucket) return;
+
+    const { error } = await supabase.storage.createBucket(VIDEO_BUCKET, {
+        public: true,
+        fileSizeLimit: MAX_VIDEO_BYTES,
+    });
+
+    if (error && !error.message.toLowerCase().includes('already exists')) {
+        throw new Error(`Failed to prepare video storage: ${error.message}`);
+    }
+}
 
 export async function POST(req: NextRequest) {
     try {
@@ -59,12 +75,22 @@ export async function POST(req: NextRequest) {
                 );
             }
 
+            try {
+                await ensureApplicantVideosBucket(supabase);
+            } catch (err) {
+                console.error('Applicant video bucket setup failed:', err);
+                return NextResponse.json(
+                    { error: 'Video storage is not ready. Please submit without a video for now.' },
+                    { status: 500 },
+                );
+            }
+
             const safeName = video.name.replace(/[^a-zA-Z0-9._-]/g, '_');
             const fileName = `${Date.now()}_${safeName}`;
             const buffer = Buffer.from(await video.arrayBuffer());
 
             const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('applicant-videos')
+                .from(VIDEO_BUCKET)
                 .upload(fileName, buffer, { contentType: video.type || 'video/mp4', upsert: false });
 
             if (uploadError) {
@@ -77,7 +103,7 @@ export async function POST(req: NextRequest) {
 
             if (uploadData) {
                 const { data: { publicUrl } } = supabase.storage
-                    .from('applicant-videos')
+                    .from(VIDEO_BUCKET)
                     .getPublicUrl(fileName);
                 video_url = publicUrl;
             }
@@ -97,6 +123,12 @@ export async function POST(req: NextRequest) {
 
         if (insertError) {
             console.error('Applicant insert error:', insertError);
+            if (insertError.code === '23505') {
+                return NextResponse.json(
+                    { error: 'An application with this email already exists.' },
+                    { status: 409 },
+                );
+            }
             return NextResponse.json(
                 { error: 'Failed to save your application. Please try again.' },
                 { status: 500 },
