@@ -60,6 +60,13 @@ export default function PortalPage() {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        if (file.size > 100 * 1024 * 1024) {
+            setError('Video must be 100 MB or smaller.');
+            setVideoFile(null);
+            setVideoPreview(null);
+            return;
+        }
+
         const video = document.createElement('video');
         video.preload = 'metadata';
         video.onloadedmetadata = () => {
@@ -129,21 +136,67 @@ export default function PortalPage() {
         setError('');
 
         try {
-            const body = new FormData();
-            body.append('name', form.name.trim());
-            body.append('email', form.email.trim());
-            body.append('phone', form.phone.trim());
-            body.append('ig_handle', form.ig_handle.trim());
-            body.append('experience', form.experience);
-            body.append('license_status', form.license_status);
-            body.append('experience_summary', form.experience_summary.trim());
-            if (videoFile) body.append('video', videoFile);
+            let video_url: string | null = null;
 
-            const res = await fetch('/api/applicants/apply', { method: 'POST', body });
-            const data = await res.json().catch(() => ({}));
+            if (videoFile) {
+                const uploadMetaRes = await fetch('/api/applicants/upload-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: videoFile.name }),
+                });
+                const uploadMeta = await uploadMetaRes.json().catch(() => ({}));
+
+                if (!uploadMetaRes.ok) {
+                    setError(uploadMeta.error || 'Could not prepare video upload. Remove the video and try again.');
+                    setStatus('error');
+                    setStep('review');
+                    return;
+                }
+
+                const uploadRes = await fetch(uploadMeta.signedUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': videoFile.type || 'video/mp4',
+                        ...(uploadMeta.token ? { 'x-upsert': 'false' } : {}),
+                    },
+                    body: videoFile,
+                });
+
+                if (!uploadRes.ok) {
+                    setError('Video upload failed. Remove the video and try again, or use a smaller file.');
+                    setStatus('error');
+                    setStep('review');
+                    return;
+                }
+
+                video_url = uploadMeta.publicUrl ?? null;
+            }
+
+            const res = await fetch('/api/applicants/apply', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: form.name.trim(),
+                    email: form.email.trim(),
+                    phone: form.phone.trim(),
+                    ig_handle: form.ig_handle.trim() || null,
+                    experience: form.experience,
+                    license_status: form.license_status,
+                    experience_summary: form.experience_summary.trim(),
+                    video_url,
+                }),
+            });
+
+            const raw = await res.text();
+            let data: { error?: string; success?: boolean } = {};
+            try {
+                data = raw ? JSON.parse(raw) : {};
+            } catch {
+                data = {};
+            }
 
             if (!res.ok) {
-                setError(data.error || 'Something went wrong. Please try again.');
+                setError(data.error || raw || 'Something went wrong. Please try again.');
                 setStatus('error');
                 setStep('review');
                 return;

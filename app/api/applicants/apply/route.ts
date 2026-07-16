@@ -1,62 +1,88 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { EMAIL_RE } from '@/lib/applicant-video';
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MAX_VIDEO_BYTES = 100 * 1024 * 1024; // 100 MB
-const VIDEO_BUCKET = 'applicant-videos';
+type ApplicantPayload = {
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    ig_handle?: string | null;
+    experience?: string | null;
+    license_status?: string | null;
+    experience_summary?: string | null;
+    video_url?: string | null;
+};
 
-async function ensureApplicantVideosBucket(supabase: SupabaseClient) {
-    const { data: bucket } = await supabase.storage.getBucket(VIDEO_BUCKET);
-    if (bucket) return;
+function parsePayload(req: NextRequest, body: ApplicantPayload | null) {
+    const name = body?.name?.trim() ?? '';
+    const email = body?.email?.trim().toLowerCase() ?? '';
+    const phone = body?.phone?.trim() ?? '';
+    const ig_handle = body?.ig_handle?.trim() || null;
+    const experience = body?.experience?.trim() ?? '';
+    const license_status = body?.license_status?.trim() ?? '';
+    const experience_summary = body?.experience_summary?.trim() ?? '';
+    const video_url = body?.video_url?.trim() || null;
 
-    const { error } = await supabase.storage.createBucket(VIDEO_BUCKET, {
-        public: true,
-        fileSizeLimit: MAX_VIDEO_BYTES,
-    });
+    return { name, email, phone, ig_handle, experience, license_status, experience_summary, video_url };
+}
 
-    if (error && !error.message.toLowerCase().includes('already exists')) {
-        throw new Error(`Failed to prepare video storage: ${error.message}`);
+function validatePayload(payload: ReturnType<typeof parsePayload>) {
+    const { name, email, phone, experience, license_status, experience_summary } = payload;
+
+    if (!name) {
+        return 'Please enter your full name.';
     }
+    if (!email || !EMAIL_RE.test(email)) {
+        return 'Please enter a valid email.';
+    }
+    if (!phone) {
+        return 'Please enter your phone number.';
+    }
+    if (!experience) {
+        return 'Please select your years of experience.';
+    }
+    if (!license_status) {
+        return 'Please select your license status.';
+    }
+    if (!experience_summary) {
+        return 'Please tell us about your experience.';
+    }
+
+    return null;
 }
 
 export async function POST(req: NextRequest) {
     try {
         const supabase = getSupabaseAdmin();
-        const formData = await req.formData();
+        const contentType = req.headers.get('content-type') ?? '';
+        let payload: ReturnType<typeof parsePayload>;
 
-        const name = (formData.get('name') as string | null)?.trim() ?? '';
-        const email = (formData.get('email') as string | null)?.trim().toLowerCase() ?? '';
-        const phone = (formData.get('phone') as string | null)?.trim() ?? '';
-        const ig_handle = (formData.get('ig_handle') as string | null)?.trim() || null;
-        const experience = (formData.get('experience') as string | null)?.trim() ?? '';
-        const license_status = (formData.get('license_status') as string | null)?.trim() ?? '';
-        const experience_summary = (formData.get('experience_summary') as string | null)?.trim() ?? '';
-        const video = formData.get('video') as File | null;
+        if (contentType.includes('application/json')) {
+            const body = await req.json().catch(() => null) as ApplicantPayload | null;
+            payload = parsePayload(req, body);
+        } else {
+            const formData = await req.formData();
+            payload = parsePayload(req, {
+                name: formData.get('name') as string | null,
+                email: formData.get('email') as string | null,
+                phone: formData.get('phone') as string | null,
+                ig_handle: formData.get('ig_handle') as string | null,
+                experience: formData.get('experience') as string | null,
+                license_status: formData.get('license_status') as string | null,
+                experience_summary: formData.get('experience_summary') as string | null,
+                video_url: formData.get('video_url') as string | null,
+            });
+        }
 
-        if (!name) {
-            return NextResponse.json({ error: 'Please enter your full name.' }, { status: 400 });
-        }
-        if (!email || !EMAIL_RE.test(email)) {
-            return NextResponse.json({ error: 'Please enter a valid email.' }, { status: 400 });
-        }
-        if (!phone) {
-            return NextResponse.json({ error: 'Please enter your phone number.' }, { status: 400 });
-        }
-        if (!experience) {
-            return NextResponse.json({ error: 'Please select your years of experience.' }, { status: 400 });
-        }
-        if (!license_status) {
-            return NextResponse.json({ error: 'Please select your license status.' }, { status: 400 });
-        }
-        if (!experience_summary) {
-            return NextResponse.json({ error: 'Please tell us about your experience.' }, { status: 400 });
+        const validationError = validatePayload(payload);
+        if (validationError) {
+            return NextResponse.json({ error: validationError }, { status: 400 });
         }
 
         const { data: existing } = await supabase
             .from('applicants')
             .select('id')
-            .eq('email', email)
+            .eq('email', payload.email)
             .maybeSingle();
 
         if (existing) {
@@ -66,58 +92,15 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        let video_url: string | null = null;
-        if (video && video.size > 0) {
-            if (video.size > MAX_VIDEO_BYTES) {
-                return NextResponse.json(
-                    { error: 'Video must be 100 MB or smaller.' },
-                    { status: 400 },
-                );
-            }
-
-            try {
-                await ensureApplicantVideosBucket(supabase);
-            } catch (err) {
-                console.error('Applicant video bucket setup failed:', err);
-                return NextResponse.json(
-                    { error: 'Video storage is not ready. Please submit without a video for now.' },
-                    { status: 500 },
-                );
-            }
-
-            const safeName = video.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-            const fileName = `${Date.now()}_${safeName}`;
-            const buffer = Buffer.from(await video.arrayBuffer());
-
-            const { data: uploadData, error: uploadError } = await supabase.storage
-                .from(VIDEO_BUCKET)
-                .upload(fileName, buffer, { contentType: video.type || 'video/mp4', upsert: false });
-
-            if (uploadError) {
-                console.error('Applicant video upload failed:', uploadError.message);
-                return NextResponse.json(
-                    { error: 'Failed to upload video. Please try again or submit without a video.' },
-                    { status: 500 },
-                );
-            }
-
-            if (uploadData) {
-                const { data: { publicUrl } } = supabase.storage
-                    .from(VIDEO_BUCKET)
-                    .getPublicUrl(fileName);
-                video_url = publicUrl;
-            }
-        }
-
         const { error: insertError } = await supabase.from('applicants').insert({
-            name,
-            email,
-            phone,
-            ig_handle,
-            experience,
-            license_status,
-            experience_summary,
-            video_url,
+            name: payload.name,
+            email: payload.email,
+            phone: payload.phone,
+            ig_handle: payload.ig_handle,
+            experience: payload.experience,
+            license_status: payload.license_status,
+            experience_summary: payload.experience_summary,
+            video_url: payload.video_url,
             status: 'pending',
         });
 
