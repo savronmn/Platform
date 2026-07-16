@@ -42,3 +42,15 @@ export async function requireStaff(): Promise<
         user: { id: user.id, email: user.email, isAdmin, isBarber },
     };
 }
+
+/** Require an authenticated admin for admin-only API routes. */
+export async function requireAdmin(): Promise<
+    { ok: true; user: StaffUser } | { ok: false; status: 401 | 403; error: string }
+> {
+    const staff = await requireStaff();
+    if (!staff.ok) return staff;
+    if (!staff.user.isAdmin) {
+        return { ok: false, status: 403, error: 'Admin access required' };
+    }
+    return staff;
+}

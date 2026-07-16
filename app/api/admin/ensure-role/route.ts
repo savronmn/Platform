@@ -25,10 +25,6 @@ export async function POST() {
         .eq('auth_id', user.id)
         .maybeSingle();
 
-    if (existingBarber) {
-        return NextResponse.json({ success: true, role: 'barber' });
-    }
-
     const { data: clientRecord } = await supabaseAdmin
         .from('clients')
         .select('id')
@@ -36,7 +32,7 @@ export async function POST() {
         .maybeSingle();
 
     if (clientRecord) {
-        return NextResponse.json({ success: true, role: 'client' });
+        return NextResponse.json({ error: 'Client accounts cannot access admin.' }, { status: 403 });
     }
 
     const { error } = await supabaseAdmin
@@ -47,5 +43,9 @@ export async function POST() {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, role: 'admin' });
+    return NextResponse.json({
+        success: true,
+        role: 'admin',
+        barberProfile: !!existingBarber,
+    });
 }

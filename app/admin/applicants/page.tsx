@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trash2, ExternalLink, ChevronDown, UserCheck, Clock, X, FileVideo, Phone, Instagram } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -18,9 +17,9 @@ const STATUS_STYLES: Record<Applicant['status'], string> = {
 const STATUS_OPTIONS: Applicant['status'][] = ['pending', 'interview', 'approved', 'rejected'];
 
 export default function AdminApplicantsPage() {
-    const supabase = createClient();
     const [applicants, setApplicants] = useState<Applicant[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [confirmDelete, setConfirmDelete] = useState<Applicant | null>(null);
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -35,26 +34,61 @@ export default function AdminApplicantsPage() {
     }, [openDropdown]);
 
     useEffect(() => {
-        async function load() {
-            const { data } = await supabase
-                .from('applicants')
-                .select('*')
-                .order('created_at', { ascending: false });
-            if (data) setApplicants(data);
+        async function load(retry = false) {
+            setLoadError('');
+            const res = await fetch('/api/applicants/admin');
+            const data = await res.json().catch(() => ({}));
+
+            if (res.status === 403 && !retry) {
+                await fetch('/api/admin/ensure-role', { method: 'POST' });
+                return load(true);
+            }
+
+            if (!res.ok) {
+                setLoadError(data.error || 'Failed to load applications.');
+                setApplicants([]);
+                setLoading(false);
+                return;
+            }
+
+            setApplicants(data.applicants ?? []);
             setLoading(false);
         }
         load();
     }, []);
 
     const updateStatus = async (id: string, status: Applicant['status']) => {
-        await supabase.from('applicants').update({ status }).eq('id', id);
-        setApplicants(prev => prev.map(a => a.id === id ? { ...a, status } : a));
-        setSelectedApplicant(prev => prev && prev.id === id ? { ...prev, status } : prev);
+        const res = await fetch('/api/applicants/admin', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, status }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.applicant) {
+            setLoadError(data.error || 'Failed to update application status.');
+            return;
+        }
+
+        setApplicants(prev => prev.map(a => a.id === id ? data.applicant : a));
+        setSelectedApplicant(prev => prev && prev.id === id ? data.applicant : prev);
     };
 
     const deleteApplicant = async (applicant: Applicant) => {
         setDeletingId(applicant.id);
-        await supabase.from('applicants').delete().eq('id', applicant.id);
+        const res = await fetch('/api/applicants/admin', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: applicant.id }),
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+            setLoadError(data.error || 'Failed to delete application.');
+            setDeletingId(null);
+            setConfirmDelete(null);
+            return;
+        }
+
         setApplicants(prev => prev.filter(a => a.id !== applicant.id));
         setDeletingId(null);
         setConfirmDelete(null);
@@ -107,6 +141,12 @@ export default function AdminApplicantsPage() {
                     </button>
                 )}
             </div>
+
+            {loadError && (
+                <div className="card-savron border-red-500/20 bg-red-500/5 text-red-300 text-sm px-4 py-3">
+                    {loadError}
+                </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5 lg:gap-6">
