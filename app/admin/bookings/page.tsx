@@ -337,7 +337,7 @@ export default function BookingsPage() {
                 </div>
 
                 {/* ── Day Detail Panel ── */}
-                <div className="w-full lg:w-80 lg:shrink-0 card-savron flex flex-col overflow-hidden min-h-[280px] lg:min-h-0">
+                <div className="w-full lg:w-80 lg:shrink-0 card-savron flex flex-col min-h-[280px] lg:min-h-0 overflow-y-auto lg:overflow-hidden">
                     {/* Panel header */}
                     <div className="shrink-0 pb-4 border-b border-white/5 mb-3">
                         <div className="flex items-center gap-2">

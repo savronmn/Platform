@@ -323,7 +323,53 @@ export default function ClientsPage() {
                     <div className="w-6 h-6 border-2 border-savron-green/30 border-t-savron-green rounded-full animate-spin" />
                 </div>
             ) : (
-                <div className="card-savron overflow-x-auto p-0">
+                <>
+                <div className="md:hidden space-y-3">
+                    {filteredClients.map(c => {
+                        const visit = getLastVisitInfo(c);
+                        return (
+                            <div
+                                key={c.id}
+                                className="card-savron p-4 space-y-3"
+                                onClick={() => { setSelected(c); setEditData(c); setEditing(false); setSaveError(null); }}
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-white text-sm font-medium">{c.name}</p>
+                                        {c.email && <p className="text-xs text-savron-silver/60 truncate mt-0.5">{c.email}</p>}
+                                        {c.phone && <p className="text-xs text-savron-silver/50 font-mono mt-0.5">{c.phone}</p>}
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedIds.has(c.id)}
+                                        onChange={(e) => { e.stopPropagation(); toggleSelect(c.id); }}
+                                        className="admin-checkbox shrink-0 mt-1"
+                                    />
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3 text-xs">
+                                    <span className={visit.color}>{visit.text}</span>
+                                    <span className="text-savron-silver/50">{c.visit_count} visits</span>
+                                    <StatusBadge status={c.membership_status} />
+                                </div>
+                                <div className="flex justify-end pt-1 border-t border-white/5" onClick={e => e.stopPropagation()}>
+                                    <button
+                                        onClick={() => setShowDelete(c.id)}
+                                        className="admin-icon-btn text-savron-silver/50 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                                        aria-label="Delete client"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                    {filteredClients.length === 0 && (
+                        <div className="card-savron p-10 text-center text-savron-silver/50 text-sm uppercase tracking-widest">
+                            No clients found
+                        </div>
+                    )}
+                </div>
+                <div className="hidden md:block card-savron overflow-x-auto p-0 min-w-0">
                     <table className="w-full text-left">
                         <thead>
                             <tr className="border-b border-white/5">
@@ -382,6 +428,7 @@ export default function ClientsPage() {
                         </tbody>
                     </table>
                 </div>
+                </>
             )}
 
             {/* ── Client Detail / Edit Modal ── */}

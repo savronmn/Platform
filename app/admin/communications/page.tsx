@@ -478,7 +478,23 @@ export default function CommunicationsPage() {
                     </div>
                 ) : (
                     <>
-                        <div className="overflow-x-auto -mx-1">
+                        <div className="md:hidden space-y-3">
+                            {history.map(email => (
+                                <div key={email.id} className="p-4 border border-white/[0.06] rounded-savron bg-white/[0.02] space-y-2">
+                                    <p className="text-sm text-white">{email.subject || '(No subject)'}</p>
+                                    <p className="text-xs text-savron-silver">{formatHistoryDate(email.created_at)}</p>
+                                    <p className="text-xs text-savron-silver/70 truncate">To: {email.to.join(', ') || '—'}</p>
+                                    <p className="text-xs text-savron-silver/70 truncate">From: {email.from || '—'}</p>
+                                    <span className={cn(
+                                        'inline-flex px-2 py-0.5 rounded-full border text-[9px] uppercase tracking-widest',
+                                        eventBadgeClass(email.last_event),
+                                    )}>
+                                        {email.last_event?.replace(/_/g, ' ') || 'sent'}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="hidden md:block overflow-x-auto -mx-1 min-w-0">
                             <table className="w-full min-w-[720px] text-left">
                                 <thead>
                                     <tr className="border-b border-white/10 text-[10px] uppercase tracking-widest text-savron-silver/60">

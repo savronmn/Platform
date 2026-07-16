@@ -431,6 +431,9 @@ export default function AdminServicesPage() {
                                                             <Clock className="w-3 h-3" />{svc.duration_minutes} min
                                                         </span>
                                                         {svc.description && (
+                                                            <p className="text-savron-silver/40 text-[11px] truncate mt-1 sm:hidden">{svc.description}</p>
+                                                        )}
+                                                        {svc.description && (
                                                             <>
                                                                 <span className="text-savron-silver/30 text-[10px] hidden sm:inline">·</span>
                                                                 <span className="text-savron-silver/40 text-[11px] truncate hidden sm:inline">{svc.description}</span>

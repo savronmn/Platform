@@ -17,7 +17,8 @@ interface CalendarScrollAreaProps {
 }
 
 /**
- * Smooth, slower scroll for admin calendar panels (Lenis scoped to the container).
+ * Scroll container for admin calendar panels.
+ * Uses Lenis on desktop; native touch scrolling on mobile for reliability.
  */
 export default function CalendarScrollArea({
     children,
@@ -35,6 +36,7 @@ export default function CalendarScrollArea({
         if (!wrapper || !content) return;
 
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        if (window.matchMedia('(pointer: coarse)').matches) return;
 
         const lenis = new Lenis({
             wrapper,
@@ -58,7 +60,7 @@ export default function CalendarScrollArea({
         <div
             ref={wrapperRef}
             className={cn(
-                'overflow-hidden calendar-scroll-area',
+                'overflow-x-auto overflow-y-auto calendar-scroll-area',
                 fill ? 'flex-1 min-h-0' : maxHeightClass,
                 className,
             )}

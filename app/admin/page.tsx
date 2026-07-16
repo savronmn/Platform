@@ -367,7 +367,7 @@ export default function AdminDashboard() {
                                         <p className="text-savron-silver text-xs truncate">{b.service} · {b.barber_name}</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-3 pl-20 sm:pl-0 shrink-0">
+                                <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
                                     <span className="text-savron-silver font-mono text-sm">{b.price}</span>
                                     <div className={cn("w-2 h-2 rounded-full", statusDot(b.status))} />
                                 </div>
@@ -402,7 +402,7 @@ export default function AdminDashboard() {
                                             <p className="text-savron-silver text-xs truncate">{b.service} · {b.barber_name}</p>
                                         </div>
                                     </div>
-                                    <span className="text-savron-silver font-mono text-sm pl-28 sm:pl-0 shrink-0">{b.price}</span>
+                                    <span className="text-savron-silver font-mono text-sm shrink-0 self-end sm:self-auto">{b.price}</span>
                                 </div>
                             );
                         })}

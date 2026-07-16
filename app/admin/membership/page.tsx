@@ -507,6 +507,9 @@ export default function MembershipPage() {
                                             <p className="text-sm text-white font-medium truncate">{subscriber.name}</p>
                                             <p className="text-xs text-white/50 font-light truncate mt-0.5">{subscriber.email}</p>
                                             {subscriber.phone && <p className="text-xs text-white/40 font-light mt-0.5">{subscriber.phone}</p>}
+                                            <p className="text-[10px] text-white/30 mt-1">
+                                                Joined {formatDistanceToNow(new Date(subscriber.issued_at), { addSuffix: true })}
+                                            </p>
                                             {subscriber.last_visit_at && (
                                                 <p className="text-[10px] text-white/30 mt-1">
                                                     Last visit: {formatDistanceToNow(new Date(subscriber.last_visit_at), { addSuffix: true })}
