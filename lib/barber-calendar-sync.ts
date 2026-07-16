@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import {
     createCalendarEvent,
-    getValidAccessToken,
+    resolveAccessToken,
     updateCalendarEvent,
     type CalendarToken,
 } from '@/lib/google-calendar';
@@ -13,6 +13,7 @@ const getAdmin = () => createClient(
 );
 
 export type BarberCalendarReady = {
+    id?: string;
     name: string;
     google_calendar_id: string;
     google_calendar_tokens: CalendarToken;
@@ -33,7 +34,14 @@ export async function upsertBarberCalendarBlock(
     barber: BarberCalendarReady,
     options: { existingEventId?: string | null } = {},
 ): Promise<string | null> {
-    const accessToken = await getValidAccessToken(barber.google_calendar_tokens);
+    const { accessToken, token: refreshedToken } = await resolveAccessToken(barber.google_calendar_tokens);
+    if (barber.id && refreshedToken !== barber.google_calendar_tokens) {
+        await getAdmin()
+            .from('barbers')
+            .update({ google_calendar_tokens: refreshedToken })
+            .eq('id', barber.id);
+        barber.google_calendar_tokens = refreshedToken;
+    }
     const payload = buildBookingCalendarPayload(booking, barber.name);
 
     const event = {

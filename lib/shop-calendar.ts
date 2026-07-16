@@ -103,7 +103,7 @@ export async function saveShopSyncTokenIfUnchanged(
     return true;
 }
 
-/** Create/update the shop Google Calendar invite — client + barber attendees, emails from savronmn@gmail.com. */
+/** Create/update the shop Google Calendar invite — client attendee only; barber blocking uses their own calendar. */
 export async function upsertShopInviteEvent(params: {
     bookingId: string;
     shopEventId?: string | null;
@@ -113,7 +113,6 @@ export async function upsertShopInviteEvent(params: {
     startIso: string;
     endIso: string;
     clientEmail: string | null;
-    barberEmail?: string | null;
 }): Promise<string | null> {
     const tokens = await getShopCalendarTokens();
     if (!tokens) return null;
@@ -122,10 +121,9 @@ export async function upsertShopInviteEvent(params: {
     const calendarId = await getShopCalendarId();
 
     const shopEmail = SHOP_CALENDAR_EMAIL.toLowerCase();
-    const attendeeEmails = Array.from(new Set(
-        [params.clientEmail, params.barberEmail]
-            .filter((email): email is string => !!email && email.toLowerCase() !== shopEmail),
-    ));
+    const attendeeEmails = params.clientEmail && params.clientEmail.toLowerCase() !== shopEmail
+        ? [params.clientEmail]
+        : [];
 
     // Google Calendar invite is the client + barber confirmation channel.
     const sendUpdates = attendeeEmails.length > 0 ? 'all' as const : 'none' as const;

@@ -5,6 +5,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createBooking, type CreateBookingInput } from '@/lib/create-booking';
 import { SlotUnavailableError } from '@/lib/booking-availability';
+import {
+    buildCalendarSyncResponse,
+    loadBookingForSync,
+    syncBookingCalendars,
+    upsertClientCrm,
+} from '@/lib/sync-booking-calendars';
+import { isShopCalendarConnected } from '@/lib/shop-calendar';
 
 export async function POST(request: NextRequest) {
     let body: CreateBookingInput;
@@ -28,7 +35,28 @@ export async function POST(request: NextRequest) {
 
     try {
         const { id } = await createBooking(body);
-        return NextResponse.json({ id }, { status: 201 });
+
+        let calendarSync: Record<string, unknown> | undefined;
+        try {
+            const loaded = await loadBookingForSync(id);
+            if (loaded) {
+                const shopConnected = await isShopCalendarConnected();
+                const syncResult = await syncBookingCalendars(
+                    loaded.booking,
+                    loaded.booking.barbers,
+                    { shopConnected, forceBarber: true },
+                );
+                if (syncResult.shopEventId || syncResult.barberEventId) {
+                    await upsertClientCrm(loaded.booking);
+                }
+                calendarSync = buildCalendarSyncResponse(syncResult);
+            }
+        } catch (syncErr) {
+            console.error('[bookings/create] calendar sync failed:', syncErr);
+            calendarSync = { success: false, warning: String(syncErr) };
+        }
+
+        return NextResponse.json({ id, calendarSync }, { status: 201 });
     } catch (err) {
         if (err instanceof SlotUnavailableError) {
             return NextResponse.json({ error: err.message }, { status: 409 });
