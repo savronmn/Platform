@@ -13,7 +13,7 @@ export interface CalendarToken {
 }
 
 // Refresh an expired access token
-export async function refreshAccessToken(refreshToken: string): Promise<string> {
+export async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; expiresIn: number }> {
     const res = await fetch(GOOGLE_TOKEN_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -26,7 +26,24 @@ export async function refreshAccessToken(refreshToken: string): Promise<string> 
     });
     const data = await res.json();
     if (!data.access_token) throw new Error('Failed to refresh token: ' + JSON.stringify(data));
-    return data.access_token;
+    return { accessToken: data.access_token, expiresIn: data.expires_in ?? 3600 };
+}
+
+/** Returns a valid access token, refreshing and returning updated token metadata when needed. */
+export async function resolveAccessToken(token: CalendarToken): Promise<{ accessToken: string; token: CalendarToken }> {
+    const isExpired = Date.now() >= token.expiry_date - 60_000;
+    if (!isExpired) {
+        return { accessToken: token.access_token, token };
+    }
+    const { accessToken, expiresIn } = await refreshAccessToken(token.refresh_token);
+    return {
+        accessToken,
+        token: {
+            ...token,
+            access_token: accessToken,
+            expiry_date: Date.now() + expiresIn * 1000,
+        },
+    };
 }
 
 // Build the OAuth authorization URL for a barber
@@ -89,9 +106,8 @@ export async function exchangeCodeForTokens(code: string): Promise<CalendarToken
 
 // Get a valid access token (auto-refresh if needed)
 export async function getValidAccessToken(token: CalendarToken): Promise<string> {
-    const isExpired = Date.now() >= token.expiry_date - 60_000; // 1 min buffer
-    if (isExpired) return refreshAccessToken(token.refresh_token);
-    return token.access_token;
+    const { accessToken } = await resolveAccessToken(token);
+    return accessToken;
 }
 
 export type CalendarSendUpdates = 'all' | 'externalOnly' | 'none';
