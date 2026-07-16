@@ -1,5 +1,5 @@
--- Fix hiring application flow: storage bucket + duplicate email prevention.
--- Safe to re-run.
+-- Fix hiring application flow for Business OS (project: joakpktzdroizxtrqkrl).
+-- Safe to re-run in Supabase SQL editor.
 
 -- 1. Ensure applicant-videos storage bucket exists (public read for admin playback)
 INSERT INTO storage.buckets (id, name, public)
