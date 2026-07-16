@@ -148,3 +148,30 @@ export function slotIsAvailable(
 ): boolean {
     return !slotConflictsWithBusy(date, timeStr, durationMin, busySlots);
 }
+
+/** Stable noon anchor for a booking date string (Central Time). */
+export function bookingSlotDate(date: string): Date {
+    return new Date(`${date}T12:00:00-05:00`);
+}
+
+export class SlotUnavailableError extends Error {
+    constructor(message = 'This time slot is no longer available.') {
+        super(message);
+        this.name = 'SlotUnavailableError';
+    }
+}
+
+/** Throws SlotUnavailableError when the barber slot overlaps DB or Google Calendar busy time. */
+export async function assertBarberSlotAvailable(
+    barberId: string,
+    date: string,
+    time: string,
+    duration: string,
+    options: { excludeBookingId?: string } = {},
+): Promise<void> {
+    const durationMin = parseDurationMins(duration);
+    const { busy } = await getBarberAvailability(barberId, date, options);
+    if (!slotIsAvailable(bookingSlotDate(date), time, durationMin, busy)) {
+        throw new SlotUnavailableError();
+    }
+}

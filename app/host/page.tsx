@@ -26,6 +26,7 @@ import TimelineDayGrid, { bookingToTimelineEvent, isoRangeToTimelineEvent, type 
 import CalendarNavBar from '@/components/calendar/CalendarNavBar';
 import { useServices } from '@/lib/use-services';
 import { triggerPostBooking, triggerCancelBooking } from '@/lib/confirm-booking';
+import { createBookingRequest } from '@/lib/client-create-booking';
 import EditBookingModal from '@/components/crm/EditBookingModal';
 import { LanguageProvider, useLanguage } from '@/lib/language-context';
 import { slotConflictsWithBusy } from '@/lib/time-helpers';
@@ -371,28 +372,14 @@ function HostDashboardInner() {
                 }
             }
         } catch {
-            // Fall through — DB unique index is the final guard.
-        }
-
-        // Race-condition guard: re-check availability fresh from DB right before inserting
-        const { data: conflictCheck } = await supabase
-            .from('bookings')
-            .select('id')
-            .eq('barber_id', quickForm.barberId)
-            .eq('date', dateStr)
-            .eq('time', quickForm.time)
-            .in('status', ['confirmed', 'completed', 'no_show'])
-            .limit(1);
-        if (conflictCheck && conflictCheck.length > 0) {
-            setQuickError('That slot was just booked. Please choose a different time.');
+            setQuickError('Could not verify slot availability. Please try again.');
             setQuickSubmitting(false);
-            await fetchBookings(); // refresh so the UI reflects reality
             return;
         }
 
         const barber = barbers.find(b => b.id === quickForm.barberId);
         const selectedSvc = services.find(s => s.name === quickForm.service);
-        const { data: inserted, error } = await supabase.from('bookings').insert({
+        const result = await createBookingRequest({
             client_name: quickForm.clientName.trim() || 'Walk-in',
             client_phone: quickForm.clientPhone.trim() || null,
             client_email: quickForm.clientEmail.trim() || null,
@@ -404,17 +391,14 @@ function HostDashboardInner() {
             duration: selectedSvc?.duration ?? '45 min',
             price: '',
             status: 'confirmed',
-        }).select('id').single();
-        if (error) {
+        });
+        if (!result.ok) {
             setQuickSubmitting(false);
-            if (error.code === '23505') {
-                setQuickError('That slot was just booked. Please choose a different time.');
-            } else {
-                setQuickError(error.message);
-            }
+            setQuickError(result.message);
+            if (result.conflict) await fetchBookings();
             return;
         }
-        if (inserted?.id) triggerPostBooking(inserted.id);
+        triggerPostBooking(result.id);
         setQuickSubmitting(false);
         setShowQuickAdd(false);
         setQuickForm({ clientName: '', clientPhone: '', clientEmail: '', service: '', barberId: '', time: '' });
@@ -689,7 +673,38 @@ function HostDashboardInner() {
 
         const handleCheckIn = async () => {
             setChecking(true);
-            // Parse service from summary (strip ✂️ prefix and barber name)
+
+            if (event.bookingId) {
+                const { data: linked } = await supabase
+                    .from('bookings')
+                    .select('*')
+                    .eq('id', event.bookingId)
+                    .maybeSingle();
+                if (linked) {
+                    setDone(true);
+                    setTimeout(() => onDone(linked as Booking), 600);
+                    setChecking(false);
+                    return;
+                }
+            }
+
+            const { data: existingAtSlot } = await supabase
+                .from('bookings')
+                .select('*')
+                .eq('barber_id', event.barberId ?? '')
+                .eq('date', event.date)
+                .eq('time', event.time)
+                .in('status', ['confirmed', 'completed', 'no_show'])
+                .limit(1)
+                .maybeSingle();
+
+            if (existingAtSlot) {
+                setDone(true);
+                setTimeout(() => onDone(existingAtSlot as Booking), 600);
+                setChecking(false);
+                return;
+            }
+
             const rawSummary = event.summary;
             let service = rawSummary
                 .replace(/^✂️\s*/, '')
@@ -698,22 +713,25 @@ function HostDashboardInner() {
 
             const clientName = event.clientName ?? event.attendee ?? 'Walk-in';
 
-            const { data, error } = await supabase.from('bookings').insert({
+            const result = await createBookingRequest({
                 client_name: clientName,
                 service,
-                barber_id: event.barberId,
+                barber_id: event.barberId ?? '',
                 barber_name: event.barberName,
                 date: event.date,
                 time: event.time,
                 duration: '45 min',
                 price: '',
-                status: 'completed', // Check In = completed
-                notes: `Checked in from Google Calendar event`,
-            }).select('*').single();
+                status: 'completed',
+                notes: 'Checked in from Google Calendar event',
+            });
 
-            if (!error && data) {
-                setDone(true);
-                setTimeout(() => onDone(data as Booking), 600);
+            if (result.ok) {
+                const { data } = await supabase.from('bookings').select('*').eq('id', result.id).single();
+                if (data) {
+                    setDone(true);
+                    setTimeout(() => onDone(data as Booking), 600);
+                }
             }
             setChecking(false);
         };

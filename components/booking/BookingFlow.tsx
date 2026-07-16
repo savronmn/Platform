@@ -13,6 +13,7 @@ import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
+import { createBookingRequest } from '@/lib/client-create-booking';
 import { isSlotInPast, nextBookableDate, slotConflictsWithBusy } from '@/lib/time-helpers';
 import BarberPortfolioGallery from './BarberPortfolioGallery';
 import {
@@ -171,7 +172,7 @@ const BookingFlow = ({ preselectedServiceName, prefillName, prefillEmail }: Book
             setLoadingBusy(false);
         }
         fetchBusy();
-    }, [selectedPro, selectedDate]);
+    }, [selectedPro, selectedDate, step]);
 
     const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
     const selectedDayKey = DAY_KEYS[selectedDate.getDay()];
@@ -194,8 +195,14 @@ const BookingFlow = ({ preselectedServiceName, prefillName, prefillEmail }: Book
     };
 
     const handleConfirm = async () => {
+        if (!selectedPro?.id || !selectedTime) return;
+
+        if (isSlotBusy(selectedTime)) {
+            alert('That time slot is no longer available. Please choose another time.');
+            return;
+        }
+
         setSubmitting(true);
-        await new Promise(resolve => setTimeout(resolve, 800));
 
         const serviceNames = formatBookingServices(
             selectedServices
@@ -206,39 +213,30 @@ const BookingFlow = ({ preselectedServiceName, prefillName, prefillEmail }: Book
 
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
-        const { data: inserted, error: insertError } = await supabase.from('bookings').insert({
+        const result = await createBookingRequest({
             client_name: clientName || null,
             client_email: clientEmail || null,
             client_phone: clientPhone || null,
             service: serviceNames,
-            barber_id: selectedPro?.id,
-            barber_name: selectedPro?.name || '',
+            barber_id: selectedPro.id,
+            barber_name: selectedPro.name || '',
             date: dateStr,
             time: selectedTime,
             duration: totals.duration,
             price: totals.price,
             status: 'confirmed',
             notes: clientMessage.trim() || null,
-        }).select('id').single();
+        });
 
-        if (insertError) {
-            console.error('[BookingFlow] Insert error:', insertError);
+        if (!result.ok) {
+            console.error('[BookingFlow] Create error:', result.message);
             setSubmitting(false);
-            alert(insertError.code === '23505'
-                ? 'That appointment was just booked. Please choose another time.'
-                : 'We could not create your appointment. Please try again.');
+            alert(result.message);
             return;
         }
 
-        if (inserted?.id) {
-            console.log('[BookingFlow] Booking created:', inserted.id, '— triggering email + calendar sync');
-            triggerPostBooking(inserted.id);
-        } else {
-            console.warn('[BookingFlow] Booking insert returned no ID — email will NOT be sent.');
-            setSubmitting(false);
-            alert('We could not confirm your appointment. Please try again.');
-            return;
-        }
+        console.log('[BookingFlow] Booking created:', result.id, '— triggering email + calendar sync');
+        triggerPostBooking(result.id);
 
         setSubmitting(false);
         setStep(5);

@@ -14,6 +14,7 @@ import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { DatePicker } from '@/components/booking/DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
+import { createBookingRequest } from '@/lib/client-create-booking';
 import { isSlotInPast, nextBookableDate, slotConflictsWithBusy } from '@/lib/time-helpers';
 import BarberPortfolioGallery from '@/components/booking/BarberPortfolioGallery';
 import { bookingTotals, formatBookingServices, resolveServiceFromParam } from '@/lib/booking-utils';
@@ -124,35 +125,40 @@ function BarberBookingContent() {
     }, [slug]);
 
     const handleConfirm = async () => {
+        if (!barber?.id || !selectedTime) return;
+
+        if (isSlotBusy(selectedTime)) {
+            alert('That time slot is no longer available. Please choose another time.');
+            return;
+        }
+
         setSubmitting(true);
         const service = services.find(s => s.id === selectedService);
         const totals = bookingTotals(service?.priceCents ?? 0, service?.durationMin ?? 45, addEyebrows);
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
-        const { data: inserted, error: insertError } = await supabase.from('bookings').insert({
+        const result = await createBookingRequest({
             client_name: clientName,
             client_email: clientEmail,
             client_phone: clientPhone,
             service: formatBookingServices(service?.name ? [service.name] : [], addEyebrows),
-            barber_id: barber?.id,
-            barber_name: barber?.name || '',
+            barber_id: barber.id,
+            barber_name: barber.name || '',
             date: dateStr,
             time: selectedTime,
             duration: totals.duration,
             price: totals.price,
             status: 'confirmed',
             notes: clientMessage.trim() || null,
-        }).select('id').single();
+        });
 
-        if (insertError || !inserted?.id) {
+        if (!result.ok) {
             setSubmitting(false);
-            alert(insertError?.code === '23505'
-                ? 'That appointment was just booked. Please choose another time.'
-                : 'We could not create your appointment. Please try again.');
+            alert(result.message);
             return;
         }
 
-        triggerPostBooking(inserted.id);
+        triggerPostBooking(result.id);
 
         setSubmitting(false);
         setStep(4);

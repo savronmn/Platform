@@ -13,6 +13,7 @@ import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
 import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
+import { createBookingRequest } from '@/lib/client-create-booking';
 import { isSlotInPast, nextBookableDate, slotConflictsWithBusy } from '@/lib/time-helpers';
 import { barberOffersService, bookingTotals, formatBookingServices, resolveServiceFromParam } from '@/lib/booking-utils';
 import { EyebrowsAddon } from './EyebrowsAddon';
@@ -133,57 +134,40 @@ export default function AsapBookingFlow({
 
         if (!allBarbers || allBarbers.length === 0) return null;
 
-        // 1. Filter out barbers already booked in our DB at this exact time slot
-        const { data: taken } = await supabase
-            .from('bookings')
-            .select('barber_id')
-            .eq('date', dateStr)
-            .eq('time', selectedTime)
-            .eq('status', 'confirmed');
-
-        const takenIds = new Set((taken ?? []).map((b) => b.barber_id));
         const selectedSvc = services.find(s => s.id === selectedService);
-        const dbAvailable = allBarbers.filter((b) => {
-            if (takenIds.has(b.id)) return false;
-            if (selectedSvc?.name) return barberOffersService(b, selectedSvc.name);
-            return true;
-        });
-
-        if (dbAvailable.length === 0) return null;
-
-        // 2. Also filter out barbers with Google Calendar conflicts
         const durationMin = selectedSvc?.durationMin ?? 45;
 
         const calAvailable: Barber[] = [];
-        await Promise.all(dbAvailable.map(async (barber) => {
+        await Promise.all(allBarbers.map(async (barber) => {
+            if (selectedSvc?.name && !barberOffersService(barber, selectedSvc.name)) return;
+
             try {
                 const res = await fetch(`/api/calendar/busy?barberId=${barber.id}&date=${dateStr}`);
-                if (!res.ok) { calAvailable.push(barber); return; }
+                if (!res.ok) return;
                 const { busy } = await res.json() as { busy: { start: string; end: string }[] };
                 const hasConflict = selectedTime
                     ? slotConflictsWithBusy(selectedDate, selectedTime, durationMin, busy || [])
-                    : false;
+                    : true;
                 if (!hasConflict) calAvailable.push(barber);
             } catch {
-                // If the API fails, assume available so booking is never blocked
-                calAvailable.push(barber);
+                // Fail closed — do not assign a barber when availability cannot be verified.
             }
         }));
 
         if (calAvailable.length === 0) return null;
 
-        // Round-robin: pick random from truly available barbers
         return calAvailable[Math.floor(Math.random() * calAvailable.length)];
     }
 
     const handleConfirm = async () => {
+        if (!selectedTime) return;
+
         setSubmitting(true);
 
         const barber = await pickAvailableBarber();
 
         if (!barber) {
             setSubmitting(false);
-            // Could show a toast — for now just alert
             alert('No barbers available at that time. Please pick another slot.');
             return;
         }
@@ -198,7 +182,7 @@ export default function AsapBookingFlow({
         );
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
-        const { data: inserted, error: insertError } = await supabase.from('bookings').insert({
+        const result = await createBookingRequest({
             client_name: clientName || null,
             client_email: clientEmail || null,
             client_phone: clientPhone || null,
@@ -211,17 +195,15 @@ export default function AsapBookingFlow({
             price: totals.price,
             status: 'confirmed',
             notes: clientMessage.trim() || null,
-        }).select('id').single();
+        });
 
-        if (insertError || !inserted?.id) {
+        if (!result.ok) {
             setSubmitting(false);
-            alert(insertError?.code === '23505'
-                ? 'That appointment was just booked. Please choose another time.'
-                : 'We could not create your appointment. Please try again.');
+            alert(result.message);
             return;
         }
 
-        triggerPostBooking(inserted.id);
+        triggerPostBooking(result.id);
 
         setSubmitting(false);
         setStep(4);

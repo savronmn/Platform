@@ -10,6 +10,7 @@ import { useServices } from '@/lib/use-services';
 import { generateTimeSlots } from '@/lib/services-data';
 import type { Barber } from '@/lib/types';
 import { triggerPostBooking } from '@/lib/confirm-booking';
+import { createBookingRequest } from '@/lib/client-create-booking';
 import { isSlotInPast, slotConflictsWithBusy } from '@/lib/time-helpers';
 
 interface WalkInModalProps {
@@ -125,21 +126,7 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
             return;
         }
 
-        const { data: conflictCheck } = await supabase
-            .from('bookings')
-            .select('id')
-            .eq('barber_id', form.barberId)
-            .eq('date', form.date)
-            .eq('time', form.time)
-            .in('status', ['confirmed', 'completed', 'no_show'])
-            .limit(1);
-        if (conflictCheck && conflictCheck.length > 0) {
-            setSubmitting(false);
-            setError('That slot is already booked. Please choose a different time.');
-            return;
-        }
-
-        const { data: inserted, error: insertError } = await supabase.from('bookings').insert({
+        const result = await createBookingRequest({
             client_name: form.clientName.trim() || 'Walk-in',
             service: form.service,
             barber_id: form.barberId,
@@ -149,17 +136,13 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
             duration: selectedService ? selectedService.duration : '45 min',
             price: selectedService ? selectedService.price : '',
             status: 'confirmed',
-        }).select('id').single();
+        });
         setSubmitting(false);
-        if (insertError) {
-            if (insertError.code === '23505') {
-                setError('That slot is already booked. Please choose a different time.');
-            } else {
-                setError(insertError.message);
-            }
+        if (!result.ok) {
+            setError(result.message);
             return;
         }
-        if (inserted?.id) triggerPostBooking(inserted.id);
+        triggerPostBooking(result.id);
         setSuccess(true);
         onBooked?.();
         setTimeout(() => { onClose(); }, 1400);
