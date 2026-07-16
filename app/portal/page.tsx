@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef } from 'react';
-import { createClient } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { Upload, Check, AlertCircle, X, ArrowLeft, ArrowRight } from 'lucide-react';
@@ -37,7 +36,6 @@ const STEP_LABELS: Record<StepId, string> = {
 };
 
 export default function PortalPage() {
-    const supabase = createClient();
     const fileRef = useRef<HTMLInputElement>(null);
     const [step, setStep] = useState<StepId>('intro');
     const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
@@ -130,48 +128,30 @@ export default function PortalPage() {
         setStatus('submitting');
         setError('');
 
-        await new Promise(resolve => setTimeout(resolve, 800));
-
         try {
-            let video_url: string | null = null;
+            const body = new FormData();
+            body.append('name', form.name.trim());
+            body.append('email', form.email.trim());
+            body.append('phone', form.phone.trim());
+            body.append('ig_handle', form.ig_handle.trim());
+            body.append('experience', form.experience);
+            body.append('license_status', form.license_status);
+            body.append('experience_summary', form.experience_summary.trim());
+            if (videoFile) body.append('video', videoFile);
 
-            if (videoFile) {
-                const fileName = `${Date.now()}_${videoFile.name}`;
-                const { error: uploadError } = await supabase.storage
-                    .from('applicant-videos')
-                    .upload(fileName, videoFile);
+            const res = await fetch('/api/applicants/apply', { method: 'POST', body });
+            const data = await res.json().catch(() => ({}));
 
-                if (!uploadError) {
-                    const { data: urlData } = supabase.storage
-                        .from('applicant-videos')
-                        .getPublicUrl(fileName);
-                    video_url = urlData.publicUrl;
-                }
-            }
-
-            const { data: existing } = await supabase
-                .from('applicants')
-                .select('id')
-                .eq('email', form.email.toLowerCase().trim())
-                .maybeSingle();
-            if (existing) {
-                setError('An application with this email already exists.');
+            if (!res.ok) {
+                setError(data.error || 'Something went wrong. Please try again.');
                 setStatus('error');
                 setStep('review');
                 return;
             }
 
-            const { error: insertError } = await supabase.from('applicants').insert({
-                ...form,
-                email: form.email.toLowerCase().trim(),
-                video_url,
-                status: 'pending',
-            });
-
-            if (insertError) throw insertError;
             setStatus('success');
-        } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Something went wrong');
+        } catch {
+            setError('Network error. Please check your connection and try again.');
             setStatus('error');
             setStep('review');
         }
