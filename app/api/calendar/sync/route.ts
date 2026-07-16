@@ -3,25 +3,23 @@
 // Also called on booking cancellation (action: "delete") or edit (action: "update").
 // Body: { bookingId: string, action: "create" | "delete" | "update", previousBarberId?: string, previousDate?: string, previousTime?: string }
 //
-// Invite model (priority):
-// 1. Shop calendar connected → invite from savronmn@gmail.com with client + barber as attendees
-// 2. Neither → no Google invite (Resend + ICS fallback via /api/email)
+// Invite model:
+// - Shop calendar connected → client invite from savronmn@gmail.com (shop_google_event_id)
+// - Barber calendar connected → silent busy block on the barber's calendar (google_event_id)
+// Both can run together so barbers like Albe stay blocked on their personal Google Calendar.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import {
-    getValidAccessToken,
-    deleteCalendarEvent,
-    type CalendarToken,
-} from '@/lib/google-calendar';
+import { type CalendarToken } from '@/lib/google-calendar';
 import { deleteAllBookingCalendarEvents } from '@/lib/booking-calendar-cleanup';
 import { buildBookingCalendarPayload } from '@/lib/booking-calendar-payload';
 import { isShopCalendarConnected, upsertShopInviteEvent } from '@/lib/shop-calendar';
+import { barberCalendarReady, upsertBarberCalendarBlock } from '@/lib/barber-calendar-sync';
 import { requireStaff } from '@/lib/staff-auth';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 type BarberCalendarInfo = {
@@ -31,47 +29,41 @@ type BarberCalendarInfo = {
     google_calendar_tokens: CalendarToken | null;
 };
 
+type BookingForSync = {
+    id: string;
+    google_event_id: string | null;
+    shop_google_event_id?: string | null;
+    barber_id: string | null;
+    client_email: string | null;
+    client_name: string | null;
+    client_phone: string | null;
+    service: string;
+    date: string;
+    time: string;
+    price: string | null;
+    duration?: string | null;
+    created_at?: string;
+};
+
 async function removeBookingFromCalendars(
-    booking: {
-        id: string;
-        google_event_id: string | null;
-        shop_google_event_id?: string | null;
-        barber_id: string | null;
-        date: string;
-        time: string;
-        client_name: string | null;
-        client_email: string | null;
-        service: string;
-    },
+    booking: BookingForSync,
     options: { barberId?: string; fallbackDate?: string; fallbackTime?: string } = {},
 ) {
     await deleteAllBookingCalendarEvents(booking, options);
 }
 
 async function syncShopInvite(
-    booking: {
-        id: string;
-        shop_google_event_id?: string | null;
-        client_email: string | null;
-        client_name: string | null;
-        client_phone: string | null;
-        service: string;
-        date: string;
-        time: string;
-        price: string | null;
-        duration?: string | null;
-    },
+    booking: BookingForSync,
     barberName: string | null,
     barberEmail: string | null,
-) {
+): Promise<string | null> {
     const payload = buildBookingCalendarPayload(booking, barberName);
-    const shopDescription = payload.clientDescription;
 
     const shopEventId = await upsertShopInviteEvent({
         bookingId: booking.id,
         shopEventId: booking.shop_google_event_id,
         summary: payload.clientSummary,
-        description: shopDescription,
+        description: payload.clientDescription,
         location: payload.location,
         startIso: payload.startIso,
         endIso: payload.endIso,
@@ -82,67 +74,33 @@ async function syncShopInvite(
     if (shopEventId) {
         await getAdmin()
             .from('bookings')
-            .update({ shop_google_event_id: shopEventId, google_event_id: null })
+            .update({ shop_google_event_id: shopEventId })
             .eq('id', booking.id);
+        booking.shop_google_event_id = shopEventId;
     }
 
     return shopEventId;
 }
 
-/** Remove a legacy barber-owned invite without emailing from the barber account. */
-async function clearLegacyBarberInvite(
-    booking: { id: string; google_event_id: string | null },
-    barber: BarberCalendarReady,
-): Promise<void> {
-    if (!booking.google_event_id) return;
-
-    try {
-        const accessToken = await getValidAccessToken(barber.google_calendar_tokens);
-        await deleteCalendarEvent(
-            accessToken,
-            barber.google_calendar_id,
-            booking.google_event_id,
-            'none',
-        );
-    } catch (error) {
-        console.warn('[calendar/sync] Failed to remove legacy barber invite:', error);
-    }
-
-    await getAdmin().from('bookings').update({ google_event_id: null }).eq('id', booking.id);
-    booking.google_event_id = null;
-}
-
-async function syncShopInviteForBooking(
-    booking: {
-        id: string;
-        google_event_id: string | null;
-        shop_google_event_id?: string | null;
-        client_email: string | null;
-        client_name: string | null;
-        client_phone: string | null;
-        service: string;
-        date: string;
-        time: string;
-        price: string | null;
-        duration?: string | null;
-    },
-    barber: BarberCalendarInfo | null,
-    options: { clearLegacyBarberInvite?: boolean } = {},
-): Promise<{ shopEventId: string | null; error?: string }> {
-    if (options.clearLegacyBarberInvite && barberCalendarReady(barber) && booking.google_event_id) {
-        await clearLegacyBarberInvite(booking, barber);
+async function syncBarberBlock(
+    booking: BookingForSync,
+    barber: BarberCalendarInfo,
+): Promise<{ barberEventId: string | null; error?: string }> {
+    if (!barberCalendarReady(barber)) {
+        return { barberEventId: null };
     }
 
     try {
-        const shopEventId = await syncShopInvite(
+        const barberEventId = await upsertBarberCalendarBlock(
             booking,
-            barber?.name ?? null,
-            barber?.email ?? null,
+            barber,
+            { existingEventId: booking.google_event_id },
         );
-        return { shopEventId };
+        booking.google_event_id = barberEventId;
+        return { barberEventId };
     } catch (error) {
-        console.error('[calendar/sync] shop calendar failed:', error);
-        return { shopEventId: null, error: String(error) };
+        console.error('[calendar/sync] barber calendar block failed:', error);
+        return { barberEventId: null, error: String(error) };
     }
 }
 
@@ -183,13 +141,41 @@ async function upsertClientCrm(booking: {
     }
 }
 
-type BarberCalendarReady = BarberCalendarInfo & {
-    google_calendar_tokens: CalendarToken;
-    google_calendar_id: string;
-};
+async function syncBookingCalendars(
+    booking: BookingForSync,
+    barber: BarberCalendarInfo | null,
+    options: { shopConnected: boolean; forceBarber?: boolean } ,
+): Promise<{
+    shopEventId: string | null;
+    barberEventId: string | null;
+    shopError?: string;
+    barberError?: string;
+}> {
+    let shopEventId = booking.shop_google_event_id ?? null;
+    let barberEventId = booking.google_event_id ?? null;
+    let shopError: string | undefined;
+    let barberError: string | undefined;
 
-function barberCalendarReady(barber: BarberCalendarInfo | null): barber is BarberCalendarReady {
-    return !!(barber?.google_calendar_tokens && barber.google_calendar_id);
+    if (options.shopConnected) {
+        try {
+            shopEventId = await syncShopInvite(
+                booking,
+                barber?.name ?? null,
+                barber?.email ?? null,
+            );
+        } catch (error) {
+            shopError = String(error);
+            console.error('[calendar/sync] shop calendar failed:', error);
+        }
+    }
+
+    if (barber && (options.forceBarber || barberCalendarReady(barber))) {
+        const barberResult = await syncBarberBlock(booking, barber);
+        barberEventId = barberResult.barberEventId ?? barberEventId;
+        barberError = barberResult.error;
+    }
+
+    return { shopEventId, barberEventId, shopError, barberError };
 }
 
 export async function POST(request: NextRequest) {
@@ -264,58 +250,55 @@ export async function POST(request: NextRequest) {
             booking.shop_google_event_id = null;
         }
 
-        if (shopConnected) {
-            const shopResult = await syncShopInviteForBooking(booking, barber, {
-                clearLegacyBarberInvite: true,
-            });
-            return NextResponse.json({
-                success: !!shopResult.shopEventId,
-                shopEventId: shopResult.shopEventId,
-                inviteModel: 'shop_calendar',
-                warning: shopResult.error,
-                skipped: !shopResult.shopEventId ? true : undefined,
-                reason: !shopResult.shopEventId ? 'shop_calendar_failed' : undefined,
-            });
-        }
+        const syncResult = await syncBookingCalendars(booking, barber, {
+            shopConnected,
+            forceBarber: true,
+        });
 
+        const success = !!(syncResult.shopEventId || syncResult.barberEventId);
         return NextResponse.json({
-            success: false,
-            skipped: true,
-            reason: 'no_calendar_connected',
+            success,
+            shopEventId: syncResult.shopEventId,
+            barberEventId: syncResult.barberEventId,
+            inviteModel: syncResult.shopEventId ? 'shop_calendar' : syncResult.barberEventId ? 'barber_calendar' : undefined,
+            warning: syncResult.shopError ?? syncResult.barberError,
+            skipped: !success ? true : undefined,
+            reason: !success ? 'no_calendar_connected' : undefined,
+            updated: true,
         });
     }
 
     // action === 'create'
-    if (shopConnected && booking.shop_google_event_id) {
+    if (shopConnected && booking.shop_google_event_id && booking.google_event_id) {
         return NextResponse.json({
             success: true,
             skipped: true,
             reason: 'already_synced',
             shopEventId: booking.shop_google_event_id,
+            barberEventId: booking.google_event_id,
             inviteModel: 'shop_calendar',
         });
     }
 
-    if (shopConnected) {
-        const shopResult = await syncShopInviteForBooking(booking, barber, {
-            clearLegacyBarberInvite: true,
-        });
+    const syncResult = await syncBookingCalendars(booking, barber, {
+        shopConnected,
+        forceBarber: true,
+    });
+
+    if (syncResult.shopEventId || syncResult.barberEventId) {
         await upsertClientCrm(booking);
-
-        return NextResponse.json({
-            success: !!shopResult.shopEventId,
-            shopEventId: shopResult.shopEventId,
-            inviteModel: 'shop_calendar',
-            created: !!shopResult.shopEventId,
-            warning: shopResult.error,
-            skipped: !shopResult.shopEventId ? true : undefined,
-            reason: !shopResult.shopEventId ? 'shop_calendar_failed' : undefined,
-        });
     }
+
+    const success = !!(syncResult.shopEventId || syncResult.barberEventId);
 
     return NextResponse.json({
-        success: false,
-        skipped: true,
-        reason: 'no_calendar_connected',
+        success,
+        shopEventId: syncResult.shopEventId,
+        barberEventId: syncResult.barberEventId,
+        inviteModel: syncResult.shopEventId ? 'shop_calendar' : syncResult.barberEventId ? 'barber_calendar' : undefined,
+        created: success,
+        warning: syncResult.shopError ?? syncResult.barberError,
+        skipped: !success ? true : undefined,
+        reason: !success ? 'no_calendar_connected' : undefined,
     });
 }
