@@ -2,18 +2,12 @@
 // Centralized so both BookingFlow and AsapBookingFlow stay consistent.
 
 import { format, addDays } from 'date-fns';
+import { chicagoSlotToMs } from './chicago-time';
 import { TIME_SLOTS, getShopScheduleForDate, generateTimeSlots } from './services-data';
-
-// Central Time (-05:00). TODO: replace with proper TZ handling (date-fns-tz) for DST safety.
-const TZ_OFFSET = '-05:00';
 
 export function slotToMs(date: Date, timeStr: string): number {
     const dateStr = format(date, 'yyyy-MM-dd');
-    const [timePart, meridiem] = timeStr.split(' ');
-    let [hours, minutes] = timePart.split(':').map(Number);
-    if (meridiem === 'PM' && hours !== 12) hours += 12;
-    if (meridiem === 'AM' && hours === 12) hours = 0;
-    return new Date(`${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00${TZ_OFFSET}`).getTime();
+    return chicagoSlotToMs(dateStr, timeStr);
 }
 
 export function isSlotInPast(date: Date, timeStr: string, bufferMinutes = 0): boolean {

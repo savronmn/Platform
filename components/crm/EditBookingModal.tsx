@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Pencil } from 'lucide-react';
-import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { useServices } from '@/lib/use-services';
 import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
 import type { Barber, Booking } from '@/lib/types';
 import { triggerPostEditBooking } from '@/lib/confirm-booking';
+import { updateBookingRequest } from '@/lib/client-update-booking';
 import { isSlotInPast, slotConflictsWithBusy } from '@/lib/time-helpers';
 
 interface EditBookingModalProps {
@@ -21,12 +21,13 @@ interface EditBookingModalProps {
 const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
 export default function EditBookingModal({ booking, barbers, onClose, onSaved }: EditBookingModalProps) {
-    const supabase = createClient();
     const services = useServices();
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [busySlots, setBusySlots] = useState<{ start: string; end: string }[]>([]);
     const [loadingBusy, setLoadingBusy] = useState(false);
+    const [busyLoaded, setBusyLoaded] = useState(false);
+    const [busyError, setBusyError] = useState<string | null>(null);
 
     const [form, setForm] = useState({
         clientName: '',
@@ -75,22 +76,32 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
         let cancelled = false;
         async function fetchBusy() {
             setLoadingBusy(true);
+            setBusyLoaded(false);
+            setBusyError(null);
             try {
-                const res = await fetch(`/api/calendar/busy?barberId=${form.barberId}&date=${form.date}`);
+                const exclude = booking?.id ? `&excludeBookingId=${booking.id}` : '';
+                const res = await fetch(`/api/calendar/busy?barberId=${form.barberId}&date=${form.date}${exclude}`);
                 if (res.ok) {
                     const data = await res.json();
-                    if (!cancelled) setBusySlots(data.busy || []);
+                    if (!cancelled) {
+                        setBusySlots(data.busy || []);
+                        setBusyLoaded(true);
+                    }
                 } else if (!cancelled) {
                     setBusySlots([]);
+                    setBusyError('Could not load calendar availability for this barber.');
                 }
             } catch {
-                if (!cancelled) setBusySlots([]);
+                if (!cancelled) {
+                    setBusySlots([]);
+                    setBusyError('Could not load calendar availability.');
+                }
             }
             if (!cancelled) setLoadingBusy(false);
         }
         fetchBusy();
         return () => { cancelled = true; };
-    }, [form.barberId, form.date]);
+    }, [form.barberId, form.date, booking?.id]);
 
     const workingHoursSlots = (() => {
         const barber = barbers.find(b => b.id === form.barberId);
@@ -111,7 +122,7 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
     const isSlotUnavailable = (timeStr: string) => {
         if (isCurrentSlot(timeStr)) return false;
         if (isSlotInPast(selectedDate, timeStr, 0)) return true;
-        if (loadingBusy) return true;
+        if (loadingBusy || !busyLoaded || busyError) return true;
         return slotConflictsWithBusy(selectedDate, timeStr, durationMin, busySlots);
     };
 
@@ -140,59 +151,38 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
             || form.date !== booking.date
             || form.time !== booking.time;
 
-        if (slotChanged) {
-            const { data: conflictCheck } = await supabase
-                .from('bookings')
-                .select('id')
-                .eq('barber_id', form.barberId)
-                .eq('date', form.date)
-                .eq('time', form.time)
-                .in('status', ['confirmed', 'completed', 'no_show'])
-                .neq('id', booking.id)
-                .limit(1);
-            if (conflictCheck && conflictCheck.length > 0) {
-                setSubmitting(false);
-                setError('That slot is already booked. Please choose a different time.');
-                return;
-            }
-        }
-
-        const { data, error: updateError } = await supabase
-            .from('bookings')
-            .update({
-                client_name: form.clientName.trim() || 'Walk-in',
-                client_phone: form.clientPhone.trim() || null,
-                client_email: form.clientEmail.trim() || null,
-                service: form.service,
-                barber_id: form.barberId,
-                barber_name: barber?.name ?? booking.barber_name,
-                date: form.date,
-                time: form.time,
-                duration: selected?.duration ?? booking.duration,
-                price: selected?.price ?? booking.price,
-                notes: form.notes.trim() || null,
-            })
-            .eq('id', booking.id)
-            .select()
-            .single();
+        const result = await updateBookingRequest({
+            bookingId: booking.id,
+            client_name: form.clientName.trim() || 'Walk-in',
+            client_phone: form.clientPhone.trim() || null,
+            client_email: form.clientEmail.trim() || null,
+            service: form.service,
+            barber_id: form.barberId,
+            barber_name: barber?.name ?? booking.barber_name ?? '',
+            date: form.date,
+            time: form.time,
+            duration: selected?.duration ?? booking.duration ?? '45 min',
+            price: selected?.price ?? booking.price,
+            notes: form.notes.trim() || null,
+        });
 
         setSubmitting(false);
-        if (updateError) {
-            if (updateError.code === '23505') {
-                setError('That slot is already booked. Please choose a different time.');
-            } else {
-                setError(updateError.message);
-            }
+        if (!result.ok) {
+            setError(result.message);
             return;
         }
 
-        triggerPostEditBooking(booking.id, {
-            previousBarberId: booking.barber_id,
-            previousDate: booking.date,
-            previousTime: booking.time,
-        });
+        if (slotChanged) {
+            triggerPostEditBooking(booking.id, {
+                previousBarberId: booking.barber_id,
+                previousDate: booking.date,
+                previousTime: booking.time,
+            });
+        } else {
+            triggerPostEditBooking(booking.id);
+        }
 
-        onSaved(data as Booking);
+        onSaved(result.booking as unknown as Booking);
         onClose();
     }
 
@@ -324,6 +314,8 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
                             </div>
 
                             {error && <p className="text-red-400 text-xs">{error}</p>}
+                            {busyError && !error && <p className="text-amber-300/80 text-xs">{busyError}</p>}
+                            {loadingBusy && <p className="text-savron-silver/50 text-xs">Loading calendar availability…</p>}
 
                             <div className="flex gap-3 pt-1">
                                 <button

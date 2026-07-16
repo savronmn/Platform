@@ -62,6 +62,8 @@ const BookingFlow = ({ preselectedServiceName, prefillName, prefillEmail }: Book
 
     const [busySlots, setBusySlots] = useState<{ start: string; end: string }[]>([]);
     const [loadingBusy, setLoadingBusy] = useState(false);
+    const [busyLoaded, setBusyLoaded] = useState(false);
+    const [busyError, setBusyError] = useState<string | null>(null);
     const [barbersError, setBarbersError] = useState(false);
     const [portfolioGallery, setPortfolioGallery] = useState<Barber | null>(null);
     const [addEyebrows, setAddEyebrows] = useState(false);
@@ -152,26 +154,41 @@ const BookingFlow = ({ preselectedServiceName, prefillName, prefillEmail }: Book
     useEffect(() => {
         if (!selectedPro || !selectedDate) {
             setBusySlots([]);
+            setBusyLoaded(false);
+            setBusyError(null);
             return;
         }
+        let cancelled = false;
         async function fetchBusy() {
             setLoadingBusy(true);
+            setBusyLoaded(false);
+            setBusyError(null);
             try {
                 const dateStr = format(selectedDate, 'yyyy-MM-dd');
                 const res = await fetch(`/api/calendar/busy?barberId=${selectedPro?.id}&date=${dateStr}`);
+                if (cancelled) return;
                 if (res.ok) {
                     const data = await res.json();
                     setBusySlots(data.busy || []);
+                    setBusyLoaded(true);
+                } else if (res.status === 503) {
+                    setBusySlots([]);
+                    setBusyError('No pudimos cargar el calendario de este barbero. Intenta de nuevo en un momento.');
                 } else {
                     setBusySlots([]);
+                    setBusyError('No se pudo verificar la disponibilidad. Recarga la página e intenta de nuevo.');
                 }
             } catch (err) {
-                console.error('[BookingFlow] Error fetching busy slots', err);
-                setBusySlots([]);
+                if (!cancelled) {
+                    console.error('[BookingFlow] Error fetching busy slots', err);
+                    setBusySlots([]);
+                    setBusyError('No se pudo verificar la disponibilidad. Revisa tu conexión e intenta de nuevo.');
+                }
             }
-            setLoadingBusy(false);
+            if (!cancelled) setLoadingBusy(false);
         }
         fetchBusy();
+        return () => { cancelled = true; };
     }, [selectedPro, selectedDate, step]);
 
     const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
@@ -189,8 +206,7 @@ const BookingFlow = ({ preselectedServiceName, prefillName, prefillEmail }: Book
 
     const isSlotBusy = (timeStr: string) => {
         if (isSlotInPast(selectedDate, timeStr, 5)) return true;
-        if (loadingBusy) return true;
-        if (busySlots.length === 0) return false;
+        if (loadingBusy || !busyLoaded || busyError) return true;
         return slotConflictsWithBusy(selectedDate, timeStr, totalDurationMin || 45, busySlots);
     };
 
@@ -560,7 +576,12 @@ const BookingFlow = ({ preselectedServiceName, prefillName, prefillEmail }: Book
                     <p className="text-[10px] uppercase tracking-[0.2em] text-savron-silver/30 mb-4">Time</p>
                     {loadingBusy ? (
                         <div className="py-10 flex items-center justify-center gap-2 text-savron-silver/25 text-xs uppercase tracking-widest">
-                            <span className="animate-pulse">●</span> Checking availability
+                            <span className="animate-pulse">●</span> Loading calendar availability…
+                        </div>
+                    ) : busyError ? (
+                        <div className="py-10 text-center space-y-2 px-4">
+                            <p className="text-amber-300/80 text-sm">{busyError}</p>
+                            <p className="text-savron-silver/35 text-xs">We need the barber&apos;s full calendar before showing open times.</p>
                         </div>
                     ) : isBarberOffToday ? (
                         <div className="py-10 text-center space-y-2">
@@ -658,7 +679,7 @@ const BookingFlow = ({ preselectedServiceName, prefillName, prefillEmail }: Book
     const steps = [1, 2, 3, 4];
 
     return (
-        <div ref={flowRef} className="bg-savron-grey border border-white/[0.06] relative">
+        <div ref={flowRef} className="bg-savron-grey border border-white/[0.06] relative overflow-x-hidden">
             {/* Corner accents */}
             <div className="absolute top-0 left-0 w-5 h-5 border-t border-l border-savron-silver/15 pointer-events-none" />
             <div className="absolute bottom-0 right-0 w-5 h-5 border-b border-r border-savron-silver/15 pointer-events-none" />
@@ -703,8 +724,8 @@ const BookingFlow = ({ preselectedServiceName, prefillName, prefillEmail }: Book
                     <div>
                         {step === 1 && <Button onClick={() => setStep(2)} disabled={selectedServices.length === 0}>Next <ChevronRight className="w-3.5 h-3.5 ml-1.5" /></Button>}
                         {step === 2 && <Button onClick={() => setStep(3)} disabled={!selectedPro}>Next <ChevronRight className="w-3.5 h-3.5 ml-1.5" /></Button>}
-                        {step === 3 && <Button onClick={() => setStep(4)} disabled={!selectedTime}>Next <ChevronRight className="w-3.5 h-3.5 ml-1.5" /></Button>}
-                        {step === 4 && <Button onClick={handleConfirm} isLoading={submitting} disabled={!clientName || !clientEmail}>Confirm Booking</Button>}
+                        {step === 3 && <Button onClick={() => setStep(4)} disabled={!selectedTime || loadingBusy || !busyLoaded || !!busyError}>Next <ChevronRight className="w-3.5 h-3.5 ml-1.5" /></Button>}
+                        {step === 4 && <Button onClick={handleConfirm} isLoading={submitting} disabled={!clientName || !clientEmail || loadingBusy || !busyLoaded || !!busyError || (selectedTime ? isSlotBusy(selectedTime) : true)}>Confirm Booking</Button>}
                     </div>
                     </div>
                 </div>

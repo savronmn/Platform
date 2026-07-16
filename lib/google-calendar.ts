@@ -1,6 +1,8 @@
 // Google Calendar API helpers — server-side only
 // Uses OAuth 2.0 with stored refresh tokens
 
+import { chicagoDayBoundsIso, toChicagoIsoString } from '@/lib/chicago-time';
+
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GOOGLE_CALENDAR_BASE = 'https://www.googleapis.com/calendar/v3';
 
@@ -276,8 +278,7 @@ async function listCalendarEventsForDay(
     calendarId: string,
     date: string,
 ): Promise<CalendarListEvent[]> {
-    const timeMin = `${date}T00:00:00-05:00`;
-    const timeMax = `${date}T23:59:59-05:00`;
+    const { timeMin, timeMax } = chicagoDayBoundsIso(date);
     const url = new URL(`${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events`);
     url.searchParams.set('timeMin', timeMin);
     url.searchParams.set('timeMax', timeMax);
@@ -406,14 +407,7 @@ export async function findEventsByBookingId(
 
 // Parse a time string like "10:00 AM" + date "2026-04-01" into an ISO string (CT)
 export function toIsoString(date: string, time: string): string {
-    const [timePart, meridiem] = time.split(' ');
-    let [hours, minutes] = timePart.split(':').map(Number);
-    if (meridiem === 'PM' && hours !== 12) hours += 12;
-    if (meridiem === 'AM' && hours === 12) hours = 0;
-    const hh = String(hours).padStart(2, '0');
-    const mm = String(minutes).padStart(2, '0');
-    // Central Time offset: -05:00 (CST) / -06:00 (CDT) — using fixed CST for simplicity
-    return `${date}T${hh}:${mm}:00-05:00`;
+    return toChicagoIsoString(date, time);
 }
 
 // Get busy slots from actual calendar events (exact start/end — no Google buffer padding).

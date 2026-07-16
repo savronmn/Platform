@@ -45,6 +45,8 @@ function BarberBookingContent() {
     const [busySlots, setBusySlots] = useState<{ start: string; end: string }[]>([]);
     const [workingHours, setWorkingHours] = useState<Record<string, { open: string; close: string } | null> | null>(null);
     const [loadingBusy, setLoadingBusy] = useState(false);
+    const [busyLoaded, setBusyLoaded] = useState(false);
+    const [busyError, setBusyError] = useState<string | null>(null);
     const [preselectionApplied, setPreselectionApplied] = useState(false);
     const [addEyebrows, setAddEyebrows] = useState(false);
     const flowRef = useRef<HTMLDivElement>(null);
@@ -78,26 +80,44 @@ function BarberBookingContent() {
     }, [step]);
 
     useEffect(() => {
-        if (!barber || !selectedDate) return;
+        if (!barber || !selectedDate) {
+            setBusySlots([]);
+            setBusyLoaded(false);
+            setBusyError(null);
+            return;
+        }
+        let cancelled = false;
         async function fetchBusy() {
             setLoadingBusy(true);
+            setBusyLoaded(false);
+            setBusyError(null);
             try {
                 const dateStr = format(selectedDate, 'yyyy-MM-dd');
                 const res = await fetch(`/api/calendar/busy?barberId=${barber!.id}&date=${dateStr}`);
+                if (cancelled) return;
                 if (res.ok) {
                     const data = await res.json();
                     setBusySlots(data.busy || []);
                     setWorkingHours(data.workingHours ?? null);
+                    setBusyLoaded(true);
+                } else if (res.status === 503) {
+                    setBusySlots([]);
+                    setBusyError('No pudimos cargar el calendario de este barbero. Intenta de nuevo en un momento.');
                 } else {
                     setBusySlots([]);
+                    setBusyError('No se pudo verificar la disponibilidad. Recarga la página e intenta de nuevo.');
                 }
             } catch {
-                setBusySlots([]);
+                if (!cancelled) {
+                    setBusySlots([]);
+                    setBusyError('No se pudo verificar la disponibilidad. Revisa tu conexión e intenta de nuevo.');
+                }
             }
-            setLoadingBusy(false);
+            if (!cancelled) setLoadingBusy(false);
         }
         fetchBusy();
-    }, [barber, selectedDate]);
+        return () => { cancelled = true; };
+    }, [barber, selectedDate, step]);
 
     // Day-of-week key from selected date (Mon, Tue, ... Sun)
     const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
@@ -108,8 +128,7 @@ function BarberBookingContent() {
 
     const isSlotBusy = (timeStr: string) => {
         if (isSlotInPast(selectedDate, timeStr, 5)) return true;
-        if (loadingBusy) return true;
-        if (busySlots.length === 0) return false;
+        if (loadingBusy || !busyLoaded || busyError) return true;
         const service = services.find(s => s.id === selectedService);
         const durationMin = service?.durationMin ?? 45;
         return slotConflictsWithBusy(selectedDate, timeStr, durationMin, busySlots);
@@ -197,7 +216,7 @@ function BarberBookingContent() {
     }
 
     return (
-        <main className="min-h-screen bg-savron-black pt-20 pb-16">
+        <main className="min-h-screen bg-savron-black pt-20 pb-16 overflow-x-hidden">
             {/* Barber header */}
             <section className="px-6 md:px-12 lg:px-24 py-12">
                 <div className="max-w-4xl mx-auto">
@@ -342,7 +361,12 @@ function BarberBookingContent() {
                                     <div>
                                         <p className="text-xs uppercase tracking-widest text-savron-silver/50 mb-3">Time</p>
                                         {loadingBusy ? (
-                                            <div className="py-6 text-center text-savron-silver/40 text-xs uppercase">Checking availability…</div>
+                                            <div className="py-6 text-center text-savron-silver/40 text-xs uppercase">Loading calendar availability…</div>
+                                        ) : busyError ? (
+                                            <div className="py-8 text-center space-y-2 px-2">
+                                                <p className="text-amber-300/80 text-sm">{busyError}</p>
+                                                <p className="text-savron-silver/35 text-xs">We need the barber&apos;s full calendar before showing open times.</p>
+                                            </div>
                                         ) : isDayOff ? (
                                             <div className="py-8 text-center space-y-2">
                                                 <p className="text-savron-silver/40 text-sm uppercase tracking-widest">Not available</p>
@@ -486,12 +510,12 @@ function BarberBookingContent() {
                                         </Button>
                                     )}
                                     {step === 2 && (
-                                        <Button onClick={() => setStep(3)} disabled={!selectedTime}>
+                                        <Button onClick={() => setStep(3)} disabled={!selectedTime || loadingBusy || !busyLoaded || !!busyError}>
                                             Next <ChevronRight className="w-4 h-4 ml-2" />
                                         </Button>
                                     )}
                                     {step === 3 && (
-                                        <Button onClick={handleConfirm} isLoading={submitting} disabled={!clientName || !clientEmail}>
+                                        <Button onClick={handleConfirm} isLoading={submitting} disabled={!clientName || !clientEmail || loadingBusy || !busyLoaded || !!busyError || (selectedTime ? isSlotBusy(selectedTime) : true)}>
                                             Confirm Booking
                                         </Button>
                                     )}

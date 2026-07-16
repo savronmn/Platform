@@ -43,8 +43,10 @@ export default function AsapBookingFlow({
     const [clientMessage, setClientMessage] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [assignedBarber, setAssignedBarber] = useState<Barber | null>(null);
-    const [busySlots, setBusySlots] = useState<{ start: string; end: string }[]>([]);
     const [loadingBusy, setLoadingBusy] = useState(false);
+    const [busyLoaded, setBusyLoaded] = useState(false);
+    const [busyError, setBusyError] = useState<string | null>(null);
+    const [perBarberBusy, setPerBarberBusy] = useState<Array<{ barberId: string; busy: { start: string; end: string }[] }>>([]);
     const [allBarbers, setAllBarbers] = useState<Barber[]>([]);
     const [preselectionApplied, setPreselectionApplied] = useState(false);
     const [addEyebrows, setAddEyebrows] = useState(false);
@@ -83,10 +85,55 @@ export default function AsapBookingFlow({
     }, [step]);
 
     useEffect(() => {
-        supabase.from('barbers').select('id, active, working_hours').eq('active', true).then(({ data }) => {
+        supabase.from('barbers').select('*').eq('active', true).order('name').then(({ data }) => {
             setAllBarbers((data as Barber[]) ?? []);
         });
     }, []);
+
+    useEffect(() => {
+        if (allBarbers.length === 0) {
+            setPerBarberBusy([]);
+            setBusyLoaded(false);
+            return;
+        }
+
+        let cancelled = false;
+        async function fetchAllBusy() {
+            setLoadingBusy(true);
+            setBusyLoaded(false);
+            setBusyError(null);
+            const dateStr = format(selectedDate, 'yyyy-MM-dd');
+
+            const results = await Promise.all(allBarbers.map(async (barber) => {
+                try {
+                    const res = await fetch(`/api/calendar/busy?barberId=${barber.id}&date=${dateStr}`);
+                    if (!res.ok) return { barberId: barber.id, busy: null as { start: string; end: string }[] | null, error: true };
+                    const { busy } = await res.json() as { busy?: { start: string; end: string }[] };
+                    return { barberId: barber.id, busy: busy ?? [], error: false };
+                } catch {
+                    return { barberId: barber.id, busy: null, error: true };
+                }
+            }));
+
+            if (cancelled) return;
+
+            if (results.some(r => r.error)) {
+                setPerBarberBusy([]);
+                setBusyError('No se pudo cargar la disponibilidad de los barberos. Intenta de nuevo en un momento.');
+            } else {
+                setPerBarberBusy(
+                    results
+                        .filter((r): r is { barberId: string; busy: { start: string; end: string }[]; error: false } => !r.error && r.busy !== null)
+                        .map(r => ({ barberId: r.barberId, busy: r.busy })),
+                );
+                setBusyLoaded(true);
+            }
+            setLoadingBusy(false);
+        }
+
+        fetchAllBusy();
+        return () => { cancelled = true; };
+    }, [allBarbers, selectedDate, selectedService]);
 
     const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
@@ -113,13 +160,25 @@ export default function AsapBookingFlow({
         });
     })();
 
+    const selectedSvc = services.find(s => s.id === selectedService);
+    const durationMin = selectedSvc?.durationMin ?? 45;
+
+    const eligibleBarbers = allBarbers.filter((barber) => {
+        if (selectedSvc?.name) return barberOffersService(barber, selectedSvc.name);
+        return true;
+    });
+
     const isSlotBusy = (timeStr: string) => {
         if (isSlotInPast(selectedDate, timeStr, 5)) return true;
-        if (loadingBusy) return true;
-        if (busySlots.length === 0) return false;
-        const service = services.find(s => s.id === selectedService);
-        const durationMin = service?.durationMin ?? 45;
-        return slotConflictsWithBusy(selectedDate, timeStr, durationMin, busySlots);
+        if (loadingBusy || !busyLoaded || busyError) return true;
+
+        const anyBarberFree = eligibleBarbers.some((barber) => {
+            const entry = perBarberBusy.find(p => p.barberId === barber.id);
+            if (!entry) return false;
+            return !slotConflictsWithBusy(selectedDate, timeStr, durationMin, entry.busy);
+        });
+
+        return !anyBarberFree;
     };
 
     // Find any barber who is NOT already booked at the selected date + time AND has no Google Calendar conflict
@@ -230,7 +289,7 @@ export default function AsapBookingFlow({
                         if (period === 'AM' && h === 12) h = 0;
                         return h;
                     };
-                    const openSlots = availableSlots.filter(t => !isSlotInPast(selectedDate, t, 5));
+                    const openSlots = availableSlots.filter(t => !isSlotBusy(t));
                     const morning   = openSlots.filter(t => slotHour(t) < 12);
                     const afternoon = openSlots.filter(t => { const h = slotHour(t); return h >= 12 && h < 17; });
                     const evening   = openSlots.filter(t => slotHour(t) >= 17);
@@ -245,11 +304,14 @@ export default function AsapBookingFlow({
                                         <button
                                             key={idx}
                                             onClick={() => setSelectedTime(time)}
+                                            disabled={isSlotBusy(time)}
                                             className={cn(
-                                                "py-4 border transition-all duration-150 text-center text-sm font-mono",
+                                                "py-4 min-h-[52px] border transition-all duration-150 text-center text-sm font-mono touch-manipulation",
                                                 selectedTime === time
                                                     ? "border-savron-green/50 bg-savron-green/10 text-white"
-                                                    : "border-white/[0.07] hover:border-white/20 text-savron-silver/50 hover:text-white"
+                                                    : isSlotBusy(time)
+                                                        ? "opacity-30 cursor-not-allowed border-white/5 text-savron-silver/30 line-through"
+                                                        : "border-white/[0.07] hover:border-white/20 text-savron-silver/50 hover:text-white"
                                             )}
                                         >
                                             {time}
@@ -280,7 +342,15 @@ export default function AsapBookingFlow({
 
                             <div>
                                 <p className="text-[9px] uppercase tracking-[0.18em] text-savron-silver/35 mb-3">Available Times</p>
-                                {openSlots.length === 0 ? (
+                                {loadingBusy ? (
+                                    <div className="py-8 text-center text-savron-silver/40 text-xs uppercase tracking-widest">
+                                        Loading calendar availability…
+                                    </div>
+                                ) : busyError ? (
+                                    <div className="py-8 text-center space-y-2 px-2">
+                                        <p className="text-amber-300/80 text-sm">{busyError}</p>
+                                    </div>
+                                ) : openSlots.length === 0 ? (
                                     <div className="py-8 text-center space-y-1">
                                         <p className="text-savron-silver/40 text-sm uppercase tracking-widest">No Times Left Today</p>
                                         <p className="text-savron-silver/25 text-xs">Try a different date</p>
@@ -449,7 +519,7 @@ export default function AsapBookingFlow({
                     ) : <div />}
                     <div>
                         {step === 1 && (
-                            <Button onClick={() => setStep(2)} disabled={!selectedTime || (skipServiceStep && !selectedService)}>
+                            <Button onClick={() => setStep(2)} disabled={!selectedTime || loadingBusy || !busyLoaded || !!busyError || (skipServiceStep && !selectedService)}>
                                 Next <ChevronRight className="w-4 h-4 ml-2" />
                             </Button>
                         )}

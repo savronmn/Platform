@@ -6,6 +6,7 @@ import {
     toIsoString,
     type CalendarToken,
 } from '@/lib/google-calendar';
+import { chicagoDayBoundsIso, toChicagoIsoString } from '@/lib/chicago-time';
 import { parseDurationMins, timeToMins } from '@/lib/calendar-timeline';
 import { slotConflictsWithBusy } from '@/lib/time-helpers';
 
@@ -16,6 +17,13 @@ const getAdmin = () => createClient(
 
 /** Statuses that block new bookings on the same barber/day. */
 export const BLOCKING_BOOKING_STATUSES = ['confirmed', 'completed', 'no_show'] as const;
+
+export class GoogleCalendarUnavailableError extends Error {
+    constructor(message = 'Google Calendar availability could not be loaded.') {
+        super(message);
+        this.name = 'GoogleCalendarUnavailableError';
+    }
+}
 
 function minsToTimeStr(totalMins: number): string {
     const h24 = Math.floor(totalMins / 60) % 24;
@@ -74,12 +82,11 @@ export async function getBarberGoogleBusySlots(
     const calendarIds = await listAccountCalendarIds(accessToken);
     if (calendarIds.length === 0) return [];
 
-    const timeMin = `${date}T00:00:00-05:00`;
-    const timeMax = `${date}T23:59:59-05:00`;
+    const { timeMin, timeMax } = chicagoDayBoundsIso(date);
 
     const perCalendar = await Promise.all(
         calendarIds.map(calendarId =>
-            getEventBusySlots(accessToken, calendarId, timeMin, timeMax).catch(() => []),
+            getEventBusySlots(accessToken, calendarId, timeMin, timeMax),
         ),
     );
 
@@ -99,11 +106,17 @@ export async function getBarberGoogleBusySlots(
     return merged;
 }
 
+export type BarberAvailabilityResult = {
+    busy: { start: string; end: string }[];
+    workingHours: Record<string, { open: string; close: string } | null> | null;
+    googleCalendarConnected: boolean;
+};
+
 export async function getBarberAvailability(
     barberId: string,
     date: string,
     options: { excludeBookingId?: string } = {},
-): Promise<{ busy: { start: string; end: string }[]; workingHours: Record<string, { open: string; close: string } | null> | null }> {
+): Promise<BarberAvailabilityResult> {
     const supabaseAdmin = getAdmin();
 
     const [{ data: barber }, dbAvailability] = await Promise.all([
@@ -123,6 +136,8 @@ export async function getBarberAvailability(
     let busy = [...dbAvailability.busy];
 
     const tokens = barber.google_calendar_tokens as CalendarToken | null;
+    const googleCalendarConnected = Boolean(tokens);
+
     if (tokens) {
         try {
             const accessToken = await getValidAccessToken(tokens);
@@ -134,10 +149,11 @@ export async function getBarberAvailability(
             busy = [...gcalBusy, ...busy];
         } catch (err) {
             console.error('[booking-availability] Google busy fetch failed:', err);
+            throw new GoogleCalendarUnavailableError();
         }
     }
 
-    return { busy, workingHours };
+    return { busy, workingHours, googleCalendarConnected };
 }
 
 export function slotIsAvailable(
@@ -151,7 +167,7 @@ export function slotIsAvailable(
 
 /** Stable noon anchor for a booking date string (Central Time). */
 export function bookingSlotDate(date: string): Date {
-    return new Date(`${date}T12:00:00-05:00`);
+    return new Date(toChicagoIsoString(date, '12:00 PM'));
 }
 
 export class SlotUnavailableError extends Error {

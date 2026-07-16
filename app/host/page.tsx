@@ -873,16 +873,16 @@ function HostDashboardInner() {
         <div className="min-h-screen bg-savron-black savron-grid-bg flex flex-col">
 
             {/* ── Row 1: main bar ── */}
-            <header className="bg-savron-grey border-b border-savron-blue/20 savron-grid-surface px-4 py-2.5 flex items-center justify-between shrink-0 gap-3">
-                <div className="flex items-center gap-3">
+            <header className="bg-savron-grey border-b border-savron-blue/20 savron-grid-surface px-3 sm:px-4 py-2.5 flex flex-wrap items-center justify-between shrink-0 gap-2 sm:gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                     <button
                         onClick={() => setShowNav(true)}
-                        className="p-1 -ml-0.5 text-savron-silver hover:text-white transition-colors"
+                        className="p-1 -ml-0.5 text-savron-silver hover:text-white transition-colors shrink-0"
                     >
                         <Menu className="w-4 h-4" />
                     </button>
-                    <h1 className="font-heading text-2xl uppercase tracking-widest text-white">{t('host.title')}</h1>
-                    <div className="flex items-center gap-1.5">
+                    <h1 className="font-heading text-lg sm:text-2xl uppercase tracking-widest text-white truncate">{t('host.title')}</h1>
+                    <div className="hidden sm:flex items-center gap-1.5 shrink-0">
                         <Wifi className={cn("w-2.5 h-2.5", realtimeConnected ? "text-accent-blue" : "text-savron-silver/40")} />
                         <span className={cn("text-[9px] uppercase tracking-widest", realtimeConnected ? "text-accent-blue" : "text-savron-silver/40")}>
                             {realtimeConnected ? t('host.live') : t('host.connecting')}
@@ -890,22 +890,22 @@ function HostDashboardInner() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 ml-auto">
                     <div className="text-center hidden sm:block"><p className="text-white font-mono text-[21px] leading-none">{confirmed}</p><p className="text-savron-silver text-xs uppercase tracking-widest mt-0.5">{t('host.confirmed')}</p></div>
                     <div className="text-center hidden sm:block"><p className="text-blue-400 font-mono text-[21px] leading-none">{completed}</p><p className="text-savron-silver text-xs uppercase tracking-widest mt-0.5">{t('host.done')}</p></div>
                     <div className="text-center hidden sm:block"><p className="text-red-400 font-mono text-[21px] leading-none">{noShow}</p><p className="text-savron-silver text-xs uppercase tracking-widest mt-0.5">{t('host.no_show')}</p></div>
-                    <button onClick={() => void refreshCalendarData()} className="p-1 text-savron-silver hover:text-white transition-colors"><RefreshCw className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => void refreshCalendarData()} className="p-1.5 text-savron-silver hover:text-white transition-colors"><RefreshCw className="w-3.5 h-3.5" /></button>
                     <button
                         onClick={() => setShowScanner(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 text-savron-silver border border-white/15 text-[13.5px] uppercase tracking-widest rounded-savron hover:text-white hover:border-white/30 transition-all"
+                        className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-white/5 text-savron-silver border border-white/15 text-[11px] sm:text-[13.5px] uppercase tracking-widest rounded-savron hover:text-white hover:border-white/30 transition-all"
                     >
-                        <ScanLine className="w-[18px] h-[18px]" /> Scan ePass
+                        <ScanLine className="w-[18px] h-[18px]" /> <span className="hidden sm:inline">Scan ePass</span>
                     </button>
                     <button
                         onClick={() => { setQuickFormDate(new Date()); setShowQuickAdd(true); }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-savron-green text-white border border-savron-green-light/20 text-[13.5px] uppercase tracking-widest rounded-savron hover:bg-savron-green-light transition-all"
+                        className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-savron-green text-white border border-savron-green-light/20 text-[11px] sm:text-[13.5px] uppercase tracking-widest rounded-savron hover:bg-savron-green-light transition-all"
                     >
-                        <Plus className="w-[18px] h-[18px]" /> Walk-in
+                        <Plus className="w-[18px] h-[18px]" /> <span className="hidden sm:inline">Walk-in</span>
                     </button>
                 </div>
             </header>

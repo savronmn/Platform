@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Suspense } from 'react';
 import { Montserrat, Inter, Playfair_Display } from 'next/font/google';
 import './globals.css';
@@ -99,6 +99,12 @@ export const metadata: Metadata = {
     alternates: {
         canonical: 'https://savron.com',
     },
+};
+
+export const viewport: Viewport = {
+    width: 'device-width',
+    initialScale: 1,
+    viewportFit: 'cover',
 };
 
 export default function RootLayout({
