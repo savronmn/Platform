@@ -1,30 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { requireStaff } from '@/lib/staff-auth';
+import { fetchAllApplicants } from '@/lib/applicants-admin';
+import { requireAdminPanelSession } from '@/lib/staff-auth';
 import type { Applicant } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
-    const auth = await requireStaff();
+    const auth = await requireAdminPanelSession();
     if (!auth.ok) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
-        .from('applicants')
-        .select('*')
-        .order('created_at', { ascending: false });
-
+    const { applicants, error } = await fetchAllApplicants();
     if (error) {
-        console.error('Admin applicants list error:', error);
         return NextResponse.json({ error: 'Failed to load applicants' }, { status: 500 });
     }
 
-    return NextResponse.json({ applicants: data ?? [] });
+    return NextResponse.json({ applicants });
 }
 
 export async function PATCH(req: NextRequest) {
-    const auth = await requireStaff();
+    const auth = await requireAdminPanelSession();
     if (!auth.ok) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
@@ -37,7 +33,7 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: 'Applicant id and status are required' }, { status: 400 });
     }
 
-    const supabase = getSupabaseAdmin();
+    const supabase = (await import('@/lib/supabase-admin')).getSupabaseAdmin();
     const { data, error } = await supabase
         .from('applicants')
         .update({ status })
@@ -54,7 +50,7 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-    const auth = await requireStaff();
+    const auth = await requireAdminPanelSession();
     if (!auth.ok) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
@@ -67,7 +63,7 @@ export async function DELETE(req: NextRequest) {
         return NextResponse.json({ error: 'Applicant id or email is required' }, { status: 400 });
     }
 
-    const supabase = getSupabaseAdmin();
+    const supabase = (await import('@/lib/supabase-admin')).getSupabaseAdmin();
     let query = supabase.from('applicants').delete();
 
     if (id) {

@@ -47,7 +47,7 @@ export default function AdminDashboard() {
         try {
             const [data, applicantsRes] = await Promise.all([
                 fetchAdminDashboardData(supabase),
-                fetch('/api/applicants/admin'),
+                fetch('/api/applicants/admin', { credentials: 'include' }),
             ]);
             const applicantsData = await applicantsRes.json().catch(() => ({}));
             const allApplicants = applicantsRes.ok ? (applicantsData.applicants ?? []) : data.detailData.pendingApplicants;

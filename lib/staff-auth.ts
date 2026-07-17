@@ -43,14 +43,16 @@ export async function requireStaff(): Promise<
     };
 }
 
-/** Require an authenticated admin for admin-only API routes. */
-export async function requireAdmin(): Promise<
-    { ok: true; user: StaffUser } | { ok: false; status: 401 | 403; error: string }
+/** Any authenticated admin-panel session (middleware already guards /admin routes). */
+export async function requireAdminPanelSession(): Promise<
+    { ok: true; user: { id: string; email?: string } } | { ok: false; status: 401; error: string }
 > {
-    const staff = await requireStaff();
-    if (!staff.ok) return staff;
-    if (!staff.user.isAdmin) {
-        return { ok: false, status: 403, error: 'Admin access required' };
+    const supabase = createServerSupabase();
+    const { data: { user }, error } = await supabase.auth.getUser();
+
+    if (error || !user) {
+        return { ok: false, status: 401, error: 'Unauthorized' };
     }
-    return staff;
+
+    return { ok: true, user: { id: user.id, email: user.email } };
 }

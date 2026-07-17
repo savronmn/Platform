@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
@@ -98,13 +98,17 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     const { t } = useLanguage();
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
+    useEffect(() => {
+        if (pathname.startsWith('/admin/login')) return;
+        void fetch('/api/admin/ensure-role', { method: 'POST', credentials: 'include' });
+    }, [pathname]);
+
     if (pathname === '/admin/login') {
         return <>{children}</>;
     }
 
     return (
-        <div className="min-h-screen bg-savron-black savron-grid-bg flex flex-col lg:flex-row relative">
-            {/* Mobile Top Header */}
+        <div className="min-h-screen bg-savron-black savron-grid-bg flex flex-col lg:flex-row relative overflow-x-hidden">
             <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-savron-grey/95 border-b border-savron-blue/20 savron-grid-surface flex items-center justify-between px-4 z-30">
                 <Link href="/admin" className="relative w-24 h-6 block">
                     <Image src="/logo.png" alt="SAVRON" fill className="object-contain object-left" priority />
@@ -118,7 +122,6 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                 </button>
             </header>
 
-            {/* Desktop Sidebar */}
             <aside className="hidden lg:flex w-72 bg-savron-grey border-r border-savron-blue/20 savron-grid-surface flex-col fixed h-full z-40">
                 <div className="p-8 border-b border-savron-blue/15">
                     <Link href="/admin" className="relative w-28 h-7 block">
@@ -130,7 +133,6 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                 <NavContent />
             </aside>
 
-            {/* Mobile Drawer Sidebar */}
             <AnimatePresence>
                 {isDrawerOpen && (
                     <>
@@ -169,7 +171,6 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                 )}
             </AnimatePresence>
 
-            {/* Main Content */}
             <main className="relative z-10 flex-1 lg:ml-72 pt-20 lg:pt-12 px-4 sm:px-6 md:px-10 lg:px-12 xl:px-16 pb-10 lg:pb-14 flex flex-col min-w-0">
                 <div className="w-full max-w-7xl mx-auto flex-1 min-w-0">
                     {children}
