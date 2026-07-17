@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
         const syncResult = await syncBookingCalendars(booking, barber, {
             shopConnected,
             forceBarber: true,
+            sendInviteNotifications: false,
         });
 
         return NextResponse.json(buildCalendarSyncResponse(syncResult, { updated: true }));
@@ -114,6 +115,7 @@ export async function POST(request: NextRequest) {
     const syncResult = await syncBookingCalendars(booking, barber, {
         shopConnected,
         forceBarber: true,
+        sendInviteNotifications: true,
     });
 
     if (syncResult.shopEventId || syncResult.barberEventId) {

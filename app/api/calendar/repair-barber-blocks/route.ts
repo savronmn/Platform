@@ -1,5 +1,6 @@
 // POST /api/calendar/repair-barber-blocks
 // Backfills missing google_event_id blocks for connected barbers (staff only).
+// Calendar writes use sendUpdates=none — no invite emails are sent during repair.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { repairMissingBarberBlocks } from '@/lib/sync-booking-calendars';
