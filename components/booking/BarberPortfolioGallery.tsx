@@ -39,7 +39,7 @@ export default function BarberPortfolioGallery({ images, name, mode, open = fals
                     >
                         {/* Header */}
                         <div className="flex items-center justify-between px-5 py-4 shrink-0" onClick={e => e.stopPropagation()}>
-                            <p className="font-heading uppercase tracking-widest text-white text-sm">{name} — Portfolio</p>
+                            <p className="font-heading uppercase tracking-widest text-white text-sm">{name}. Portfolio</p>
                             <button onClick={onClose} className="p-2 text-white/60 hover:text-white transition-colors">
                                 <X className="w-5 h-5" />
                             </button>

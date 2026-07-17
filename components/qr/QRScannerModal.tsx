@@ -87,7 +87,7 @@ export default function QRScannerModal({ open, onClose, onScanSuccess }: QRScann
                             setScanState('error');
                         }
                     } catch {
-                        setErrorMsg('Network error — try again');
+                        setErrorMsg('Network error. try again');
                         setScanState('error');
                     }
                 },

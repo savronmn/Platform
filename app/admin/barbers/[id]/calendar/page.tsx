@@ -309,7 +309,7 @@ export default function AdminBarberCalendarPage() {
                 )}>
                     <span className="uppercase tracking-widest">
                         {isDayOff
-                            ? `Day off — ${selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}`
+                            ? `Day off. ${selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}`
                             : `Schedule: ${daySchedule ? `${daySchedule.open} – ${daySchedule.close}` : 'All day'}`
                         }
                     </span>

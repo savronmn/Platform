@@ -244,7 +244,7 @@ export default function PortalPage() {
                             Join the Team
                         </h1>
                         <p className="text-savron-silver text-base font-light max-w-lg mx-auto mt-4 leading-relaxed">
-                            Elite barbers who care about detail and the art of grooming. Answer a few questions — takes about 5 minutes.
+                            Elite barbers who care about detail and the art of grooming. Answer a few questions. takes about 5 minutes.
                         </p>
                     </div>
 
@@ -376,7 +376,7 @@ export default function PortalPage() {
                                 )}
 
                                 {step === 'instagram' && (
-                                    <QuestionStep title="Instagram handle?" subtitle="Optional — helps us see your work.">
+                                    <QuestionStep title="Instagram handle?" subtitle="Optional. helps us see your work.">
                                         <input
                                             autoFocus
                                             placeholder="@YOURHANDLE"
@@ -389,7 +389,7 @@ export default function PortalPage() {
                                 )}
 
                                 {step === 'video' && (
-                                    <QuestionStep title="Video introduction" subtitle="Optional. Max 2 minutes — show us your best work.">
+                                    <QuestionStep title="Video introduction" subtitle="Optional. Max 2 minutes. show us your best work.">
                                         {videoPreview ? (
                                             <div className="relative border border-white/10 rounded-savron overflow-hidden">
                                                 <video src={videoPreview} controls className="w-full aspect-video object-cover" />

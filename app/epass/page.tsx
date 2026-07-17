@@ -558,7 +558,7 @@ export default function EPassPage() {
                             <QrFrame qrDataUrl={qrDataUrl} />
 
                             <p className="text-center text-savron-silver/35 text-[10px] uppercase tracking-widest max-w-[220px]">
-                                Show this to your barber — updates live after every visit
+                                Show this to your barber. updates live after every visit
                             </p>
                             <a
                                 href={SHOP_MAPS_URL}

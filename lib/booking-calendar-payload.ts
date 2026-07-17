@@ -39,7 +39,7 @@ function computeEndIso(date: string, time: string, durationMin: number): string 
     return toIsoString(date, endTimeStr);
 }
 
-/** Client-facing appointment title — shows in Google Calendar like a booked appointment. */
+/** Client-facing appointment title. shows in Google Calendar like a booked appointment. */
 export function buildClientAppointmentSummary(
     service: string,
     barberName: string | null,
@@ -82,7 +82,7 @@ export function buildBookingCalendarPayload(
         `Duration: ${durationMin} min`,
         booking.price ? `Price: ${booking.price}` : '',
         '',
-        'Please tap Yes to confirm — we look forward to seeing you.',
+        'Please tap Yes to confirm. we look forward to seeing you.',
         'Need to cancel? It is as easy as tapping No on this invite.',
         '',
         `Questions? ${SHOP_CONTACT_EMAIL}`,

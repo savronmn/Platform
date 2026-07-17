@@ -85,7 +85,7 @@ export async function sendCancellationEmails(
         }
     })();
 
-    const calendarNote = 'Your attached calendar invite has been cancelled — the appointment is removed from your calendar.';
+    const calendarNote = 'Your attached calendar invite has been cancelled. the appointment is removed from your calendar.';
 
     const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
@@ -131,7 +131,7 @@ export async function sendCancellationEmails(
                 from: `${RESEND_BOOKING_FROM_NAME} <${RESEND_BOOKING_FROM}>`,
                 reply_to: RESEND_BOOKING_FROM,
                 to: [to],
-                subject: `Cancelled: ${booking.service} — ${dateFormatted}, ${booking.time}`,
+                subject: `Cancelled: ${booking.service}. ${dateFormatted}, ${booking.time}`,
                 html,
                 attachments: [{
                     filename: 'appointment-cancel.ics',

@@ -62,7 +62,7 @@ export default function MembershipPage() {
             });
             const data = await res.json();
             if (res.ok && data.success) {
-                showToast(`${addForm.name.trim()} added — pass sent to ${addForm.email.trim()}`);
+                showToast(`${addForm.name.trim()} added. pass sent to ${addForm.email.trim()}`);
                 setAddForm({ name: '', email: '', phone: '' });
                 setShowAddForm(false);
                 fetchSubscribers();
@@ -95,7 +95,7 @@ export default function MembershipPage() {
                     )
                 );
                 showToast(
-                    `Visit recorded — ${subscriber.name} now has ${data.visit_count} visit${data.visit_count === 1 ? '' : 's'}.` +
+                    `Visit recorded. ${subscriber.name} now has ${data.visit_count} visit${data.visit_count === 1 ? '' : 's'}.` +
                     (data.google_wallet_updated ? ' Google Wallet updated.' : ' Google Wallet did not update automatically.')
                 );
             } else {
@@ -126,7 +126,7 @@ export default function MembershipPage() {
                     )
                 );
                 showToast(
-                    `Visit removed — ${subscriber.name} now has ${data.visit_count} visit${data.visit_count === 1 ? '' : 's'}.` +
+                    `Visit removed. ${subscriber.name} now has ${data.visit_count} visit${data.visit_count === 1 ? '' : 's'}.` +
                     (data.google_wallet_updated ? ' Google Wallet updated.' : ' Google Wallet did not update automatically.')
                 );
             } else {
@@ -162,7 +162,7 @@ export default function MembershipPage() {
                 );
                 showToast(
                     `Updated ${editData.name.trim()}` +
-                    (data.google_wallet_updated ? ' — Google Wallet synced.' : '')
+                    (data.google_wallet_updated ? '. Google Wallet synced.' : '')
                 );
                 setEditing(false);
                 setSelected(null);
@@ -251,7 +251,7 @@ export default function MembershipPage() {
                         )
                     );
                     showToast(
-                        `Visit recorded — ${sub.name} now has ${sub.visit_count} visit${sub.visit_count === 1 ? '' : 's'}.` +
+                        `Visit recorded. ${sub.name} now has ${sub.visit_count} visit${sub.visit_count === 1 ? '' : 's'}.` +
                         (meta?.google_wallet_updated ? ' Google Wallet updated.' : ' Google Wallet did not update automatically.')
                     );
                 }}
@@ -321,7 +321,7 @@ export default function MembershipPage() {
                             <div className="card-savron space-y-5">
                                 <div className="flex items-center justify-between mb-5">
                                     <p className="text-[10px] uppercase tracking-[0.3em] text-white/30">
-                                        Add New Member — sends pass via email
+                                        Add New Member. sends pass via email
                                     </p>
                                     <button onClick={() => setShowAddForm(false)} className="text-white/30 hover:text-white transition-colors">
                                         <X size={14} />
@@ -401,7 +401,7 @@ export default function MembershipPage() {
                     <div className="text-center py-20 text-white/30 text-sm tracking-widest uppercase">Loading…</div>
                 ) : filtered.length === 0 ? (
                     <div className="text-center py-20 text-white/25 text-sm tracking-widest uppercase">
-                        {search ? 'No results found' : 'No subscribers yet — use the form above or the footer signup to add members'}
+                        {search ? 'No results found' : 'No subscribers yet. use the form above or the footer signup to add members'}
                     </div>
                 ) : (
                     <div className="card-savron p-0 overflow-hidden">

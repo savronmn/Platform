@@ -269,7 +269,7 @@ const BookingFlow = ({ preselectedServiceName, prefillName, prefillEmail }: Book
         <motion.div key="services" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION}>
             <div className="mb-5">
                 <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-wider">Select Services</h2>
-                <p className="text-savron-silver/65 text-sm mt-1.5">Tap a service to continue — you can add more than one.</p>
+                <p className="text-savron-silver/65 text-sm mt-1.5">Tap a service to continue. you can add more than one.</p>
             </div>
             <div className="grid grid-cols-1 gap-2.5">
                 {services.map((service) => {
@@ -693,7 +693,7 @@ const BookingFlow = ({ preselectedServiceName, prefillName, prefillEmail }: Book
                 </div>
             )}
 
-            {/* Content — page scrolls naturally, no nested scroll */}
+            {/* Content. page scrolls naturally, no nested scroll */}
             <div className="px-4 sm:px-6 pt-5 pb-4">
                 <AnimatePresence mode="wait">
                     {step === 1 && renderServiceStep()}

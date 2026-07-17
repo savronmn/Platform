@@ -130,7 +130,7 @@ export default function BarberRequestsPage() {
             <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
                     <h1 className="font-heading text-3xl uppercase tracking-widest text-white">Change Requests</h1>
-                    <p className="text-savron-silver text-sm mt-1">Submit a request — an admin will review and apply approved changes.</p>
+                    <p className="text-savron-silver text-sm mt-1">Submit a request. an admin will review and apply approved changes.</p>
                 </div>
                 <button
                     onClick={() => setShowForm(v => !v)}

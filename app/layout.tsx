@@ -40,7 +40,7 @@ export const metadata: Metadata = {
         template: '%s | SAVRON',
     },
     description:
-        'SAVRON is Minneapolis\'s premier luxury barbershop — precision haircuts, beard shaping, and scalp treatments for the modern gentleman. Walk-ins welcome. Book your appointment.',
+        'SAVRON is Minneapolis\'s premier luxury barbershop offering precision haircuts, beard shaping, and scalp treatments for the modern gentleman. Walk-ins welcome. Book your appointment.',
     keywords: [
         'luxury barbershop Minneapolis',
         'best barber Minneapolis',
@@ -63,7 +63,7 @@ export const metadata: Metadata = {
     openGraph: {
         title: 'SAVRON | Luxury Barbershop Minneapolis',
         description:
-            'Precision cuts, beard shaping, and scalp treatments — by appointment or walk-in. Minneapolis\'s most refined barbershop experience.',
+            'Precision cuts, beard shaping, and scalp treatments by appointment or walk-in. Minneapolis\'s most refined barbershop experience.',
         type: 'website',
         url: 'https://savron.com',
         siteName: 'SAVRON Barbershop',
@@ -81,7 +81,7 @@ export const metadata: Metadata = {
         card: 'summary_large_image',
         title: 'SAVRON | Luxury Barbershop Minneapolis',
         description:
-            'Precision cuts, beard shaping, and scalp treatments — by appointment or walk-in. Minneapolis\'s most refined barbershop experience.',
+            'Precision cuts, beard shaping, and scalp treatments by appointment or walk-in. Minneapolis\'s most refined barbershop experience.',
         images: ['/savron.png'],
     },
     metadataBase: new URL('https://savron.com'),

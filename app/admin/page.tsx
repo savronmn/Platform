@@ -161,7 +161,7 @@ export default function AdminDashboard() {
             label: 'Recent Cancellations',
             value: stats.recentCancellations,
             icon: <PhoneCall className="w-4 h-4" />,
-            sub: 'last 30 days — call to reschedule',
+            sub: 'last 30 days. Call to reschedule',
             alert: stats.recentCancellations > 0,
         },
         {

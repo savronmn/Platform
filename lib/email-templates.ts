@@ -42,12 +42,12 @@ function wrapTemplate(innerHtml: string): string {
 export function getMissYouTemplate(clientName: string): { subject: string; html: string } {
     const firstName = clientName?.split(' ')[0] || 'friend';
     return {
-        subject: "It's been a while — we'd love to see you again",
+        subject: "It's been a while. we'd love to see you again",
         html: wrapTemplate(`
             <p style="margin:0 0 8px;color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:3px;text-transform:uppercase;">We Miss You</p>
             <h1 style="margin:0 0 20px;color:#fff;font-size:24px;letter-spacing:2px;text-transform:uppercase;">Hey ${firstName}, it's been a while.</h1>
             <p style="margin:0 0 24px;color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7;">
-                Your chair is waiting. Whether it's a fresh fade, a clean lineup, or just a change of pace — we've got you covered.
+                Your chair is waiting. Whether it's a fresh fade, a clean lineup, or just a change of pace. we've got you covered.
             </p>
             <table cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
                 <tr>
@@ -66,7 +66,7 @@ export function getMissYouTemplate(clientName: string): { subject: string; html:
 export function getSpecialOfferTemplate(clientName: string, offerText: string): { subject: string; html: string } {
     const firstName = clientName?.split(' ')[0] || 'friend';
     return {
-        subject: "A special offer just for you — SAVRON",
+        subject: "A special offer just for you. SAVRON",
         html: wrapTemplate(`
             <p style="margin:0 0 8px;color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:3px;text-transform:uppercase;">Exclusive Offer</p>
             <h1 style="margin:0 0 20px;color:#fff;font-size:24px;letter-spacing:2px;text-transform:uppercase;">${firstName}, this one's for you.</h1>
@@ -190,7 +190,7 @@ export function getCustomTemplate(clientName: string, subject: string, message: 
                 </tr>
             </table>
             <p style="margin:0;color:rgba(255,255,255,0.3);font-size:12px;line-height:1.6;">
-                — The SAVRON Team 💈
+               . The SAVRON Team 💈
             </p>
         `),
     };

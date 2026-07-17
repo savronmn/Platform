@@ -491,7 +491,7 @@ export default function BarberSlugCalendarPage() {
                         )}>
                             <span className="uppercase tracking-widest">
                                 {isDayOff
-                                    ? `Day off — ${selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}`
+                                    ? `Day off. ${selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}`
                                     : `Hours: ${daySchedule ? `${daySchedule.open} – ${daySchedule.close}` : 'All day'}`
                                 }
                             </span>

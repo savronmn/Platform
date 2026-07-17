@@ -222,7 +222,7 @@ export default function AsapBookingFlow({
                     : true;
                 if (!hasConflict) calAvailable.push(barber);
             } catch {
-                // Fail closed — do not assign a barber when availability cannot be verified.
+                // Fail closed. do not assign a barber when availability cannot be verified.
             }
         }));
 
@@ -345,7 +345,7 @@ export default function AsapBookingFlow({
                                 </div>
                                 <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-wider">When do you need in?</h2>
                             </div>
-                            <p className="text-savron-silver text-sm">Book with {displayBarberName} — pick a time below.</p>
+                            <p className="text-savron-silver text-sm">Book with {displayBarberName}. Pick a time below.</p>
 
                             <div>
                                 <p className="text-[9px] uppercase tracking-[0.18em] text-savron-silver/35 mb-3">Date</p>

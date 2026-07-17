@@ -22,6 +22,7 @@ export const SLUG_TO_STAT_KEY = Object.fromEntries(
 export const ALL_STAT_SLUGS = Object.values(STAT_SLUGS);
 
 export function statPageHref(statKey: StatKey): string {
+    if (statKey === 'pendingApplicants') return '/admin/barbers';
     return `/admin/stats/${STAT_SLUGS[statKey]}`;
 }
 

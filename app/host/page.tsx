@@ -186,7 +186,7 @@ function HostDashboardInner() {
                     setLinkedCalendarByBookingId(data.linkedCalendarByBookingId ?? {});
                 }
             }
-        } catch { /* silent — platform bookings still show */ }
+        } catch { /* silent. platform bookings still show */ }
     }, [rangeStart, rangeEnd]);
 
     const refreshCalendarData = useCallback(async (options: { skipDeclineSweep?: boolean } = {}) => {
@@ -259,7 +259,7 @@ function HostDashboardInner() {
             .catch(() => {});
     }, []);
 
-    // Update a booking's status — optimistic local update + DB write
+    // Update a booking's status. optimistic local update + DB write
     const updateStatus = async (booking: Booking, status: Booking['status']) => {
         setUpdating(true);
         setCancelError(null);
@@ -352,7 +352,7 @@ function HostDashboardInner() {
 
 
 
-    // Quick-Add walk-in — creates a booking directly from the host view
+    // Quick-Add walk-in. creates a booking directly from the host view
     const submitQuickAdd = async () => {
         if (!quickForm.service || !quickForm.barberId || !quickForm.time) {
             setQuickError('Please select a service, barber, and time slot.');
@@ -428,7 +428,7 @@ function HostDashboardInner() {
         setUploadingPhoto(false);
     };
 
-    // Data helpers — hour-based bucketing for week view (day view uses proportional timeline).
+    // Data helpers. hour-based bucketing for week view (day view uses proportional timeline).
     const bookingsForDayHour = (day: Date, hourMins: number) => {
         const d = format(day, 'yyyy-MM-dd');
         return itemsInHour(
@@ -479,7 +479,7 @@ function HostDashboardInner() {
         return svc?.durationMin ?? 45;
     }, [quickForm.service, services]);
 
-    // Slot availability — zero buffer between appointments; back-to-back bookings are allowed.
+    // Slot availability. zero buffer between appointments; back-to-back bookings are allowed.
     const slotTakenByBooking = (barberId: string, dateStr: string, slotMins: number, durationMins: number): boolean =>
         scheduleBookings.some(b => {
             if (b.barber_id !== barberId || b.date !== dateStr) return false;
@@ -493,7 +493,7 @@ function HostDashboardInner() {
             return rangesOverlapMins(slotMins, durationMins, timeToMins(e.time), externalDurationMins(e));
         });
 
-    // Quick-Add slot availability — excludes past, booked (all active statuses), and GCal-occupied slots
+    // Quick-Add slot availability. excludes past, booked (all active statuses), and GCal-occupied slots
     const allTimeSlotsWithStatus = useMemo(() => {
         const dateStr = format(quickFormDate, 'yyyy-MM-dd');
         const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -669,7 +669,7 @@ function HostDashboardInner() {
         end:   endOfWeek(endOfMonth(selectedDate),     { weekStartsOn: 1 }),
     });
 
-    // ExternalCheckIn — creates a platform booking from a GCal event so it can be tracked for revenue
+    // ExternalCheckIn. creates a platform booking from a GCal event so it can be tracked for revenue
     const ExternalCheckIn = ({
         event, barbers, onDone,
     }: { event: ExternalEvent; barbers: Barber[]; onDone: (b: Booking) => void }) => {
@@ -785,7 +785,7 @@ function HostDashboardInner() {
         );
     };
 
-    // Reusable pill — used in all three views
+    // Reusable pill. used in all three views
     const Pill = ({ b, compact = false }: { b: Booking; compact?: boolean }) => {
         const { className: colorClass, style: colorStyle } = svcColor(b.service, b.status === 'cancelled');
         return (
@@ -1585,7 +1585,7 @@ function HostDashboardInner() {
                                     </div>
                                 </div>
 
-                                {/* ── Check In — creates a platform booking for revenue tracking ── */}
+                                {/* ── Check In. creates a platform booking for revenue tracking ── */}
                                 <div className="pt-1 border-t border-white/5 space-y-2">
                                     <p className="text-[9px] uppercase tracking-[0.3em] text-savron-silver/40">{t('host.track_visit')}</p>
                                     <ExternalCheckIn event={activeExternal} barbers={barbers} onDone={(b) => {
@@ -1694,7 +1694,7 @@ function HostDashboardInner() {
                                     >
                                         <option value="">Select service…</option>
                                         {services.map(s => (
-                                            <option key={s.id} value={s.name}>{s.name} — {s.price}</option>
+                                            <option key={s.id} value={s.name}>{s.name}. {s.price}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -1705,7 +1705,7 @@ function HostDashboardInner() {
                                     {!quickForm.barberId ? (
                                         <p className="text-savron-silver/40 text-xs uppercase tracking-widest py-3">Select a barber first.</p>
                                     ) : availableTimeSlots.length === 0 ? (
-                                        <p className="text-yellow-400 text-xs uppercase tracking-widest py-3">No available slots — barber is fully booked.</p>
+                                        <p className="text-yellow-400 text-xs uppercase tracking-widest py-3">No available slots. barber is fully booked.</p>
                                     ) : (
                                         <select
                                             value={quickForm.time}
@@ -1721,7 +1721,7 @@ function HostDashboardInner() {
                                                         value={slot}
                                                         disabled={status === 'taken'}
                                                     >
-                                                        {slot}{status === 'taken' ? ' — booked' : ''}
+                                                        {slot}{status === 'taken' ? '. booked' : ''}
                                                     </option>
                                                 ))
                                             }
@@ -1747,7 +1747,7 @@ function HostDashboardInner() {
                                     className="input-savron"
                                 />
 
-                                {/* Client email — triggers confirmation email if provided */}
+                                {/* Client email. triggers confirmation email if provided */}
                                 <div>
                                     <input
                                         type="email"

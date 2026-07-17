@@ -313,7 +313,7 @@ export default function AdminServicesPage() {
                             </h2>
                             <p className="text-savron-silver/60 text-xs mt-1 max-w-2xl leading-relaxed">
                                 Paste each service&apos;s <strong className="text-savron-silver/80">Calendar ID</strong> from Google Calendar settings (savronmn@gmail.com).
-                                The booking page URL is for your reference — Savron uses the calendar ID to send invites and read busy time.
+                                The booking page URL is for your reference. Savron uses the calendar ID to send invites and read busy time.
                             </p>
                         </div>
                     </div>
@@ -328,7 +328,7 @@ export default function AdminServicesPage() {
                                         <div>
                                             <p className="text-white text-sm font-medium">{svc.name}</p>
                                             <p className="text-[10px] uppercase tracking-widest text-savron-silver/40 mt-0.5">
-                                                {configured ? 'Calendar linked' : 'Not linked — using default shop calendar'}
+                                                {configured ? 'Calendar linked' : 'Not linked. using default shop calendar'}
                                             </p>
                                         </div>
                                         {draft.google_booking_page_url.trim() && (

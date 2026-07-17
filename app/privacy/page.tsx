@@ -44,9 +44,9 @@ export default function PrivacyPolicy() {
                         <h2 className="text-xl font-heading text-white tracking-widest uppercase">3. Cookies & Similar Technologies</h2>
                         <p>We use cookies and similar technologies (such as browser local storage) to operate our website and services.</p>
                         <ul className="list-disc pl-5 space-y-2 text-savron-silver/70">
-                            <li><strong className="text-savron-silver">Essential cookies</strong> — required for secure login, session management, appointment booking, membership passes, and fraud prevention. These cannot be disabled if you use our online services.</li>
-                            <li><strong className="text-savron-silver">Functional storage</strong> — remembers preferences such as language settings to improve your experience.</li>
-                            <li><strong className="text-savron-silver">Analytics cookies</strong> — optional, off by default unless you allow them in our cookie preferences. We do not use analytics cookies for targeted advertising.</li>
+                            <li><strong className="text-savron-silver">Essential cookies</strong>. required for secure login, session management, appointment booking, membership passes, and fraud prevention. These cannot be disabled if you use our online services.</li>
+                            <li><strong className="text-savron-silver">Functional storage</strong>. remembers preferences such as language settings to improve your experience.</li>
+                            <li><strong className="text-savron-silver">Analytics cookies</strong>. optional, off by default unless you allow them in our cookie preferences. We do not use analytics cookies for targeted advertising.</li>
                         </ul>
                         <p>You can change your cookie preferences at any time using the cookie banner on your first visit, or by clearing site data in your browser and revisiting savron.com.</p>
                     </section>
@@ -65,11 +65,11 @@ export default function PrivacyPolicy() {
                         <h2 className="text-xl font-heading text-white tracking-widest uppercase">6. Your Privacy Rights (Minnesota)</h2>
                         <p>If you are a Minnesota resident, the Minnesota Consumer Data Privacy Act (MCDPA) may provide you with the following rights regarding your personal data:</p>
                         <ul className="list-disc pl-5 space-y-2 text-savron-silver/70">
-                            <li><strong className="text-savron-silver">Access</strong> — request to know what personal data we hold about you</li>
-                            <li><strong className="text-savron-silver">Correction</strong> — request correction of inaccurate personal data</li>
-                            <li><strong className="text-savron-silver">Deletion</strong> — request deletion of personal data we collected from you</li>
-                            <li><strong className="text-savron-silver">Opt out</strong> — opt out of the sale of personal data (we do not sell personal data) and opt out of targeted advertising (we do not engage in cross-site targeted advertising)</li>
-                            <li><strong className="text-savron-silver">Data portability</strong> — request a copy of personal data you provided, where applicable</li>
+                            <li><strong className="text-savron-silver">Access</strong>. request to know what personal data we hold about you</li>
+                            <li><strong className="text-savron-silver">Correction</strong>. request correction of inaccurate personal data</li>
+                            <li><strong className="text-savron-silver">Deletion</strong>. request deletion of personal data we collected from you</li>
+                            <li><strong className="text-savron-silver">Opt out</strong>. opt out of the sale of personal data (we do not sell personal data) and opt out of targeted advertising (we do not engage in cross-site targeted advertising)</li>
+                            <li><strong className="text-savron-silver">Data portability</strong>. request a copy of personal data you provided, where applicable</li>
                         </ul>
                         <p>To exercise these rights, email us at <a href={`mailto:${SHOP_CONTACT_EMAIL}`} className="text-white hover:underline">{SHOP_CONTACT_EMAIL}</a> with the subject line &quot;Privacy Rights Request.&quot; We will verify your request and respond as required by law. You will not be discriminated against for exercising your privacy rights.</p>
                         <p>If you have an account, you may also update certain information by logging in to your membership or booking profile.</p>

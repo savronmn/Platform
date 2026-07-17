@@ -202,7 +202,7 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
                                     >
                                         <option value="" className="bg-savron-grey">Select service…</option>
                                         {services.map(s => (
-                                            <option key={s.name} value={s.name} className="bg-savron-grey">{s.name} — {s.price}</option>
+                                            <option key={s.name} value={s.name} className="bg-savron-grey">{s.name} · {s.price}</option>
                                         ))}
                                     </select>
                                 </div>

@@ -29,7 +29,7 @@ const Footer = () => {
                         letterSpacing: "0.4em", textTransform: "uppercase",
                         color: "rgba(232,228,220,0.25)", marginBottom: 28,
                     }}>
-                        004 — The List
+                        004. The List
                     </p>
                     <h2 style={{
                         fontFamily: "var(--font-playfair), Georgia, serif",
@@ -50,7 +50,7 @@ const Footer = () => {
                         maxWidth: 340,
                         marginBottom: 36,
                     }}>
-                        Leave your name and email. Your digital membership pass — Apple Wallet or Google Wallet — arrives immediately. It tracks your visits automatically.
+                        Leave your name and email. Your digital membership pass for Apple Wallet or Google Wallet arrives immediately and tracks your visits automatically.
                     </p>
                     {["Apple Wallet", "Google Wallet"].map((item) => (
                         <p key={item} style={{

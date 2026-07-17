@@ -160,7 +160,7 @@ export async function sendBookingConfirmationEmail(bookingId: string): Promise<S
     try {
         await sendResendEmail({
             to: booking.client_email,
-            subject: `Your appointment is confirmed — ${booking.time}, ${dateFormatted}`,
+            subject: `Your appointment is confirmed. ${booking.time}, ${dateFormatted}`,
             html: htmlBody,
             icsContent: icsString,
             icsMethod: 'PUBLISH',
@@ -169,12 +169,12 @@ export async function sendBookingConfirmationEmail(bookingId: string): Promise<S
         if (barberEmail) {
             const barberHtml = htmlBody
                 .replace(CLIENT_CANCEL_EMAIL_MARKER, '')
-                .replace("You're all set,", 'New booking — ')
+                .replace("You're all set,", 'New booking. ')
                 .replace(booking.client_name?.split(' ')[0] ?? 'friend', booking.client_name || 'Walk-in');
 
             await sendResendEmail({
                 to: barberEmail,
-                subject: `New booking: ${booking.client_name || 'Walk-in'} — ${booking.time}, ${dateFormatted}`,
+                subject: `New booking: ${booking.client_name || 'Walk-in'}. ${booking.time}, ${dateFormatted}`,
                 html: barberHtml,
                 icsContent: icsString,
                 icsMethod: 'PUBLISH',
@@ -235,7 +235,7 @@ export async function sendBookingUpdateEmail(bookingId: string): Promise<SendBoo
     try {
         await sendResendEmail({
             to: booking.client_email,
-            subject: `Your appointment has been updated — ${booking.time}, ${dateFormatted}`,
+            subject: `Your appointment has been updated. ${booking.time}, ${dateFormatted}`,
             html: htmlBody,
             icsContent: icsString,
             icsMethod: 'PUBLISH',
@@ -244,12 +244,12 @@ export async function sendBookingUpdateEmail(bookingId: string): Promise<SendBoo
         if (barberEmail) {
             const barberHtml = htmlBody
                 .replace(CLIENT_CANCEL_EMAIL_MARKER, '')
-                .replace('Your appointment has been updated,', 'Appointment updated —')
+                .replace('Your appointment has been updated,', 'Appointment updated.')
                 .replace(booking.client_name?.split(' ')[0] ?? 'friend', booking.client_name || 'Walk-in');
 
             await sendResendEmail({
                 to: barberEmail,
-                subject: `Updated booking: ${booking.client_name || 'Walk-in'} — ${booking.time}, ${dateFormatted}`,
+                subject: `Updated booking: ${booking.client_name || 'Walk-in'}. ${booking.time}, ${dateFormatted}`,
                 html: barberHtml,
                 icsContent: icsString,
                 icsMethod: 'PUBLISH',

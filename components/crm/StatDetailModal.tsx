@@ -241,16 +241,16 @@ function clientsWithBookingsInRange(clients: Client[], bookings: Booking[]): Cli
 export const STAT_TITLES: Record<StatKey, { title: string; subtitle: string }> = {
     todayAppointments: { title: "Today's Appointments", subtitle: 'Who is coming in today, what they booked, and how much they paid' },
     todayRevenue: { title: "Today's Revenue", subtitle: 'Per-service earnings and each client\'s booking value today' },
-    pipeline: { title: 'Pipeline (Upcoming)', subtitle: 'Future confirmed bookings — who, when, service, and expected revenue' },
-    totalRevenue: { title: 'All-Time Revenue', subtitle: 'Monthly totals with individual bookings — client, service, date, and price' },
-    totalAppointments: { title: 'Total Appointments', subtitle: 'Every confirmed and completed booking — who, when, service, and price' },
+    pipeline: { title: 'Pipeline (Upcoming)', subtitle: 'Future confirmed bookings. who, when, service, and expected revenue' },
+    totalRevenue: { title: 'All-Time Revenue', subtitle: 'Monthly totals with individual bookings. client, service, date, and price' },
+    totalAppointments: { title: 'Total Appointments', subtitle: 'Every confirmed and completed booking. who, when, service, and price' },
     avgTicket: { title: 'Avg Ticket Value', subtitle: 'Average spend per booking with per-service breakdown' },
     topService: { title: 'Popular Services', subtitle: 'Most booked services with recent clients and revenue' },
     totalClients: { title: 'Total Clients', subtitle: 'Everyone in your CRM with visit history and contact info' },
-    dueForVisit: { title: 'Due for Visit', subtitle: 'Clients 6+ weeks since last visit — high-priority callbacks' },
-    barbersActive: { title: 'Active Barbers', subtitle: 'Team workload — today\'s appointments, upcoming bookings, and revenue' },
+    dueForVisit: { title: 'Due for Visit', subtitle: 'Clients 6+ weeks since last visit. high-priority callbacks' },
+    barbersActive: { title: 'Active Barbers', subtitle: 'Team workload. today\'s appointments, upcoming bookings, and revenue' },
     pendingApplicants: { title: 'Pending Applications', subtitle: 'Barber applicants awaiting review' },
-    recentCancellations: { title: 'Recent Cancellations', subtitle: 'Cancelled or no-show in the last 30 days — who, when, and what they booked' },
+    recentCancellations: { title: 'Recent Cancellations', subtitle: 'Cancelled or no-show in the last 30 days. who, when, and what they booked' },
 };
 
 function parsePrice(price: string | null | undefined): number {

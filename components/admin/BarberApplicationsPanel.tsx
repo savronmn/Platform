@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { ClipboardList, ExternalLink, Mail, Phone, RefreshCw, UserCheck } from 'lucide-react';
+import { ClipboardList, ExternalLink, Mail, Phone, RefreshCw, Trash2, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Applicant } from '@/lib/types';
 
@@ -21,6 +21,8 @@ export default function BarberApplicationsPanel() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
     const loadApplicants = async () => {
         setLoading(true);
@@ -66,6 +68,30 @@ export default function BarberApplicationsPanel() {
             setError('Failed to update application');
         } finally {
             setUpdatingId(null);
+        }
+    };
+
+    const deleteApplicant = async (id: string) => {
+        setDeletingId(id);
+        try {
+            const res = await fetch('/api/applicants/admin', {
+                method: 'DELETE',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id }),
+            });
+            const data = await res.json() as { error?: string };
+            if (!res.ok) {
+                setError(data.error ?? 'Failed to delete application');
+                return;
+            }
+            setApplicants(prev => prev.filter(a => a.id !== id));
+            setConfirmDeleteId(null);
+            setError(null);
+        } catch {
+            setError('Failed to delete application');
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -193,7 +219,39 @@ export default function BarberApplicationsPanel() {
                                 >
                                     <ExternalLink className="w-3.5 h-3.5" />
                                 </Link>
+                                <button
+                                    type="button"
+                                    disabled={deletingId === applicant.id || updatingId === applicant.id}
+                                    onClick={() => setConfirmDeleteId(applicant.id)}
+                                    className="admin-action-btn px-3 border border-red-500/25 text-red-300 hover:bg-red-500/10 rounded-savron"
+                                    title="Delete application"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
                             </div>
+                            {confirmDeleteId === applicant.id && (
+                                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/10">
+                                    <p className="text-red-300/80 text-[10px] uppercase tracking-wider flex-1 min-w-[8rem]">
+                                        Delete this application?
+                                    </p>
+                                    <button
+                                        type="button"
+                                        disabled={deletingId === applicant.id}
+                                        onClick={() => setConfirmDeleteId(null)}
+                                        className="admin-action-btn px-3 border border-white/10 text-savron-silver hover:text-white rounded-savron text-[10px] uppercase tracking-widest"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={deletingId === applicant.id}
+                                        onClick={() => deleteApplicant(applicant.id)}
+                                        className="admin-action-btn px-3 border border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 rounded-savron text-[10px] uppercase tracking-widest"
+                                    >
+                                        {deletingId === applicant.id ? 'Deleting…' : 'Delete'}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>

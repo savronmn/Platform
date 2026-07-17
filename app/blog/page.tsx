@@ -5,7 +5,7 @@ import { blogPosts } from '@/lib/blog-data';
 export const metadata: Metadata = {
   title: 'Grooming Journal | SAVRON Barbershop Minneapolis',
   description:
-    'Expert insight on haircuts, beard care, scalp health, and men\'s grooming from the barbers at SAVRON — Minneapolis\'s premier luxury barbershop.',
+    'Expert insight on haircuts, beard care, scalp health, and men\'s grooming from the barbers at SAVRON. Minneapolis\'s premier luxury barbershop.',
   openGraph: {
     title: 'Grooming Journal | SAVRON Barbershop Minneapolis',
     description:

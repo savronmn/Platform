@@ -12,14 +12,14 @@ export type ServiceItem = {
 };
 
 export const SERVICES: ServiceItem[] = [
-    { id: 1, name: "The Executive",                     duration: "75 min", durationMin: 75, price: "$90", priceCents: 9000, color: "blue",    description: "The full SAVRON experience — signature cut paired with hot towel shave." },
+    { id: 1, name: "The Executive",                     duration: "75 min", durationMin: 75, price: "$90", priceCents: 9000, color: "blue",    description: "The full SAVRON experience: signature cut paired with hot towel shave." },
     { id: 2, name: "Signature Cut",                     duration: "45 min", durationMin: 45, price: "$50", priceCents: 5000, color: "blue", description: "Tailored fade or scissor cut, finished with a clean neckline." },
-    { id: 3, name: "Long Styles Haircut",               duration: "60 min", durationMin: 60, price: "$60", priceCents: 6000, color: "indigo",  description: "Sculpted cut for longer hair — texture, shape, and movement." },
+    { id: 3, name: "Long Styles Haircut",               duration: "60 min", durationMin: 60, price: "$60", priceCents: 6000, color: "indigo",  description: "Sculpted cut for longer hair with texture, shape, and movement." },
     { id: 4, name: "Kids Cut",                          duration: "30 min", durationMin: 30, price: "$50", priceCents: 5000, color: "teal",    description: "Classic precision cut for the next generation." },
     { id: 5, name: "Haircut + Beard + Hot Towel Shave", duration: "60 min", durationMin: 60, price: "$80", priceCents: 8000, color: "amber",   description: "Straight-razor line up, hot towel ritual, conditioning finish." },
 ];
 
-/** Optional add-on — not listed as a primary service; price only, no extra time */
+/** Optional add-on. not listed as a primary service; price only, no extra time */
 export const EYEBROWS_ADDON = {
     name: 'Eyebrows',
     priceCents: 1000,
@@ -34,7 +34,7 @@ export const SERVICE_COLORS: Record<string, string> = {
     'Haircut + Beard + Hot Towel Shave': 'bg-amber-500/20 border-amber-500/40 text-amber-300',
     'The Executive':                     'bg-blue-500/20 border-blue-500/40 text-blue-300',
     'Eyebrows':                          'bg-rose-500/20 border-rose-500/40 text-rose-300',
-    // Legacy aliases — keep for historical bookings
+    // Legacy aliases. keep for historical bookings
     'The Signature Cut': 'bg-blue-500/20 border-blue-500/40 text-blue-300',
     'Beard Sculpting + Hot Towel Shave': 'bg-amber-500/20 border-amber-500/40 text-amber-300',
     'Beard Sculpting':   'bg-amber-500/20 border-amber-500/40 text-amber-300',
@@ -103,7 +103,7 @@ export function serviceBlockStyle(colorStr: string | null | undefined): Record<s
 export type ShopDayKey = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 export type DaySchedule = { open: string; close: string };
 
-/** Canonical SAVRON shop hours — Mon–Fri 10–7, Sat 9–4:30, Sun 9–2 */
+/** Canonical SAVRON shop hours. Mon–Fri 10–7, Sat 9–4:30, Sun 9–2 */
 export const SHOP_WORKING_HOURS: Record<ShopDayKey, DaySchedule | null> = {
     Mon: { open: '10:00', close: '19:00' },
     Tue: { open: '10:00', close: '19:00' },
@@ -141,7 +141,7 @@ export function getShopScheduleForDate(date: Date): DaySchedule | null {
     return SHOP_WORKING_HOURS[getShopDayKey(date)];
 }
 
-// Shop time slots — weekday fallback when a barber has no working_hours set
+// Shop time slots. weekday fallback when a barber has no working_hours set
 export const TIME_SLOTS = generateTimeSlots('10:00', '19:00', 45);
 
 // Host calendar grid: 9 AM – 7 PM (covers full weekly schedule without dead space)

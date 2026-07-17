@@ -22,9 +22,9 @@ export const blogPosts: BlogPost[] = [
   {
     slug: 'savron-menu-every-service-explained-minneapolis',
     title: 'The Full SAVRON Menu: Every Service Explained (Plus What\'s Trending in Barbershops Right Now)',
-    subtitle: 'Signature Cut, Executive, long styles, beard + hot towel, kids cuts — and the 2026 grooming trends behind each chair.',
+    subtitle: 'Signature Cut, Executive, long styles, beard + hot towel, kids cuts, and the 2026 grooming trends behind each chair.',
     excerpt:
-      'A complete walkthrough of every service on the SAVRON menu in Minneapolis, with the barbershop trends, keywords, and booking tips men are searching for in 2026 — from refined fades and hot towel shaves to long-hair texture cuts and father-son kids appointments.',
+      'A complete walkthrough of every service on the SAVRON menu in Minneapolis, with the barbershop trends, keywords, and booking tips men are searching for in 2026, from refined fades and hot towel shaves to long-hair texture cuts and father-son kids appointments.',
     category: 'Style Guide',
     readTime: '14 min read',
     publishedAt: 'July 17, 2026',
@@ -59,31 +59,31 @@ export const blogPosts: BlogPost[] = [
     content: [
       {
         type: 'intro',
-        text: 'If you have ever stared at a barbershop menu and wondered which service is actually yours, you are not alone. In 2026, men\'s grooming is having a moment industry analysts call the "Manissance" — young professionals, creatives, and executives are all investing in appearance at levels that would have surprised previous generations. Barbershops are no longer quick-cut shops. They are grooming studios built around precision fades, strategic beard work, hot towel rituals, scalp care, and services that match how you actually live in Minneapolis. At SAVRON Barbershop & Lounge in the North Loop, the menu is deliberately small and sharp: five core services, each built for a specific client and lifestyle. This is the full breakdown — what you get, who it is for, what is trending in barbershops right now, and how to book the right chair the first time.',
+        text: 'If you have ever stared at a barbershop menu and wondered which service is actually yours, you are not alone. In 2026, men\'s grooming is having a moment industry analysts call the "Manissance". Young professionals, creatives, and executives are all investing in appearance at levels that would have surprised previous generations. Barbershops are no longer quick-cut shops. They are grooming studios built around precision fades, strategic beard work, hot towel rituals, scalp care, and services that match how you actually live in Minneapolis. At SAVRON Barbershop & Lounge in the North Loop, the menu is deliberately small and sharp: five core services, each built for a specific client and lifestyle. This is the full breakdown. What you get, who it is for, what is trending in barbershops right now, and how to book the right chair the first time.',
       },
       {
         type: 'h2',
         heading: 'What is trending in barbershops in 2026 (and why the menu looks like this)',
-        text: 'Across the U.S., the barbershop industry is growing fast — driven by men who want more than a number on the side and a rushed mirror check. Search data and shop floor patterns in 2025–2026 point the same direction: softer, refined fades instead of extreme high-contrast skin fades on everyone; anatomical haircuts shaped to head structure and growth patterns; beard grooming treated as facial architecture, not an afterthought; and premium finishing rituals — hot towel prep, straight-razor line work, shampoo, conditioning — bundled into appointments that feel like a reset, not a transaction. Minneapolis fits that curve perfectly. Downtown and North Loop clients move between office lighting, patio season, bike commutes, and event nights. They need cuts that grow out cleanly, beards that photograph sharp, and long styles that do not collapse in humidity. SAVRON built the menu around those real demands.',
+        text: 'Across the U.S., the barbershop industry is growing fast. Driven by men who want more than a number on the side and a rushed mirror check. Search data and shop floor patterns in 2025–2026 point the same direction: softer, refined fades instead of extreme high-contrast skin fades on everyone; anatomical haircuts shaped to head structure and growth patterns; beard grooming treated as facial architecture, not an afterthought; and premium finishing rituals. Hot towel prep, straight-razor line work, shampoo, conditioning. Bundled into appointments that feel like a reset, not a transaction. Minneapolis fits that curve perfectly. Downtown and North Loop clients move between office lighting, patio season, bike commutes, and event nights. They need cuts that grow out cleanly, beards that photograph sharp, and long styles that do not collapse in humidity. SAVRON built the menu around those real demands.',
       },
       {
         type: 'list',
         heading: '2026 barbershop trends showing up on the SAVRON floor',
         items: [
-          'Refined low and mid fades with shadow blending — precision over drama',
+          'Refined low and mid fades with shadow blending. Precision over drama',
           'Textured tops, crops, and scissor work that look natural without heavy product',
           'Integrated beard + haircut appointments with straight-razor cheek and neck lines',
           'Hot towel shaves and finishing rituals as standard luxury, not vintage novelty',
-          'Long-hair mens cuts focused on shape, movement, and face-framing — not just a trim',
+          'Long-hair mens cuts focused on shape, movement, and face-framing. Not just a trim',
           'Eyebrow cleanup and grooming add-ons for camera-ready polish',
-          'Kids cuts in a calm, professional environment — fathers booking alongside sons',
+          'Kids cuts in a calm, professional environment. Fathers booking alongside sons',
           'Online booking with service pre-selection so chair time matches the work',
         ],
       },
       {
         type: 'h2',
-        heading: '1. Signature Cut — tailored fade or scissor cut ($50 · 45 min)',
-        text: 'The Signature Cut is the daily driver of the SAVRON menu and the service most Minneapolis men search for when they type "fade haircut near me" or "mens haircut North Loop." It is a full consultation, precision cut, and finish — either clipper fade work or an all-scissor shape depending on your hair, face, and maintenance appetite. Trending in 2026: mid fades with textured crops on top, low tapers for professional settings, and clean necklines that survive a week of collars and winter scarves. Your barber maps guard paths to your head shape, checks crown swirl patterns, and finishes with shampoo so you leave with actual shape, not just shorter hair.',
+        heading: '1. Signature Cut · tailored fade or scissor cut ($50 · 45 min)',
+        text: 'The Signature Cut is the daily driver of the SAVRON menu and the service most Minneapolis men search for when they type "fade haircut near me" or "mens haircut North Loop." It is a full consultation, precision cut, and finish. Either clipper fade work or an all-scissor shape depending on your hair, face, and maintenance appetite. Trending in 2026: mid fades with textured crops on top, low tapers for professional settings, and clean necklines that survive a week of collars and winter scarves. Your barber maps guard paths to your head shape, checks crown swirl patterns, and finishes with shampoo so you leave with actual shape, not just shorter hair.',
       },
       {
         type: 'list',
@@ -98,8 +98,8 @@ export const blogPosts: BlogPost[] = [
       },
       {
         type: 'h2',
-        heading: '2. The Executive — the full SAVRON experience ($90 · 60 min)',
-        text: 'If the Signature Cut is your weekly form, The Executive is the statement appointment. This is the service for men who want the complete grooming studio treatment in one chair: signature haircut, hot towel shave, shampoo, and eyebrow cleanup — the kind of stack luxury barbershops in Toronto, Chicago, and Minneapolis are leaning into as "complete care" replaces the old haircut-only model. Industry trend reports call it the shift from barbershop to men\'s grooming destination. On the floor, that means you are not rushed. Heat prep, razor detail, and finishing time are protected. You walk out looking boardroom-ready, wedding-ready, or "I have not looked this sharp in photos in years" ready.',
+        heading: '2. The Executive · the full SAVRON experience ($90 · 60 min)',
+        text: 'If the Signature Cut is your weekly form, The Executive is the statement appointment. This is the service for men who want the complete grooming studio treatment in one chair: signature haircut, hot towel shave, shampoo, and eyebrow cleanup. The kind of stack luxury barbershops in Toronto, Chicago, and Minneapolis are leaning into as "complete care" replaces the old haircut-only model. Industry trend reports call it the shift from barbershop to men\'s grooming destination. On the floor, that means you are not rushed. Heat prep, razor detail, and finishing time are protected. You walk out looking boardroom-ready, wedding-ready, or "I have not looked this sharp in photos in years" ready.',
       },
       {
         type: 'list',
@@ -115,8 +115,8 @@ export const blogPosts: BlogPost[] = [
       },
       {
         type: 'h2',
-        heading: '3. Haircut + Beard + Hot Towel Shave — architecture from hairline to jaw ($80 · 60 min)',
-        text: 'Beard grooming in 2026 is strategic, not shaggy. The trending look is defined cheek lines, a neckline that follows the jaw instead of creeping onto the throat, and a hot towel straight-razor pass that removes the fuzzy perimeter home trimmers always leave behind. This service combines a full haircut with beard sculpting and hot towel shave finish — straight-razor line-up, hot towel ritual, shampoo, and conditioning. It is the answer to searches like "haircut and beard trim Minneapolis," "beard sculpting barbershop," and "straight razor shave and haircut near me." One appointment, one coherent silhouette. Hair and beard blended intentionally instead of looking like two different people met at your chin.',
+        heading: '3. Haircut + Beard + Hot Towel Shave. Architecture from hairline to jaw ($80 · 60 min)',
+        text: 'Beard grooming in 2026 is strategic, not shaggy. The trending look is defined cheek lines, a neckline that follows the jaw instead of creeping onto the throat, and a hot towel straight-razor pass that removes the fuzzy perimeter home trimmers always leave behind. This service combines a full haircut with beard sculpting and hot towel shave finish. Straight-razor line-up, hot towel ritual, shampoo, and conditioning. It is the answer to searches like "haircut and beard trim Minneapolis," "beard sculpting barbershop," and "straight razor shave and haircut near me." One appointment, one coherent silhouette. Hair and beard blended intentionally instead of looking like two different people met at your chin.',
       },
       {
         type: 'list',
@@ -132,8 +132,8 @@ export const blogPosts: BlogPost[] = [
       },
       {
         type: 'h2',
-        heading: '4. Long Styles Haircut — texture, shape, and movement ($60 · 45 min)',
-        text: 'Long hair on men is no longer a phase — it is a category. Search interest for "long hair mens haircut," "layers for men," and "textured medium length haircut" keeps climbing as guys reject the idea that barbershops only do buzzed sides. The Long Styles Haircut at SAVRON is a sculpted cut for longer hair: face-framing layers, weight removal where bulk fights your natural texture, and movement that works in Minneapolis wind without turning into a helmet. Trending references include curtain bangs done with restraint, wolf cuts with cleaner perimeters, and shoulder-length styles that still look intentional at the office. Shampoo is included because long hair reveals everything — product buildup, uneven sections, and scissor marks show if the work was rushed.',
+        heading: '4. Long Styles Haircut · texture, shape, and movement ($60 · 45 min)',
+        text: 'Long hair on men is no longer a phase. It is a category. Search interest for "long hair mens haircut," "layers for men," and "textured medium length haircut" keeps climbing as guys reject the idea that barbershops only do buzzed sides. The Long Styles Haircut at SAVRON is a sculpted cut for longer hair: face-framing layers, weight removal where bulk fights your natural texture, and movement that works in Minneapolis wind without turning into a helmet. Trending references include curtain bangs done with restraint, wolf cuts with cleaner perimeters, and shoulder-length styles that still look intentional at the office. Shampoo is included because long hair reveals everything. Product buildup, uneven sections, and scissor marks show if the work was rushed.',
       },
       {
         type: 'list',
@@ -148,14 +148,14 @@ export const blogPosts: BlogPost[] = [
       },
       {
         type: 'h2',
-        heading: '5. Kids Cut — precision for the next generation ($50 · 30 min)',
-        text: 'Family grooming is one of the quiet growth lanes in modern barbershops. Parents want a shop that feels calm, professional, and fast enough for a squirming seven-year-old — not a chaotic walk-in with unpredictable wait times. The SAVRON Kids Cut is a classic precision cut for boys and young men: clean lines, age-appropriate shape, and barbers who know how to work with kids without making the chair feel intimidating. Trending locally: fathers booking Signature or Executive cuts while sons get lined up next — grooming as ritual, not chore. If you are searching "kids haircut barbershop Minneapolis" or "children\'s barber downtown," this is the entry point.',
+        heading: '5. Kids Cut · precision for the next generation ($50 · 30 min)',
+        text: 'Family grooming is one of the quiet growth lanes in modern barbershops. Parents want a shop that feels calm, professional, and fast enough for a squirming seven-year-old. Not a chaotic walk-in with unpredictable wait times. The SAVRON Kids Cut is a classic precision cut for boys and young men: clean lines, age-appropriate shape, and barbers who know how to work with kids without making the chair feel intimidating. Trending locally: fathers booking Signature or Executive cuts while sons get lined up next. Grooming as ritual, not chore. If you are searching "kids haircut barbershop Minneapolis" or "children\'s barber downtown," this is the entry point.',
       },
       {
         type: 'list',
         heading: 'Kids Cut quick facts',
         items: [
-          '30-minute appointment — respectful of short attention spans',
+          '30-minute appointment. Respectful of short attention spans',
           'Clean necklines and shapes that grow out evenly between visits',
           'Great before school photos, sports seasons, holidays, and family events',
           'Pairs well when dad books a fade and wants one stop in the North Loop',
@@ -165,30 +165,30 @@ export const blogPosts: BlogPost[] = [
       {
         type: 'h2',
         heading: 'Add-on worth knowing: Eyebrows (+$10)',
-        text: 'Eyebrow grooming for men has moved from niche to normal. Camera-heavy work life, wedding season, and the overall Manissance push toward polished detail mean more clients add eyebrow cleanup to any primary service — especially The Executive or pre-event Signature appointments. It is quick, subtle, and fixes the one thing that can make an otherwise perfect fade look unfinished in photos.',
+        text: 'Eyebrow grooming for men has moved from niche to normal. Camera-heavy work life, wedding season, and the overall Manissance push toward polished detail mean more clients add eyebrow cleanup to any primary service. Especially The Executive or pre-event Signature appointments. It is quick, subtle, and fixes the one thing that can make an otherwise perfect fade look unfinished in photos.',
       },
       {
         type: 'h2',
         heading: 'How to pick your service in 30 seconds',
-        text: 'Need a sharp regular fade or scissor cut? Signature Cut. Big night, big meeting, or want the full hot towel and eyebrow stack? The Executive. Hair and beard need to match in one visit? Haircut + Beard + Hot Towel Shave. Length on top or past the ears? Long Styles. Bringing your kid? Kids Cut. When in doubt, book Signature and tell your barber the goal — growth plan, new job, wedding, or "just fix what my last shop did." SAVRON consultations are built for that conversation.',
+        text: 'Need a sharp regular fade or scissor cut? Signature Cut. Big night, big meeting, or want the full hot towel and eyebrow stack? The Executive. Hair and beard need to match in one visit? Haircut + Beard + Hot Towel Shave. Length on top or past the ears? Long Styles. Bringing your kid? Kids Cut. When in doubt, book Signature and tell your barber the goal. Growth plan, new job, wedding, or "just fix what my last shop did." SAVRON consultations are built for that conversation.',
       },
       {
         type: 'callout',
-        text: 'Every service on the menu books online at savronmn.com/booking — pick your service, choose your barber, and lock your time. North Loop location: 250 N Third Avenue, Minneapolis.',
+        text: 'Every service on the menu books online at savronmn.com/booking. Pick your service, choose your barber, and lock your time. North Loop location: 250 N Third Avenue, Minneapolis.',
       },
       {
         type: 'h2',
         heading: 'Minneapolis-specific grooming reality check',
-        text: 'Trends are global. Weather is local. Minneapolis clients deal with dry winter air, humid lake-season patios, hat hair from commutes, and lighting that swings from fluorescent office to golden-hour rooftop. The services on this menu are priced and timed for real finishes — shampoo, line work, and consultation included where it matters — not for a five-minute buzz and a handshake. That is why searches for "luxury barbershop Minneapolis," "premium mens grooming North Loop," and "best fade downtown Minneapolis" keep pointing toward shops that behave like grooming studios. SAVRON is built in that lane: deliberate menu, skilled barbers, lounge atmosphere, and services that match what men actually book in 2026.',
+        text: 'Trends are global. Weather is local. Minneapolis clients deal with dry winter air, humid lake-season patios, hat hair from commutes, and lighting that swings from fluorescent office to golden-hour rooftop. The services on this menu are priced and timed for real finishes. Shampoo, line work, and consultation included where it matters. Not for a five-minute buzz and a handshake. That is why searches for "luxury barbershop Minneapolis," "premium mens grooming North Loop," and "best fade downtown Minneapolis" keep pointing toward shops that behave like grooming studios. SAVRON is built in that lane: deliberate menu, skilled barbers, lounge atmosphere, and services that match what men actually book in 2026.',
       },
       {
         type: 'h2',
         heading: 'SEO cheat sheet: what each service is really called online',
-        text: 'If you found this post through search, you probably typed something specific. Here is the translation layer. Signature Cut = fade haircut, taper, scissor cut, mens haircut Minneapolis. The Executive = luxury grooming package, hot towel shave + haircut, executive mens grooming. Haircut + Beard + Hot Towel Shave = beard trim and haircut, straight razor beard line, hot towel barbershop service. Long Styles Haircut = mens long hair cut, layered haircut men, medium length mens hairstyle. Kids Cut = boys haircut barbershop, childrens barber Minneapolis. All of them = reasons to put down the home clipper, book a professional chair, and walk out looking like the trend reports say you should — sharp, natural, and intentional.',
+        text: 'If you found this post through search, you probably typed something specific. Here is the translation layer. Signature Cut = fade haircut, taper, scissor cut, mens haircut Minneapolis. The Executive = luxury grooming package, hot towel shave + haircut, executive mens grooming. Haircut + Beard + Hot Towel Shave = beard trim and haircut, straight razor beard line, hot towel barbershop service. Long Styles Haircut = mens long hair cut, layered haircut men, medium length mens hairstyle. Kids Cut = boys haircut barbershop, childrens barber Minneapolis. All of them = reasons to put down the home clipper, book a professional chair, and walk out looking like the trend reports say you should. Sharp, natural, and intentional.',
       },
       {
         type: 'closing',
-        text: 'The SAVRON menu is not long because grooming should not be confusing. Every service is a deliberate answer to how Minneapolis men actually live, work, and show up. Whether you are chasing a refined 2026 fade, a hot towel shave that feels like craft again, a long-hair shape that finally respects your texture, or a kids cut that makes your son sit tall in the chair — there is a direct path on the menu. Read the trends, pick your service, and book at savronmn.com/booking. The North Loop chair is waiting.',
+        text: 'The SAVRON menu is not long because grooming should not be confusing. Every service is a deliberate answer to how Minneapolis men actually live, work, and show up. Whether you are chasing a refined 2026 fade, a hot towel shave that feels like craft again, a long-hair shape that finally respects your texture, or a kids cut that makes your son sit tall in the chair. There is a direct path on the menu. Read the trends, pick your service, and book at savronmn.com/booking. The North Loop chair is waiting.',
       },
     ],
   },
@@ -681,7 +681,7 @@ export const blogPosts: BlogPost[] = [
       },
       {
         type: 'h2',
-        heading: 'Speed culture vs. quality culture',
+        heading: 'Speed culture vs. Quality culture',
         text: 'Corporate barbershop models often reward volume. Artists under pressure move clients in and out, and small imperfections compound into a haircut that looks generic. Independent, craft-focused shops flip that incentive. Barbers are measured on repeat bookings, referrals, and the kind of work clients are proud to walk into a meeting with. SAVRON was designed around that quality culture: lounge pacing, consultation time, and technical standards that do not bend when the schedule fills up.',
       },
       {

@@ -28,6 +28,7 @@ export async function updateApplicantStatusAction(id: string, status: Applicant[
     }
 
     revalidatePath('/admin/applicants');
+    revalidatePath('/admin/barbers');
     revalidatePath('/admin');
     return data as Applicant;
 }
@@ -43,6 +44,7 @@ export async function deleteApplicantAction(id: string) {
     }
 
     revalidatePath('/admin/applicants');
+    revalidatePath('/admin/barbers');
     revalidatePath('/admin');
 }
 
@@ -66,6 +68,7 @@ export async function deleteApplicantByEmailAction(email: string) {
     }
 
     revalidatePath('/admin/applicants');
+    revalidatePath('/admin/barbers');
     revalidatePath('/admin');
     return data.length;
 }
