@@ -17,6 +17,7 @@ const translations: Record<string, Record<Lang, string>> = {
     'nav.clients':        { en: 'Clients',         es: 'Clientes' },
     'nav.membership':     { en: 'Membership',      es: 'Membresía' },
     'nav.communications': { en: 'Communications',  es: 'Comunicaciones' },
+    'nav.outreach':       { en: 'Outreach',        es: 'Prospección' },
     'nav.services':       { en: 'Services',        es: 'Servicios' },
     'nav.hiring':         { en: 'Hiring',          es: 'Contratación' },
     'nav.sign_out':       { en: 'Sign Out',        es: 'Cerrar Sesión' },
