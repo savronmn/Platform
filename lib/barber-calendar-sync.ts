@@ -44,7 +44,7 @@ export async function resolveBarberAccessToken(
     return accessToken;
 }
 
-/** Create/update a silent busy block on the barber's Google Calendar (no client invite email). */
+/** Create/update a silent busy block on the barber's Google Calendar primary (no client invite email). */
 export async function upsertBarberCalendarBlock(
     booking: BookingCalendarInput,
     barber: BarberCalendarReady,
