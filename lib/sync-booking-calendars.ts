@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { type CalendarToken } from '@/lib/google-calendar';
 import { deleteAllBookingCalendarEvents } from '@/lib/booking-calendar-cleanup';
 import { buildBookingCalendarPayload } from '@/lib/booking-calendar-payload';
+import { getServiceDurationCatalog } from '@/lib/booking-duration';
 import { isShopCalendarConnected, upsertShopInviteEvent } from '@/lib/shop-calendar';
 import { barberCalendarReady, upsertBarberCalendarBlock } from '@/lib/barber-calendar-sync';
 
@@ -64,7 +65,8 @@ export async function removeBookingFromCalendars(
 }
 
 async function syncShopInvite(booking: BookingForSync, barberName: string | null): Promise<string | null> {
-    const payload = buildBookingCalendarPayload(booking, barberName);
+    const catalog = await getServiceDurationCatalog();
+    const payload = buildBookingCalendarPayload(booking, barberName, catalog);
 
     const shopEventId = await upsertShopInviteEvent({
         bookingId: booking.id,

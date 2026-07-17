@@ -76,12 +76,7 @@ export function formatTimeRange(startTime: string, durationMins: number): string
     return `${start} – ${end}`;
 }
 
-/** Parse a duration string ("45 min", "1 hour") into minutes. */
-export function parseDurationMins(duration: string | null | undefined, defaultMins = 45): number {
-    if (!duration) return defaultMins;
-    const match = duration.match(/(\d+)/);
-    return match ? parseInt(match[1], 10) : defaultMins;
-}
+export { parseDurationMins } from '@/lib/booking-duration';
 
 export interface CalendarGridBounds {
     startMins: number;

@@ -7,7 +7,13 @@ import {
     type CalendarToken,
 } from '@/lib/google-calendar';
 import { chicagoDayBoundsIso, toChicagoIsoString } from '@/lib/chicago-time';
-import { parseDurationMins, timeToMins } from '@/lib/calendar-timeline';
+import { timeToMins } from '@/lib/calendar-timeline';
+import {
+    getServiceDurationCatalog,
+    parseDurationMins,
+    resolveBookingDurationMins,
+    type ServiceDurationEntry,
+} from '@/lib/booking-duration';
 import { slotConflictsWithBusy } from '@/lib/time-helpers';
 
 const getAdmin = () => createClient(
@@ -33,8 +39,13 @@ function minsToTimeStr(totalMins: number): string {
     return `${h12}:${String(m).padStart(2, '0')} ${meridiem}`;
 }
 
-export function bookingToBusySlot(date: string, time: string, duration: string | null): { start: string; end: string } {
-    const durationMin = parseDurationMins(duration);
+export function bookingToBusySlot(
+    date: string,
+    time: string,
+    booking: { duration?: string | null; service?: string | null },
+    catalog: ServiceDurationEntry[],
+): { start: string; end: string } {
+    const durationMin = resolveBookingDurationMins(booking, catalog);
     const endMins = timeToMins(time) + durationMin;
     return {
         start: toIsoString(date, time),
@@ -46,11 +57,13 @@ export async function getBarberDatabaseBusySlots(
     barberId: string,
     date: string,
     options: { excludeBookingId?: string } = {},
-): Promise<{ busy: { start: string; end: string }[]; linkedGoogleEventIds: Set<string> }> {
+): Promise<{ busy: { start: string; end: string }[] }> {
     const supabaseAdmin = getAdmin();
+    const catalog = await getServiceDurationCatalog();
+
     let query = supabaseAdmin
         .from('bookings')
-        .select('id, time, duration, status, google_event_id, shop_google_event_id')
+        .select('id, time, duration, service, status, google_event_id, shop_google_event_id')
         .eq('barber_id', barberId)
         .eq('date', date)
         .in('status', [...BLOCKING_BOOKING_STATUSES]);
@@ -62,22 +75,15 @@ export async function getBarberDatabaseBusySlots(
     const { data: dbBookings } = await query;
 
     const busy = (dbBookings ?? []).map(booking =>
-        bookingToBusySlot(date, booking.time, booking.duration),
+        bookingToBusySlot(date, booking.time, booking, catalog),
     );
 
-    const linkedGoogleEventIds = new Set(
-        (dbBookings ?? [])
-            .flatMap(booking => [booking.google_event_id, booking.shop_google_event_id])
-            .filter((id): id is string => Boolean(id)),
-    );
-
-    return { busy, linkedGoogleEventIds };
+    return { busy };
 }
 
 export async function getBarberGoogleBusySlots(
     accessToken: string,
     date: string,
-    linkedGoogleEventIds: Set<string>,
 ): Promise<{ start: string; end: string }[]> {
     const calendarIds = await listAccountCalendarIds(accessToken);
     if (calendarIds.length === 0) return [];
@@ -95,7 +101,6 @@ export async function getBarberGoogleBusySlots(
 
     for (const slots of perCalendar) {
         for (const slot of slots) {
-            if (slot.id && linkedGoogleEventIds.has(slot.id)) continue;
             const key = slot.id ?? `${slot.start}|${slot.end}`;
             if (seen.has(key)) continue;
             seen.add(key);
@@ -141,11 +146,7 @@ export async function getBarberAvailability(
     if (tokens) {
         try {
             const accessToken = await getValidAccessToken(tokens);
-            const gcalBusy = await getBarberGoogleBusySlots(
-                accessToken,
-                date,
-                dbAvailability.linkedGoogleEventIds,
-            );
+            const gcalBusy = await getBarberGoogleBusySlots(accessToken, date);
             busy = [...gcalBusy, ...busy];
         } catch (err) {
             console.error('[booking-availability] Google busy fetch failed:', err);

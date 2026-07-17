@@ -1,4 +1,4 @@
-import { parseDurationMins } from '@/lib/calendar-timeline';
+import { parseDurationMins, resolveBookingDurationMins, type ServiceDurationEntry } from '@/lib/booking-duration';
 import { SHOP_ADDRESS, SHOP_CONTACT_EMAIL, SHOP_NAME } from '@/lib/shop';
 import { toIsoString } from '@/lib/google-calendar';
 
@@ -59,9 +59,11 @@ export function buildStaffAppointmentSummary(
 export function buildBookingCalendarPayload(
     booking: BookingCalendarInput,
     barberName: string | null,
+    catalog: ServiceDurationEntry[] = [],
 ): BookingCalendarPayload {
-    // Use the duration stored on the booking (set from live admin/service settings at booking time).
-    const durationMin = parseDurationMins(booking.duration);
+    const durationMin = catalog.length > 0
+        ? resolveBookingDurationMins(booking, catalog)
+        : parseDurationMins(booking.duration);
 
     const startIso = toIsoString(booking.date, booking.time);
     const endIso = computeEndIso(booking.date, booking.time, durationMin);

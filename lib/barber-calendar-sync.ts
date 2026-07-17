@@ -6,6 +6,7 @@ import {
     type CalendarToken,
 } from '@/lib/google-calendar';
 import { buildBookingCalendarPayload, type BookingCalendarInput } from '@/lib/booking-calendar-payload';
+import { getServiceDurationCatalog } from '@/lib/booking-duration';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -42,7 +43,8 @@ export async function upsertBarberCalendarBlock(
             .eq('id', barber.id);
         barber.google_calendar_tokens = refreshedToken;
     }
-    const payload = buildBookingCalendarPayload(booking, barber.name);
+    const catalog = await getServiceDurationCatalog();
+    const payload = buildBookingCalendarPayload(booking, barber.name, catalog);
 
     const event = {
         summary: payload.staffSummary,
