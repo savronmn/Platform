@@ -43,6 +43,22 @@ export async function requireStaff(): Promise<
     };
 }
 
+/** Require an authenticated admin (not barbers) for sensitive admin-only routes. */
+export async function requireAdmin(): Promise<
+    { ok: true; user: StaffUser & { isAdmin: true } } | { ok: false; status: 401 | 403; error: string }
+> {
+    const staff = await requireStaff();
+    if (!staff.ok) {
+        return staff;
+    }
+
+    if (!staff.user.isAdmin) {
+        return { ok: false, status: 403, error: 'Admin access required' };
+    }
+
+    return { ok: true, user: { ...staff.user, isAdmin: true } };
+}
+
 /** Any authenticated admin-panel session (middleware already guards /admin routes). */
 export async function requireAdminPanelSession(): Promise<
     { ok: true; user: { id: string; email?: string } } | { ok: false; status: 401; error: string }

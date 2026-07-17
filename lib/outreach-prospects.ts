@@ -116,11 +116,12 @@ export const SEED_PROSPECTS: OutreachProspect[] = [
     },
 ];
 
+export function getAllProspects(): OutreachProspect[] {
+    return SEED_PROSPECTS;
+}
+
+/** @deprecated Use async getProspectsByIds from lib/outreach-store in API routes. */
 export function getProspectsByIds(ids: string[]): OutreachProspect[] {
     const idSet = new Set(ids);
     return SEED_PROSPECTS.filter(p => idSet.has(p.id));
-}
-
-export function getAllProspects(): OutreachProspect[] {
-    return SEED_PROSPECTS;
 }

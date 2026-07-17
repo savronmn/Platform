@@ -2,13 +2,25 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Mail, Target, CheckCircle2, AlertCircle, Loader2, X } from 'lucide-react';
+import { Search, Mail, Target, CheckCircle2, AlertCircle, Loader2, X, RefreshCw, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { OutreachProspect, OutreachArea } from '@/lib/outreach-prospects';
 import { OUTREACH_AREA_LABELS } from '@/lib/outreach-prospects';
 
 type OutreachTemplate = 'chair_rental' | 'custom';
 type SendStatus = 'idle' | 'loading' | 'success' | 'error';
+type ImportStatus = 'idle' | 'loading' | 'success' | 'error';
+
+interface OutreachSendLog {
+    id: string;
+    sentByEmail: string | null;
+    template: string;
+    subject: string | null;
+    prospectCount: number;
+    sentCount: number;
+    failedCount: number;
+    createdAt: string;
+}
 
 const AREA_FILTERS: { key: OutreachArea; label: string }[] = [
     { key: 'all', label: 'All Areas' },
@@ -34,8 +46,16 @@ export default function OutreachPage() {
     const [sendStatus, setSendStatus] = useState<SendStatus>('idle');
     const [campaignResult, setCampaignResult] = useState<{ sent: number; failed: number; errors?: string[] } | null>(null);
     const [sendError, setSendError] = useState<string | null>(null);
+    const [apifyConfigured, setApifyConfigured] = useState(false);
+    const [importStatus, setImportStatus] = useState<ImportStatus>('idle');
+    const [importMessage, setImportMessage] = useState<string | null>(null);
+    const [sendHistory, setSendHistory] = useState<OutreachSendLog[]>([]);
+    const [historyLoading, setHistoryLoading] = useState(true);
 
-    useEffect(() => { fetchProspects(); }, []);
+    useEffect(() => {
+        void fetchProspects();
+        void fetchHistory();
+    }, []);
 
     async function fetchProspects() {
         setLoading(true);
@@ -48,10 +68,43 @@ export default function OutreachPage() {
             }
             const data = await res.json();
             setProspects(data.prospects ?? []);
+            setApifyConfigured(Boolean(data.apifyConfigured));
         } catch (err) {
             setFetchError(err instanceof Error ? err.message : 'Failed to load prospects');
         }
         setLoading(false);
+    }
+
+    async function fetchHistory() {
+        setHistoryLoading(true);
+        try {
+            const res = await fetch('/api/outreach/history');
+            if (res.ok) {
+                const data = await res.json();
+                setSendHistory(data.sends ?? []);
+            }
+        } catch {
+            // History is non-blocking
+        }
+        setHistoryLoading(false);
+    }
+
+    async function importFromApify() {
+        setImportStatus('loading');
+        setImportMessage(null);
+        try {
+            const res = await fetch('/api/outreach/prospects', { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Apify import failed');
+            }
+            setProspects(data.prospects ?? []);
+            setImportStatus('success');
+            setImportMessage(data.message || `Imported ${data.imported ?? 0} prospects.`);
+        } catch (err) {
+            setImportStatus('error');
+            setImportMessage(err instanceof Error ? err.message : 'Apify import failed');
+        }
     }
 
     const filteredProspects = useMemo(() => {
@@ -131,6 +184,7 @@ export default function OutreachPage() {
 
             setCampaignResult({ sent: data.sent || 0, failed: data.failed || 0, errors: data.errors });
             setSendStatus(data.failed > 0 && data.sent === 0 ? 'error' : 'success');
+            void fetchHistory();
         } catch {
             setSendStatus('error');
             setSendError('Network error — could not reach the server');
@@ -145,19 +199,50 @@ export default function OutreachPage() {
                     <h1 className="admin-title">Outreach Control</h1>
                     <p className="admin-subtitle">
                         Send cold emails to barbers offering SAVRON&apos;s chair rental model.
-                        Data is seed-only for now — Apify/Apollo import coming soon.
+                        Import real leads from Apify or use seed data when Apify is not configured.
                     </p>
                 </div>
-                {selectedIds.size > 0 && (
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
                     <button
-                        onClick={openCampaign}
-                        className="admin-action-btn flex items-center gap-2 shrink-0"
+                        onClick={() => void importFromApify()}
+                        disabled={importStatus === 'loading' || !apifyConfigured}
+                        title={apifyConfigured ? 'Import barbers from Apify Google Maps' : 'Set APIFY_API_TOKEN to enable imports'}
+                        className="admin-action-btn flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <Mail className="w-4 h-4" />
-                        Send Campaign ({selectedIds.size})
+                        {importStatus === 'loading'
+                            ? <Loader2 className="w-4 h-4 animate-spin" />
+                            : <RefreshCw className="w-4 h-4" />}
+                        Import Apify
                     </button>
-                )}
+                    {selectedIds.size > 0 && (
+                        <button
+                            onClick={openCampaign}
+                            className="admin-action-btn flex items-center gap-2"
+                        >
+                            <Mail className="w-4 h-4" />
+                            Send Campaign ({selectedIds.size})
+                        </button>
+                    )}
+                </div>
             </div>
+
+            {(importStatus === 'success' || importStatus === 'error') && importMessage && (
+                <div className={cn(
+                    'card-savron flex items-start gap-3 p-4 text-sm',
+                    importStatus === 'success' ? 'border-savron-green/30 bg-savron-green/10 text-accent-blue' : 'border-red-500/30 bg-red-500/10 text-red-300',
+                )}>
+                    {importStatus === 'success'
+                        ? <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+                        : <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />}
+                    <p>{importMessage}</p>
+                </div>
+            )}
+
+            {!apifyConfigured && (
+                <div className="card-savron p-4 text-xs text-savron-silver/70 border-white/10">
+                    Apify import is disabled until <code className="text-white/80">APIFY_API_TOKEN</code> is set in Vercel. Seed prospects are shown below for testing.
+                </div>
+            )}
 
             {/* Filters */}
             <div className="card-savron flex flex-col sm:flex-row gap-4">
@@ -316,6 +401,37 @@ export default function OutreachPage() {
                 </div>
             )}
 
+            {/* Recent send history */}
+            <div className="card-savron space-y-4">
+                <div className="flex items-center gap-2">
+                    <History className="w-4 h-4 text-savron-silver/60" />
+                    <h2 className="text-sm uppercase tracking-widest text-white">Recent Campaigns</h2>
+                </div>
+                {historyLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-savron-silver/60 uppercase tracking-widest">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Loading history...
+                    </div>
+                ) : sendHistory.length === 0 ? (
+                    <p className="text-xs text-savron-silver/60 uppercase tracking-widest">No outreach campaigns sent yet.</p>
+                ) : (
+                    <div className="space-y-2">
+                        {sendHistory.map(entry => (
+                            <div key={entry.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-3 border-b border-white/5 last:border-0">
+                                <div>
+                                    <p className="text-sm text-white capitalize">{entry.template.replace('_', ' ')}</p>
+                                    <p className="text-xs text-savron-silver/60 mt-0.5">
+                                        {new Date(entry.createdAt).toLocaleString()} · {entry.sentByEmail || 'admin'}
+                                    </p>
+                                </div>
+                                <p className="text-xs uppercase tracking-widest text-savron-silver/70">
+                                    {entry.sentCount} sent · {entry.failedCount} failed · {entry.prospectCount} selected
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
             {/* Campaign modal */}
             <AnimatePresence>
                 {showCampaign && (
@@ -439,7 +555,10 @@ export default function OutreachPage() {
 
                             <button
                                 onClick={sendCampaign}
-                                disabled={sendStatus === 'loading' || (campaignTemplate === 'custom' && !campaignSubject.trim())}
+                                disabled={
+                                    sendStatus === 'loading'
+                                    || (campaignTemplate === 'custom' && (!campaignSubject.trim() || !campaignMessage.trim()))
+                                }
                                 className="w-full py-3 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {sendStatus === 'loading'

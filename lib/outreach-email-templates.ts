@@ -1,6 +1,8 @@
 // Cold outreach email templates for barber chair rental prospecting.
 // Matches the SAVRON CRM email style (lib/email-templates.ts).
 
+import { escapeHtml } from '@/lib/utils';
+
 const LOGO_URL = 'https://savronmn.com/logo.png';
 
 function wrapTemplate(innerHtml: string): string {
@@ -39,8 +41,8 @@ function wrapTemplate(innerHtml: string): string {
 export type OutreachTemplate = 'chair_rental' | 'custom';
 
 export function getChairRentalTemplate(prospectName: string, businessName?: string): { subject: string; html: string } {
-    const firstName = prospectName?.split(' ')[0] || 'there';
-    const shopRef = businessName ? ` at ${businessName}` : '';
+    const firstName = escapeHtml(prospectName?.split(' ')[0] || 'there');
+    const shopRef = businessName ? ` at ${escapeHtml(businessName)}` : '';
 
     return {
         subject: 'Chair rental opportunity at SAVRON — Minneapolis',
@@ -88,11 +90,11 @@ export function getOutreachCustomTemplate(
     subject: string,
     message: string,
 ): { subject: string; html: string } {
-    const firstName = prospectName?.split(' ')[0] || 'there';
+    const firstName = escapeHtml(prospectName?.split(' ')[0] || 'there');
     const paragraphs = message
         .split('\n')
         .filter(Boolean)
-        .map(p => `<p style="margin:0 0 16px;color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7;">${p}</p>`)
+        .map(p => `<p style="margin:0 0 16px;color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7;">${escapeHtml(p)}</p>`)
         .join('');
 
     return {

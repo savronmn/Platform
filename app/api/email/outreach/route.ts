@@ -6,17 +6,17 @@
 // From: info@savronmn.com · Reply-To: savronmn@gmail.com
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getProspectsByIds } from '@/lib/outreach-prospects';
 import { getChairRentalTemplate, getOutreachCustomTemplate, type OutreachTemplate } from '@/lib/outreach-email-templates';
-import { requireStaff } from '@/lib/staff-auth';
+import { getProspectsByIds, logOutreachSend } from '@/lib/outreach-store';
+import { requireAdmin } from '@/lib/staff-auth';
 
 const OUTREACH_FROM = 'SAVRON <info@savronmn.com>';
 const OUTREACH_REPLY_TO = 'savronmn@gmail.com';
 
 export async function POST(request: NextRequest) {
-    const staff = await requireStaff();
-    if (!staff.ok) {
-        return NextResponse.json({ error: staff.error }, { status: staff.status });
+    const admin = await requireAdmin();
+    if (!admin.ok) {
+        return NextResponse.json({ error: admin.error }, { status: admin.status });
     }
 
     if (!process.env.RESEND_API_KEY) {
@@ -34,11 +34,20 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'No prospects selected' }, { status: 400 });
     }
 
-    const prospects = getProspectsByIds(prospectIds);
+    if (template === 'custom') {
+        if (!subject?.trim()) {
+            return NextResponse.json({ error: 'Subject is required for custom messages' }, { status: 400 });
+        }
+        if (!message?.trim()) {
+            return NextResponse.json({ error: 'Message is required for custom messages' }, { status: 400 });
+        }
+    }
+
+    const prospects = await getProspectsByIds(prospectIds);
     const withEmail = prospects.filter(p => p.email);
 
     if (withEmail.length === 0) {
-        return NextResponse.json({ error: 'No prospects have email addresses' }, { status: 400 });
+        return NextResponse.json({ error: 'No selected prospects have email addresses' }, { status: 400 });
     }
 
     let sent = 0;
@@ -55,8 +64,8 @@ export async function POST(request: NextRequest) {
                 case 'custom':
                     emailData = getOutreachCustomTemplate(
                         prospect.name,
-                        subject || 'A message from SAVRON',
-                        message || '',
+                        subject!.trim(),
+                        message!.trim(),
                     );
                     break;
                 case 'chair_rental':
@@ -97,6 +106,17 @@ export async function POST(request: NextRequest) {
             await new Promise(r => setTimeout(r, 200));
         }
     }
+
+    await logOutreachSend({
+        sentBy: admin.user.id,
+        sentByEmail: admin.user.email,
+        template,
+        subject: subject?.trim(),
+        prospectIds,
+        sent,
+        failed,
+        errors,
+    });
 
     return NextResponse.json({ sent, failed, total: withEmail.length, errors: errors.slice(0, 5) });
 }
