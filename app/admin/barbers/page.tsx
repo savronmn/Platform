@@ -19,6 +19,7 @@ import {
     barberBookingPageUrl,
     barberPortalLoginUrl,
 } from '@/lib/barber-portal-urls';
+import BarberApplicationsPanel from '@/components/admin/BarberApplicationsPanel';
 
 // ─── Schedule types ────────────────────────────────────────────────────────────
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
@@ -373,7 +374,10 @@ export default function AdminBarbersPage() {
                 </div>
             </div>
 
-            {/* Pending approvals */}
+            {/* Join-form applications (applicants table) */}
+            <BarberApplicationsPanel />
+
+            {/* Pending approvals — inactive barbers who completed /join onboarding */}
             {pending.length > 0 && (
                 <div>
                     <div className="flex items-center gap-3 mb-5">

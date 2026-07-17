@@ -61,7 +61,7 @@ const Services = () => {
                                 transition={{ duration: 0.5, delay: index * 0.05, ease: [0.25, 0.1, 0.25, 1] }}
                             >
                                 <Link
-                                    href={buildBookingUrl(service.name)}
+                                    href={buildBookingUrl(service.id)}
                                     className="service-row-link"
                                     aria-label={`Book ${service.name}`}
                                 >

@@ -35,9 +35,9 @@ export function serviceNamesForIds(services: ServiceItem[], ids: number[]): stri
         .filter((name): name is string => Boolean(name));
 }
 
-export function buildBookingUrl(serviceName?: string): string {
-    if (!serviceName) return '/booking';
-    return `/booking?service=${encodeURIComponent(serviceName)}`;
+export function buildBookingUrl(serviceNameOrId?: string | number): string {
+    if (serviceNameOrId === undefined || serviceNameOrId === '') return '/booking';
+    return `/booking?service=${encodeURIComponent(String(serviceNameOrId))}`;
 }
 
 /** Link to a barber's public booking page, optionally with a pre-selected service or pre-filled member details. */
