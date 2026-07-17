@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
-import { Users, Scissors, LayoutDashboard, LogOut, MonitorPlay, CreditCard, Mail, ClipboardList, Layers, Inbox, Menu, X, Languages, Calendar } from 'lucide-react';
+import { Users, Scissors, LayoutDashboard, LogOut, MonitorPlay, CreditCard, Mail, ClipboardList, Layers, Inbox, Menu, X, Languages, Calendar, Target } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LanguageProvider, useLanguage } from '@/lib/language-context';
 import AdminSmoothScroll from '@/components/layout/AdminSmoothScroll';
@@ -26,6 +26,7 @@ function NavContent({ onClose }: { onClose?: () => void }) {
         { labelKey: 'nav.clients',        href: '/admin/clients',        icon: Users },
         { labelKey: 'nav.membership',     href: '/admin/membership',     icon: CreditCard },
         { labelKey: 'nav.communications', href: '/admin/communications', icon: Mail },
+        { labelKey: 'nav.outreach',       href: '/admin/outreach',       icon: Target },
         { labelKey: 'nav.services',       href: '/admin/services',       icon: Layers },
         { labelKey: 'nav.hiring',         href: '/admin/applicants',     icon: ClipboardList },
     ];
