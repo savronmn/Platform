@@ -134,7 +134,8 @@ function buildShopInviteAttendees(params: {
 
 /**
  * Create/update a shop booking-page calendar invite from savronmn@gmail.com.
- * Client + barber both receive the same Google Calendar invite (organizer: SAVRON shop).
+ * Client receives the Google Calendar invite (organizer: SAVRON shop).
+ * When the barber has their own calendar connected, they get a separate native busy block instead of this invite.
  */
 export async function upsertShopInviteEvent(params: {
     bookingId: string;
