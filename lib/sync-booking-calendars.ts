@@ -69,6 +69,7 @@ export async function removeBookingFromCalendars(
 async function syncShopInvite(
     booking: BookingForSync,
     barber: BarberCalendarInfo | null,
+    sendInviteNotifications: boolean,
 ): Promise<string | null> {
     const catalog = await getServiceDurationCatalog();
     const payload = buildBookingCalendarPayload(booking, barber?.name ?? null, catalog);
@@ -87,6 +88,7 @@ async function syncShopInvite(
         clientEmail: booking.client_email,
         barberEmail: barber?.email ?? null,
         barberName: barber?.name ?? null,
+        sendUpdates: sendInviteNotifications ? 'all' : 'none',
     });
 
     if (eventId) {
@@ -138,7 +140,12 @@ export function bookingCalendarFullySynced(
 export async function syncBookingCalendars(
     booking: BookingForSync,
     barber: BarberCalendarInfo | null,
-    options: { shopConnected: boolean; forceBarber?: boolean } = { shopConnected: false },
+    options: {
+        shopConnected: boolean;
+        forceBarber?: boolean;
+        /** When false (default), repair/backfill/update syncs do not email attendees. */
+        sendInviteNotifications?: boolean;
+    } = { shopConnected: false },
 ): Promise<CalendarSyncResult> {
     let shopEventId = booking.shop_google_event_id ?? null;
     let barberEventId = booking.google_event_id ?? null;
@@ -149,7 +156,11 @@ export async function syncBookingCalendars(
 
     if (options.shopConnected) {
         try {
-            shopEventId = await syncShopInvite(booking, barber);
+            shopEventId = await syncShopInvite(
+                booking,
+                barber,
+                options.sendInviteNotifications ?? false,
+            );
             if (shopEventId && barber?.email) {
                 barberBlockSkippedForShopInvite = true;
             }
@@ -330,6 +341,7 @@ export async function repairMissingBarberBlocks(
         const syncResult = await syncBookingCalendars(booking, barber, {
             shopConnected,
             forceBarber: true,
+            sendInviteNotifications: false,
         });
 
         if (syncResult.barberEventId) {

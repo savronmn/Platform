@@ -4,6 +4,7 @@ import {
     updateCalendarEvent,
     getValidAccessToken,
     type CalendarAttendee,
+    type CalendarSendUpdates,
     type CalendarToken,
 } from '@/lib/google-calendar';
 import { SHOP_CALENDAR_DISPLAY_NAME, SHOP_CALENDAR_EMAIL, SHOP_GOOGLE_CALENDAR_ID } from '@/lib/shop';
@@ -148,6 +149,8 @@ export async function upsertShopInviteEvent(params: {
     clientEmail: string | null;
     barberEmail?: string | null;
     barberName?: string | null;
+    /** Default 'none' — only set 'all' when sending a brand-new client invite. */
+    sendUpdates?: CalendarSendUpdates;
 }): Promise<{ eventId: string | null; calendarId: string | null; bookingPageSlug: string | null }> {
     const tokens = await getShopCalendarTokens();
     if (!tokens) return { eventId: null, calendarId: null, bookingPageSlug: null };
@@ -162,7 +165,7 @@ export async function upsertShopInviteEvent(params: {
         barberName: params.barberName ?? null,
     });
 
-    const sendUpdates = attendees.length > 0 ? 'all' as const : 'none' as const;
+    const sendUpdates: CalendarSendUpdates = params.sendUpdates ?? 'none';
 
     const organizer = {
         organizerEmail: SHOP_CALENDAR_EMAIL,

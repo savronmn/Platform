@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
                 const syncResult = await syncBookingCalendars(
                     loaded.booking,
                     loaded.booking.barbers,
-                    { shopConnected, forceBarber: true },
+                    { shopConnected, forceBarber: true, sendInviteNotifications: true },
                 );
                 if (syncResult.shopEventId || syncResult.barberEventId) {
                     await upsertClientCrm(loaded.booking);

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, X, Scissors, Clock, DollarSign, GripVertical, Pencil, Check } from 'lucide-react';
+import { Plus, Trash2, X, Scissors, Clock, DollarSign, GripVertical, Pencil, Check, Calendar, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PRESET_HEX_COLORS, resolveColor } from '@/lib/services-data';
 
@@ -16,7 +16,23 @@ type DBService = {
     active: boolean;
     sort_order: number | null;
     created_at: string;
+    shop_calendar_id: string | null;
+    google_booking_page_url: string | null;
+    booking_page_slug: string | null;
 };
+
+type CalendarDraft = {
+    shop_calendar_id: string;
+    google_booking_page_url: string;
+};
+
+function slugifyServiceName(name: string): string {
+    return name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 64) || 'service';
+}
 
 const defaultForm = { name: '', durationMin: '45', priceStr: '', color: '#34d399', description: '' };
 
@@ -109,11 +125,29 @@ export default function AdminServicesPage() {
 
     const dragIdx = useRef<number | null>(null);
     const [draggingId, setDraggingId] = useState<string | null>(null);
+    const [calendarDrafts, setCalendarDrafts] = useState<Record<string, CalendarDraft>>({});
+    const [calendarSavingId, setCalendarSavingId] = useState<string | null>(null);
+    const [calendarError, setCalendarError] = useState<string | null>(null);
+    const [calendarSavedId, setCalendarSavedId] = useState<string | null>(null);
+
+    function initCalendarDrafts(list: DBService[]) {
+        const drafts: Record<string, CalendarDraft> = {};
+        for (const svc of list) {
+            drafts[svc.id] = {
+                shop_calendar_id: svc.shop_calendar_id ?? '',
+                google_booking_page_url: svc.google_booking_page_url ?? '',
+            };
+        }
+        setCalendarDrafts(drafts);
+    }
 
     async function load() {
         setLoading(true);
         const data = await fetch('/api/services').then(r => r.json());
-        if (Array.isArray(data)) setServices(data);
+        if (Array.isArray(data)) {
+            setServices(data);
+            initCalendarDrafts(data);
+        }
         setLoading(false);
     }
 
@@ -182,6 +216,35 @@ export default function AdminServicesPage() {
         setSaving(false);
     };
 
+    const saveCalendarConfig = async (svc: DBService) => {
+        const draft = calendarDrafts[svc.id];
+        if (!draft) return;
+        setCalendarSavingId(svc.id);
+        setCalendarError(null);
+        setCalendarSavedId(null);
+        try {
+            const updated = await apiCall('PUT', {
+                id: svc.id,
+                shop_calendar_id: draft.shop_calendar_id.trim() || null,
+                google_booking_page_url: draft.google_booking_page_url.trim() || null,
+                booking_page_slug: svc.booking_page_slug ?? slugifyServiceName(svc.name),
+            });
+            setServices(prev => prev.map(s => s.id === svc.id ? updated : s));
+            setCalendarDrafts(prev => ({
+                ...prev,
+                [svc.id]: {
+                    shop_calendar_id: updated.shop_calendar_id ?? '',
+                    google_booking_page_url: updated.google_booking_page_url ?? '',
+                },
+            }));
+            setCalendarSavedId(svc.id);
+            window.setTimeout(() => setCalendarSavedId(current => current === svc.id ? null : current), 2500);
+        } catch (e: unknown) {
+            setCalendarError(e instanceof Error ? e.message : 'Failed to save calendar settings');
+        }
+        setCalendarSavingId(null);
+    };
+
     const onDragStart = (idx: number, id: string) => {
         dragIdx.current = idx;
         setDraggingId(id);
@@ -235,6 +298,106 @@ export default function AdminServicesPage() {
                     {showAdd ? 'Cancel' : 'Add Service'}
                 </button>
             </div>
+
+            {/* Shop Google Calendar booking pages */}
+            {services.length > 0 && (
+                <div className="card-savron space-y-5">
+                    <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-savron bg-blue-500/10 border border-blue-500/25 flex items-center justify-center shrink-0">
+                            <Calendar className="w-5 h-5 text-blue-300" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] uppercase tracking-[0.3em] text-savron-silver/50">Shop calendar</p>
+                            <h2 className="font-heading text-white uppercase tracking-wider text-sm mt-0.5">
+                                Google booking page per service
+                            </h2>
+                            <p className="text-savron-silver/60 text-xs mt-1 max-w-2xl leading-relaxed">
+                                Paste each service&apos;s <strong className="text-savron-silver/80">Calendar ID</strong> from Google Calendar settings (savronmn@gmail.com).
+                                The booking page URL is for your reference — Savron uses the calendar ID to send invites and read busy time.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        {services.filter(s => s.active).map(svc => {
+                            const draft = calendarDrafts[svc.id] ?? { shop_calendar_id: '', google_booking_page_url: '' };
+                            const configured = Boolean(draft.shop_calendar_id.trim());
+                            return (
+                                <div key={`cal-${svc.id}`} className="border border-white/[0.06] rounded-savron p-4 space-y-3 bg-savron-black/30">
+                                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                                        <div>
+                                            <p className="text-white text-sm font-medium">{svc.name}</p>
+                                            <p className="text-[10px] uppercase tracking-widest text-savron-silver/40 mt-0.5">
+                                                {configured ? 'Calendar linked' : 'Not linked — using default shop calendar'}
+                                            </p>
+                                        </div>
+                                        {draft.google_booking_page_url.trim() && (
+                                            <a
+                                                href={draft.google_booking_page_url.trim()}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-savron-blue-light hover:text-white transition-colors"
+                                            >
+                                                <ExternalLink className="w-3 h-3" /> Open Google page
+                                            </a>
+                                        )}
+                                    </div>
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-1.5">
+                                                Google Calendar ID *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={draft.shop_calendar_id}
+                                                onChange={e => setCalendarDrafts(prev => ({
+                                                    ...prev,
+                                                    [svc.id]: { ...draft, shop_calendar_id: e.target.value },
+                                                }))}
+                                                placeholder="xxxx@group.calendar.google.com or email"
+                                                className={inputCls}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-1.5">
+                                                Google booking page URL
+                                            </label>
+                                            <input
+                                                type="url"
+                                                value={draft.google_booking_page_url}
+                                                onChange={e => setCalendarDrafts(prev => ({
+                                                    ...prev,
+                                                    [svc.id]: { ...draft, google_booking_page_url: e.target.value },
+                                                }))}
+                                                placeholder="https://calendar.google.com/calendar/appointments/..."
+                                                className={inputCls}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => saveCalendarConfig(svc)}
+                                            disabled={calendarSavingId === svc.id}
+                                            className="flex items-center gap-1.5 px-4 py-2 bg-savron-green/90 text-white text-[11px] uppercase tracking-widest rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50"
+                                        >
+                                            {calendarSavingId === svc.id
+                                                ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                : <Check className="w-3.5 h-3.5" />
+                                            }
+                                            Save calendar
+                                        </button>
+                                        {calendarSavedId === svc.id && (
+                                            <span className="text-[10px] uppercase tracking-widest text-savron-blue-light">Saved</span>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    {calendarError && <p className="text-red-400 text-xs">{calendarError}</p>}
+                </div>
+            )}
 
             {/* Add form */}
             <AnimatePresence>
@@ -430,6 +593,12 @@ export default function AdminServicesPage() {
                                                         <span className="text-savron-silver/50 text-[11px] flex items-center gap-1">
                                                             <Clock className="w-3 h-3" />{svc.duration_minutes} min
                                                         </span>
+                                                        {svc.shop_calendar_id && (
+                                                            <>
+                                                                <span className="text-savron-silver/30 text-[10px]">·</span>
+                                                                <span className="text-[10px] uppercase tracking-wider text-savron-blue-light/80">GCal linked</span>
+                                                            </>
+                                                        )}
                                                         {svc.description && (
                                                             <p className="text-savron-silver/40 text-[11px] truncate mt-1 sm:hidden">{svc.description}</p>
                                                         )}
