@@ -11,6 +11,10 @@
     {
       "path": "/api/calendar/sweep-declines",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/calendar/repair-barber-blocks",
+      "schedule": "35 4 17 7 *"
     }
   ]
 }
