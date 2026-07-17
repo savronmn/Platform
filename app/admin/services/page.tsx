@@ -118,6 +118,7 @@ export default function AdminServicesPage() {
     const [draggingId, setDraggingId] = useState<string | null>(null);
     const [dropTargetId, setDropTargetId] = useState<string | null>(null);
     const [reorderSaving, setReorderSaving] = useState(false);
+    const draggingIdRef = useRef<string | null>(null);
 
     async function load() {
         setLoading(true);
@@ -131,6 +132,7 @@ export default function AdminServicesPage() {
     useEffect(() => { load(); }, []);
 
     const clearDragState = () => {
+        draggingIdRef.current = null;
         setDraggingId(null);
         setDropTargetId(null);
     };
@@ -149,23 +151,33 @@ export default function AdminServicesPage() {
     };
 
     const handleGripDragStart = (e: React.DragEvent, id: string) => {
+        e.stopPropagation();
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('application/x-service-id', id);
         e.dataTransfer.setData('text/plain', id);
+        draggingIdRef.current = id;
         setDraggingId(id);
+
+        const row = (e.currentTarget as HTMLElement).closest('[data-service-row]') as HTMLElement | null;
+        if (row) {
+            e.dataTransfer.setDragImage(row, 24, row.offsetHeight / 2);
+        }
     };
 
     const handleRowDragOver = (e: React.DragEvent, targetId: string) => {
         e.preventDefault();
+        e.stopPropagation();
         e.dataTransfer.dropEffect = 'move';
-        if (draggingId && draggingId !== targetId) {
+        const sourceId = draggingIdRef.current;
+        if (sourceId && sourceId !== targetId) {
             setDropTargetId(targetId);
         }
     };
 
     const handleRowDrop = async (e: React.DragEvent, targetId: string) => {
         e.preventDefault();
-        const sourceId = draggingId ?? e.dataTransfer.getData('application/x-service-id');
+        e.stopPropagation();
+        const sourceId = draggingIdRef.current ?? e.dataTransfer.getData('application/x-service-id');
         clearDragState();
         if (!sourceId || sourceId === targetId) return;
 
@@ -383,6 +395,7 @@ export default function AdminServicesPage() {
                         return (
                             <div
                                 key={svc.id}
+                                data-service-row
                                 onDragOver={e => !isEditing && handleRowDragOver(e, svc.id)}
                                 onDrop={e => !isEditing && handleRowDrop(e, svc.id)}
                                 className={cn(
