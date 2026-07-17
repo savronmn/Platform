@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, X, Scissors, Clock, DollarSign, GripVertical, Pencil, Check, Calendar, ExternalLink } from 'lucide-react';
+import { Plus, Trash2, X, Scissors, Clock, DollarSign, GripVertical, Pencil, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PRESET_HEX_COLORS, resolveColor } from '@/lib/services-data';
 
@@ -16,23 +16,7 @@ type DBService = {
     active: boolean;
     sort_order: number | null;
     created_at: string;
-    shop_calendar_id: string | null;
-    google_booking_page_url: string | null;
-    booking_page_slug: string | null;
 };
-
-type CalendarDraft = {
-    shop_calendar_id: string;
-    google_booking_page_url: string;
-};
-
-function slugifyServiceName(name: string): string {
-    return name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(0, 64) || 'service';
-}
 
 const defaultForm = { name: '', durationMin: '45', priceStr: '', color: '#34d399', description: '' };
 
@@ -45,6 +29,16 @@ async function apiCall(method: string, body: object) {
     const json = await res.json();
     if (!res.ok) throw new Error(json.error ?? 'Request failed');
     return json;
+}
+
+function reorderServices(list: DBService[], sourceId: string, targetId: string): DBService[] | null {
+    const from = list.findIndex(s => s.id === sourceId);
+    const to = list.findIndex(s => s.id === targetId);
+    if (from === -1 || to === -1 || from === to) return null;
+    const next = [...list];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    return next;
 }
 
 function ColorPicker({
@@ -75,7 +69,6 @@ function ColorPicker({
                     />
                 ))}
 
-                {/* Custom color swatch */}
                 <label
                     className={cn(
                         "relative w-7 h-7 rounded-full cursor-pointer transition-all duration-150 overflow-hidden flex items-center justify-center",
@@ -99,7 +92,6 @@ function ColorPicker({
                 </label>
             </div>
 
-            {/* Hex preview */}
             <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded-full border border-white/10" style={{ backgroundColor: value }} />
                 <span className="text-[10px] font-mono text-savron-silver/50 uppercase">{value}</span>
@@ -123,35 +115,78 @@ export default function AdminServicesPage() {
     const [saving, setSaving] = useState(false);
     const [editError, setEditError] = useState<string | null>(null);
 
-    const dragIdx = useRef<number | null>(null);
     const [draggingId, setDraggingId] = useState<string | null>(null);
-    const [calendarDrafts, setCalendarDrafts] = useState<Record<string, CalendarDraft>>({});
-    const [calendarSavingId, setCalendarSavingId] = useState<string | null>(null);
-    const [calendarError, setCalendarError] = useState<string | null>(null);
-    const [calendarSavedId, setCalendarSavedId] = useState<string | null>(null);
-
-    function initCalendarDrafts(list: DBService[]) {
-        const drafts: Record<string, CalendarDraft> = {};
-        for (const svc of list) {
-            drafts[svc.id] = {
-                shop_calendar_id: svc.shop_calendar_id ?? '',
-                google_booking_page_url: svc.google_booking_page_url ?? '',
-            };
-        }
-        setCalendarDrafts(drafts);
-    }
+    const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+    const [reorderSaving, setReorderSaving] = useState(false);
+    const draggingIdRef = useRef<string | null>(null);
 
     async function load() {
         setLoading(true);
         const data = await fetch('/api/services').then(r => r.json());
         if (Array.isArray(data)) {
             setServices(data);
-            initCalendarDrafts(data);
         }
         setLoading(false);
     }
 
     useEffect(() => { load(); }, []);
+
+    const clearDragState = () => {
+        draggingIdRef.current = null;
+        setDraggingId(null);
+        setDropTargetId(null);
+    };
+
+    const persistOrder = async (ordered: DBService[]) => {
+        setReorderSaving(true);
+        try {
+            await fetch('/api/services', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: ordered.map(s => s.id) }),
+            });
+        } finally {
+            setReorderSaving(false);
+        }
+    };
+
+    const handleGripDragStart = (e: React.DragEvent, id: string) => {
+        e.stopPropagation();
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('application/x-service-id', id);
+        e.dataTransfer.setData('text/plain', id);
+        draggingIdRef.current = id;
+        setDraggingId(id);
+
+        const row = (e.currentTarget as HTMLElement).closest('[data-service-row]') as HTMLElement | null;
+        if (row) {
+            e.dataTransfer.setDragImage(row, 24, row.offsetHeight / 2);
+        }
+    };
+
+    const handleRowDragOver = (e: React.DragEvent, targetId: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'move';
+        const sourceId = draggingIdRef.current;
+        if (sourceId && sourceId !== targetId) {
+            setDropTargetId(targetId);
+        }
+    };
+
+    const handleRowDrop = async (e: React.DragEvent, targetId: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const sourceId = draggingIdRef.current ?? e.dataTransfer.getData('application/x-service-id');
+        clearDragState();
+        if (!sourceId || sourceId === targetId) return;
+
+        const reordered = reorderServices(services, sourceId, targetId);
+        if (!reordered) return;
+
+        setServices(reordered);
+        await persistOrder(reordered);
+    };
 
     const addService = async () => {
         if (!form.name.trim() || !form.priceStr.trim() || !form.durationMin) return;
@@ -168,8 +203,9 @@ export default function AdminServicesPage() {
             setServices(prev => [...prev, created]);
             setForm(defaultForm);
             setShowAdd(false);
-        } catch (e: any) {
-            setAddError(e.message.includes('unique') ? 'A service with that name already exists.' : e.message);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'Request failed';
+            setAddError(message.includes('unique') ? 'A service with that name already exists.' : message);
         }
         setAdding(false);
     };
@@ -179,7 +215,9 @@ export default function AdminServicesPage() {
         try {
             await apiCall('DELETE', { id: svc.id });
             setServices(prev => prev.filter(s => s.id !== svc.id));
-        } catch {}
+        } catch {
+            /* ignore */
+        }
         setDeletingId(null);
         setConfirmDelete(null);
     };
@@ -210,62 +248,10 @@ export default function AdminServicesPage() {
             });
             setServices(prev => prev.map(s => s.id === id ? updated : s));
             setEditId(null);
-        } catch (e: any) {
-            setEditError(e.message);
+        } catch (e: unknown) {
+            setEditError(e instanceof Error ? e.message : 'Save failed');
         }
         setSaving(false);
-    };
-
-    const saveCalendarConfig = async (svc: DBService) => {
-        const draft = calendarDrafts[svc.id];
-        if (!draft) return;
-        setCalendarSavingId(svc.id);
-        setCalendarError(null);
-        setCalendarSavedId(null);
-        try {
-            const updated = await apiCall('PUT', {
-                id: svc.id,
-                shop_calendar_id: draft.shop_calendar_id.trim() || null,
-                google_booking_page_url: draft.google_booking_page_url.trim() || null,
-                booking_page_slug: svc.booking_page_slug ?? slugifyServiceName(svc.name),
-            });
-            setServices(prev => prev.map(s => s.id === svc.id ? updated : s));
-            setCalendarDrafts(prev => ({
-                ...prev,
-                [svc.id]: {
-                    shop_calendar_id: updated.shop_calendar_id ?? '',
-                    google_booking_page_url: updated.google_booking_page_url ?? '',
-                },
-            }));
-            setCalendarSavedId(svc.id);
-            window.setTimeout(() => setCalendarSavedId(current => current === svc.id ? null : current), 2500);
-        } catch (e: unknown) {
-            setCalendarError(e instanceof Error ? e.message : 'Failed to save calendar settings');
-        }
-        setCalendarSavingId(null);
-    };
-
-    const onDragStart = (idx: number, id: string) => {
-        dragIdx.current = idx;
-        setDraggingId(id);
-    };
-    const onDragOver = (e: React.DragEvent, idx: number) => {
-        e.preventDefault();
-        if (dragIdx.current === null || dragIdx.current === idx) return;
-        const reordered = [...services];
-        const [moved] = reordered.splice(dragIdx.current, 1);
-        reordered.splice(idx, 0, moved);
-        dragIdx.current = idx;
-        setServices(reordered);
-    };
-    const onDrop = async () => {
-        setDraggingId(null);
-        dragIdx.current = null;
-        await fetch('/api/services', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ids: services.map(s => s.id) }),
-        });
     };
 
     if (loading) {
@@ -281,13 +267,13 @@ export default function AdminServicesPage() {
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="admin-page">
 
-            {/* Header */}
             <div className="admin-header">
                 <div>
                     <p className="admin-kicker">Menu</p>
                     <h1 className="admin-title">Services</h1>
                     <p className="admin-subtitle">
-                        {services.length} service{services.length !== 1 ? 's' : ''} · Drag to reorder
+                        {services.length} service{services.length !== 1 ? 's' : ''}. Drag the grip handle to reorder.
+                        {reorderSaving && <span className="text-savron-silver/50"> Saving order…</span>}
                     </p>
                 </div>
                 <button
@@ -299,107 +285,11 @@ export default function AdminServicesPage() {
                 </button>
             </div>
 
-            {/* Shop Google Calendar booking pages */}
-            {services.length > 0 && (
-                <div className="card-savron space-y-5">
-                    <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-savron bg-blue-500/10 border border-blue-500/25 flex items-center justify-center shrink-0">
-                            <Calendar className="w-5 h-5 text-blue-300" />
-                        </div>
-                        <div>
-                            <p className="text-[10px] uppercase tracking-[0.3em] text-savron-silver/50">Shop calendar</p>
-                            <h2 className="font-heading text-white uppercase tracking-wider text-sm mt-0.5">
-                                Google booking page per service
-                            </h2>
-                            <p className="text-savron-silver/60 text-xs mt-1 max-w-2xl leading-relaxed">
-                                Paste each service&apos;s <strong className="text-savron-silver/80">Calendar ID</strong> from Google Calendar settings (savronmn@gmail.com).
-                                The booking page URL is for your reference. Savron uses the calendar ID to send invites and read busy time.
-                            </p>
-                        </div>
-                    </div>
+            <p className="text-savron-silver/55 text-xs max-w-2xl leading-relaxed -mt-4">
+                Client calendar invites use the shop&apos;s main Google calendar (savronmn@gmail.com).
+                Per-service calendar IDs are not required.
+            </p>
 
-                    <div className="space-y-4">
-                        {services.filter(s => s.active).map(svc => {
-                            const draft = calendarDrafts[svc.id] ?? { shop_calendar_id: '', google_booking_page_url: '' };
-                            const configured = Boolean(draft.shop_calendar_id.trim());
-                            return (
-                                <div key={`cal-${svc.id}`} className="border border-white/[0.06] rounded-savron p-4 space-y-3 bg-savron-black/30">
-                                    <div className="flex items-center justify-between gap-3 flex-wrap">
-                                        <div>
-                                            <p className="text-white text-sm font-medium">{svc.name}</p>
-                                            <p className="text-[10px] uppercase tracking-widest text-savron-silver/40 mt-0.5">
-                                                {configured ? 'Calendar linked' : 'Not linked. using default shop calendar'}
-                                            </p>
-                                        </div>
-                                        {draft.google_booking_page_url.trim() && (
-                                            <a
-                                                href={draft.google_booking_page_url.trim()}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-savron-blue-light hover:text-white transition-colors"
-                                            >
-                                                <ExternalLink className="w-3 h-3" /> Open Google page
-                                            </a>
-                                        )}
-                                    </div>
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-1.5">
-                                                Google Calendar ID *
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={draft.shop_calendar_id}
-                                                onChange={e => setCalendarDrafts(prev => ({
-                                                    ...prev,
-                                                    [svc.id]: { ...draft, shop_calendar_id: e.target.value },
-                                                }))}
-                                                placeholder="xxxx@group.calendar.google.com or email"
-                                                className={inputCls}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-1.5">
-                                                Google booking page URL
-                                            </label>
-                                            <input
-                                                type="url"
-                                                value={draft.google_booking_page_url}
-                                                onChange={e => setCalendarDrafts(prev => ({
-                                                    ...prev,
-                                                    [svc.id]: { ...draft, google_booking_page_url: e.target.value },
-                                                }))}
-                                                placeholder="https://calendar.google.com/calendar/appointments/..."
-                                                className={inputCls}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => saveCalendarConfig(svc)}
-                                            disabled={calendarSavingId === svc.id}
-                                            className="flex items-center gap-1.5 px-4 py-2 bg-savron-green/90 text-white text-[11px] uppercase tracking-widest rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50"
-                                        >
-                                            {calendarSavingId === svc.id
-                                                ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                : <Check className="w-3.5 h-3.5" />
-                                            }
-                                            Save calendar
-                                        </button>
-                                        {calendarSavedId === svc.id && (
-                                            <span className="text-[10px] uppercase tracking-widest text-savron-blue-light">Saved</span>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                    {calendarError && <p className="text-red-400 text-xs">{calendarError}</p>}
-                </div>
-            )}
-
-            {/* Add form */}
             <AnimatePresence>
                 {showAdd && (
                     <motion.div
@@ -482,36 +372,42 @@ export default function AdminServicesPage() {
                 )}
             </AnimatePresence>
 
-            {/* Services list */}
             {services.length === 0 ? (
                 <div className="card-savron text-center py-20">
                     <Scissors className="w-8 h-8 text-savron-silver/20 mx-auto mb-3" />
                     <p className="text-savron-silver/60 text-sm uppercase tracking-widest">No services yet</p>
                 </div>
             ) : (
-                <div className="space-y-3">
-                    {services.map((svc, idx) => {
+                <div
+                    className="space-y-3"
+                    data-lenis-prevent
+                    onDragLeave={(e) => {
+                        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                        setDropTargetId(null);
+                    }}
+                >
+                    {services.map((svc) => {
                         const hex = resolveColor(svc.color);
                         const isEditing = editId === svc.id;
+                        const isDragging = draggingId === svc.id;
+                        const isDropTarget = dropTargetId === svc.id && draggingId !== svc.id;
+
                         return (
                             <div
                                 key={svc.id}
-                                draggable={!isEditing}
-                                onDragStart={() => onDragStart(idx, svc.id)}
-                                onDragOver={e => onDragOver(e, idx)}
-                                onDrop={onDrop}
-                                onDragEnd={() => { setDraggingId(null); dragIdx.current = null; }}
+                                data-service-row
+                                onDragOver={e => !isEditing && handleRowDragOver(e, svc.id)}
+                                onDrop={e => !isEditing && handleRowDrop(e, svc.id)}
                                 className={cn(
-                                    "flex card-savron p-0 overflow-hidden transition-all",
-                                    draggingId === svc.id ? "opacity-50 scale-[0.99]" : ""
+                                    "flex card-savron p-0 overflow-hidden transition-shadow duration-150",
+                                    isDragging && "opacity-45",
+                                    isDropTarget && "ring-2 ring-savron-green/40 ring-offset-2 ring-offset-savron-black",
                                 )}
                             >
-                                {/* Color bar */}
                                 <div className="w-1 shrink-0 transition-colors" style={{ backgroundColor: hex }} />
 
                                 <div className="flex-1 min-w-0">
                                     {isEditing ? (
-                                        /* ── Inline edit ── */
                                         <div className="px-5 py-5 space-y-4">
                                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                 <div className="sm:col-span-3">
@@ -579,13 +475,20 @@ export default function AdminServicesPage() {
                                             </div>
                                         </div>
                                     ) : (
-                                        /* ── Read-only row ── */
                                         <div className="px-5 py-4 flex items-center justify-between gap-4">
                                             <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                <GripVertical className="w-4 h-4 text-savron-silver/20 shrink-0 cursor-grab active:cursor-grabbing" />
+                                                <div
+                                                    draggable
+                                                    onDragStart={e => handleGripDragStart(e, svc.id)}
+                                                    onDragEnd={clearDragState}
+                                                    className="admin-icon-btn text-savron-silver/30 hover:text-savron-silver shrink-0 cursor-grab active:cursor-grabbing touch-none select-none"
+                                                    aria-label={`Reorder ${svc.name}`}
+                                                >
+                                                    <GripVertical className="w-4 h-4 pointer-events-none" />
+                                                </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-white text-sm font-medium truncate">{svc.name}</p>
-                                                    <div className="flex items-center gap-3 mt-0.5">
+                                                    <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                                                         <span className="text-savron-silver/50 text-[11px] flex items-center gap-1">
                                                             <DollarSign className="w-3 h-3" />{Math.round(svc.price_cents / 100)}
                                                         </span>
@@ -593,19 +496,10 @@ export default function AdminServicesPage() {
                                                         <span className="text-savron-silver/50 text-[11px] flex items-center gap-1">
                                                             <Clock className="w-3 h-3" />{svc.duration_minutes} min
                                                         </span>
-                                                        {svc.shop_calendar_id && (
-                                                            <>
-                                                                <span className="text-savron-silver/30 text-[10px]">·</span>
-                                                                <span className="text-[10px] uppercase tracking-wider text-savron-blue-light/80">GCal linked</span>
-                                                            </>
-                                                        )}
-                                                        {svc.description && (
-                                                            <p className="text-savron-silver/40 text-[11px] truncate mt-1 sm:hidden">{svc.description}</p>
-                                                        )}
                                                         {svc.description && (
                                                             <>
                                                                 <span className="text-savron-silver/30 text-[10px] hidden sm:inline">·</span>
-                                                                <span className="text-savron-silver/40 text-[11px] truncate hidden sm:inline">{svc.description}</span>
+                                                                <span className="text-savron-silver/40 text-[11px] truncate hidden sm:inline max-w-xs">{svc.description}</span>
                                                             </>
                                                         )}
                                                     </div>
@@ -636,7 +530,6 @@ export default function AdminServicesPage() {
                 </div>
             )}
 
-            {/* Delete confirm */}
             <AnimatePresence>
                 {confirmDelete && (
                     <motion.div

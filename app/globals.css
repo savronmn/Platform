@@ -27,6 +27,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+html.lenis {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
 /* === html5-qrcode overrides — hide default chrome, fill container === */
 #qr-reader-element {
   position: relative !important;
