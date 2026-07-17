@@ -7,14 +7,18 @@ import { createClient } from '@supabase/supabase-js';
 import { getValidAccessToken, type CalendarToken } from '@/lib/google-calendar';
 import { processDeclinedCalendarEvents } from '@/lib/process-calendar-declines';
 import { requireStaff } from '@/lib/staff-auth';
+import { eventHasClientCalendarCancellationSignal } from '@/lib/calendar-event-sync';
 import {
-    eventHasClientCalendarCancellationSignal,
-    extractClientNameFromEvent,
-    isoDateTimeToTimeSlot,
-} from '@/lib/calendar-event-sync';
-import { CALENDAR_VISIBLE_BOOKING_STATUSES, mergeLinkedCalendarMeta, bookingCalendarMetaFromGoogleEvent } from '@/lib/calendar-dedup';
+    mergeLinkedCalendarMeta,
+    processGoogleCalendarEventsForDisplay,
+    type GoogleCalendarRawEvent,
+    type LinkedCalendarByBookingId,
+} from '@/lib/calendar-dedup';
 
 const GOOGLE_CALENDAR_BASE = 'https://www.googleapis.com/calendar/v3';
+
+const BOOKING_DEDUP_COLUMNS =
+    'id, shop_google_event_id, google_event_id, barber_id, status, date, time, service, client_name, duration';
 
 async function listEvents(accessToken: string, calendarId: string, timeMin: string, timeMax: string) {
     const url = new URL(`${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events`);
@@ -29,10 +33,9 @@ async function listEvents(accessToken: string, calendarId: string, timeMin: stri
         next: { revalidate: 0 },
     });
     const data = await res.json();
-    return (data.items ?? []) as any[];
+    return (data.items ?? []) as GoogleCalendarRawEvent[];
 }
 
-// Returns all calendar IDs in the account — catches events booked on secondary/personal calendars.
 async function listAllCalendarIds(accessToken: string): Promise<string[]> {
     const url = new URL(`${GOOGLE_CALENDAR_BASE}/users/me/calendarList`);
     url.searchParams.set('minAccessRole', 'reader');
@@ -42,22 +45,7 @@ async function listAllCalendarIds(accessToken: string): Promise<string[]> {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    return ((data.items ?? []) as any[]).map((c: any) => c.id as string).filter(Boolean);
-}
-
-function isoToTimeSlot(iso: string): string {
-    return isoDateTimeToTimeSlot(iso);
-}
-
-/** Extract a clean client name from GCal event data.
- *  Priority:
- *  1. Non-email displayName from attendees (exclude savronmn & info@savronmn)
- *  2. Name parsed from summary patterns: "✂️ {Name} — {service}", "{service} ({Name})", etc.
- *  3. Name parsed from summary if it looks like a name (no special chars, short enough)
- *  4. null
- */
-function extractClientName(e: { summary?: string; attendees?: Array<{ email?: string; displayName?: string }> }): string | null {
-    return extractClientNameFromEvent(e);
+    return ((data.items ?? []) as Array<{ id: string }>).map(c => c.id).filter(Boolean);
 }
 
 export async function GET(req: NextRequest) {
@@ -77,11 +65,10 @@ export async function GET(req: NextRequest) {
 
     const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
 
     if (!skipDeclineSweep) {
-        // Cancel bookings when clients decline in Google Calendar before building host view data.
         await processDeclinedCalendarEvents(supabase, dateStart, dateEnd);
     }
 
@@ -97,123 +84,68 @@ export async function GET(req: NextRequest) {
     const barberIds = barbers.map(barber => barber.id);
     const { data: linkedBookings } = await supabase
         .from('bookings')
-        .select('id, shop_google_event_id, google_event_id, barber_id, status')
+        .select(BOOKING_DEDUP_COLUMNS)
         .in('barber_id', barberIds)
         .gte('date', dateStart)
         .lte('date', dateEnd);
 
-    const linkedEventIds = new Set<string>();
-    const bookingByEventId = new Map<string, string>();
-    for (const booking of linkedBookings ?? []) {
-        if (!CALENDAR_VISIBLE_BOOKING_STATUSES.includes(booking.status as typeof CALENDAR_VISIBLE_BOOKING_STATUSES[number])) {
-            continue;
-        }
-        for (const eventId of [booking.google_event_id, booking.shop_google_event_id]) {
-            if (!eventId) continue;
-            linkedEventIds.add(eventId);
-            bookingByEventId.set(eventId, booking.id);
-        }
-    }
-
+    const bookings = linkedBookings ?? [];
     const timeMin = `${dateStart}T00:00:00-05:00`;
     const timeMax = `${dateEnd}T23:59:59-05:00`;
-    const linkedCalendarByBookingId: Record<string, ReturnType<typeof bookingCalendarMetaFromGoogleEvent>> = {};
+    const linkedCalendarByBookingId: LinkedCalendarByBookingId = {};
+    const allExternalEvents: Array<ReturnType<typeof processGoogleCalendarEventsForDisplay>['externalEvents'][number] & {
+        barberName: string;
+        source: 'google';
+    }> = [];
 
     const settled = await Promise.allSettled(
         barbers.map(async (barber) => {
             const tokens = barber.google_calendar_tokens as CalendarToken;
             const accessToken = await getValidAccessToken(tokens);
 
-            // Fetch from every calendar in the account so events on secondary/personal
-            // calendars aren't missed. Fall back to the stored ID if listing fails.
             const calendarIds = await listAllCalendarIds(accessToken);
             const idsToFetch = calendarIds.length > 0 ? calendarIds : [barber.google_calendar_id];
 
             const allRaw = await Promise.all(
-                idsToFetch.map(id => listEvents(accessToken, id, timeMin, timeMax))
+                idsToFetch.map(id => listEvents(accessToken, id, timeMin, timeMax)),
             );
-            const events = allRaw.flat();
 
-            for (const e of events) {
-                if (e.status === 'cancelled' || !e.start?.dateTime) continue;
-                if (eventHasClientCalendarCancellationSignal(e)) continue;
-                const eventId = e.id as string;
-                const bookingId = bookingByEventId.get(eventId);
-                if (!bookingId || !linkedEventIds.has(eventId)) continue;
-                mergeLinkedCalendarMeta(
-                    linkedCalendarByBookingId,
-                    bookingId,
-                    bookingCalendarMetaFromGoogleEvent({
-                        id: eventId,
-                        summary: (e.summary as string | undefined) ?? null,
-                        htmlLink: (e.htmlLink as string | undefined) ?? null,
-                        start: e.start.dateTime as string,
-                        end: (e.end?.dateTime ?? e.start.dateTime) as string,
-                    }),
-                );
-            }
+            const events = allRaw
+                .flat()
+                .filter(event => event.status !== 'cancelled' && event.start?.dateTime)
+                .filter(event => !eventHasClientCalendarCancellationSignal(event));
 
-            const mapped = events
-                .filter((e) => e.status !== 'cancelled' && e.start?.dateTime)
-                .filter((e) => !eventHasClientCalendarCancellationSignal(e))
-                .filter((e) => !linkedEventIds.has(e.id as string))
-                .map((e) => {
-                    const clientName = extractClientName(e);
-                    return {
-                        id: e.id as string,
-                        barberId: barber.id as string,
-                        barberName: barber.name as string,
-                        summary: (e.summary as string) || 'Appointment',
-                        // clientName is the clean extracted name; attendee kept for backward compat
-                        clientName,
-                        attendee: clientName,
-                        start: e.start.dateTime as string,
-                        end: (e.end?.dateTime ?? e.start.dateTime) as string,
-                        date: (e.start.dateTime as string).slice(0, 10),
-                        time: isoToTimeSlot(e.start.dateTime as string),
-                        bookingId: bookingByEventId.get(e.id as string) ?? null,
-                        // htmlLink is the canonical Google Calendar URL to view/edit this event
-                        htmlLink: (e.htmlLink as string | undefined) ?? null,
-                        source: 'google' as const,
-                    };
-                });
-
-            // Dedup pass 1: keep one event per barber+date+time.
-            // Among duplicates at the same time, prefer the one with a real client name.
-            const slotMap = new Map<string, typeof mapped[number]>();
-            for (const ev of mapped) {
-                const slotKey = `${ev.barberId}|${ev.date}|${ev.time}`;
-                const existing = slotMap.get(slotKey);
-                if (!existing) { slotMap.set(slotKey, ev); continue; }
-                // Prefer whichever has a real client name
-                if (ev.clientName && !existing.clientName) slotMap.set(slotKey, ev);
-            }
-
-            const pass1 = Array.from(slotMap.values());
-
-            // Dedup pass 2: if same client name appears at same date+time (across barbers),
-            // keep only the first. This handles duplicate calendars reading the same event.
-            return pass1;
-        })
+            return processGoogleCalendarEventsForDisplay(events, bookings, {
+                id: barber.id,
+                name: barber.name,
+            }, { requireBarberMatch: true });
+        }),
     );
 
-    const allEvents = settled
-        .filter((r): r is PromiseFulfilledResult<any[]> => r.status === 'fulfilled')
-        .flatMap((r) => r.value);
-
-    // Global dedup by name+date+time — catches the same appointment showing from
-    // multiple connected calendars (e.g. personal + appointment calendar both connected).
-    const globalSeen = new Map<string, typeof allEvents[number]>();
-    for (const ev of allEvents) {
-        const normalName = (ev.clientName ?? ev.summary).toLowerCase().trim().replace(/\s+/g, ' ');
-        const globalKey = `${normalName}|${ev.date}|${ev.time}`;
-        if (!globalSeen.has(globalKey)) {
-            globalSeen.set(globalKey, ev);
-        } else {
-            // Keep whichever has the better name
-            const existing = globalSeen.get(globalKey)!;
-            if (ev.clientName && !existing.clientName) globalSeen.set(globalKey, ev);
+    for (const result of settled) {
+        if (result.status !== 'fulfilled') continue;
+        for (const [bookingId, meta] of Object.entries(result.value.linkedCalendarByBookingId)) {
+            mergeLinkedCalendarMeta(linkedCalendarByBookingId, bookingId, meta);
         }
+        for (const event of result.value.externalEvents) {
+            allExternalEvents.push({
+                ...event,
+                barberName: barbers.find(barber => barber.id === event.barberId)?.name ?? '',
+                source: 'google',
+            });
+        }
+    }
+
+    const globalSeen = new Map<string, typeof allExternalEvents[number]>();
+    for (const event of allExternalEvents) {
+        const normalName = (event.clientName ?? event.summary).toLowerCase().trim().replace(/\s+/g, ' ');
+        const globalKey = `${normalName}|${event.date}|${event.time}|${event.barberId ?? ''}`;
+        const existing = globalSeen.get(globalKey);
+        if (!existing) {
+            globalSeen.set(globalKey, event);
+            continue;
+        }
+        if (event.clientName && !existing.clientName) globalSeen.set(globalKey, event);
     }
 
     return NextResponse.json({

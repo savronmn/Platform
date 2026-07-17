@@ -20,6 +20,7 @@ import TimelineDayGrid, { bookingToTimelineEvent, isoRangeToTimelineEvent, type 
 import CalendarNavBar from '@/components/calendar/CalendarNavBar';
 import CalendarScrollArea from '@/components/calendar/CalendarScrollArea';
 import { useServices } from '@/lib/use-services';
+import { filterGoogleBusyAgainstBookings } from '@/lib/calendar-dedup';
 import Link from 'next/link';
 
 type CalView = 'day' | 'week';
@@ -133,16 +134,21 @@ export default function AdminBarberCalendarPage() {
 
     const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
 
+    const filteredGoogleBusy = useMemo(
+        () => filterGoogleBusyAgainstBookings(googleBusy, bookings),
+        [googleBusy, bookings],
+    );
+
     const dayTimelineMap = useMemo(() => {
         const map = new Map<string, { kind: 'booking'; b: Booking } | { kind: 'gcal'; start: string; end: string }>();
         for (const b of bookings.filter(bk => bk.date === selectedDateStr)) {
             map.set(`b-${b.id}`, { kind: 'booking', b });
         }
-        googleBusy.forEach((block, i) => {
+        filteredGoogleBusy.forEach((block, i) => {
             map.set(`g-${i}`, { kind: 'gcal', start: block.start, end: block.end });
         });
         return map;
-    }, [bookings, googleBusy, selectedDateStr]);
+    }, [bookings, filteredGoogleBusy, selectedDateStr]);
 
     const dayTimelineEvents = useMemo((): TimelineEvent[] => {
         const events: TimelineEvent[] = [];
