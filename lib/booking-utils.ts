@@ -1,6 +1,15 @@
 import type { Barber } from '@/lib/types';
 import type { ServiceItem } from '@/lib/services-data';
 
+export const DEFAULT_BOOKING_BARBER_SLUG = 'albe';
+
+/** Primary barber for main /booking ASAP flow (Albe). */
+export function findDefaultBookingBarber(barbers: Barber[]): Barber | null {
+    const bySlug = barbers.find((barber) => barber.slug === DEFAULT_BOOKING_BARBER_SLUG);
+    if (bySlug) return bySlug;
+    return barbers.find((barber) => barber.name.toLowerCase().startsWith('albe')) ?? null;
+}
+
 /** Match a service from a URL query param (id or name). */
 export function resolveServiceFromParam(
     param: string | null | undefined,

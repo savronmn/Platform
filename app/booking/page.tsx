@@ -19,8 +19,8 @@ function BookingPageContent() {
                     </h1>
                     <p className="text-savron-silver uppercase tracking-wider text-sm">
                         {preselectedService
-                            ? 'Pick a time — we’ll match you with the first available barber'
-                            : 'Select a service and time — we’ll find the first available barber'}
+                            ? 'Pick a time with Albe'
+                            : 'Select a service and time with Albe'}
                     </p>
                 </div>
 

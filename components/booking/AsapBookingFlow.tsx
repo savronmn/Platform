@@ -15,7 +15,7 @@ import { DatePicker } from './DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 import { createBookingRequest } from '@/lib/client-create-booking';
 import { isSlotInPast, nextBookableDate, slotConflictsWithBusy } from '@/lib/time-helpers';
-import { barberOffersService, bookingTotals, formatBookingServices, resolveServiceFromParam } from '@/lib/booking-utils';
+import { barberOffersService, bookingTotals, findDefaultBookingBarber, formatBookingServices, resolveServiceFromParam } from '@/lib/booking-utils';
 import { EyebrowsAddon } from './EyebrowsAddon';
 
 const STEP_TRANSITION = { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as const };
@@ -137,11 +137,27 @@ export default function AsapBookingFlow({
 
     const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
+    const selectedSvc = services.find(s => s.id === selectedService);
+    const durationMin = selectedSvc?.durationMin ?? 45;
+
+    const defaultBarber = findDefaultBookingBarber(allBarbers);
+    const displayBarberName = defaultBarber?.name ?? 'Albe';
+
+    const eligibleBarbers = allBarbers.filter((barber) => {
+        if (selectedSvc?.name) return barberOffersService(barber, selectedSvc.name);
+        return true;
+    });
+
+    const barbersForAvailability = defaultBarber
+        ? eligibleBarbers.filter((barber) => barber.id === defaultBarber.id)
+        : eligibleBarbers;
+
     const availableSlots = (() => {
-        if (allBarbers.length === 0) return TIME_SLOTS;
+        const scheduleBarbers = barbersForAvailability.length > 0 ? barbersForAvailability : allBarbers;
+        if (scheduleBarbers.length === 0) return TIME_SLOTS;
         const dayKey = DAY_KEYS[selectedDate.getDay()];
         const slotSet = new Set<string>();
-        for (const barber of allBarbers) {
+        for (const barber of scheduleBarbers) {
             const wh = barber.working_hours as Record<string, { open: string; close: string } | null> | null;
             if (!wh) { generateTimeSlots('10:00', '19:00').forEach(s => slotSet.add(s)); continue; }
             const day = wh[dayKey];
@@ -160,19 +176,11 @@ export default function AsapBookingFlow({
         });
     })();
 
-    const selectedSvc = services.find(s => s.id === selectedService);
-    const durationMin = selectedSvc?.durationMin ?? 45;
-
-    const eligibleBarbers = allBarbers.filter((barber) => {
-        if (selectedSvc?.name) return barberOffersService(barber, selectedSvc.name);
-        return true;
-    });
-
     const isSlotBusy = (timeStr: string) => {
         if (isSlotInPast(selectedDate, timeStr, 5)) return true;
         if (loadingBusy || !busyLoaded || busyError) return true;
 
-        const anyBarberFree = eligibleBarbers.some((barber) => {
+        const anyBarberFree = barbersForAvailability.some((barber) => {
             const entry = perBarberBusy.find(p => p.barberId === barber.id);
             if (!entry) return false;
             return !slotConflictsWithBusy(selectedDate, timeStr, durationMin, entry.busy);
@@ -195,11 +203,16 @@ export default function AsapBookingFlow({
 
         const selectedSvc = services.find(s => s.id === selectedService);
         const durationMin = selectedSvc?.durationMin ?? 45;
+        const defaultBarber = findDefaultBookingBarber(allBarbers);
+        const candidates = (defaultBarber ? [defaultBarber] : allBarbers).filter((barber) => {
+            if (selectedSvc?.name && !barberOffersService(barber, selectedSvc.name)) return false;
+            return true;
+        });
+
+        if (candidates.length === 0) return null;
 
         const calAvailable: Barber[] = [];
-        await Promise.all(allBarbers.map(async (barber) => {
-            if (selectedSvc?.name && !barberOffersService(barber, selectedSvc.name)) return;
-
+        await Promise.all(candidates.map(async (barber) => {
             try {
                 const res = await fetch(`/api/calendar/busy?barberId=${barber.id}&date=${dateStr}`);
                 if (!res.ok) return;
@@ -215,7 +228,9 @@ export default function AsapBookingFlow({
 
         if (calAvailable.length === 0) return null;
 
-        return calAvailable[Math.floor(Math.random() * calAvailable.length)];
+        return defaultBarber && calAvailable.some((barber) => barber.id === defaultBarber.id)
+            ? defaultBarber
+            : calAvailable[0];
     }
 
     const handleConfirm = async () => {
@@ -227,7 +242,7 @@ export default function AsapBookingFlow({
 
         if (!barber) {
             setSubmitting(false);
-            alert('No barbers available at that time. Please pick another slot.');
+            alert(`${displayBarberName} is not available at that time. Please pick another slot.`);
             return;
         }
 
@@ -330,7 +345,7 @@ export default function AsapBookingFlow({
                                 </div>
                                 <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-wider">When do you need in?</h2>
                             </div>
-                            <p className="text-savron-silver text-sm">We&apos;ll find the first available barber for you.</p>
+                            <p className="text-savron-silver text-sm">Book with {displayBarberName} — pick a time below.</p>
 
                             <div>
                                 <p className="text-[9px] uppercase tracking-[0.18em] text-savron-silver/35 mb-3">Date</p>
@@ -443,7 +458,7 @@ export default function AsapBookingFlow({
                             </div>
                             <div className="flex justify-between pt-2 border-t border-white/10">
                                 <span className="text-savron-silver">Barber</span>
-                                <span className="text-savron-blue-light text-xs uppercase tracking-wider">Auto-assigned</span>
+                                <span className="text-white">{displayBarberName}</span>
                             </div>
                         </div>
                         <input placeholder="YOUR NAME" value={clientName} onChange={e => setClientName(e.target.value)} className="input-savron" />
@@ -530,7 +545,7 @@ export default function AsapBookingFlow({
                         )}
                         {((skipServiceStep && step === 2) || (!skipServiceStep && step === 3)) && (
                             <Button onClick={handleConfirm} isLoading={submitting} disabled={!clientName || !clientEmail}>
-                                Find Me a Barber
+                                Book with {displayBarberName}
                             </Button>
                         )}
                     </div>

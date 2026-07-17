@@ -29,7 +29,7 @@ export default function InlineBookingSection({
                     </p>
                 </div>
                 <p className="text-savron-silver/50 text-xs max-w-md mx-auto leading-relaxed">
-                    Pick a time and we&apos;ll match you with the first available barber.
+                    Pick a time with Albe.
                 </p>
             </div>
 
