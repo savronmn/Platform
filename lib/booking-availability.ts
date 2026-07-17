@@ -7,6 +7,9 @@ import {
 } from '@/lib/google-calendar';
 import { resolveBarberAccessToken } from '@/lib/barber-calendar-sync';
 import { chicagoDayBoundsIso, toChicagoIsoString } from '@/lib/chicago-time';
+import { getShopCalendarTokens } from '@/lib/shop-calendar';
+import { listShopBookingPageCalendarIds } from '@/lib/shop-booking-pages';
+import { getValidAccessToken } from '@/lib/google-calendar';
 import { timeToMins } from '@/lib/calendar-timeline';
 import {
     getServiceDurationCatalog,
@@ -131,6 +134,40 @@ export async function getBarberGoogleBusySlots(
     return merged;
 }
 
+/** Shop booking-page calendars (savronmn@gmail.com) — blocks slots for tagged barber appointments. */
+export async function getShopBookingPageBusySlots(
+    barberId: string,
+    date: string,
+): Promise<{ start: string; end: string }[]> {
+    const tokens = await getShopCalendarTokens();
+    if (!tokens) return [];
+
+    const accessToken = await getValidAccessToken(tokens);
+    const calendarIds = await listShopBookingPageCalendarIds();
+    const { timeMin, timeMax } = chicagoDayBoundsIso(date);
+
+    const results = await Promise.allSettled(
+        calendarIds.map(calendarId => getEventBusySlots(accessToken, calendarId, timeMin, timeMax)),
+    );
+
+    const seen = new Set<string>();
+    const merged: { start: string; end: string }[] = [];
+
+    for (const result of results) {
+        if (result.status !== 'fulfilled') continue;
+        for (const slot of result.value) {
+            const taggedBarberId = (slot as { barberId?: string }).barberId;
+            if (taggedBarberId && taggedBarberId !== barberId) continue;
+            const key = slot.id ?? `${slot.start}|${slot.end}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            merged.push({ start: slot.start, end: slot.end });
+        }
+    }
+
+    return merged;
+}
+
 export type BarberAvailabilityResult = {
     busy: { start: string; end: string }[];
     workingHours: Record<string, { open: string; close: string } | null> | null;
@@ -161,6 +198,10 @@ export async function getBarberAvailability(
     const workingHours = (barber.working_hours ?? null) as Record<string, { open: string; close: string } | null> | null;
     let busy = [...dbAvailability.busy];
     let googleBusyCount = 0;
+
+    const shopBusy = await getShopBookingPageBusySlots(barberId, date);
+    googleBusyCount += shopBusy.length;
+    busy = [...shopBusy, ...busy];
 
     const tokens = barber.google_calendar_tokens as CalendarToken | null;
     const googleCalendarConnected = Boolean(tokens);
