@@ -100,8 +100,15 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         if (pathname.startsWith('/admin/login')) return;
-        void fetch('/api/admin/ensure-role', { method: 'POST', credentials: 'include' });
-    }, [pathname]);
+        if (typeof window !== 'undefined' && sessionStorage.getItem('admin-role-checked') === '1') return;
+        void fetch('/api/admin/ensure-role', { method: 'POST', credentials: 'include' })
+            .then(() => {
+                if (typeof window !== 'undefined') {
+                    sessionStorage.setItem('admin-role-checked', '1');
+                }
+            });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per admin session
+    }, []);
 
     if (pathname === '/admin/login') {
         return <>{children}</>;
