@@ -2,9 +2,7 @@
 
 import { Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import AsapBookingFlow from '@/components/booking/AsapBookingFlow';
-// import BarberChooser from '@/components/booking/BarberChooser';
-// ↑ Re-enable when adding the "choose your barber" step back
+import BarberChooser from '@/components/booking/BarberChooser';
 
 type InlineBookingSectionProps = {
     preselectedServiceName?: string | null;
@@ -29,25 +27,16 @@ export default function InlineBookingSection({
                     </p>
                 </div>
                 <p className="text-savron-silver/50 text-xs max-w-md mx-auto leading-relaxed">
-                    Pick a time with Albe.
+                    Choose your barber, view their profile and services, then book your appointment.
                 </p>
             </div>
 
-            <AsapBookingFlow
+            <BarberChooser
                 preselectedServiceName={preselectedServiceName}
                 prefillName={prefillName}
                 prefillEmail={prefillEmail}
+                compact
             />
-
-            {/*
-              ── Barber chooser step (disabled — restore when ready) ──
-              <BarberChooser
-                  preselectedServiceName={preselectedServiceName}
-                  prefillName={prefillName}
-                  prefillEmail={prefillEmail}
-                  compact
-              />
-            */}
         </section>
     );
 }

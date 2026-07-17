@@ -63,6 +63,20 @@ export function buildBarberPageUrl(
     return query ? `${base}?${query}` : base;
 }
 
+/** Link to a barber's public booking page, optionally with a pre-selected service or pre-filled member details. */
+export function buildBarberPageUrl(
+    slug: string,
+    options?: { serviceName?: string; name?: string; email?: string },
+): string {
+    const base = `/book/${encodeURIComponent(slug)}`;
+    const params = new URLSearchParams();
+    if (options?.serviceName) params.set('service', options.serviceName);
+    if (options?.name) params.set('name', options.name);
+    if (options?.email) params.set('email', options.email);
+    const query = params.toString();
+    return query ? `${base}?${query}` : base;
+}
+
 /** Build the service label stored on bookings, with optional eyebrows add-on. */
 export function formatBookingServices(
     serviceNames: string[],
