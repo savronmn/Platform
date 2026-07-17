@@ -156,6 +156,20 @@ export async function syncBookingCalendars(
     let barberError: string | undefined;
     const barberBlockRequired = !!(barber && (options.forceBarber || barberCalendarReady(barber)));
 
+    // Barber primary block first — Google Appointment Schedules (albestylesbarber.com) only
+    // respect busy time on the barber's own calendar, not shop invites on savronmn@gmail.com.
+    const shouldSyncBarberBlock = barber
+        && (options.forceBarber || barberCalendarReady(barber));
+
+    if (shouldSyncBarberBlock) {
+        const barberResult = await syncBarberBlock(booking, barber);
+        barberEventId = barberResult.barberEventId ?? barberEventId;
+        barberError = barberResult.error;
+        if (barberError) {
+            console.error('[calendar/sync] barber block failed (continuing with shop invite):', barberError);
+        }
+    }
+
     if (options.shopConnected) {
         try {
             shopEventId = await syncShopInvite(
@@ -167,15 +181,6 @@ export async function syncBookingCalendars(
             shopError = String(error);
             console.error('[calendar/sync] shop calendar failed:', error);
         }
-    }
-
-    const shouldSyncBarberBlock = barber
-        && (options.forceBarber || barberCalendarReady(barber));
-
-    if (shouldSyncBarberBlock) {
-        const barberResult = await syncBarberBlock(booking, barber);
-        barberEventId = barberResult.barberEventId ?? barberEventId;
-        barberError = barberResult.error;
     }
 
     const fullySynced = bookingCalendarFullySynced(booking, barber, options.shopConnected);

@@ -44,6 +44,8 @@ export default function AdminBarberCalendarPage() {
     const [workingHours, setWorkingHours] = useState<WorkingHours | null>(null);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
+    const [repairing, setRepairing] = useState(false);
+    const [repairMessage, setRepairMessage] = useState<string | null>(null);
 
     useEffect(() => {
         async function load() {
@@ -95,6 +97,29 @@ export default function AdminBarberCalendarPage() {
             setGoogleBusy([]);
         }
         setSyncing(false);
+    };
+
+    const repairCalendarBlocks = async () => {
+        if (!barber) return;
+        setRepairing(true);
+        setRepairMessage(null);
+        try {
+            const res = await fetch('/api/calendar/repair-barber-blocks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ includePast: true, resyncFuture: true, limit: 500 }),
+            });
+            const data = await res.json() as { repaired?: number; failed?: number; error?: string };
+            if (!res.ok) {
+                setRepairMessage(data.error ?? 'Repair failed');
+            } else {
+                setRepairMessage(`Repaired ${data.repaired ?? 0} calendar block(s)${data.failed ? `, ${data.failed} failed` : ''}.`);
+                await fetchGoogleBusy();
+            }
+        } catch {
+            setRepairMessage('Repair request failed');
+        }
+        setRepairing(false);
     };
 
     const weekDays = useMemo(() => {
@@ -193,12 +218,22 @@ export default function AdminBarberCalendarPage() {
                 <div className="flex gap-2 items-center flex-wrap">
                     <button
                         onClick={fetchGoogleBusy}
-                        disabled={syncing}
+                        disabled={syncing || repairing}
                         className="admin-icon-btn border border-white/10 text-savron-silver hover:text-white hover:border-white/25 transition-all disabled:opacity-40"
                         title="Sync Google Calendar"
                     >
                         <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin")} />
                     </button>
+                    {barber.google_calendar_id && (
+                        <button
+                            onClick={repairCalendarBlocks}
+                            disabled={repairing || syncing}
+                            className="px-3 py-2 border border-white/10 rounded-savron text-[10px] uppercase tracking-widest text-savron-silver hover:text-white hover:border-white/25 transition-all disabled:opacity-40"
+                            title="Backfill missing busy blocks on this barber's Google Calendar (for personal booking pages)"
+                        >
+                            {repairing ? 'Repairing…' : 'Repair blocks'}
+                        </button>
+                    )}
                     {barber.google_calendar_id ? (
                         <span className="text-[10px] uppercase tracking-widest text-accent-blue flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-savron-blue-light inline-block" />
@@ -212,6 +247,12 @@ export default function AdminBarberCalendarPage() {
                     )}
                 </div>
             </div>
+
+            {repairMessage && (
+                <div className="px-4 py-3 border border-savron-green-light/20 bg-savron-green/10 rounded-savron text-accent-blue text-xs uppercase tracking-widest">
+                    {repairMessage}
+                </div>
+            )}
 
             {barber.google_calendar_id && (!barber.google_sync_token || !barber.google_channel_id) && (
                 <div className="px-4 py-3 border border-amber-500/20 bg-amber-500/5 rounded-savron text-amber-400 text-xs uppercase tracking-widest">
