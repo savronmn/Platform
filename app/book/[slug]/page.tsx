@@ -1,5 +1,6 @@
 "use client";
 
+import Link from 'next/link';
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
@@ -27,6 +28,8 @@ function BarberBookingContent() {
     const searchParams = useSearchParams();
     const slug = params.slug as string;
     const preselectedService = searchParams.get('service');
+    const prefillName = searchParams.get('name');
+    const prefillEmail = searchParams.get('email');
     const supabase = createClient();
     const services = useServices();
 
@@ -51,6 +54,14 @@ function BarberBookingContent() {
     const [addEyebrows, setAddEyebrows] = useState(false);
     const flowRef = useRef<HTMLDivElement>(null);
     const skipStepScroll = useRef(true);
+
+    useEffect(() => {
+        if (prefillName) setClientName(prefillName);
+    }, [prefillName]);
+
+    useEffect(() => {
+        if (prefillEmail) setClientEmail(prefillEmail);
+    }, [prefillEmail]);
 
     useEffect(() => {
         if (preselectionApplied || !preselectedService || services.length === 0) return;
@@ -220,6 +231,12 @@ function BarberBookingContent() {
             {/* Barber header */}
             <section className="px-6 md:px-12 lg:px-24 py-12">
                 <div className="max-w-4xl mx-auto">
+                    <Link
+                        href={preselectedService ? `/booking?service=${encodeURIComponent(preselectedService)}` : '/booking'}
+                        className="inline-flex items-center gap-1.5 text-savron-silver/50 hover:text-white text-xs uppercase tracking-widest transition-colors mb-6"
+                    >
+                        <ChevronLeft className="w-3.5 h-3.5" /> All barbers
+                    </Link>
                     <motion.div
                         initial={{ opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
