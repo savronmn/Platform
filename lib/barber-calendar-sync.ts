@@ -29,6 +29,21 @@ export function barberCalendarReady(
     return !!(barber?.google_calendar_tokens && barber.google_calendar_id);
 }
 
+/** Refresh OAuth token if needed and persist back to the barbers row. */
+export async function resolveBarberAccessToken(
+    barberId: string,
+    tokens: CalendarToken,
+): Promise<string> {
+    const { accessToken, token: refreshedToken } = await resolveAccessToken(tokens);
+    if (refreshedToken !== tokens) {
+        await getAdmin()
+            .from('barbers')
+            .update({ google_calendar_tokens: refreshedToken })
+            .eq('id', barberId);
+    }
+    return accessToken;
+}
+
 /** Create/update a silent busy block on the barber's Google Calendar (no client invite email). */
 export async function upsertBarberCalendarBlock(
     booking: BookingCalendarInput,

@@ -15,12 +15,12 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        const { busy, workingHours, googleCalendarConnected } = await getBarberAvailability(
+        const { busy, workingHours, googleCalendarConnected, googleBusyCount } = await getBarberAvailability(
             barberId,
             date,
             { excludeBookingId },
         );
-        return NextResponse.json({ busy, workingHours, googleCalendarConnected });
+        return NextResponse.json({ busy, workingHours, googleCalendarConnected, googleBusyCount });
     } catch (err) {
         if (err instanceof GoogleCalendarUnavailableError) {
             return NextResponse.json(

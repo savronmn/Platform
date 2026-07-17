@@ -1,11 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import {
-    getValidAccessToken,
     getEventBusySlots,
     listAccountCalendarIds,
     toIsoString,
     type CalendarToken,
 } from '@/lib/google-calendar';
+import { resolveBarberAccessToken } from '@/lib/barber-calendar-sync';
 import { chicagoDayBoundsIso, toChicagoIsoString } from '@/lib/chicago-time';
 import { timeToMins } from '@/lib/calendar-timeline';
 import {
@@ -84,27 +84,47 @@ export async function getBarberDatabaseBusySlots(
 export async function getBarberGoogleBusySlots(
     accessToken: string,
     date: string,
+    options: { extraCalendarIds?: string[] } = {},
 ): Promise<{ start: string; end: string }[]> {
-    const calendarIds = await listAccountCalendarIds(accessToken);
-    if (calendarIds.length === 0) return [];
-
     const { timeMin, timeMax } = chicagoDayBoundsIso(date);
 
-    const perCalendar = await Promise.all(
-        calendarIds.map(calendarId =>
-            getEventBusySlots(accessToken, calendarId, timeMin, timeMax),
-        ),
+    const calendarIds = new Set<string>(['primary']);
+    for (const id of options.extraCalendarIds ?? []) {
+        if (id) calendarIds.add(id);
+    }
+
+    try {
+        const listed = await listAccountCalendarIds(accessToken);
+        for (const id of listed) calendarIds.add(id);
+    } catch (err) {
+        console.warn('[booking-availability] calendarList failed; using primary only:', err);
+    }
+
+    const ids = Array.from(calendarIds);
+    const primarySlots = await getEventBusySlots(accessToken, 'primary', timeMin, timeMax);
+
+    const otherResults = await Promise.allSettled(
+        ids
+            .filter(id => id !== 'primary')
+            .map(calendarId => getEventBusySlots(accessToken, calendarId, timeMin, timeMax)),
     );
 
     const seen = new Set<string>();
     const merged: { start: string; end: string }[] = [];
 
-    for (const slots of perCalendar) {
+    const addSlots = (slots: { id?: string; start: string; end: string }[]) => {
         for (const slot of slots) {
             const key = slot.id ?? `${slot.start}|${slot.end}`;
             if (seen.has(key)) continue;
             seen.add(key);
             merged.push({ start: slot.start, end: slot.end });
+        }
+    };
+
+    addSlots(primarySlots);
+    for (const result of otherResults) {
+        if (result.status === 'fulfilled') {
+            addSlots(result.value);
         }
     }
 
@@ -115,6 +135,7 @@ export type BarberAvailabilityResult = {
     busy: { start: string; end: string }[];
     workingHours: Record<string, { open: string; close: string } | null> | null;
     googleCalendarConnected: boolean;
+    googleBusyCount: number;
 };
 
 export async function getBarberAvailability(
@@ -127,7 +148,7 @@ export async function getBarberAvailability(
     const [{ data: barber }, dbAvailability] = await Promise.all([
         supabaseAdmin
             .from('barbers')
-            .select('google_calendar_id, google_calendar_tokens, working_hours')
+            .select('id, google_calendar_id, google_calendar_tokens, working_hours')
             .eq('id', barberId)
             .single(),
         getBarberDatabaseBusySlots(barberId, date, options),
@@ -139,14 +160,18 @@ export async function getBarberAvailability(
 
     const workingHours = (barber.working_hours ?? null) as Record<string, { open: string; close: string } | null> | null;
     let busy = [...dbAvailability.busy];
+    let googleBusyCount = 0;
 
     const tokens = barber.google_calendar_tokens as CalendarToken | null;
     const googleCalendarConnected = Boolean(tokens);
 
     if (tokens) {
         try {
-            const accessToken = await getValidAccessToken(tokens);
-            const gcalBusy = await getBarberGoogleBusySlots(accessToken, date);
+            const accessToken = await resolveBarberAccessToken(barberId, tokens);
+            const gcalBusy = await getBarberGoogleBusySlots(accessToken, date, {
+                extraCalendarIds: barber.google_calendar_id ? [barber.google_calendar_id] : [],
+            });
+            googleBusyCount = gcalBusy.length;
             busy = [...gcalBusy, ...busy];
         } catch (err) {
             console.error('[booking-availability] Google busy fetch failed:', err);
@@ -154,7 +179,7 @@ export async function getBarberAvailability(
         }
     }
 
-    return { busy, workingHours, googleCalendarConnected };
+    return { busy, workingHours, googleCalendarConnected, googleBusyCount };
 }
 
 export function slotIsAvailable(

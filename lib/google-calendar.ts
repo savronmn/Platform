@@ -280,13 +280,21 @@ export async function listAccountCalendarIds(accessToken: string): Promise<strin
     url.searchParams.set('minAccessRole', 'reader');
     const res = await fetch(url.toString(), {
         headers: { Authorization: `Bearer ${accessToken}` },
-        next: { revalidate: 0 },
+        cache: 'no-store',
     });
-    if (!res.ok) return [];
+    if (!res.ok) {
+        const err = await res.text().catch(() => '');
+        throw new Error(`Failed to list Google calendars (${res.status}): ${err}`);
+    }
     const data = await res.json();
-    return ((data.items ?? []) as Array<{ id?: string }>)
+    const ids = ((data.items ?? []) as Array<{ id?: string; primary?: boolean }>)
         .map(calendar => calendar.id)
         .filter((id): id is string => Boolean(id));
+    // Always include primary — appointment bookings land here even if calendarList is partial.
+    if (!ids.includes('primary')) {
+        ids.unshift('primary');
+    }
+    return ids;
 }
 
 async function listCalendarEventsForDay(
@@ -439,21 +447,32 @@ export async function getEventBusySlots(
     url.searchParams.set('singleEvents', 'true');
     url.searchParams.set('orderBy', 'startTime');
     url.searchParams.set('maxResults', '250');
+    url.searchParams.set('showDeleted', 'false');
 
     const res = await fetch(url.toString(), {
         headers: { Authorization: `Bearer ${accessToken}` },
-        next: { revalidate: 0 },
+        cache: 'no-store',
     });
 
     if (!res.ok) {
         const err = await res.text();
         console.error('Failed to fetch calendar events for busy:', err);
-        throw new Error('Failed to fetch calendar events for busy');
+        throw new Error(`Failed to fetch calendar events for busy (${res.status})`);
     }
 
     const data = await res.json();
-    return ((data.items ?? []) as Array<{ id?: string; status?: string; start?: { dateTime?: string }; end?: { dateTime?: string } }>)
-        .filter(e => e.status !== 'cancelled' && e.start?.dateTime)
+    return ((data.items ?? []) as Array<{
+        id?: string;
+        status?: string;
+        transparency?: string;
+        start?: { dateTime?: string };
+        end?: { dateTime?: string };
+    }>)
+        .filter(e =>
+            e.status !== 'cancelled'
+            && e.start?.dateTime
+            && e.transparency !== 'transparent',
+        )
         .map(e => ({
             id: e.id,
             start: e.start!.dateTime!,
