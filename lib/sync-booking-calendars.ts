@@ -220,15 +220,33 @@ export function buildCalendarSyncResponse(syncResult: CalendarSyncResult, extra:
     };
 }
 
-/** Backfill missing barber calendar blocks for connected barbers. */
-export async function repairMissingBarberBlocks(options: { limit?: number } = {}): Promise<{
+export type RepairBarberBlocksOptions = {
+    limit?: number;
+    /** Include bookings up to 90 days in the past when backfilling missing google_event_id. */
+    includePast?: boolean;
+    /** Re-sync future bookings that already have google_event_id. */
+    resyncFuture?: boolean;
+};
+
+export type RepairBarberBlocksResult = {
     scanned: number;
     repaired: number;
+    resynced: number;
     failed: number;
     errors: string[];
-}> {
-    const limit = options.limit ?? 100;
+};
+
+/** Backfill missing barber calendar blocks and optionally re-sync future blocks for connected barbers. */
+export async function repairMissingBarberBlocks(
+    options: RepairBarberBlocksOptions = {},
+): Promise<RepairBarberBlocksResult> {
+    const limit = options.limit ?? 500;
+    const includePast = options.includePast ?? true;
+    const resyncFuture = options.resyncFuture ?? true;
     const today = new Date().toISOString().slice(0, 10);
+    const pastCutoff = new Date();
+    pastCutoff.setDate(pastCutoff.getDate() - 90);
+    const repairFromDate = includePast ? pastCutoff.toISOString().slice(0, 10) : today;
 
     const { data: barbers } = await getAdmin()
         .from('barbers')
@@ -241,31 +259,50 @@ export async function repairMissingBarberBlocks(options: { limit?: number } = {}
         .map(barber => barber.id);
 
     if (connectedBarberIds.length === 0) {
-        return { scanned: 0, repaired: 0, failed: 0, errors: [] };
+        return { scanned: 0, repaired: 0, resynced: 0, failed: 0, errors: [] };
     }
 
-    const { data: bookings } = await getAdmin()
+    const admin = getAdmin();
+    const bookingStatusFilter = ['confirmed', 'completed', 'no_show'] as const;
+
+    const { data: missingBlocks } = await admin
         .from('bookings')
         .select('id')
         .in('barber_id', connectedBarberIds)
-        .in('status', ['confirmed', 'completed', 'no_show'])
+        .in('status', bookingStatusFilter)
         .is('google_event_id', null)
-        .gte('date', today)
+        .gte('date', repairFromDate)
         .order('date', { ascending: true })
         .limit(limit);
 
+    let resyncCandidates: { id: string }[] = [];
+    if (resyncFuture) {
+        const { data: existingBlocks } = await admin
+            .from('bookings')
+            .select('id')
+            .in('barber_id', connectedBarberIds)
+            .in('status', bookingStatusFilter)
+            .not('google_event_id', 'is', null)
+            .gte('date', today)
+            .order('date', { ascending: true })
+            .limit(limit);
+
+        resyncCandidates = existingBlocks ?? [];
+    }
+
     const shopConnected = await isShopCalendarConnected();
     let repaired = 0;
+    let resynced = 0;
     let failed = 0;
     const errors: string[] = [];
 
-    for (const row of bookings ?? []) {
+    const processBooking = async (row: { id: string }, mode: 'repair' | 'resync') => {
         const loaded = await loadBookingForSync(row.id);
-        if (!loaded) continue;
+        if (!loaded) return;
 
         const { booking } = loaded;
         const barber = booking.barbers;
-        if (!barber || !barberCalendarReady(barber)) continue;
+        if (!barber || !barberCalendarReady(barber)) return;
 
         const syncResult = await syncBookingCalendars(booking, barber, {
             shopConnected,
@@ -273,16 +310,29 @@ export async function repairMissingBarberBlocks(options: { limit?: number } = {}
         });
 
         if (syncResult.barberEventId) {
-            repaired += 1;
+            if (mode === 'repair') {
+                repaired += 1;
+            } else {
+                resynced += 1;
+            }
         } else {
             failed += 1;
             errors.push(`${booking.id}: ${syncResult.barberError ?? 'unknown error'}`);
         }
+    };
+
+    for (const row of missingBlocks ?? []) {
+        await processBooking(row, 'repair');
+    }
+
+    for (const row of resyncCandidates) {
+        await processBooking(row, 'resync');
     }
 
     return {
-        scanned: bookings?.length ?? 0,
+        scanned: (missingBlocks?.length ?? 0) + resyncCandidates.length,
         repaired,
+        resynced,
         failed,
         errors,
     };
