@@ -30,6 +30,7 @@ import { createBookingRequest } from '@/lib/client-create-booking';
 import EditBookingModal from '@/components/crm/EditBookingModal';
 import { LanguageProvider, useLanguage } from '@/lib/language-context';
 import { slotConflictsWithBusy } from '@/lib/time-helpers';
+import { resolveBookingDurationMins } from '@/lib/booking-duration';
 import { dedupeExternalEventsAgainstBookings, mergeCalendarMetaMaps } from '@/lib/calendar-dedup';
 import type { BookingCalendarMeta } from '@/lib/calendar-dedup';
 
@@ -467,7 +468,11 @@ function HostDashboardInner() {
         ? calendarMetaByBookingId.get(activeBooking.id) ?? null
         : null;
 
-    const bookingDurationMins = (b: Booking): number => parseDurationMins(b.duration);
+    const bookingDurationMins = (b: Booking): number =>
+        resolveBookingDurationMins(
+            b,
+            services.map(s => ({ name: s.name, durationMin: s.durationMin })),
+        );
 
     const quickAddDurationMins = useMemo(() => {
         const svc = services.find(s => s.name === quickForm.service);
@@ -713,6 +718,7 @@ function HostDashboardInner() {
 
             const clientName = event.clientName ?? event.attendee ?? 'Walk-in';
 
+            const durationMins = externalDurationMins(event);
             const result = await createBookingRequest({
                 client_name: clientName,
                 service,
@@ -720,7 +726,7 @@ function HostDashboardInner() {
                 barber_name: event.barberName,
                 date: event.date,
                 time: event.time,
-                duration: '45 min',
+                duration: `${durationMins} min`,
                 price: '',
                 status: 'completed',
                 notes: 'Checked in from Google Calendar event',
