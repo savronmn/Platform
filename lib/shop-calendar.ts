@@ -3,9 +3,11 @@ import {
     createCalendarEvent,
     updateCalendarEvent,
     getValidAccessToken,
+    type CalendarAttendee,
     type CalendarToken,
 } from '@/lib/google-calendar';
 import { SHOP_CALENDAR_DISPLAY_NAME, SHOP_CALENDAR_EMAIL, SHOP_GOOGLE_CALENDAR_ID } from '@/lib/shop';
+import { resolveShopBookingPage } from '@/lib/shop-booking-pages';
 
 const getAdmin = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -103,9 +105,40 @@ export async function saveShopSyncTokenIfUnchanged(
     return true;
 }
 
-/** Create/update the shop Google Calendar invite — client attendee only; barber blocking uses their own calendar. */
+function buildShopInviteAttendees(params: {
+    clientEmail: string | null;
+    barberEmail: string | null;
+    barberName: string | null;
+}): CalendarAttendee[] {
+    const shopEmail = SHOP_CALENDAR_EMAIL.toLowerCase();
+    const attendees: CalendarAttendee[] = [];
+
+    if (params.clientEmail && params.clientEmail.toLowerCase() !== shopEmail) {
+        attendees.push({
+            email: params.clientEmail,
+            responseStatus: 'needsAction',
+        });
+    }
+
+    if (params.barberEmail && params.barberEmail.toLowerCase() !== shopEmail) {
+        attendees.push({
+            email: params.barberEmail,
+            displayName: params.barberName ?? undefined,
+            responseStatus: 'accepted',
+        });
+    }
+
+    return attendees;
+}
+
+/**
+ * Create/update a shop booking-page calendar invite from savronmn@gmail.com.
+ * Client + barber both receive the same Google Calendar invite (organizer: SAVRON shop).
+ */
 export async function upsertShopInviteEvent(params: {
     bookingId: string;
+    service: string;
+    barberId: string | null;
     shopEventId?: string | null;
     summary: string;
     description: string;
@@ -113,62 +146,76 @@ export async function upsertShopInviteEvent(params: {
     startIso: string;
     endIso: string;
     clientEmail: string | null;
-}): Promise<string | null> {
+    barberEmail?: string | null;
+    barberName?: string | null;
+}): Promise<{ eventId: string | null; calendarId: string | null; bookingPageSlug: string | null }> {
     const tokens = await getShopCalendarTokens();
-    if (!tokens) return null;
+    if (!tokens) return { eventId: null, calendarId: null, bookingPageSlug: null };
 
     const accessToken = await getValidAccessToken(tokens);
-    const calendarId = await getShopCalendarId();
+    const bookingPage = await resolveShopBookingPage(params.service);
+    const calendarId = bookingPage.calendarId;
 
-    const shopEmail = SHOP_CALENDAR_EMAIL.toLowerCase();
-    const attendeeEmails = params.clientEmail && params.clientEmail.toLowerCase() !== shopEmail
-        ? [params.clientEmail]
-        : [];
+    const attendees = buildShopInviteAttendees({
+        clientEmail: params.clientEmail,
+        barberEmail: params.barberEmail ?? null,
+        barberName: params.barberName ?? null,
+    });
 
-    // Google Calendar invite is the client + barber confirmation channel.
-    const sendUpdates = attendeeEmails.length > 0 ? 'all' as const : 'none' as const;
+    const sendUpdates = attendees.length > 0 ? 'all' as const : 'none' as const;
 
     const organizer = {
         organizerEmail: SHOP_CALENDAR_EMAIL,
         organizerDisplayName: SHOP_CALENDAR_DISPLAY_NAME,
     };
 
+    const privateExtendedProperties: Record<string, string> = {
+        savronBookingPageSlug: bookingPage.slug,
+        savronService: bookingPage.serviceName,
+    };
+    if (params.barberId) {
+        privateExtendedProperties.savronBarberId = params.barberId;
+    }
+
+    const eventInput = {
+        summary: params.summary,
+        description: params.description,
+        location: params.location,
+        startIso: params.startIso,
+        endIso: params.endIso,
+        attendees,
+        bookingId: params.bookingId,
+        privateExtendedProperties,
+        ...organizer,
+    };
+
+    let eventId: string;
     if (params.shopEventId) {
         try {
-            return await updateCalendarEvent(
+            eventId = await updateCalendarEvent(
                 accessToken,
                 calendarId,
                 params.shopEventId,
-                {
-                    summary: params.summary,
-                    description: params.description,
-                    location: params.location,
-                    startIso: params.startIso,
-                    endIso: params.endIso,
-                    attendeeEmails,
-                    bookingId: params.bookingId,
-                    ...organizer,
-                },
+                eventInput,
                 sendUpdates,
             );
         } catch (err) {
-            console.warn('[shop-calendar] Update failed; creating new invite event:', err);
+            console.warn('[shop-calendar] Update failed; creating new booking-page invite:', err);
+            eventId = await createCalendarEvent(
+                accessToken,
+                calendarId,
+                eventInput,
+                sendUpdates,
+            );
         }
+    } else {
+        eventId = await createCalendarEvent(
+            accessToken,
+            calendarId,
+            eventInput,
+            sendUpdates,
+        );
     }
 
-    return createCalendarEvent(
-        accessToken,
-        calendarId,
-        {
-            summary: params.summary,
-            description: params.description,
-            location: params.location,
-            startIso: params.startIso,
-            endIso: params.endIso,
-            attendeeEmails,
-            bookingId: params.bookingId,
-            ...organizer,
-        },
-        sendUpdates,
-    );
+    return { eventId, calendarId, bookingPageSlug: bookingPage.slug };
 }

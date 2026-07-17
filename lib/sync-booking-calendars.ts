@@ -4,6 +4,7 @@ import { deleteAllBookingCalendarEvents } from '@/lib/booking-calendar-cleanup';
 import { buildBookingCalendarPayload } from '@/lib/booking-calendar-payload';
 import { getServiceDurationCatalog } from '@/lib/booking-duration';
 import { isShopCalendarConnected, upsertShopInviteEvent } from '@/lib/shop-calendar';
+import { resolveShopBookingPage } from '@/lib/shop-booking-pages';
 import { barberCalendarReady, upsertBarberCalendarBlock } from '@/lib/barber-calendar-sync';
 
 const getAdmin = () => createClient(
@@ -41,6 +42,7 @@ export type CalendarSyncResult = {
     shopError?: string;
     barberError?: string;
     barberBlockRequired: boolean;
+    barberBlockSkippedForShopInvite: boolean;
     fullySynced: boolean;
 };
 
@@ -64,30 +66,38 @@ export async function removeBookingFromCalendars(
     await deleteAllBookingCalendarEvents(booking, options);
 }
 
-async function syncShopInvite(booking: BookingForSync, barberName: string | null): Promise<string | null> {
+async function syncShopInvite(
+    booking: BookingForSync,
+    barber: BarberCalendarInfo | null,
+): Promise<string | null> {
     const catalog = await getServiceDurationCatalog();
-    const payload = buildBookingCalendarPayload(booking, barberName, catalog);
+    const payload = buildBookingCalendarPayload(booking, barber?.name ?? null, catalog);
+    const bookingPage = await resolveShopBookingPage(booking.service);
 
-    const shopEventId = await upsertShopInviteEvent({
+    const { eventId } = await upsertShopInviteEvent({
         bookingId: booking.id,
+        service: booking.service,
+        barberId: booking.barber_id,
         shopEventId: booking.shop_google_event_id,
-        summary: payload.clientSummary,
+        summary: bookingPage.inviteTitle,
         description: payload.clientDescription,
         location: payload.location,
         startIso: payload.startIso,
         endIso: payload.endIso,
         clientEmail: booking.client_email,
+        barberEmail: barber?.email ?? null,
+        barberName: barber?.name ?? null,
     });
 
-    if (shopEventId) {
+    if (eventId) {
         await getAdmin()
             .from('bookings')
-            .update({ shop_google_event_id: shopEventId })
+            .update({ shop_google_event_id: eventId })
             .eq('id', booking.id);
-        booking.shop_google_event_id = shopEventId;
+        booking.shop_google_event_id = eventId;
     }
 
-    return shopEventId;
+    return eventId;
 }
 
 async function syncBarberBlock(
@@ -119,11 +129,12 @@ export function bookingCalendarFullySynced(
 ): boolean {
     const barberNeedsBlock = !!(barber && barberCalendarReady(barber));
     const shopOk = !shopConnected || !!booking.shop_google_event_id;
-    const barberOk = !barberNeedsBlock || !!booking.google_event_id;
+    const shopCoversBarber = shopConnected && !!booking.shop_google_event_id && !!barber?.email;
+    const barberOk = !barberNeedsBlock || shopCoversBarber || !!booking.google_event_id;
     return shopOk && barberOk;
 }
 
-/** Barber block runs first so the barber's Google Calendar locks immediately (no RSVP). */
+/** Barber block runs first unless shop invite covers the barber (same invite for client + barber). */
 export async function syncBookingCalendars(
     booking: BookingForSync,
     barber: BarberCalendarInfo | null,
@@ -134,20 +145,28 @@ export async function syncBookingCalendars(
     let shopError: string | undefined;
     let barberError: string | undefined;
     const barberBlockRequired = !!(barber && (options.forceBarber || barberCalendarReady(barber)));
-
-    if (barber && (options.forceBarber || barberCalendarReady(barber))) {
-        const barberResult = await syncBarberBlock(booking, barber);
-        barberEventId = barberResult.barberEventId ?? barberEventId;
-        barberError = barberResult.error;
-    }
+    let barberBlockSkippedForShopInvite = false;
 
     if (options.shopConnected) {
         try {
-            shopEventId = await syncShopInvite(booking, barber?.name ?? null);
+            shopEventId = await syncShopInvite(booking, barber);
+            if (shopEventId && barber?.email) {
+                barberBlockSkippedForShopInvite = true;
+            }
         } catch (error) {
             shopError = String(error);
             console.error('[calendar/sync] shop calendar failed:', error);
         }
+    }
+
+    const shouldSyncBarberBlock = barber
+        && (options.forceBarber || barberCalendarReady(barber))
+        && !barberBlockSkippedForShopInvite;
+
+    if (shouldSyncBarberBlock) {
+        const barberResult = await syncBarberBlock(booking, barber);
+        barberEventId = barberResult.barberEventId ?? barberEventId;
+        barberError = barberResult.error;
     }
 
     const fullySynced = bookingCalendarFullySynced(booking, barber, options.shopConnected);
@@ -158,6 +177,7 @@ export async function syncBookingCalendars(
         shopError,
         barberError,
         barberBlockRequired,
+        barberBlockSkippedForShopInvite,
         fullySynced,
     };
 }
@@ -201,18 +221,21 @@ export async function upsertClientCrm(booking: {
 
 export function buildCalendarSyncResponse(syncResult: CalendarSyncResult, extra: Record<string, unknown> = {}) {
     const hasAnyEvent = !!(syncResult.shopEventId || syncResult.barberEventId);
-    const barberFailed = syncResult.barberBlockRequired && !syncResult.barberEventId;
+    const barberFailed = syncResult.barberBlockRequired
+        && !syncResult.barberEventId
+        && !syncResult.barberBlockSkippedForShopInvite;
 
     return {
         success: syncResult.fullySynced || hasAnyEvent,
         shopEventId: syncResult.shopEventId,
         barberEventId: syncResult.barberEventId,
-        inviteModel: syncResult.shopEventId ? 'shop_calendar' : syncResult.barberEventId ? 'barber_calendar' : undefined,
+        inviteModel: syncResult.shopEventId ? 'shop_booking_page' : syncResult.barberEventId ? 'barber_calendar' : undefined,
         warning: barberFailed
             ? (syncResult.barberError ?? 'Barber calendar block failed — slot may not be locked on their Google Calendar')
             : (syncResult.shopError ?? syncResult.barberError),
         barberBlockRequired: syncResult.barberBlockRequired,
         barberBlockSynced: !barberFailed,
+        barberBlockSkippedForShopInvite: syncResult.barberBlockSkippedForShopInvite || undefined,
         fullySynced: syncResult.fullySynced,
         skipped: !hasAnyEvent ? true : undefined,
         reason: !hasAnyEvent ? 'no_calendar_connected' : undefined,

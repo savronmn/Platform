@@ -112,23 +112,28 @@ export async function getValidAccessToken(token: CalendarToken): Promise<string>
 
 export type CalendarSendUpdates = 'all' | 'externalOnly' | 'none';
 
-// Create an event on a Google Calendar
-export async function createCalendarEvent(
-    accessToken: string,
-    calendarId: string,
-    event: {
-        summary: string;
-        description?: string;
-        location?: string;
-        startIso: string;  // "2026-04-01T10:00:00-05:00"
-        endIso: string;
-        attendeeEmails?: string[];
-        bookingId?: string;
-        organizerEmail?: string;
-        organizerDisplayName?: string;
-    },
-    sendUpdates: CalendarSendUpdates = 'none',
-): Promise<string> {
+export type CalendarAttendee = {
+    email: string;
+    displayName?: string;
+    /** Organizer can pre-set accepted for staff so the slot shows busy immediately. */
+    responseStatus?: 'needsAction' | 'declined' | 'tentative' | 'accepted';
+};
+
+export type CalendarEventInput = {
+    summary: string;
+    description?: string;
+    location?: string;
+    startIso: string;
+    endIso: string;
+    attendeeEmails?: string[];
+    attendees?: CalendarAttendee[];
+    bookingId?: string;
+    privateExtendedProperties?: Record<string, string>;
+    organizerEmail?: string;
+    organizerDisplayName?: string;
+};
+
+function buildCalendarEventBody(event: CalendarEventInput): Record<string, unknown> {
     const body: Record<string, unknown> = {
         summary: event.summary,
         description: event.description,
@@ -146,8 +151,12 @@ export async function createCalendarEvent(
     if (event.location) {
         body.location = event.location;
     }
+    const privateProps: Record<string, string> = { ...(event.privateExtendedProperties ?? {}) };
     if (event.bookingId) {
-        body.extendedProperties = { private: { savronBookingId: event.bookingId } };
+        privateProps.savronBookingId = event.bookingId;
+    }
+    if (Object.keys(privateProps).length > 0) {
+        body.extendedProperties = { private: privateProps };
     }
     if (event.organizerEmail) {
         body.organizer = {
@@ -155,12 +164,29 @@ export async function createCalendarEvent(
             ...(event.organizerDisplayName ? { displayName: event.organizerDisplayName } : {}),
         };
     }
-    if (event.attendeeEmails !== undefined) {
+    if (event.attendees !== undefined) {
+        body.attendees = event.attendees.map(attendee => ({
+            email: attendee.email,
+            ...(attendee.displayName ? { displayName: attendee.displayName } : {}),
+            ...(attendee.responseStatus ? { responseStatus: attendee.responseStatus } : {}),
+        }));
+    } else if (event.attendeeEmails !== undefined) {
         body.attendees = event.attendeeEmails.map(email => ({ email }));
     }
     body.guestsCanModify = false;
     body.guestsCanInviteOthers = false;
     body.guestsCanSeeOtherGuests = true;
+    return body;
+}
+
+// Create an event on a Google Calendar
+export async function createCalendarEvent(
+    accessToken: string,
+    calendarId: string,
+    event: CalendarEventInput,
+    sendUpdates: CalendarSendUpdates = 'none',
+): Promise<string> {
+    const body = buildCalendarEventBody(event);
 
     const res = await fetch(
         `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=${sendUpdates}`,
@@ -183,51 +209,10 @@ export async function updateCalendarEvent(
     accessToken: string,
     calendarId: string,
     eventId: string,
-    event: {
-        summary: string;
-        description?: string;
-        location?: string;
-        startIso: string;
-        endIso: string;
-        attendeeEmails?: string[];
-        bookingId?: string;
-        organizerEmail?: string;
-        organizerDisplayName?: string;
-    },
+    event: CalendarEventInput,
     sendUpdates: CalendarSendUpdates = 'none',
 ): Promise<string> {
-    const body: Record<string, unknown> = {
-        summary: event.summary,
-        description: event.description,
-        start: { dateTime: event.startIso, timeZone: 'America/Chicago' },
-        end: { dateTime: event.endIso, timeZone: 'America/Chicago' },
-        transparency: 'opaque',
-        reminders: {
-            useDefault: false,
-            overrides: [
-                { method: 'email', minutes: 24 * 60 },
-                { method: 'popup', minutes: 60 },
-            ],
-        },
-    };
-    if (event.location) {
-        body.location = event.location;
-    }
-    if (event.bookingId) {
-        body.extendedProperties = { private: { savronBookingId: event.bookingId } };
-    }
-    if (event.organizerEmail) {
-        body.organizer = {
-            email: event.organizerEmail,
-            ...(event.organizerDisplayName ? { displayName: event.organizerDisplayName } : {}),
-        };
-    }
-    if (event.attendeeEmails !== undefined) {
-        body.attendees = event.attendeeEmails.map(email => ({ email }));
-    }
-    body.guestsCanModify = false;
-    body.guestsCanInviteOthers = false;
-    body.guestsCanSeeOtherGuests = true;
+    const body = buildCalendarEventBody(event);
 
     const res = await fetch(
         `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=${sendUpdates}`,
@@ -467,6 +452,7 @@ export async function getEventBusySlots(
         transparency?: string;
         start?: { dateTime?: string };
         end?: { dateTime?: string };
+        extendedProperties?: { private?: { savronBarberId?: string } };
     }>)
         .filter(e =>
             e.status !== 'cancelled'
@@ -477,6 +463,7 @@ export async function getEventBusySlots(
             id: e.id,
             start: e.start!.dateTime!,
             end: (e.end?.dateTime ?? e.start!.dateTime!) as string,
+            barberId: e.extendedProperties?.private?.savronBarberId,
         }));
 }
 

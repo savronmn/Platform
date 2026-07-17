@@ -26,7 +26,7 @@ export async function triggerPostBooking(bookingId: string): Promise<void> {
     let usedShopInvite = false;
     if (calendarRes?.ok) {
         const data = await calendarRes.json().catch(() => ({}));
-        usedShopInvite = data.inviteModel === 'shop_calendar' && !!data.success;
+        usedShopInvite = (data.inviteModel === 'shop_calendar' || data.inviteModel === 'shop_booking_page') && !!data.success;
     }
 
     if (!usedShopInvite) {
@@ -71,7 +71,7 @@ export async function triggerPostEditBooking(
     let usedShopInvite = false;
     if (calendarRes?.ok) {
         const data = await calendarRes.json().catch(() => ({}));
-        usedShopInvite = data.inviteModel === 'shop_calendar' && !!data.success;
+        usedShopInvite = (data.inviteModel === 'shop_calendar' || data.inviteModel === 'shop_booking_page') && !!data.success;
     }
 
     if (!usedShopInvite) {

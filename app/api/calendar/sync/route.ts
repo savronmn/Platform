@@ -4,8 +4,8 @@
 // Body: { bookingId: string, action: "create" | "delete" | "update", previousBarberId?: string, previousDate?: string, previousTime?: string }
 //
 // Invite model:
-// - Barber calendar connected → silent busy block on the barber's calendar FIRST (google_event_id)
-// - Shop calendar connected → client invite from savronmn@gmail.com (shop_google_event_id)
+// - Shop calendar connected → booking-page invite from savronmn@gmail.com (client + barber attendees)
+// - Fallback → silent busy block on barber OAuth calendar (google_event_id)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
