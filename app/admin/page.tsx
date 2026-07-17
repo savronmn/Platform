@@ -2,40 +2,60 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { createClient } from '@/lib/supabase';
 import StatCard from '@/components/crm/StatCard';
 import { type StatKey } from '@/components/crm/StatDetailModal';
 import { Users, Calendar, DollarSign, Clock, ArrowRight, TrendingUp, Scissors, UserCheck, ClipboardList, Layers, ScanLine, Inbox, UserPlus, PhoneCall } from 'lucide-react';
+import type { AdminDashboardStats } from '@/lib/admin-dashboard-data';
 import type { Booking } from '@/lib/types';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useBookingsRealtime } from '@/lib/use-bookings-realtime';
-import { fetchAdminDashboardData } from '@/lib/admin-dashboard-data';
 import { statPageHref } from '@/lib/admin-stat-routes';
 
 const QRScannerModal = dynamic(() => import('@/components/qr/QRScannerModal'), { ssr: false });
 const WalkInModal = dynamic(() => import('@/components/crm/WalkInModal'), { ssr: false });
 
+const EMPTY_STATS: AdminDashboardStats = {
+    clients: 0,
+    weeklyBookings: 0,
+    todayBookings: 0,
+    dueClients: 0,
+    todayRevenue: 0,
+    todayCompleted: 0,
+    pendingApplicants: 0,
+    activeBarbers: 0,
+    totalRevenue: 0,
+    avgTicket: 0,
+    topService: '—',
+    totalBookings: 0,
+    totalAppointments: 0,
+    recentCancellations: 0,
+};
+
+function DashboardSkeleton() {
+    return (
+        <div className="admin-page animate-pulse">
+            <div className="admin-header">
+                <div className="space-y-3">
+                    <div className="h-3 w-20 bg-white/10 rounded" />
+                    <div className="h-8 w-40 bg-white/10 rounded" />
+                    <div className="h-4 w-48 bg-white/5 rounded" />
+                </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
+                {Array.from({ length: 12 }).map((_, i) => (
+                    <div key={i} className="card-savron h-28 bg-white/[0.03]" />
+                ))}
+            </div>
+            <div className="card-savron h-64 bg-white/[0.03]" />
+        </div>
+    );
+}
+
 export default function AdminDashboard() {
-    const supabase = createClient();
     const [seeding, setSeeding] = useState(false);
-    const [stats, setStats] = useState({
-        clients: 0,
-        weeklyBookings: 0,
-        todayBookings: 0,
-        dueClients: 0,
-        todayRevenue: 0,
-        todayCompleted: 0,
-        pendingApplicants: 0,
-        activeBarbers: 0,
-        totalRevenue: 0,
-        avgTicket: 0,
-        topService: '—',
-        totalBookings: 0,
-        totalAppointments: 0,
-        recentCancellations: 0,
-    });
+    const [stats, setStats] = useState<AdminDashboardStats>(EMPTY_STATS);
     const [todaySchedule, setTodaySchedule] = useState<Booking[]>([]);
     const [upcomingSchedule, setUpcomingSchedule] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(true);
@@ -43,85 +63,22 @@ export default function AdminDashboard() {
     const [showWalkIn, setShowWalkIn] = useState(false);
     const [debugError, setDebugError] = useState<string | null>(null);
 
-    async function fetchData() {
+    async function fetchData(options?: { silent?: boolean }) {
+        if (!options?.silent) setLoading(true);
         try {
-            const [data, applicantsRes] = await Promise.all([
-                fetchAdminDashboardData(supabase),
-                fetch('/api/applicants/admin', { credentials: 'include' }),
-            ]);
-            const applicantsData = await applicantsRes.json().catch(() => ({}));
-            const allApplicants = applicantsRes.ok ? (applicantsData.applicants ?? []) : data.detailData.pendingApplicants;
-            const pendingApplicants = allApplicants.filter((a: { status: string }) => a.status === 'pending');
-
-            const todayActive = data.todaySchedule;
-            const upcoming = data.upcomingSchedule;
-            const allClients = data.detailData.allClients;
-            const allBarbers = data.detailData.activeBarbers;
-            const allBookings = data.detailData.allBookings;
-            const recentCancelled = data.detailData.recentCancellations;
-            const activeBookings = data.detailData.activeBookings;
-            const cutoff = data.dueCutoff;
-
-            const todayCompleted = todayActive.filter(b => b.status === 'completed');
-
-            const todayRevenue = todayActive.reduce((sum, b) => {
-                const priceStr = String(b.price || '$0');
-                const price = parseFloat(priceStr.replace(/[^0-9.]/g, ''));
-                return sum + (isNaN(price) ? 0 : price);
-            }, 0);
-
-            const weeklyBookings = upcoming.length;
-
-            const dueClientsCount = allClients.filter(c =>
-                !c.last_booking_date || c.last_booking_date < cutoff
-            ).length;
-
-            const activeBarbersCount = allBarbers.filter(b => b.active).length;
-
-            const totalRevenue = activeBookings.reduce((sum, b) => {
-                const priceStr = String(b.price || '$0');
-                const price = parseFloat(priceStr.replace(/[^0-9.]/g, ''));
-                return sum + (isNaN(price) ? 0 : price);
-            }, 0);
-
-            const avgTicket = activeBookings.length > 0 ? totalRevenue / activeBookings.length : 0;
-
-            const serviceCounts: Record<string, number> = {};
-            activeBookings.forEach(b => {
-                if (b.service) serviceCounts[b.service] = (serviceCounts[b.service] || 0) + 1;
-            });
-            let topService = '—';
-            let maxCount = 0;
-            for (const [service, count] of Object.entries(serviceCounts)) {
-                if (count > maxCount) {
-                    maxCount = count;
-                    topService = service;
-                }
+            const res = await fetch('/api/admin/dashboard', { credentials: 'include' });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload.error || 'Failed to fetch dashboard');
             }
 
-            setStats({
-                clients: allClients.length,
-                weeklyBookings,
-                todayBookings: todayActive.length,
-                dueClients: dueClientsCount,
-                todayRevenue,
-                todayCompleted: todayCompleted.length,
-                pendingApplicants: pendingApplicants.length,
-                activeBarbers: activeBarbersCount,
-                totalRevenue,
-                avgTicket,
-                topService,
-                totalBookings: allBookings.length,
-                totalAppointments: activeBookings.length,
-                recentCancellations: recentCancelled.length,
-            });
-
-            setTodaySchedule(todayActive);
-            setUpcomingSchedule(upcoming);
+            setStats(payload.stats ?? EMPTY_STATS);
+            setTodaySchedule(payload.todaySchedule ?? []);
+            setUpcomingSchedule(payload.upcomingSchedule ?? []);
             setDebugError(null);
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Failed to fetch data';
-            console.error("Dashboard Fetch Error:", err);
+            console.error('Dashboard Fetch Error:', err);
             setDebugError(message);
         } finally {
             setLoading(false);
@@ -132,7 +89,7 @@ export default function AdminDashboard() {
         fetchData();
     }, []);
 
-    useBookingsRealtime(fetchData, 'admin-dashboard');
+    useBookingsRealtime(() => fetchData({ silent: true }), 'admin-dashboard', 1500);
 
     const statCards = useMemo(() => [
         {
@@ -255,16 +212,12 @@ export default function AdminDashboard() {
         );
     }
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-[60vh]">
-                <div className="w-6 h-6 border-2 border-savron-green/30 border-t-savron-green rounded-full animate-spin" />
-            </div>
-        );
-    }
-
     let todayStr = 'Today';
     try { todayStr = format(new Date(), 'EEEE, MMMM d'); } catch {}
+
+    if (loading) {
+        return <DashboardSkeleton />;
+    }
 
     return (
         <div className="admin-page">
