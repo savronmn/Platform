@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Scissors, Copy, Check, ToggleLeft, ToggleRight, UserCheck,
+    Copy, Check, ToggleLeft, ToggleRight, UserCheck,
     Link as LinkIcon, Settings, X, Save, ShieldCheck, Calendar, Clock,
-    Trash2, Camera, User, ExternalLink,
+    Trash2, Camera, User, ExternalLink, Users, UserPlus, Mail, Phone,
+    Layers, Scissors, Upload, Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
@@ -58,8 +59,28 @@ function formatTime12(t: string) {
     return `${h}:${m} ${ampm}`;
 }
 
-const BARBER_CARD_ACTION_CLASS =
-    'admin-action-btn w-full text-white bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 rounded-savron transition-all';
+const SETTINGS_TABS = [
+    { key: 'profile', label: 'Profile', icon: User },
+    { key: 'services', label: 'Services', icon: Layers },
+    { key: 'schedule', label: 'Schedule', icon: Clock },
+    { key: 'links', label: 'Links', icon: LinkIcon },
+] as const;
+
+type SettingsTab = typeof SETTINGS_TABS[number]['key'];
+
+function actionBtnClass(variant: 'default' | 'primary' | 'calendar' | 'danger' = 'default') {
+    const base = 'admin-action-btn w-full rounded-savron transition-all font-medium';
+    switch (variant) {
+        case 'primary':
+            return cn(base, 'bg-savron-green/15 hover:bg-savron-green/25 border border-savron-green/30 text-accent-blue hover:text-savron-cream');
+        case 'calendar':
+            return cn(base, 'bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/25 text-blue-300 hover:text-blue-200');
+        case 'danger':
+            return cn(base, 'text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30');
+        default:
+            return cn(base, 'text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20');
+    }
+}
 
 interface BarberCardActionsProps {
     barber: Barber;
@@ -81,59 +102,71 @@ function BarberCardActions({
     onArchive,
 }: BarberCardActionsProps) {
     return (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            <button
-                type="button"
-                onClick={() => onCopyPortalLink(barber.slug)}
-                className={BARBER_CARD_ACTION_CLASS}
-                title="Copy portal login link"
-            >
-                {copiedPortalSlug === barber.slug ? <Check className="w-3.5 h-3.5 text-savron-green" /> : <LinkIcon className="w-3.5 h-3.5" />}
-                <span>{copiedPortalSlug === barber.slug ? 'Copied' : 'Portal'}</span>
-            </button>
-            <button
-                type="button"
-                onClick={() => onCopyBookingLink(barber.slug)}
-                className={BARBER_CARD_ACTION_CLASS}
-                title="Copy client booking link"
-            >
-                {copiedSlug === barber.slug ? <Check className="w-3.5 h-3.5 text-savron-green" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedSlug === barber.slug ? 'Copied' : 'Booking'}</span>
-            </button>
-            <Link
-                href={adminBarberPortalUrl(barber.id, barber.slug)}
-                className={BARBER_CARD_ACTION_CLASS}
-                title="Open barber portal (admin can edit)"
-            >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Portal</span>
-            </Link>
-            <Link
-                href={`/admin/barbers/${barber.id}/calendar`}
-                className={BARBER_CARD_ACTION_CLASS}
-                title="Open barber calendar overview"
-            >
-                <Calendar className="w-3.5 h-3.5" />
-                <span>Calendar</span>
-            </Link>
-            <button
-                type="button"
-                onClick={() => onOpenSettings(barber)}
-                className={BARBER_CARD_ACTION_CLASS}
-                title="Barber settings"
-            >
-                <Settings className="w-3.5 h-3.5" />
-                <span>Settings</span>
-            </button>
-            <button
-                type="button"
-                onClick={() => onArchive(barber)}
-                className="admin-action-btn w-full text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 rounded-savron transition-all"
-                title="Archive barber"
-            >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Archive</span>
-            </button>
+        <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+                <Link
+                    href={`/admin/barbers/${barber.id}/calendar`}
+                    className={actionBtnClass('calendar')}
+                    title="Open barber calendar overview"
+                >
+                    <Calendar className="w-3.5 h-3.5 shrink-0" />
+                    <span>Calendar</span>
+                </Link>
+                <button
+                    type="button"
+                    onClick={() => onOpenSettings(barber)}
+                    className={actionBtnClass('primary')}
+                    title="Barber settings"
+                >
+                    <Settings className="w-3.5 h-3.5 shrink-0" />
+                    <span>Settings</span>
+                </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+                <button
+                    type="button"
+                    onClick={() => onCopyPortalLink(barber.slug)}
+                    className={actionBtnClass()}
+                    title="Copy portal login link"
+                >
+                    {copiedPortalSlug === barber.slug
+                        ? <Check className="w-3.5 h-3.5 text-savron-green shrink-0" />
+                        : <LinkIcon className="w-3.5 h-3.5 shrink-0" />}
+                    <span>{copiedPortalSlug === barber.slug ? 'Copied!' : 'Copy Login'}</span>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => onCopyBookingLink(barber.slug)}
+                    className={actionBtnClass()}
+                    title="Copy client booking link"
+                >
+                    {copiedSlug === barber.slug
+                        ? <Check className="w-3.5 h-3.5 text-savron-green shrink-0" />
+                        : <Copy className="w-3.5 h-3.5 shrink-0" />}
+                    <span>{copiedSlug === barber.slug ? 'Copied!' : 'Copy Booking'}</span>
+                </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+                <Link
+                    href={adminBarberPortalUrl(barber.id, barber.slug)}
+                    className={actionBtnClass()}
+                    title="Open barber portal (admin can edit)"
+                >
+                    <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                    <span>Open Portal</span>
+                </Link>
+                <button
+                    type="button"
+                    onClick={() => onArchive(barber)}
+                    className={actionBtnClass('danger')}
+                    title="Archive barber"
+                >
+                    <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                    <span>Archive</span>
+                </button>
+            </div>
         </div>
     );
 }
@@ -149,7 +182,7 @@ export default function AdminBarbersPage() {
 
     // Settings panel
     const [settingsBarber, setSettingsBarber] = useState<Barber | null>(null);
-    const [activeTab, setActiveTab] = useState<'profile' | 'services' | 'schedule' | 'links'>('profile');
+    const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
     const [licenseInput, setLicenseInput] = useState('');
     const [instagramInput, setInstagramInput] = useState('');
     const [servicesOffered, setServicesOffered] = useState<string[]>([]);
@@ -167,7 +200,7 @@ export default function AdminBarbersPage() {
         load();
     }, []);
 
-    const openSettings = (barber: Barber, tab: 'profile' | 'services' | 'schedule' | 'links' = 'profile') => {
+    const openSettings = (barber: Barber, tab: SettingsTab = 'profile') => {
         setSettingsBarber(barber);
         setActiveTab(tab);
         setPhotoError(null);
@@ -296,41 +329,95 @@ export default function AdminBarbersPage() {
                 <div>
                     <p className="admin-kicker">Team</p>
                     <h1 className="admin-title">Barbers</h1>
-                    <p className="admin-subtitle">{active.length} active · {pending.length} pending approval</p>
+                    <p className="admin-subtitle">
+                        Manage your team, schedules, booking links, and portal access.
+                    </p>
                 </div>
                 <button
                     onClick={copyRegistrationLink}
-                    className="flex items-center gap-2 px-5 py-3 border border-white/10 rounded-savron text-[10px] uppercase tracking-widest text-savron-silver hover:text-white hover:border-white/25 transition-all"
+                    className="admin-action-btn px-5 py-3 bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all glow-blue shrink-0"
                 >
-                    {copiedReg ? <Check className="w-3 h-3 text-savron-green" /> : <LinkIcon className="w-3 h-3" />}
-                    {copiedReg ? 'Link Copied!' : 'Copy Registration Link'}
+                    {copiedReg ? <Check className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                    {copiedReg ? 'Link Copied!' : 'Copy Join Link'}
                 </button>
+            </div>
+
+            {/* Quick stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="card-savron flex items-center gap-4 py-4 px-5">
+                    <div className="w-10 h-10 rounded-savron bg-savron-green/15 border border-savron-green/25 flex items-center justify-center shrink-0">
+                        <Users className="w-5 h-5 text-accent-blue" />
+                    </div>
+                    <div>
+                        <p className="text-[10px] uppercase tracking-widest text-savron-silver/50">Active</p>
+                        <p className="text-2xl font-heading text-white">{active.length}</p>
+                    </div>
+                </div>
+                <div className="card-savron flex items-center gap-4 py-4 px-5">
+                    <div className="w-10 h-10 rounded-savron bg-amber-500/10 border border-amber-500/25 flex items-center justify-center shrink-0">
+                        <Sparkles className="w-5 h-5 text-amber-300" />
+                    </div>
+                    <div>
+                        <p className="text-[10px] uppercase tracking-widest text-savron-silver/50">Pending</p>
+                        <p className="text-2xl font-heading text-white">{pending.length}</p>
+                    </div>
+                </div>
+                <div className="card-savron flex items-center gap-4 py-4 px-5">
+                    <div className="w-10 h-10 rounded-savron bg-blue-500/10 border border-blue-500/25 flex items-center justify-center shrink-0">
+                        <Scissors className="w-5 h-5 text-blue-300" />
+                    </div>
+                    <div>
+                        <p className="text-[10px] uppercase tracking-widest text-savron-silver/50">Total Team</p>
+                        <p className="text-2xl font-heading text-white">{barbers.length}</p>
+                    </div>
+                </div>
             </div>
 
             {/* Pending approvals */}
             {pending.length > 0 && (
                 <div>
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-amber-400/70 mb-5 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400/70 inline-block" />
-                        Pending Approval ({pending.length})
-                    </p>
+                    <div className="flex items-center gap-3 mb-5">
+                        <div className="w-8 h-8 rounded-savron bg-amber-500/10 border border-amber-500/25 flex items-center justify-center">
+                            <UserCheck className="w-4 h-4 text-amber-300" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] uppercase tracking-[0.3em] text-amber-400/80">
+                                Pending Approval
+                            </p>
+                            <p className="text-sm text-savron-silver/60">{pending.length} barber{pending.length !== 1 ? 's' : ''} waiting to join the team</p>
+                        </div>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
                         {pending.map(barber => (
-                            <div key={barber.id} className="card-savron border-amber-500/15 space-y-4">
+                            <div key={barber.id} className="card-savron border-amber-500/20 space-y-4 relative overflow-hidden">
+                                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500/60 via-amber-400/30 to-transparent" />
                                 <div className="flex items-start gap-3">
-                                    <div className="w-12 h-12 rounded-full overflow-hidden bg-savron-charcoal border border-white/10 relative shrink-0">
+                                    <div className="w-14 h-14 rounded-full overflow-hidden bg-savron-charcoal border border-amber-500/20 relative shrink-0">
                                         {barber.image_url ? (
-                                            <Image src={barber.image_url} alt={barber.name} fill sizes="48px" className="object-cover" />
+                                            <Image src={barber.image_url} alt={barber.name} fill sizes="56px" className="object-cover" />
                                         ) : (
-                                            <span className="absolute inset-0 flex items-center justify-center text-sm font-heading text-white/30">
+                                            <span className="absolute inset-0 flex items-center justify-center text-base font-heading text-white/30">
                                                 {barber.name.charAt(0)}
                                             </span>
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <h3 className="text-white font-heading uppercase tracking-wider text-sm">{barber.name}</h3>
-                                        {barber.email && <p className="text-savron-silver/50 text-xs truncate">{barber.email}</p>}
-                                        {barber.phone && <p className="text-savron-silver/70 text-xs">{barber.phone}</p>}
+                                        <div className="flex items-start justify-between gap-2">
+                                            <h3 className="text-white font-heading uppercase tracking-wider text-sm">{barber.name}</h3>
+                                            <span className="shrink-0 text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/25">
+                                                Pending
+                                            </span>
+                                        </div>
+                                        {barber.email && (
+                                            <p className="text-savron-silver/50 text-xs truncate flex items-center gap-1.5 mt-1">
+                                                <Mail className="w-3 h-3 shrink-0" /> {barber.email}
+                                            </p>
+                                        )}
+                                        {barber.phone && (
+                                            <p className="text-savron-silver/70 text-xs flex items-center gap-1.5 mt-0.5">
+                                                <Phone className="w-3 h-3 shrink-0" /> {barber.phone}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                                 {barber.bio && (
@@ -339,22 +426,24 @@ export default function AdminBarbersPage() {
                                 {barber.specialties && barber.specialties.length > 0 && (
                                     <div className="flex flex-wrap gap-1">
                                         {barber.specialties.map((s, i) => (
-                                            <span key={i} className="text-[9px] uppercase tracking-wider text-savron-silver/60 bg-savron-charcoal px-2 py-0.5 border border-white/5">{s}</span>
+                                            <span key={i} className="text-[9px] uppercase tracking-wider text-savron-silver/60 bg-savron-charcoal px-2 py-0.5 border border-white/5 rounded-savron">{s}</span>
                                         ))}
                                     </div>
                                 )}
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 pt-1">
                                     <button
-                                         onClick={() => approveBarber(barber)}
-                                         className="flex-1 flex items-center justify-center gap-2 py-2.5 text-[10px] uppercase tracking-widest bg-savron-green hover:bg-savron-green-light text-white border border-savron-green/50 hover:border-savron-green-light transition-all font-medium rounded-savron"
-                                     >
-                                        <UserCheck className="w-3.5 h-3.5" /> Approve
+                                        onClick={() => approveBarber(barber)}
+                                        className="admin-action-btn flex-1 bg-savron-green hover:bg-savron-green-light text-white border border-savron-green/50 hover:border-savron-green-light transition-all rounded-savron"
+                                    >
+                                        <UserCheck className="w-4 h-4" /> Approve
                                     </button>
                                     <button
                                         onClick={() => openSettings(barber)}
-                                        className="px-3 py-2.5 border border-white/20 text-white hover:bg-white/10 hover:border-white/40 rounded-savron transition-all"
+                                        className="admin-action-btn px-4 border border-white/15 text-white hover:bg-white/10 hover:border-white/30 rounded-savron transition-all"
+                                        title="Review profile before approving"
                                     >
-                                        <Settings className="w-3.5 h-3.5" />
+                                        <Settings className="w-4 h-4" />
+                                        <span className="sr-only">Review</span>
                                     </button>
                                 </div>
                             </div>
@@ -366,15 +455,23 @@ export default function AdminBarbersPage() {
             {/* Active barbers */}
             <div>
                 {pending.length > 0 && (
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-savron-silver/70 mb-5">Active Team</p>
+                    <div className="flex items-center gap-3 mb-5">
+                        <div className="w-8 h-8 rounded-savron bg-savron-green/10 border border-savron-green/25 flex items-center justify-center">
+                            <Users className="w-4 h-4 text-accent-blue" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] uppercase tracking-[0.3em] text-savron-silver/70">Active Team</p>
+                            <p className="text-sm text-savron-silver/60">{active.length} barber{active.length !== 1 ? 's' : ''} currently on the roster</p>
+                        </div>
+                    </div>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
                     {active.map(barber => (
-                        <div key={barber.id} className="card-savron space-y-5">
+                        <div key={barber.id} className="card-savron space-y-4 hover:border-white/15 transition-colors">
                             <div className="flex items-start gap-4">
                                 <button
                                     onClick={() => openSettings(barber, 'profile')}
-                                    className="relative w-16 h-16 rounded-full overflow-hidden bg-savron-charcoal border border-white/10 shrink-0 group"
+                                    className="relative w-16 h-16 rounded-full overflow-hidden bg-savron-charcoal border-2 border-savron-green/20 shrink-0 group"
                                     title="Edit profile photo"
                                 >
                                     {barber.image_url ? (
@@ -389,28 +486,56 @@ export default function AdminBarbersPage() {
                                     </div>
                                 </button>
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="text-white font-heading uppercase tracking-wider">{barber.name}</h3>
-                                    <p className="text-accent-blue text-xs uppercase tracking-widest">{barber.role}</p>
-                                    {barber.email && <p className="text-savron-silver/50 text-xs mt-1 truncate">{barber.email}</p>}
+                                    <div className="flex items-start justify-between gap-2">
+                                        <h3 className="text-white font-heading uppercase tracking-wider">{barber.name}</h3>
+                                        <span className="shrink-0 inline-flex items-center gap-1 text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-savron-green/15 text-accent-blue border border-savron-green/25">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-savron-green inline-block" />
+                                            Active
+                                        </span>
+                                    </div>
+                                    <p className="text-accent-blue text-xs uppercase tracking-widest mt-0.5">{barber.role}</p>
+                                    {barber.email && (
+                                        <p className="text-savron-silver/50 text-xs mt-2 truncate flex items-center gap-1.5">
+                                            <Mail className="w-3 h-3 shrink-0" /> {barber.email}
+                                        </p>
+                                    )}
                                     {barber.license_number && (
-                                        <p className="text-savron-silver/70 text-[10px] mt-0.5 flex items-center gap-1">
-                                            <ShieldCheck className="w-3 h-3" /> {barber.license_number}
+                                        <p className="text-savron-silver/70 text-[10px] mt-1 flex items-center gap-1">
+                                            <ShieldCheck className="w-3 h-3 shrink-0" /> {barber.license_number}
                                         </p>
                                     )}
                                 </div>
                             </div>
 
-                            {/* Schedule summary */}
-                            <div className="flex items-center gap-2 text-[10px] text-savron-silver/50">
-                                <Calendar className="w-3 h-3 shrink-0" />
-                                <span>{scheduleSummary(barber)}</span>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="rounded-savron bg-savron-charcoal/60 border border-white/5 px-3 py-2.5">
+                                    <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-1 flex items-center gap-1">
+                                        <Calendar className="w-3 h-3" /> Schedule
+                                    </p>
+                                    <p className="text-xs text-savron-silver/80 leading-snug">{scheduleSummary(barber)}</p>
+                                </div>
+                                <div className="rounded-savron bg-savron-charcoal/60 border border-white/5 px-3 py-2.5">
+                                    <p className="text-[9px] uppercase tracking-widest text-savron-silver/40 mb-1 flex items-center gap-1">
+                                        <Layers className="w-3 h-3" /> Services
+                                    </p>
+                                    <p className="text-xs text-savron-silver/80">
+                                        {barber.services_offered?.length
+                                            ? `${barber.services_offered.length} offered`
+                                            : 'All services'}
+                                    </p>
+                                </div>
                             </div>
 
                             {barber.services_offered && barber.services_offered.length > 0 && (
                                 <div className="flex flex-wrap gap-1">
-                                    {barber.services_offered.map((s, i) => (
+                                    {barber.services_offered.slice(0, 3).map((s, i) => (
                                         <span key={i} className="text-[10px] uppercase tracking-wider text-savron-silver bg-savron-charcoal px-2 py-1 border border-white/5 rounded-savron">{s}</span>
                                     ))}
+                                    {barber.services_offered.length > 3 && (
+                                        <span className="text-[10px] text-savron-silver/50 px-2 py-1">
+                                            +{barber.services_offered.length - 3} more
+                                        </span>
+                                    )}
                                 </div>
                             )}
 
@@ -418,9 +543,9 @@ export default function AdminBarbersPage() {
                                 <button
                                     type="button"
                                     onClick={() => toggleActive(barber)}
-                                    className="flex items-center gap-2 text-xs uppercase tracking-wider transition-all text-accent-blue hover:text-savron-cream font-medium"
+                                    className="admin-action-btn w-full justify-start px-0 min-h-0 py-0 text-xs uppercase tracking-wider transition-all text-accent-blue hover:text-savron-cream font-medium bg-transparent border-0"
                                 >
-                                    <ToggleRight className="w-4 h-4" /> Active
+                                    <ToggleRight className="w-4 h-4" /> Set Inactive
                                 </button>
                                 <BarberCardActions
                                     barber={barber}
@@ -436,7 +561,22 @@ export default function AdminBarbersPage() {
                     ))}
 
                     {active.length === 0 && (
-                        <p className="text-savron-silver/60 text-sm col-span-3">No active barbers yet.</p>
+                        <div className="col-span-full card-savron flex flex-col items-center justify-center text-center py-16 px-6">
+                            <div className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-4">
+                                <Users className="w-7 h-7 text-savron-silver/40" />
+                            </div>
+                            <h3 className="font-heading text-white uppercase tracking-wider text-lg mb-2">No active barbers yet</h3>
+                            <p className="text-savron-silver/60 text-sm max-w-md mb-6">
+                                Share your join link with new barbers, or approve pending applicants above.
+                            </p>
+                            <button
+                                onClick={copyRegistrationLink}
+                                className="admin-action-btn bg-savron-green/15 hover:bg-savron-green/25 border border-savron-green/30 text-accent-blue hover:text-savron-cream rounded-savron transition-all"
+                            >
+                                {copiedReg ? <Check className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                                {copiedReg ? 'Link Copied!' : 'Copy Join Link'}
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>
@@ -455,22 +595,30 @@ export default function AdminBarbersPage() {
                         className="glass-panel-strong border-red-500/20 rounded-savron p-6 max-w-sm w-full shadow-2xl"
                         onClick={e => e.stopPropagation()}
                     >
-                        <h3 className="font-heading text-lg text-white uppercase tracking-wider mb-2">Archive Barber?</h3>
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 rounded-savron bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                                <Trash2 className="w-5 h-5 text-red-400" />
+                            </div>
+                            <div>
+                                <h3 className="font-heading text-lg text-white uppercase tracking-wider">Archive Barber?</h3>
+                                <p className="text-savron-silver/60 text-xs mt-0.5">This action cannot be undone</p>
+                            </div>
+                        </div>
                         <p className="text-savron-silver/70 text-sm mb-6">
-                            Remove <span className="text-white font-medium">{confirmDelete.name}</span> from your team. This cannot be undone.
+                            Remove <span className="text-white font-medium">{confirmDelete.name}</span> from your team. Their profile, links, and calendar access will be removed.
                         </p>
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setConfirmDelete(null)}
-                                className="flex-1 py-2.5 text-[11px] uppercase tracking-widest border border-white/10 text-savron-silver hover:text-white rounded-savron transition-all"
+                                className="admin-action-btn flex-1 border border-white/10 text-savron-silver hover:text-white rounded-savron transition-all"
                             >
-                                Cancel
+                                <X className="w-4 h-4" /> Cancel
                             </button>
                             <button
                                 onClick={() => deleteBarber(confirmDelete)}
-                                className="flex-1 py-2.5 text-[11px] uppercase tracking-widest bg-red-600 hover:bg-red-700 text-white rounded-savron transition-all font-medium"
+                                className="admin-action-btn flex-1 bg-red-600 hover:bg-red-700 text-white rounded-savron transition-all font-medium"
                             >
-                                Archive
+                                <Trash2 className="w-4 h-4" /> Archive
                             </button>
                         </div>
                     </motion.div>
@@ -515,24 +663,20 @@ export default function AdminBarbersPage() {
                         </div>
 
                         {/* Tabs */}
-                        <div className="flex border-b border-white/5 shrink-0">
-                            {([
-                                { key: 'profile',  label: 'Profile'   },
-                                { key: 'services', label: 'Services'  },
-                                { key: 'schedule', label: 'Schedule'  },
-                                { key: 'links',    label: 'Links'     },
-                            ] as const).map(({ key, label }) => (
+                        <div className="flex border-b border-white/5 shrink-0 px-2">
+                            {SETTINGS_TABS.map(({ key, label, icon: Icon }) => (
                                 <button
                                     key={key}
                                     onClick={() => setActiveTab(key)}
                                     className={cn(
-                                        "flex-1 py-3 text-[10px] uppercase tracking-widest transition-colors",
+                                        "flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-3 px-1 text-[10px] uppercase tracking-widest transition-colors",
                                         activeTab === key
                                             ? "text-white border-b-2 border-savron-green-light"
                                             : "text-savron-silver/50 hover:text-savron-silver"
                                     )}
                                 >
-                                    {label}
+                                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                                    <span>{label}</span>
                                 </button>
                             ))}
                         </div>
@@ -589,7 +733,8 @@ export default function AdminBarbersPage() {
                                                     }
                                                 }}
                                             />
-                                            <label htmlFor="photo-upload" className="px-6 py-2.5 text-[11px] uppercase tracking-widest bg-savron-green/10 text-savron-green border border-savron-green/30 hover:bg-savron-green/20 rounded-savron cursor-pointer transition-all font-medium">
+                                            <label htmlFor="photo-upload" className="admin-action-btn px-6 bg-savron-green/10 text-savron-green border border-savron-green/30 hover:bg-savron-green/20 rounded-savron cursor-pointer transition-all font-medium">
+                                                <Upload className="w-4 h-4" />
                                                 {settingsBarber.image_url ? 'Change Photo' : 'Upload Photo'}
                                             </label>
                                             {photoError && (
@@ -620,8 +765,8 @@ export default function AdminBarbersPage() {
 
                                     {/* License number */}
                                     <div>
-                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-3">
-                                            Professional License
+                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-3 flex items-center gap-2">
+                                            <ShieldCheck className="w-3.5 h-3.5" /> Professional License
                                         </label>
                                         <input
                                             type="text"
@@ -652,12 +797,18 @@ export default function AdminBarbersPage() {
                                     {/* Contact info (read-only) */}
                                     {(settingsBarber.email || settingsBarber.phone) && (
                                         <div className="space-y-2">
-                                            <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50">Contact</label>
+                                            <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 flex items-center gap-2">
+                                                <Mail className="w-3.5 h-3.5" /> Contact
+                                            </label>
                                             {settingsBarber.email && (
-                                                <p className="text-savron-silver/70 text-sm">{settingsBarber.email}</p>
+                                                <p className="text-savron-silver/70 text-sm flex items-center gap-2">
+                                                    <Mail className="w-3.5 h-3.5 shrink-0 opacity-50" /> {settingsBarber.email}
+                                                </p>
                                             )}
                                             {settingsBarber.phone && (
-                                                <p className="text-savron-silver/70 text-sm">{settingsBarber.phone}</p>
+                                                <p className="text-savron-silver/70 text-sm flex items-center gap-2">
+                                                    <Phone className="w-3.5 h-3.5 shrink-0 opacity-50" /> {settingsBarber.phone}
+                                                </p>
                                             )}
                                         </div>
                                     )}
@@ -666,10 +817,10 @@ export default function AdminBarbersPage() {
 
                             {/* ── SERVICES TAB ─────────────────────────────────── */}
                             {activeTab === 'services' && (
-                                <div>
-                                    <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-1">
-                                        Services Offered
-                                    </label>
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-1 flex items-center gap-2">
+                                            <Layers className="w-3.5 h-3.5" /> Services Offered
+                                        </label>
                                     <p className="text-savron-silver/70 text-xs mb-4">Only toggled services appear on this barber&apos;s booking page.</p>
                                     <div className="space-y-2">
                                         {services.map(svc => {
@@ -705,8 +856,8 @@ export default function AdminBarbersPage() {
                             {activeTab === 'links' && settingsBarber && (
                                 <div className="space-y-6">
                                     <div>
-                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-2">
-                                            Portal Login Link
+                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-2 flex items-center gap-2">
+                                            <LinkIcon className="w-3.5 h-3.5" /> Portal Login Link
                                         </label>
                                         <p className="text-savron-silver/60 text-xs mb-3">
                                             Send this to the barber so they can sign in and open their calendar portal.
@@ -717,17 +868,17 @@ export default function AdminBarbersPage() {
                                             </span>
                                             <button
                                                 onClick={() => copyPortalLink(settingsBarber.slug)}
-                                                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-widest border border-white/10 text-savron-silver hover:text-white rounded-savron transition-all"
+                                                className="shrink-0 admin-action-btn px-3 py-1.5 border border-white/10 text-savron-silver hover:text-white rounded-savron transition-all"
                                             >
-                                                {copiedPortalSlug === settingsBarber.slug ? <Check className="w-3 h-3 text-savron-green" /> : <Copy className="w-3 h-3" />}
+                                                {copiedPortalSlug === settingsBarber.slug ? <Check className="w-3.5 h-3.5 text-savron-green" /> : <Copy className="w-3.5 h-3.5" />}
                                                 {copiedPortalSlug === settingsBarber.slug ? 'Copied' : 'Copy'}
                                             </button>
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-2">
-                                            Client Booking Link
+                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-2 flex items-center gap-2">
+                                            <ExternalLink className="w-3.5 h-3.5" /> Client Booking Link
                                         </label>
                                         <p className="text-savron-silver/60 text-xs mb-3">
                                             Public page where clients book appointments with this barber.
@@ -738,9 +889,9 @@ export default function AdminBarbersPage() {
                                             </span>
                                             <button
                                                 onClick={() => copyBookingLink(settingsBarber.slug)}
-                                                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-widest border border-white/10 text-savron-silver hover:text-white rounded-savron transition-all"
+                                                className="shrink-0 admin-action-btn px-3 py-1.5 border border-white/10 text-savron-silver hover:text-white rounded-savron transition-all"
                                             >
-                                                {copiedSlug === settingsBarber.slug ? <Check className="w-3 h-3 text-savron-green" /> : <Copy className="w-3 h-3" />}
+                                                {copiedSlug === settingsBarber.slug ? <Check className="w-3.5 h-3.5 text-savron-green" /> : <Copy className="w-3.5 h-3.5" />}
                                                 {copiedSlug === settingsBarber.slug ? 'Copied' : 'Copy'}
                                             </button>
                                         </div>
@@ -749,7 +900,7 @@ export default function AdminBarbersPage() {
                                     <div className="grid grid-cols-1 gap-3">
                                         <Link
                                             href={adminBarberPortalUrl(settingsBarber.id, settingsBarber.slug)}
-                                            className="flex items-center justify-center gap-2 py-3 text-[11px] uppercase tracking-widest bg-savron-green/10 text-savron-green border border-savron-green/30 hover:bg-savron-green/20 rounded-savron transition-all"
+                                            className="admin-action-btn w-full bg-savron-green/10 text-savron-green border border-savron-green/30 hover:bg-savron-green/20 rounded-savron transition-all"
                                         >
                                             <ExternalLink className="w-4 h-4" />
                                             Open Barber Portal
@@ -758,7 +909,7 @@ export default function AdminBarbersPage() {
                                             href={barberBookingPageUrl(settingsBarber.slug, typeof window !== 'undefined' ? window.location.origin : '')}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="flex items-center justify-center gap-2 py-3 text-[11px] uppercase tracking-widest border border-white/10 text-savron-silver hover:text-white rounded-savron transition-all"
+                                            className="admin-action-btn w-full border border-white/10 text-savron-silver hover:text-white rounded-savron transition-all"
                                         >
                                             <ExternalLink className="w-4 h-4" />
                                             Open Booking Page
@@ -770,7 +921,9 @@ export default function AdminBarbersPage() {
                             {/* ── SCHEDULE TAB ─────────────────────────────────── */}
                             {activeTab === 'schedule' && (
                                 <div>
-                                    <p className="text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-1">Working Hours</p>
+                                    <p className="text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-1 flex items-center gap-2">
+                                        <Clock className="w-3.5 h-3.5" /> Working Hours
+                                    </p>
                                     <p className="text-savron-silver/70 text-xs mb-6">
                                         Set this barber&apos;s available days and hours. Clients can only book within these windows. Google Calendar events during these hours will block slots automatically.
                                     </p>
