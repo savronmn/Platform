@@ -186,7 +186,7 @@ INSERT INTO barbers (name, slug, role, bio, specialties, image_url, phone, email
 
     ('Marcus V.', 'marcus-v', 'Master Barber',
      'A decade of precision cuts and signature fades. Marcus trained under three master barbers in Chicago before bringing his craft to Minneapolis.',
-     ARRAY['Signature Fades', 'Hot Towel Shaves', 'Beard Sculpting'],
+     ARRAY['Signature Fades', 'Hot Towel Shaves', 'Beard Design'],
      'https://images.unsplash.com/photo-1534308143481-c55f00be8bd7?q=80&w=2000&auto=format&fit=crop',
      '(612) 555-0101', 'marcus@savronmpls.com', 'https://instagram.com/marcusv.cuts', TRUE),
 
@@ -208,8 +208,7 @@ INSERT INTO barbers (name, slug, role, bio, specialties, image_url, phone, email
 INSERT INTO services (name, duration_minutes, price_cents, color_code, active) VALUES
     ('The Signature Cut', 45, 5500, '#10b981', TRUE),
     ('The Executive',     60, 9000, '#3b82f6', TRUE),
-    ('Beard Sculpting',   30, 4000, '#f59e0b', TRUE),
-    ('Hot Towel Shave',   45, 5000, '#a855f7', TRUE),
+    ('Haircut + Beard + Hot Towel Shave', 60, 8000, '#f59e0b', TRUE),
     ('Kids Cut',          30, 3500, '#14b8a6', TRUE);
 
 -- =====================================================
@@ -220,15 +219,15 @@ SELECT b.id, s.id FROM barbers b, services s WHERE b.slug = 'albi-a';
 
 INSERT INTO barber_service (barber_id, service_id)
 SELECT b.id, s.id FROM barbers b, services s
-WHERE b.slug = 'marcus-v' AND s.name IN ('The Signature Cut','The Executive','Hot Towel Shave','Beard Sculpting');
+WHERE b.slug = 'marcus-v' AND s.name IN ('The Signature Cut','The Executive','Haircut + Beard + Hot Towel Shave');
 
 INSERT INTO barber_service (barber_id, service_id)
 SELECT b.id, s.id FROM barbers b, services s
-WHERE b.slug = 'james-d' AND s.name IN ('The Signature Cut','The Executive','Beard Sculpting');
+WHERE b.slug = 'james-d' AND s.name IN ('The Signature Cut','The Executive','Haircut + Beard + Hot Towel Shave');
 
 INSERT INTO barber_service (barber_id, service_id)
 SELECT b.id, s.id FROM barbers b, services s
-WHERE b.slug = 'leo-r' AND s.name IN ('The Signature Cut','Beard Sculpting','Kids Cut','Hot Towel Shave');
+WHERE b.slug = 'leo-r' AND s.name IN ('The Signature Cut','Haircut + Beard + Hot Towel Shave','Kids Cut');
 
 -- =====================================================
 -- 13. CLIENTS
@@ -252,26 +251,26 @@ INSERT INTO bookings (client_name, client_email, client_phone, service, barber_i
     -- 10:00 AM
     ('Adrian Reyes',   'adrian.reyes@email.com', '(612) 555-1001', 'The Signature Cut', (SELECT id FROM barbers WHERE slug='albi-a'),   'Albi A.',   CURRENT_DATE, '10:00 AM', '45 min', '$55', 'confirmed'),
     ('David Chen',     'david.chen@email.com',   '(612) 555-1002', 'The Executive',     (SELECT id FROM barbers WHERE slug='marcus-v'), 'Marcus V.', CURRENT_DATE, '10:00 AM', '60 min', '$90', 'confirmed'),
-    ('Erik Johansson', 'erik.j@email.com',       '(612) 555-1005', 'Hot Towel Shave',   (SELECT id FROM barbers WHERE slug='james-d'),  'James D.',  CURRENT_DATE, '10:00 AM', '45 min', '$50', 'confirmed'),
+    ('Erik Johansson', 'erik.j@email.com',       '(612) 555-1005', 'Haircut + Beard + Hot Towel Shave',   (SELECT id FROM barbers WHERE slug='james-d'),  'James D.',  CURRENT_DATE, '10:00 AM', '60 min', '$80', 'confirmed'),
     ('Carlos Mendoza', 'carlos.m@email.com',     '(612) 555-1006', 'Kids Cut',          (SELECT id FROM barbers WHERE slug='leo-r'),    'Leo R.',    CURRENT_DATE, '10:00 AM', '30 min', '$35', 'confirmed'),
     -- 10:45 AM
-    ('Jamal Williams', 'jamal.w@email.com',      '(612) 555-1004', 'Beard Sculpting',   (SELECT id FROM barbers WHERE slug='albi-a'),   'Albi A.',   CURRENT_DATE, '10:45 AM', '30 min', '$40', 'confirmed'),
+    ('Jamal Williams', 'jamal.w@email.com',      '(612) 555-1004', 'Haircut + Beard + Hot Towel Shave',   (SELECT id FROM barbers WHERE slug='albi-a'),   'Albi A.',   CURRENT_DATE, '10:45 AM', '60 min', '$80', 'confirmed'),
     ('Marco Diaz',     'marco.d@email.com',      '(612) 555-1009', 'The Signature Cut', (SELECT id FROM barbers WHERE slug='marcus-v'), 'Marcus V.', CURRENT_DATE, '10:45 AM', '45 min', '$55', 'confirmed'),
     ('Kevin Park',     'kevin.p@email.com',      '(612) 555-1010', 'The Signature Cut', (SELECT id FROM barbers WHERE slug='leo-r'),    'Leo R.',    CURRENT_DATE, '10:45 AM', '45 min', '$55', 'confirmed'),
     -- 11:30 AM
     ('Tyler Brooks',   'tyler.b@email.com',      '(612) 555-1007', 'The Executive',     (SELECT id FROM barbers WHERE slug='albi-a'),   'Albi A.',   CURRENT_DATE, '11:30 AM', '60 min', '$90', 'confirmed'),
     ('Darnell Jackson','darnell.j@email.com',    '(612) 555-1008', 'The Signature Cut', (SELECT id FROM barbers WHERE slug='james-d'),  'James D.',  CURRENT_DATE, '11:30 AM', '45 min', '$55', 'confirmed'),
     -- 1:00 PM
-    ('Adrian Reyes',   'adrian.reyes@email.com', '(612) 555-1001', 'Hot Towel Shave',   (SELECT id FROM barbers WHERE slug='marcus-v'), 'Marcus V.', CURRENT_DATE, '1:00 PM',  '45 min', '$50', 'confirmed'),
+    ('Adrian Reyes',   'adrian.reyes@email.com', '(612) 555-1001', 'Haircut + Beard + Hot Towel Shave',   (SELECT id FROM barbers WHERE slug='marcus-v'), 'Marcus V.', CURRENT_DATE, '1:00 PM',  '60 min', '$80', 'confirmed'),
     ('Marcus Taylor',  'marcus.t@email.com',     '(612) 555-1003', 'Kids Cut',          (SELECT id FROM barbers WHERE slug='leo-r'),    'Leo R.',    CURRENT_DATE, '1:00 PM',  '30 min', '$35', 'confirmed'),
     ('Erik Johansson', 'erik.j@email.com',       '(612) 555-1005', 'The Executive',     (SELECT id FROM barbers WHERE slug='albi-a'),   'Albi A.',   CURRENT_DATE, '1:00 PM',  '60 min', '$90', 'confirmed'),
     -- 1:45 PM
-    ('Kevin Park',     'kevin.p@email.com',      '(612) 555-1010', 'Beard Sculpting',   (SELECT id FROM barbers WHERE slug='james-d'),  'James D.',  CURRENT_DATE, '1:45 PM',  '30 min', '$40', 'confirmed'),
+    ('Kevin Park',     'kevin.p@email.com',      '(612) 555-1010', 'Haircut + Beard + Hot Towel Shave',   (SELECT id FROM barbers WHERE slug='james-d'),  'James D.',  CURRENT_DATE, '1:45 PM',  '60 min', '$80', 'confirmed'),
     -- 2:30 PM
     ('Jamal Williams', 'jamal.w@email.com',      '(612) 555-1004', 'The Signature Cut', (SELECT id FROM barbers WHERE slug='marcus-v'), 'Marcus V.', CURRENT_DATE, '2:30 PM',  '45 min', '$55', 'confirmed'),
-    ('David Chen',     'david.chen@email.com',   '(612) 555-1002', 'Beard Sculpting',   (SELECT id FROM barbers WHERE slug='albi-a'),   'Albi A.',   CURRENT_DATE, '2:30 PM',  '30 min', '$40', 'confirmed'),
+    ('David Chen',     'david.chen@email.com',   '(612) 555-1002', 'Haircut + Beard + Hot Towel Shave',   (SELECT id FROM barbers WHERE slug='albi-a'),   'Albi A.',   CURRENT_DATE, '2:30 PM',  '60 min', '$80', 'confirmed'),
     -- 3:15 PM
-    ('Marco Diaz',     'marco.d@email.com',      '(612) 555-1009', 'Hot Towel Shave',   (SELECT id FROM barbers WHERE slug='leo-r'),    'Leo R.',    CURRENT_DATE, '3:15 PM',  '45 min', '$50', 'confirmed'),
+    ('Marco Diaz',     'marco.d@email.com',      '(612) 555-1009', 'Haircut + Beard + Hot Towel Shave',   (SELECT id FROM barbers WHERE slug='leo-r'),    'Leo R.',    CURRENT_DATE, '3:15 PM',  '60 min', '$80', 'confirmed'),
     -- 4:00 PM
     ('Carlos Mendoza', 'carlos.m@email.com',     '(612) 555-1006', 'The Signature Cut', (SELECT id FROM barbers WHERE slug='marcus-v'), 'Marcus V.', CURRENT_DATE, '4:00 PM',  '45 min', '$55', 'confirmed'),
     ('Tyler Brooks',   'tyler.b@email.com',      '(612) 555-1007', 'The Signature Cut', (SELECT id FROM barbers WHERE slug='james-d'),  'James D.',  CURRENT_DATE, '4:00 PM',  '45 min', '$55', 'confirmed');
@@ -282,9 +281,9 @@ INSERT INTO bookings (client_name, client_email, client_phone, service, barber_i
 INSERT INTO bookings (client_name, client_email, client_phone, service, barber_id, barber_name, date, time, duration, price, status) VALUES
     ('Darnell Jackson','darnell.j@email.com',    '(612) 555-1008', 'The Signature Cut', (SELECT id FROM barbers WHERE slug='marcus-v'), 'Marcus V.', CURRENT_DATE+1, '10:00 AM', '45 min', '$55', 'confirmed'),
     ('Adrian Reyes',   'adrian.reyes@email.com', '(612) 555-1001', 'The Executive',     (SELECT id FROM barbers WHERE slug='albi-a'),   'Albi A.',   CURRENT_DATE+1, '10:00 AM', '60 min', '$90', 'confirmed'),
-    ('Marco Diaz',     'marco.d@email.com',      '(612) 555-1009', 'Hot Towel Shave',   (SELECT id FROM barbers WHERE slug='james-d'),  'James D.',  CURRENT_DATE+1, '10:45 AM', '45 min', '$50', 'confirmed'),
+    ('Marco Diaz',     'marco.d@email.com',      '(612) 555-1009', 'Haircut + Beard + Hot Towel Shave',   (SELECT id FROM barbers WHERE slug='james-d'),  'James D.',  CURRENT_DATE+1, '10:45 AM', '60 min', '$80', 'confirmed'),
     ('Kevin Park',     'kevin.p@email.com',      '(612) 555-1010', 'Kids Cut',          (SELECT id FROM barbers WHERE slug='leo-r'),    'Leo R.',    CURRENT_DATE+1, '11:30 AM', '30 min', '$35', 'confirmed'),
-    ('Tyler Brooks',   'tyler.b@email.com',      '(612) 555-1007', 'Beard Sculpting',   (SELECT id FROM barbers WHERE slug='albi-a'),   'Albi A.',   CURRENT_DATE+1, '1:00 PM',  '30 min', '$40', 'confirmed'),
+    ('Tyler Brooks',   'tyler.b@email.com',      '(612) 555-1007', 'Haircut + Beard + Hot Towel Shave',   (SELECT id FROM barbers WHERE slug='albi-a'),   'Albi A.',   CURRENT_DATE+1, '1:00 PM',  '60 min', '$80', 'confirmed'),
     ('Erik Johansson', 'erik.j@email.com',       '(612) 555-1005', 'The Signature Cut', (SELECT id FROM barbers WHERE slug='marcus-v'), 'Marcus V.', CURRENT_DATE+1, '2:30 PM',  '45 min', '$55', 'confirmed');
 
 -- =====================================================
@@ -293,9 +292,9 @@ INSERT INTO bookings (client_name, client_email, client_phone, service, barber_i
 INSERT INTO bookings (client_name, client_email, client_phone, service, barber_id, barber_name, date, time, duration, price, status) VALUES
     ('Adrian Reyes',   'adrian.reyes@email.com', '(612) 555-1001', 'The Signature Cut', (SELECT id FROM barbers WHERE slug='marcus-v'), 'Marcus V.', CURRENT_DATE-7, '10:00 AM', '45 min', '$55', 'completed'),
     ('David Chen',     'david.chen@email.com',   '(612) 555-1002', 'The Executive',     (SELECT id FROM barbers WHERE slug='james-d'),  'James D.',  CURRENT_DATE-7, '11:00 AM', '60 min', '$90', 'completed'),
-    ('Erik Johansson', 'erik.j@email.com',       '(612) 555-1005', 'Hot Towel Shave',   (SELECT id FROM barbers WHERE slug='marcus-v'), 'Marcus V.', CURRENT_DATE-3, '2:00 PM',  '45 min', '$50', 'completed'),
+    ('Erik Johansson', 'erik.j@email.com',       '(612) 555-1005', 'Haircut + Beard + Hot Towel Shave',   (SELECT id FROM barbers WHERE slug='marcus-v'), 'Marcus V.', CURRENT_DATE-3, '2:00 PM',  '60 min', '$80', 'completed'),
     ('Jamal Williams', 'jamal.w@email.com',      '(612) 555-1004', 'The Signature Cut', (SELECT id FROM barbers WHERE slug='james-d'),  'James D.',  CURRENT_DATE-5, '10:00 AM', '45 min', '$55', 'completed'),
-    ('Darnell Jackson','darnell.j@email.com',    '(612) 555-1008', 'Beard Sculpting',   (SELECT id FROM barbers WHERE slug='leo-r'),    'Leo R.',    CURRENT_DATE-2, '3:00 PM',  '30 min', '$40', 'completed'),
+    ('Darnell Jackson','darnell.j@email.com',    '(612) 555-1008', 'Haircut + Beard + Hot Towel Shave',   (SELECT id FROM barbers WHERE slug='leo-r'),    'Leo R.',    CURRENT_DATE-2, '3:00 PM',  '60 min', '$80', 'completed'),
     ('Marco Diaz',     'marco.d@email.com',      '(612) 555-1009', 'The Executive',     (SELECT id FROM barbers WHERE slug='albi-a'),   'Albi A.',   CURRENT_DATE-1, '10:00 AM', '60 min', '$90', 'completed'),
     ('Carlos Mendoza', 'carlos.m@email.com',     '(612) 555-1006', 'The Signature Cut', (SELECT id FROM barbers WHERE slug='leo-r'),    'Leo R.',    CURRENT_DATE-4, '1:00 PM',  '45 min', '$55', 'no_show'),
     ('Tyler Brooks',   'tyler.b@email.com',      '(612) 555-1007', 'The Executive',     (SELECT id FROM barbers WHERE slug='marcus-v'), 'Marcus V.', CURRENT_DATE-1, '4:00 PM',  '60 min', '$90', 'cancelled');

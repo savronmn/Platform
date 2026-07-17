@@ -36,7 +36,7 @@ VALUES
     ('Test User 4W', 'test4w@example.com', 'The Executive', (SELECT id FROM barbers WHERE slug = 'james-d' LIMIT 1), 'James D.', CURRENT_DATE, '2:30 PM', '$90', 'confirmed'),
     
     -- A past booking (completed)
-    ('Test User 6W', 'test6w@example.com', 'Beard Sculpting', (SELECT id FROM barbers WHERE slug = 'leo-r' LIMIT 1), 'Leo R.', CURRENT_DATE - 45, '11:00 AM', '$40', 'completed'),
+    ('Test User 6W', 'test6w@example.com', 'Haircut + Beard + Hot Towel Shave', (SELECT id FROM barbers WHERE slug = 'leo-r' LIMIT 1), 'Leo R.', CURRENT_DATE - 45, '11:00 AM', '$80', 'completed'),
 
     -- A future booking
-    ('VIP User 9W', 'vip9w@example.com', 'Hot Towel Shave', (SELECT id FROM barbers WHERE slug = 'marcus-v' LIMIT 1), 'Marcus V.', CURRENT_DATE + 2, '10:00 AM', '$50', 'confirmed');
+    ('VIP User 9W', 'vip9w@example.com', 'Haircut + Beard + Hot Towel Shave', (SELECT id FROM barbers WHERE slug = 'marcus-v' LIMIT 1), 'Marcus V.', CURRENT_DATE + 2, '10:00 AM', '$80', 'confirmed');

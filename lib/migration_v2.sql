@@ -71,8 +71,7 @@ END $$;
 INSERT INTO services (name, duration_minutes, price_cents, color_code) VALUES
     ('The Signature Cut', 45, 5500, '#10b981'),
     ('The Executive',     60, 9000, '#3b82f6'),
-    ('Beard Sculpting',   30, 4000, '#f59e0b'),
-    ('Hot Towel Shave',   45, 5000, '#a855f7'),
+    ('Haircut + Beard + Hot Towel Shave', 60, 8000, '#f59e0b'),
     ('Kids Cut',          30, 3500, '#14b8a6')
 ON CONFLICT DO NOTHING;
 
@@ -83,21 +82,21 @@ ON CONFLICT DO NOTHING;
 INSERT INTO barber_service (barber_id, service_id)
 SELECT b.id, s.id FROM barbers b, services s
 WHERE b.slug = 'marcus-v'
-  AND s.name IN ('The Signature Cut', 'The Executive', 'Hot Towel Shave', 'Beard Sculpting')
+  AND s.name IN ('The Signature Cut', 'The Executive', 'Haircut + Beard + Hot Towel Shave')
 ON CONFLICT DO NOTHING;
 
 -- James D.: Signature Cut, Executive, Beard Sculpting
 INSERT INTO barber_service (barber_id, service_id)
 SELECT b.id, s.id FROM barbers b, services s
 WHERE b.slug = 'james-d'
-  AND s.name IN ('The Signature Cut', 'The Executive', 'Beard Sculpting')
+  AND s.name IN ('The Signature Cut', 'The Executive', 'Haircut + Beard + Hot Towel Shave')
 ON CONFLICT DO NOTHING;
 
 -- Leo R.: Signature Cut, Beard Sculpting, Kids Cut, Hot Towel Shave
 INSERT INTO barber_service (barber_id, service_id)
 SELECT b.id, s.id FROM barbers b, services s
 WHERE b.slug = 'leo-r'
-  AND s.name IN ('The Signature Cut', 'Beard Sculpting', 'Kids Cut', 'Hot Towel Shave')
+  AND s.name IN ('The Signature Cut', 'Haircut + Beard + Hot Towel Shave', 'Kids Cut')
 ON CONFLICT DO NOTHING;
 
 -- =========================================

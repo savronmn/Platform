@@ -14,7 +14,7 @@ INSERT INTO barbers (name, slug, role, bio, specialties, image_url, phone, email
 SELECT * FROM (VALUES
     ('Marcus V.', 'marcus-v', 'Master Barber',
      'A decade of precision cuts and signature fades. Marcus trained under three master barbers in Chicago before founding his craft in Minneapolis.',
-     ARRAY['Signature Fades', 'Hot Towel Shaves', 'Beard Sculpting'],
+     ARRAY['Signature Fades', 'Hot Towel Shaves', 'Beard Design'],
      'https://images.unsplash.com/photo-1534308143481-c55f00be8bd7?q=80&w=2000&auto=format&fit=crop',
      '(612) 555-0101', 'marcus@savronmpls.com', TRUE),
 

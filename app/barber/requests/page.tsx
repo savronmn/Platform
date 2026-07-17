@@ -95,7 +95,7 @@ export default function BarberRequestsPage() {
             case 'schedule':
                 return JSON.stringify({ monday: { start: '10:00', end: '18:00' }, tuesday: 'off' }, null, 2);
             case 'service':
-                return JSON.stringify({ services_offered: ['Signature Cut', 'Beard Sculpting + Hot Towel Shave'] }, null, 2);
+                return JSON.stringify({ services_offered: ['Signature Cut', 'Haircut + Beard + Hot Towel Shave'] }, null, 2);
             case 'price':
                 return JSON.stringify({ service_id: 'paste-service-uuid-here', price_cents: 6000 }, null, 2);
             case 'profile':

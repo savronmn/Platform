@@ -58,13 +58,13 @@ async function seed() {
     const bookingsData = [
         // TODAY
         { client_name: clients[3].name, client_email: clients[3].email, client_phone: clients[3].phone, service: 'The Signature Cut', barber_id: b1.id, barber_name: b1.name, date: formatDate(today), time: '11:00 AM', status: 'confirmed', p_status: 'unpaid', price: '$55' },
-        { client_name: 'Walk-in Today', service: 'Hot Towel Shave', barber_id: b2.id, barber_name: b2.name, date: formatDate(today), time: '1:00 PM', status: 'confirmed', p_status: 'paid', price: '$50' },
+        { client_name: 'Walk-in Today', service: 'Haircut + Beard + Hot Towel Shave', barber_id: b2.id, barber_name: b2.name, date: formatDate(today), time: '1:00 PM', status: 'confirmed', p_status: 'paid', price: '$80' },
         
         // TOMORROW
         { client_name: clients[2].name, client_email: clients[2].email, client_phone: clients[2].phone, service: 'The Executive', barber_id: b1.id, barber_name: b1.name, date: formatDate(new Date(today.getTime() + 1 * msPerDay)), time: '10:00 AM', status: 'confirmed', p_status: 'unpaid', price: '$90' },
         
         // LATER THIS WEEK
-        { client_name: clients[1].name, client_email: clients[1].email, client_phone: clients[1].phone, service: 'Beard Sculpting', barber_id: b2.id, barber_name: b2.name, date: formatDate(new Date(today.getTime() + 3 * msPerDay)), time: '2:30 PM', status: 'confirmed', p_status: 'unpaid', price: '$40' },
+        { client_name: clients[1].name, client_email: clients[1].email, client_phone: clients[1].phone, service: 'Haircut + Beard + Hot Towel Shave', barber_id: b2.id, barber_name: b2.name, date: formatDate(new Date(today.getTime() + 3 * msPerDay)), time: '2:30 PM', status: 'confirmed', p_status: 'unpaid', price: '$80' },
         { client_name: 'New Client Weekly', service: 'The Signature Cut', barber_id: b1.id, barber_name: b1.name, date: formatDate(new Date(today.getTime() + 5 * msPerDay)), time: '4:00 PM', status: 'confirmed', p_status: 'unpaid', price: '$55' },
         
         // PAST (to show in "done")

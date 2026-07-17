@@ -39,7 +39,7 @@ INSERT INTO public.services (name, duration_minutes, price_cents, color, descrip
   ('Signature Cut',                     45, 5000, 'emerald', 'Tailored fade or scissor cut, finished with a clean neckline.',             true),
   ('Long Styles Haircut',               60, 6000, 'indigo',  'Sculpted cut for longer hair — texture, shape, and movement.',             true),
   ('Kids Cut',                          30, 5000, 'teal',    'Classic precision cut for the next generation.',                             true),
-  ('Beard Sculpting + Hot Towel Shave', 45, 5000, 'amber',   'Straight-razor line up, hot towel ritual, conditioning finish.',           true);
+  ('Haircut + Beard + Hot Towel Shave', 60, 8000, 'amber',   'Straight-razor line up, hot towel ritual, conditioning finish.',           true);
 
 -- 5) Storage bucket for portfolio images
 -- Create manually in Supabase Storage UI: bucket name = "barber-portfolios", public = true

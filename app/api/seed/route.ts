@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
                 { name: 'Signature Cut', duration_minutes: 45, price_cents: 5000, color: 'blue', description: 'Tailored fade or scissor cut, finished with a clean neckline.', active: true },
                 { name: 'Long Styles Haircut', duration_minutes: 60, price_cents: 6000, color: 'indigo', description: 'Sculpted cut for longer hair — texture, shape, and movement.', active: true },
                 { name: 'Kids Cut', duration_minutes: 30, price_cents: 5000, color: 'teal', description: 'Classic precision cut for the next generation.', active: true },
-                { name: 'Beard Sculpting + Hot Towel Shave', duration_minutes: 45, price_cents: 5000, color: 'amber', description: 'Straight-razor line up, hot towel ritual, conditioning finish.', active: true }
+                { name: 'Haircut + Beard + Hot Towel Shave', duration_minutes: 60, price_cents: 8000, color: 'amber', description: 'Straight-razor line up, hot towel ritual, conditioning finish.', active: true }
             ]);
             if (sErr) throw new Error(`Services seed failed: ${sErr.message}`);
         }
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
         let barbers = existingBarbers || [];
         if (barbers.length === 0) {
             const { data: newBarbers, error: bErr } = await supabase.from('barbers').insert([
-                { name: 'Albert Savron', slug: 'albert-savron', role: 'Master Barber', bio: 'Founder and master groomer with 15+ years experience.', specialties: ['Classic Cuts', 'Beard Sculpting', 'Hot Shaves'], active: true, email: 'albert@savronmn.com' },
+                { name: 'Albert Savron', slug: 'albert-savron', role: 'Master Barber', bio: 'Founder and master groomer with 15+ years experience.', specialties: ['Classic Cuts', 'Beard Design', 'Hot Shaves'], active: true, email: 'albert@savronmn.com' },
                 { name: 'Michael C.', slug: 'michael-c', role: 'Senior Barber', bio: 'Specialist in modern skin fades and creative texturing.', specialties: ['Skin Fades', 'Textured Crops'], active: true, email: 'michael@savronmn.com' },
                 { name: 'Giovanni R.', slug: 'giovanni-r', role: 'Barber', bio: 'Classic styling and straight-razor detailing specialist.', specialties: ['Taper Fades', 'Razor Lineups'], active: true, email: 'giovanni@savronmn.com' }
             ]).select();
@@ -56,13 +56,13 @@ export async function POST(req: NextRequest) {
         const bookingsData = [
             // TODAY
             { client_name: clients[3].name, client_email: clients[3].email, client_phone: clients[3].phone, service: 'Signature Cut', barber_id: b1.id, barber_name: b1.name, date: formatDate(today), time: '11:00 AM', status: 'confirmed', price: '$50' },
-            { client_name: 'Walk-in Guest', service: 'Beard Sculpting + Hot Towel Shave', barber_id: b2.id, barber_name: b2.name, date: formatDate(today), time: '1:00 PM', status: 'confirmed', price: '$50' },
+            { client_name: 'Walk-in Guest', service: 'Haircut + Beard + Hot Towel Shave', barber_id: b2.id, barber_name: b2.name, date: formatDate(today), time: '1:00 PM', status: 'confirmed', price: '$80' },
             
             // TOMORROW
             { client_name: clients[2].name, client_email: clients[2].email, client_phone: clients[2].phone, service: 'The Executive', barber_id: b1.id, barber_name: b1.name, date: formatDate(new Date(today.getTime() + 1 * msPerDay)), time: '10:00 AM', status: 'confirmed', price: '$90' },
             
             // LATER THIS WEEK
-            { client_name: clients[1].name, client_email: clients[1].email, client_phone: clients[1].phone, service: 'Beard Sculpting + Hot Towel Shave', barber_id: b2.id, barber_name: b2.name, date: formatDate(new Date(today.getTime() + 3 * msPerDay)), time: '02:30 PM', status: 'confirmed', price: '$50' },
+            { client_name: clients[1].name, client_email: clients[1].email, client_phone: clients[1].phone, service: 'Haircut + Beard + Hot Towel Shave', barber_id: b2.id, barber_name: b2.name, date: formatDate(new Date(today.getTime() + 3 * msPerDay)), time: '02:30 PM', status: 'confirmed', price: '$80' },
             { client_name: 'Sophia Loren', service: 'Signature Cut', barber_id: b1.id, barber_name: b1.name, date: formatDate(new Date(today.getTime() + 5 * msPerDay)), time: '04:00 PM', status: 'confirmed', price: '$50' },
             
             // PAST

@@ -8,7 +8,7 @@ import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
 const SPECIALTIES = [
-    "Signature Fades", "Classic Cuts", "Hot Towel Shaves", "Beard Sculpting",
+    "Signature Fades", "Classic Cuts", "Hot Towel Shaves", "Beard Design",
     "Textured Styles", "Color Work", "Line-ups", "Kids Cuts", "Modern Cuts", "Executive Cut",
 ];
 
