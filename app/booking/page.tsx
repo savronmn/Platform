@@ -2,7 +2,9 @@
 
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import BarberChooser from '@/components/booking/BarberChooser';
+import AsapBookingFlow from '@/components/booking/AsapBookingFlow';
+// import BarberChooser from '@/components/booking/BarberChooser';
+// ↑ Re-enable when adding the "choose your barber" step back to /booking
 
 function BookingPageContent() {
     const searchParams = useSearchParams();
@@ -16,11 +18,18 @@ function BookingPageContent() {
                         Book Your Appointment
                     </h1>
                     <p className="text-savron-silver uppercase tracking-wider text-sm">
-                        Choose your barber to get started
+                        {preselectedService
+                            ? 'Pick a time — we’ll match you with the first available barber'
+                            : 'Select a service and time — we’ll find the first available barber'}
                     </p>
                 </div>
 
-                <BarberChooser preselectedServiceName={preselectedService} />
+                <AsapBookingFlow preselectedServiceName={preselectedService} />
+
+                {/*
+                  ── Barber chooser step (disabled — restore when ready) ──
+                  <BarberChooser preselectedServiceName={preselectedService} />
+                */}
             </div>
         </main>
     );
