@@ -8,16 +8,22 @@ import { requireAdmin } from '@/lib/staff-auth';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
     const admin = await requireAdmin();
     if (!admin.ok) {
         return NextResponse.json({ error: admin.error }, { status: admin.status });
     }
 
+    const url = new URL(request.url);
+    const individualsOnly = url.searchParams.get('individualsOnly') !== 'false';
+
     const prospects = await ensureSeedProspects();
+    const filtered = individualsOnly
+        ? (await listProspects({ individualsOnly: true }))
+        : prospects;
 
     return NextResponse.json({
-        prospects,
+        prospects: filtered,
         apifyConfigured: Boolean(process.env.APIFY_API_TOKEN),
     });
 }
@@ -29,9 +35,9 @@ export async function POST() {
     }
 
     try {
-        const scan = await runBarberOutreachScan({ enrichWebsites: true });
+        const scan = await runBarberOutreachScan({ enrichWebsites: true, individualsOnly: true });
         const result = await upsertProspects(scan.prospects);
-        const prospects = await listProspects();
+        const prospects = await listProspects({ individualsOnly: true });
 
         return NextResponse.json({
             ...result,

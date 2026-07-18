@@ -19,6 +19,7 @@ type SendStatus = 'idle' | 'loading' | 'success' | 'error';
 interface Props {
     open: boolean;
     selectedCount: number;
+    reachableEmailCount: number;
     previewProspect: OutreachProspect | null;
     onClose: () => void;
     onSent: () => void;
@@ -44,6 +45,7 @@ function textToBullets(text: string) {
 export default function OutreachCampaignModal({
     open,
     selectedCount,
+    reachableEmailCount,
     previewProspect,
     onClose,
     onSent,
@@ -57,6 +59,8 @@ export default function OutreachCampaignModal({
     const [sendStatus, setSendStatus] = useState<SendStatus>('idle');
     const [sendError, setSendError] = useState<string | null>(null);
     const [campaignResult, setCampaignResult] = useState<{ sent: number; failed: number; errors?: string[] } | null>(null);
+    const [testStatus, setTestStatus] = useState<SendStatus>('idle');
+    const [testMessage, setTestMessage] = useState<string | null>(null);
     const [showPreview, setShowPreview] = useState(true);
 
     const previewVars = useMemo(
@@ -85,6 +89,8 @@ export default function OutreachCampaignModal({
         setSendStatus('idle');
         setSendError(null);
         setCampaignResult(null);
+        setTestStatus('idle');
+        setTestMessage(null);
     }, [open]);
 
     function switchTemplate(next: OutreachTemplateId) {
@@ -101,6 +107,42 @@ export default function OutreachCampaignModal({
     function resetToDefault() {
         switchTemplate(templateId);
         setCampaignName(templateId === 'chair_rental' ? 'Chair Rental Outreach' : 'Custom Outreach');
+    }
+
+    async function sendTestToSelf() {
+        if (!builtContent.subject.trim() || !builtContent.headline.trim() || !bodyText.trim()) {
+            setTestStatus('error');
+            setTestMessage('Subject, headline, and message body are required.');
+            return;
+        }
+
+        setTestStatus('loading');
+        setTestMessage(null);
+
+        try {
+            const res = await fetch('/api/email/outreach', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prospectIds,
+                    content: builtContent,
+                    htmlSnapshot: preview.html,
+                    testToSelf: true,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setTestStatus('error');
+                setTestMessage(data.error || 'Test send failed');
+                return;
+            }
+            setTestStatus('success');
+            setTestMessage(data.message || `Test sent to ${data.sentTo}`);
+            onSent();
+        } catch {
+            setTestStatus('error');
+            setTestMessage('Network error — could not reach the server');
+        }
     }
 
     async function sendCampaign() {
@@ -161,7 +203,11 @@ export default function OutreachCampaignModal({
                                 Send to {selectedCount} barber{selectedCount !== 1 ? 's' : ''}
                             </h2>
                             <p className="text-xs text-savron-silver/60 mt-1">
-                                From: info@savronmn.com · Reply-To: savronmn@gmail.com · Tags: {OUTREACH_MERGE_TAG_HINT}
+                                From: bookings@savronmn.com · Reply-To: savronmn@gmail.com · Tags: {OUTREACH_MERGE_TAG_HINT}
+                            </p>
+                            <p className="text-xs text-savron-silver/50 mt-1">
+                                {reachableEmailCount} of {selectedCount} selected have a reachable email.
+                                {reachableEmailCount === 0 && ' Use "Send test to me" to verify your template first.'}
                             </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -346,6 +392,23 @@ export default function OutreachCampaignModal({
 
                     {/* Footer */}
                     <div className="p-5 border-t border-white/10 space-y-3 shrink-0">
+                        {testStatus === 'loading' && (
+                            <div className="flex items-center gap-3 text-xs text-savron-silver uppercase tracking-widest">
+                                <Loader2 className="w-4 h-4 animate-spin" /> Sending test email…
+                            </div>
+                        )}
+                        {testStatus === 'success' && testMessage && (
+                            <div className="flex items-start gap-3 p-3 border border-savron-green/30 rounded-savron bg-savron-green/10 text-sm text-accent-blue">
+                                <CheckCircle2 className="w-5 h-5 shrink-0" />
+                                <span>{testMessage}</span>
+                            </div>
+                        )}
+                        {testStatus === 'error' && testMessage && (
+                            <div className="flex items-start gap-3 p-3 border border-red-500/30 rounded-savron bg-red-500/10 text-sm text-red-300">
+                                <AlertCircle className="w-5 h-5 shrink-0" />
+                                <span>{testMessage}</span>
+                            </div>
+                        )}
                         {sendStatus === 'loading' && (
                             <div className="flex items-center gap-3 text-xs text-savron-silver uppercase tracking-widest">
                                 <Loader2 className="w-4 h-4 animate-spin" /> Sending emails…
@@ -368,14 +431,25 @@ export default function OutreachCampaignModal({
                                 </div>
                             </div>
                         )}
-                        <button
-                            type="button"
-                            onClick={() => void sendCampaign()}
-                            disabled={sendStatus === 'loading'}
-                            className="w-full py-3 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                            {sendStatus === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Mail className="w-4 h-4" /> Send Campaign</>}
-                        </button>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <button
+                                type="button"
+                                onClick={() => void sendTestToSelf()}
+                                disabled={sendStatus === 'loading' || testStatus === 'loading'}
+                                className="flex-1 py-3 text-xs uppercase tracking-widest border border-white/10 text-savron-silver rounded-savron hover:border-accent-blue/30 hover:text-accent-blue transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {testStatus === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                                Send Test to Me
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => void sendCampaign()}
+                                disabled={sendStatus === 'loading' || testStatus === 'loading' || reachableEmailCount === 0}
+                                className="flex-1 py-3 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {sendStatus === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Mail className="w-4 h-4" /> Send Campaign ({reachableEmailCount})</>}
+                            </button>
+                        </div>
                     </div>
                 </motion.div>
             </motion.div>

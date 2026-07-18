@@ -11,6 +11,7 @@ export type OutreachArea =
     | 'suburbs';
 
 export type OutreachSource = 'seed' | 'apify' | 'apollo' | 'savron';
+export type ProspectType = 'individual' | 'shop';
 
 export interface OutreachProspect {
     id: string;
@@ -28,6 +29,7 @@ export interface OutreachProspect {
     rating?: number | null;
     reviewCount?: number | null;
     reputationScore?: number | null;
+    prospectType?: ProspectType;
     isSavronBarber?: boolean;
     barberId?: string | null;
     enrichedAt?: string | null;
@@ -42,6 +44,8 @@ export interface OutreachScanParams {
     area?: OutreachArea;
     includeSavronBarbers?: boolean;
     enrichWebsites?: boolean;
+    individualsOnly?: boolean;
+    purgeShops?: boolean;
 }
 
 export const OUTREACH_AREA_LABELS: Record<Exclude<OutreachArea, 'all'>, string> = {
@@ -53,87 +57,51 @@ export const OUTREACH_AREA_LABELS: Record<Exclude<OutreachArea, 'all'>, string> 
     suburbs: 'Suburbs',
 };
 
-/** Seed prospects for development — swap with Apify/Apollo pipeline data later. */
+/** Seed prospects — individual barbers only (no barbershop businesses). */
 export const SEED_PROSPECTS: OutreachProspect[] = [
     {
         id: 'seed-001',
         name: 'Marcus Johnson',
-        email: 'marcus.j@example-barber.com',
-        businessName: 'Fade Factory MPLS',
+        email: '',
+        businessName: 'Marcus Johnson',
         area: 'north_minneapolis',
         phone: '612-555-0101',
-        instagram: '@fadefactorympls',
+        instagram: '@marcusjohnsoncuts',
         source: 'seed',
+        prospectType: 'individual',
     },
     {
         id: 'seed-002',
         name: 'Diego Ramirez',
-        email: 'diego@sharpcuts.co',
-        businessName: 'Sharp Cuts Barbershop',
+        email: '',
+        businessName: 'Diego Ramirez',
         area: 'south_minneapolis',
         phone: '612-555-0102',
-        instagram: '@sharpcutsmpls',
+        instagram: '@diegoramirezbarber',
         source: 'seed',
+        prospectType: 'individual',
     },
     {
         id: 'seed-003',
         name: 'Tyler Brooks',
-        email: 'tyler@downtownfade.com',
-        businessName: 'Downtown Fade Lounge',
+        email: '',
+        businessName: 'Tyler Brooks',
         area: 'downtown',
         phone: '612-555-0103',
-        instagram: '@downtownfade',
+        instagram: '@tylerbrooksbarber',
         source: 'seed',
+        prospectType: 'individual',
     },
     {
         id: 'seed-004',
         name: 'Jamal Williams',
-        email: 'jamal@nebarber.com',
-        businessName: 'NE Barber Co.',
+        email: '',
+        businessName: 'Jamal Williams',
         area: 'northeast',
         phone: '612-555-0104',
-        instagram: '@nebarberco',
+        instagram: '@jamalwilliamsbarber',
         source: 'seed',
-    },
-    {
-        id: 'seed-005',
-        name: 'Chris Nguyen',
-        email: 'chris@capitalcuts.com',
-        businessName: 'Capital Cuts',
-        area: 'st_paul',
-        phone: '651-555-0105',
-        instagram: '@capitalcuts',
-        source: 'seed',
-    },
-    {
-        id: 'seed-006',
-        name: 'Andre Mitchell',
-        email: 'andre@suburbansharp.com',
-        businessName: 'Suburban Sharp',
-        area: 'suburbs',
-        phone: '952-555-0106',
-        instagram: '@suburbansharp',
-        source: 'seed',
-    },
-    {
-        id: 'seed-007',
-        name: 'Kevin Ortiz',
-        email: 'kevin@uptownblends.com',
-        businessName: 'Uptown Blends',
-        area: 'south_minneapolis',
-        phone: '612-555-0107',
-        instagram: '@uptownblends',
-        source: 'seed',
-    },
-    {
-        id: 'seed-008',
-        name: 'Darius Cole',
-        email: 'darius@northsidecuts.com',
-        businessName: 'Northside Cuts',
-        area: 'north_minneapolis',
-        phone: '612-555-0108',
-        instagram: '@northsidecuts',
-        source: 'seed',
+        prospectType: 'individual',
     },
 ];
 

@@ -25,3 +25,5 @@ yarn-debug.log*
 ts-debug.log*
 .env*.local
 .vercel
+.env*
+/temp-sync/

@@ -1,17 +1,47 @@
 import { runApifyActorSync } from '@/lib/apify-client';
+import { enrichInstagramProfiles } from '@/lib/outreach-instagram';
+import {
+    classifyProspectType,
+    extractEmailsFromText,
+    extractInstagramHandle,
+    isValidReachableEmail,
+    pickBestEmail,
+} from '@/lib/outreach-lead-classifier';
 import type { OutreachArea, OutreachProspect, OutreachScanParams } from '@/lib/outreach-prospects';
 
 const MAPS_ACTOR = process.env.APIFY_BARBER_ACTOR_ID || 'compass~crawler-google-places';
 const WEBSITE_ACTOR = process.env.APIFY_WEBSITE_ACTOR_ID || 'apify~website-content-crawler';
 const REVIEWS_ACTOR = process.env.APIFY_REVIEWS_ACTOR_ID || 'compass~google-maps-reviews-scraper';
 
+/** Search for independent barbers — not barbershop businesses. */
 const AREA_SEARCH: Record<Exclude<OutreachArea, 'all'>, string[]> = {
-    north_minneapolis: ['barbershop north minneapolis mn', 'barber north minneapolis mn'],
-    south_minneapolis: ['barbershop south minneapolis mn', 'barbershop uptown minneapolis mn'],
-    downtown: ['barbershop downtown minneapolis mn'],
-    northeast: ['barbershop northeast minneapolis mn'],
-    st_paul: ['barbershop st paul mn', 'barbershop saint paul mn'],
-    suburbs: ['barbershop bloomington mn', 'barbershop eden prairie mn', 'barbershop maple grove mn'],
+    north_minneapolis: [
+        'independent barber north minneapolis mn',
+        'mobile barber north minneapolis mn',
+        'barber stylist north minneapolis',
+    ],
+    south_minneapolis: [
+        'independent barber south minneapolis mn',
+        'barber uptown minneapolis mn',
+        'freelance barber minneapolis mn',
+    ],
+    downtown: [
+        'independent barber downtown minneapolis mn',
+        'barber downtown minneapolis',
+    ],
+    northeast: [
+        'independent barber northeast minneapolis mn',
+        'barber stylist northeast minneapolis',
+    ],
+    st_paul: [
+        'independent barber st paul mn',
+        'mobile barber saint paul mn',
+    ],
+    suburbs: [
+        'independent barber bloomington mn',
+        'mobile barber eden prairie mn',
+        'barber stylist maple grove mn',
+    ],
 };
 
 const ALL_SEARCH = Object.values(AREA_SEARCH).flat();
@@ -61,12 +91,6 @@ function inferArea(address: string, city?: string): Exclude<OutreachArea, 'all'>
     if (haystack.includes('downtown')) return 'downtown';
     if (haystack.includes('minneapolis')) return 'south_minneapolis';
     return 'suburbs';
-}
-
-function pickEmail(row: ApifyPlaceRow): string {
-    if (row.email?.includes('@')) return row.email.trim().toLowerCase();
-    const fromList = row.emails?.find(e => e.includes('@'));
-    return fromList?.trim().toLowerCase() ?? '';
 }
 
 function slugify(value: string): string {
@@ -125,22 +149,50 @@ function buildSearchQueries(area?: OutreachArea): string[] {
     return AREA_SEARCH[area] ?? ALL_SEARCH;
 }
 
-export function mapApifyPlaceToProspect(row: ApifyPlaceRow, index: number): OutreachProspect | null {
-    const businessName = (row.title || row.name || '').trim();
-    if (!businessName) return null;
+function resolveDisplayName(rawTitle: string, categoryName?: string): { name: string; businessName: string; prospectType: OutreachProspect['prospectType'] } {
+    const title = rawTitle.trim();
+    const prospectType = classifyProspectType(title, categoryName);
+    const primary = title.split(/\s*[-–|@]\s*/)[0]?.trim() || title;
 
+    if (prospectType === 'individual') {
+        return {
+            name: primary.replace(/^@/, ''),
+            businessName: primary.replace(/^@/, ''),
+            prospectType: 'individual',
+        };
+    }
+
+    return {
+        name: title,
+        businessName: title,
+        prospectType: 'shop',
+    };
+}
+
+function pickEmailFromRow(row: ApifyPlaceRow, extraText = ''): string {
+    const fromRow = pickBestEmail(row.email, ...(row.emails ?? []));
+    if (fromRow) return fromRow;
+    return extractEmailsFromText(extraText)[0] ?? '';
+}
+
+export function mapApifyPlaceToProspect(row: ApifyPlaceRow, index: number): OutreachProspect | null {
+    const rawTitle = (row.title || row.name || '').trim();
+    if (!rawTitle) return null;
+
+    const { name, businessName, prospectType } = resolveDisplayName(rawTitle, row.categoryName);
     const address = [row.address, row.street, row.city, row.state].filter(Boolean).join(', ');
-    const externalId = row.placeId || row.url || `${slugify(businessName)}-${index}`;
+    const externalId = row.placeId || row.url || `${slugify(rawTitle)}-${index}`;
     const levelPrices = priceLevelToCents(row.price);
+    const instagram = extractInstagramHandle(row.instagram) ?? row.instagram ?? undefined;
 
     return {
         id: `apify-${externalId}`,
-        name: businessName,
-        email: pickEmail(row),
+        name,
+        email: pickEmailFromRow(row),
         businessName,
         area: inferArea(address, row.city),
         phone: row.phone || row.phoneUnformatted,
-        instagram: row.instagram,
+        instagram: instagram ? (instagram.startsWith('@') ? instagram : `@${instagram}`) : undefined,
         website: row.website,
         googleMapsUrl: row.url,
         rating: row.totalScore ?? null,
@@ -148,6 +200,7 @@ export function mapApifyPlaceToProspect(row: ApifyPlaceRow, index: number): Outr
         priceMinCents: levelPrices.min,
         priceMaxCents: levelPrices.max,
         reputationScore: computeReputationScore(row.totalScore ?? null, row.reviewsCount ?? null),
+        prospectType,
         source: 'apify',
         isSavronBarber: false,
     };
@@ -223,9 +276,13 @@ async function fetchExtraReviews(placeIds: string[]): Promise<Map<string, Review
 function applyTextEnrichment(prospect: OutreachProspect, text: string): OutreachProspect {
     const years = parseYearsExperience(text);
     const prices = parsePriceRangeCents(text);
+    const emails = extractEmailsFromText(text);
+    const instagramFromText = text.match(/instagram\.com\/([a-zA-Z0-9._]+)/i)?.[1];
 
     return {
         ...prospect,
+        email: pickBestEmail(prospect.email, ...emails),
+        instagram: prospect.instagram ?? (instagramFromText ? `@${instagramFromText}` : undefined),
         yearsExperience: years ?? prospect.yearsExperience ?? null,
         priceMinCents: prices.min ?? prospect.priceMinCents ?? null,
         priceMaxCents: prices.max ?? prospect.priceMaxCents ?? null,
@@ -233,7 +290,41 @@ function applyTextEnrichment(prospect: OutreachProspect, text: string): Outreach
     };
 }
 
+async function enrichFromInstagram(prospects: OutreachProspect[]): Promise<OutreachProspect[]> {
+    const handles = prospects
+        .map(p => extractInstagramHandle(p.instagram))
+        .filter(Boolean) as string[];
+
+    const profiles = await enrichInstagramProfiles(handles);
+    if (profiles.size === 0) return prospects;
+
+    return prospects.map(p => {
+        const handle = extractInstagramHandle(p.instagram);
+        if (!handle) return p;
+
+        const profile = profiles.get(handle.toLowerCase());
+        if (!profile) return p;
+
+        const displayName = profile.fullName?.trim();
+        const isPerson = displayName ? classifyProspectType(displayName) === 'individual' : p.prospectType === 'individual';
+
+        return {
+            ...p,
+            name: isPerson && displayName ? displayName : p.name,
+            businessName: isPerson && displayName ? displayName : p.businessName,
+            email: pickBestEmail(p.email, profile.email),
+            phone: p.phone ?? profile.phone,
+            prospectType: isPerson ? 'individual' : (p.prospectType ?? 'shop'),
+            enrichedAt: new Date().toISOString(),
+        };
+    });
+}
+
 function matchesFilters(prospect: OutreachProspect, params: OutreachScanParams): boolean {
+    if (params.individualsOnly !== false && prospect.prospectType === 'shop' && !prospect.isSavronBarber) {
+        return false;
+    }
+
     if (params.minRating != null && (prospect.rating ?? 0) < params.minRating) return false;
 
     if (params.minYearsExperience != null && prospect.yearsExperience != null) {
@@ -255,15 +346,23 @@ export async function runBarberOutreachScan(params: OutreachScanParams = {}): Pr
     discovered: number;
     enriched: number;
     matched: number;
+    shopsSkipped: number;
     prospects: OutreachProspect[];
 }> {
     const places = await discoverPlaces(params);
     const seen = new Set<string>();
     let prospects: OutreachProspect[] = [];
+    let shopsSkipped = 0;
 
     places.forEach((row, index) => {
         const prospect = mapApifyPlaceToProspect(row, index);
         if (!prospect) return;
+
+        if (params.individualsOnly !== false && prospect.prospectType === 'shop') {
+            shopsSkipped++;
+            return;
+        }
+
         const key = prospect.googleMapsUrl || prospect.id;
         if (seen.has(key)) return;
         seen.add(key);
@@ -288,15 +387,16 @@ export async function runBarberOutreachScan(params: OutreachScanParams = {}): Pr
             const placeId = p.id.replace(/^apify-/, '');
             const reviews = reviewsByPlace.get(placeId);
             if (!reviews?.length) return p;
-
             const reviewText = reviews.map(r => r.text ?? '').join(' ');
-            const withExp = applyTextEnrichment(p, reviewText);
-            return withExp;
+            return applyTextEnrichment(p, reviewText);
         });
     }
 
+    prospects = await enrichFromInstagram(prospects);
+
     prospects = prospects.map(p => ({
         ...p,
+        email: isValidReachableEmail(p.email) ? p.email.toLowerCase() : '',
         enrichedAt: p.enrichedAt ?? new Date().toISOString(),
     }));
 
@@ -306,6 +406,7 @@ export async function runBarberOutreachScan(params: OutreachScanParams = {}): Pr
         discovered: prospects.length,
         enriched: prospects.filter(p => p.enrichedAt).length,
         matched: matched.length,
+        shopsSkipped,
         prospects: matched,
     };
 }

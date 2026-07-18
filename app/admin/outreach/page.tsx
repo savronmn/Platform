@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
-import { Search, Mail, Target, CheckCircle2, AlertCircle, Loader2, Radar, History, Star, ChevronDown, Eye } from 'lucide-react';
+import { Search, Mail, Target, CheckCircle2, AlertCircle, Loader2, Radar, History, Star, ChevronDown, Eye, Trash2, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { OutreachProspect, OutreachArea } from '@/lib/outreach-prospects';
 import { OUTREACH_AREA_LABELS } from '@/lib/outreach-prospects';
@@ -53,6 +53,8 @@ export default function OutreachPage() {
     const [maxPrice, setMaxPrice] = useState('100');
     const [minRating, setMinRating] = useState('4.0');
     const [includeSavronBarbers, setIncludeSavronBarbers] = useState(true);
+    const [purgeShopsOnScan, setPurgeShopsOnScan] = useState(true);
+    const [purging, setPurging] = useState(false);
 
     useEffect(() => {
         void fetchProspects();
@@ -113,6 +115,8 @@ export default function OutreachPage() {
                     minRating: minRating ? Number(minRating) : undefined,
                     includeSavronBarbers,
                     enrichWebsites: true,
+                    individualsOnly: true,
+                    purgeShops: purgeShopsOnScan,
                 }),
             });
             const data = await res.json();
@@ -126,6 +130,29 @@ export default function OutreachPage() {
             setImportStatus('error');
             setImportMessage(err instanceof Error ? err.message : 'Barber scan failed');
         }
+    }
+
+    async function purgeBarbershops() {
+        setPurging(true);
+        setImportStatus('loading');
+        setImportMessage('Removing barbershop leads…');
+        try {
+            const res = await fetch('/api/outreach/purge-shops', { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Purge failed');
+            setProspects(data.prospects ?? []);
+            setSelectedIds(new Set());
+            setImportStatus('success');
+            setImportMessage(data.message || `Removed ${data.removed ?? 0} barbershops.`);
+        } catch (err) {
+            setImportStatus('error');
+            setImportMessage(err instanceof Error ? err.message : 'Purge failed');
+        }
+        setPurging(false);
+    }
+
+    function hasReachableEmail(p: OutreachProspect) {
+        return Boolean(p.email?.includes('@') && !p.email.includes('example'));
     }
 
     function formatPrice(cents?: number | null) {
@@ -157,6 +184,16 @@ export default function OutreachPage() {
         }
         return result;
     }, [prospects, areaFilter, search]);
+
+    const selectedProspects = useMemo(
+        () => prospects.filter(p => selectedIds.has(p.id)),
+        [prospects, selectedIds],
+    );
+
+    const selectedWithEmail = useMemo(
+        () => selectedProspects.filter(hasReachableEmail).length,
+        [selectedProspects],
+    );
 
     const allSelected = filteredProspects.length > 0 && selectedIds.size === filteredProspects.length;
 
@@ -192,7 +229,7 @@ export default function OutreachPage() {
                     <p className="admin-kicker">Prospecting</p>
                     <h1 className="admin-title">Outreach Control</h1>
                     <p className="admin-subtitle">
-                        Scan the web for barber prospects by experience, pricing, and Google Maps reputation — then send chair rental outreach.
+                        Scan the web for individual barber prospects — not barbershops — then send chair rental outreach.
                     </p>
                 </div>
                 {selectedIds.size > 0 && (
@@ -215,8 +252,8 @@ export default function OutreachPage() {
                     <div className="flex-1">
                         <h2 className="text-sm uppercase tracking-widest text-white">Barber Web Scan</h2>
                         <p className="text-xs text-savron-silver/70 mt-1 leading-relaxed">
-                            Uses Apify to search Google Maps, scrape shop websites for prices &amp; experience, and pull review reputation.
-                            Includes SAVRON barbers already in your database.
+                            Uses Apify to find independent barbers on Google Maps and Instagram, scrape websites for contact info, and pull review reputation.
+                            Barbershop businesses are filtered out automatically.
                         </p>
                     </div>
                 </div>
@@ -267,12 +304,22 @@ export default function OutreachPage() {
                         />
                         Include SAVRON barbers
                     </label>
+                    <label className="flex items-center gap-2 text-xs text-savron-silver/70 shrink-0 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={purgeShopsOnScan}
+                            onChange={e => setPurgeShopsOnScan(e.target.checked)}
+                            className="admin-checkbox"
+                        />
+                        Purge barbershops after scan
+                    </label>
                 </div>
 
+                <div className="flex flex-col sm:flex-row gap-3">
                 <button
                     type="button"
                     onClick={() => void runBarberScan()}
-                    disabled={importStatus === 'loading'}
+                    disabled={importStatus === 'loading' || purging}
                     className="w-full sm:w-auto px-8 py-3 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-60 flex items-center justify-center gap-2"
                 >
                     {importStatus === 'loading'
@@ -280,6 +327,18 @@ export default function OutreachPage() {
                         : <><Radar className="w-4 h-4" /> Run Barber Scan</>
                     }
                 </button>
+                <button
+                    type="button"
+                    onClick={() => void purgeBarbershops()}
+                    disabled={purging || importStatus === 'loading'}
+                    className="w-full sm:w-auto px-6 py-3 text-xs uppercase tracking-widest border border-white/10 text-savron-silver rounded-savron hover:border-red-500/30 hover:text-red-300 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                    {purging
+                        ? <><Loader2 className="w-4 h-4 animate-spin" /> Purging…</>
+                        : <><Trash2 className="w-4 h-4" /> Remove Barbershops</>
+                    }
+                </button>
+                </div>
             </div>
 
             {(importStatus === 'success' || importStatus === 'error') && importMessage && (
@@ -337,7 +396,9 @@ export default function OutreachPage() {
                     {filteredProspects.length} prospect{filteredProspects.length !== 1 ? 's' : ''}
                 </span>
                 {selectedIds.size > 0 && (
-                    <span className="text-accent-blue">{selectedIds.size} selected</span>
+                    <span className="text-accent-blue">
+                        {selectedIds.size} selected · {selectedWithEmail} with email
+                    </span>
                 )}
             </div>
 
@@ -404,7 +465,12 @@ export default function OutreachPage() {
                                         <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)} className="admin-checkbox" />
                                     </td>
                                     <td className="px-4 py-4 text-sm text-white">
-                                        {p.name}
+                                        <span className="inline-flex items-center gap-1.5">
+                                            {p.name}
+                                            {p.prospectType === 'individual' && (
+                                                <User className="w-3 h-3 text-accent-blue" aria-label="Individual barber" />
+                                            )}
+                                        </span>
                                         {p.isSavronBarber && (
                                             <span className="ml-2 text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-full border border-savron-green/30 text-accent-blue">SAVRON</span>
                                         )}
@@ -420,7 +486,13 @@ export default function OutreachPage() {
                                     </td>
                                     <td className="px-4 py-4 text-sm text-savron-silver/80">{p.yearsExperience != null ? `${p.yearsExperience}y` : '—'}</td>
                                     <td className="px-4 py-4 text-sm text-savron-silver/80">{formatPriceRange(p)}</td>
-                                    <td className="px-4 py-4 text-sm text-savron-silver/80">{p.email || '—'}</td>
+                                    <td className="px-4 py-4 text-sm">
+                                        {hasReachableEmail(p) ? (
+                                            <span className="text-savron-silver/80">{p.email}</span>
+                                        ) : (
+                                            <span className="text-amber-400/80 text-xs uppercase tracking-wider">No email</span>
+                                        )}
+                                    </td>
                                     <td className="px-4 py-4">
                                         <span className="text-[10px] uppercase tracking-widest px-2 py-1 rounded-full border border-white/10 text-savron-silver/60">
                                             {p.source}
@@ -550,6 +622,7 @@ export default function OutreachPage() {
             <OutreachCampaignModal
                 open={showCampaign}
                 selectedCount={selectedIds.size}
+                reachableEmailCount={selectedWithEmail}
                 previewProspect={previewProspect}
                 prospectIds={Array.from(selectedIds)}
                 onClose={() => setShowCampaign(false)}

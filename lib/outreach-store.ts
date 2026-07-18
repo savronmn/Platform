@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import type { OutreachEmailContent } from '@/lib/outreach-email-templates';
+import { isValidReachableEmail } from '@/lib/outreach-lead-classifier';
 import type { OutreachProspect } from '@/lib/outreach-prospects';
 import { SEED_PROSPECTS } from '@/lib/outreach-prospects';
 
@@ -20,6 +21,7 @@ interface OutreachProspectRow {
     rating: number | null;
     review_count: number | null;
     reputation_score: number | null;
+    prospect_type: string | null;
     barber_id: string | null;
     is_savron_barber: boolean;
     enriched_at: string | null;
@@ -60,6 +62,7 @@ function rowToProspect(row: OutreachProspectRow): OutreachProspect {
         rating: row.rating != null ? Number(row.rating) : null,
         reviewCount: row.review_count,
         reputationScore: row.reputation_score != null ? Number(row.reputation_score) : null,
+        prospectType: (row.prospect_type as OutreachProspect['prospectType']) ?? 'shop',
         isSavronBarber: row.is_savron_barber,
         barberId: row.barber_id,
         enrichedAt: row.enriched_at,
@@ -84,6 +87,7 @@ function prospectToRow(prospect: OutreachProspect): Omit<OutreachProspectRow, 'i
         rating: prospect.rating ?? null,
         review_count: prospect.reviewCount ?? null,
         reputation_score: prospect.reputationScore ?? null,
+        prospect_type: prospect.prospectType ?? (prospect.isSavronBarber ? 'individual' : 'shop'),
         barber_id: prospect.barberId ?? null,
         is_savron_barber: prospect.isSavronBarber ?? false,
         enriched_at: prospect.enrichedAt ?? null,
@@ -108,7 +112,7 @@ export async function ensureSeedProspects(): Promise<OutreachProspect[]> {
         .select('id', { count: 'exact', head: true });
 
     if ((count ?? 0) > 0) {
-        return listProspects();
+        return listProspects({ individualsOnly: true });
     }
 
     const rows = SEED_PROSPECTS.map(prospectToRow);
@@ -118,23 +122,35 @@ export async function ensureSeedProspects(): Promise<OutreachProspect[]> {
         return SEED_PROSPECTS;
     }
 
-    return listProspects();
+    return listProspects({ individualsOnly: true });
 }
 
-export async function listProspects(): Promise<OutreachProspect[]> {
+export async function listProspects(options?: { individualsOnly?: boolean }): Promise<OutreachProspect[]> {
+    const individualsOnly = options?.individualsOnly !== false;
+
     if (!(await tableReady())) {
-        return SEED_PROSPECTS;
+        return individualsOnly
+            ? SEED_PROSPECTS.filter(p => p.prospectType !== 'shop')
+            : SEED_PROSPECTS;
     }
 
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
+    let query = supabase
         .from('outreach_prospects')
         .select('*')
         .order('reputation_score', { ascending: false, nullsFirst: false })
         .order('business_name', { ascending: true });
 
+    if (individualsOnly) {
+        query = query.or('prospect_type.eq.individual,is_savron_barber.eq.true');
+    }
+
+    const { data, error } = await query;
+
     if (error || !data?.length) {
-        return SEED_PROSPECTS;
+        return individualsOnly
+            ? SEED_PROSPECTS.filter(p => p.prospectType !== 'shop')
+            : SEED_PROSPECTS;
     }
 
     return (data as OutreachProspectRow[]).map(rowToProspect);
@@ -184,8 +200,31 @@ export async function upsertProspects(prospects: OutreachProspect[]): Promise<{ 
 
     return {
         imported: prospects.length,
-        withEmail: prospects.filter(p => p.email).length,
+        withEmail: prospects.filter(p => isValidReachableEmail(p.email)).length,
     };
+}
+
+export async function purgeBarbershops(): Promise<number> {
+    if (!(await tableReady())) return 0;
+
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+        .from('outreach_prospects')
+        .delete()
+        .eq('prospect_type', 'shop')
+        .eq('is_savron_barber', false)
+        .select('id');
+
+    if (error) {
+        console.error('[outreach-store] purge barbershops failed:', error.message);
+        throw new Error(`Failed to purge barbershops: ${error.message}`);
+    }
+
+    return data?.length ?? 0;
+}
+
+export function countReachableEmails(prospects: OutreachProspect[]): number {
+    return prospects.filter(p => isValidReachableEmail(p.email)).length;
 }
 
 /** @deprecated Use upsertProspects */
@@ -213,6 +252,7 @@ export async function syncSavronBarbersToProspects(): Promise<number> {
         website: b.instagram_url?.includes('http') ? b.instagram_url : null,
         barber_id: b.id,
         is_savron_barber: true,
+        prospect_type: 'individual',
         source: 'savron',
         years_experience: b.bio ? parseBioYears(b.bio) : null,
         updated_at: new Date().toISOString(),
