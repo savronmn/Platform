@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import type { OutreachEmailContent } from '@/lib/outreach-email-templates';
 import type { OutreachProspect } from '@/lib/outreach-prospects';
 import { SEED_PROSPECTS } from '@/lib/outreach-prospects';
 
@@ -31,6 +32,9 @@ interface OutreachSendRow {
     sent_by_email: string | null;
     template: string;
     subject: string | null;
+    campaign_name: string | null;
+    email_content: OutreachEmailContent | null;
+    html_snapshot: string | null;
     prospect_count: number;
     sent_count: number;
     failed_count: number;
@@ -236,6 +240,9 @@ export interface OutreachSendLog {
     sentByEmail: string | null;
     template: string;
     subject: string | null;
+    campaignName: string | null;
+    emailContent: OutreachEmailContent | null;
+    htmlSnapshot: string | null;
     prospectCount: number;
     sentCount: number;
     failedCount: number;
@@ -247,32 +254,71 @@ export async function logOutreachSend(input: {
     sentByEmail?: string;
     template: string;
     subject?: string;
+    campaignName?: string;
+    emailContent?: OutreachEmailContent;
+    htmlSnapshot?: string;
     prospectIds: string[];
     sent: number;
     failed: number;
     errors: string[];
-}): Promise<void> {
-    if (!(await tableReady())) return;
+}): Promise<string | null> {
+    if (!(await tableReady())) return null;
 
     const supabase = getSupabaseAdmin();
-    const { error } = await supabase.from('outreach_sends').insert({
+    const { data, error } = await supabase.from('outreach_sends').insert({
         sent_by: input.sentBy,
         sent_by_email: input.sentByEmail ?? null,
         template: input.template,
         subject: input.subject ?? null,
+        campaign_name: input.campaignName ?? null,
+        email_content: input.emailContent ?? null,
+        html_snapshot: input.htmlSnapshot ?? null,
         prospect_count: input.prospectIds.length,
         sent_count: input.sent,
         failed_count: input.failed,
         prospect_ids: input.prospectIds,
         errors: input.errors.slice(0, 10),
-    });
+    }).select('id').single();
 
     if (error) {
         console.error('[outreach-store] failed to log send:', error.message);
+        return null;
     }
+
+    return data?.id ?? null;
 }
 
-export async function listOutreachSends(limit = 20): Promise<OutreachSendLog[]> {
+export async function getOutreachSendById(id: string): Promise<OutreachSendLog | null> {
+    if (!(await tableReady())) return null;
+
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+        .from('outreach_sends')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+    if (error || !data) return null;
+    return mapSendRow(data as OutreachSendRow);
+}
+
+function mapSendRow(row: OutreachSendRow): OutreachSendLog {
+    return {
+        id: row.id,
+        sentByEmail: row.sent_by_email,
+        template: row.template,
+        subject: row.subject,
+        campaignName: row.campaign_name,
+        emailContent: row.email_content,
+        htmlSnapshot: row.html_snapshot,
+        prospectCount: row.prospect_count,
+        sentCount: row.sent_count,
+        failedCount: row.failed_count,
+        createdAt: row.created_at,
+    };
+}
+
+export async function listOutreachSends(limit = 25): Promise<OutreachSendLog[]> {
     if (!(await tableReady())) return [];
 
     const supabase = getSupabaseAdmin();
@@ -284,14 +330,5 @@ export async function listOutreachSends(limit = 20): Promise<OutreachSendLog[]> 
 
     if (error || !data) return [];
 
-    return (data as OutreachSendRow[]).map(row => ({
-        id: row.id,
-        sentByEmail: row.sent_by_email,
-        template: row.template,
-        subject: row.subject,
-        prospectCount: row.prospect_count,
-        sentCount: row.sent_count,
-        failedCount: row.failed_count,
-        createdAt: row.created_at,
-    }));
+    return (data as OutreachSendRow[]).map(mapSendRow);
 }

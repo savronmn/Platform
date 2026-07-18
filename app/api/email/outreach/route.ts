@@ -1,16 +1,19 @@
 // POST /api/email/outreach
 // Sends cold outreach emails to selected barber prospects via Resend.
-// Body: { prospectIds: string[], template: 'chair_rental' | 'custom', subject?: string, message?: string }
-//
-// Uses the same Resend REST API pattern as /api/email/campaign.
-// From: info@savronmn.com · Reply-To: savronmn@gmail.com
+// Body: { prospectIds: string[], content: OutreachEmailContent, htmlSnapshot?: string }
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getChairRentalTemplate, getOutreachCustomTemplate, type OutreachTemplate } from '@/lib/outreach-email-templates';
+import {
+    mergeVarsFromProspect,
+    renderOutreachEmail,
+    type OutreachEmailContent,
+} from '@/lib/outreach-email-templates';
 import { getProspectsByIds, logOutreachSend } from '@/lib/outreach-store';
 import { requireAdmin } from '@/lib/staff-auth';
 
-const OUTREACH_FROM = 'SAVRON <info@savronmn.com>';
+const OUTREACH_FROM = process.env.RESEND_FROM_EMAIL
+    ? `SAVRON <${process.env.RESEND_FROM_EMAIL}>`
+    : 'SAVRON <bookings@savronmn.com>';
 const OUTREACH_REPLY_TO = 'savronmn@gmail.com';
 
 export async function POST(request: NextRequest) {
@@ -23,24 +26,22 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Email service not configured' }, { status: 503 });
     }
 
-    const { prospectIds, template, subject, message } = await request.json() as {
+    const { prospectIds, content, htmlSnapshot } = await request.json() as {
         prospectIds: string[];
-        template: OutreachTemplate;
-        subject?: string;
-        message?: string;
+        content: OutreachEmailContent;
+        htmlSnapshot?: string;
     };
 
-    if (!prospectIds || prospectIds.length === 0) {
+    if (!prospectIds?.length) {
         return NextResponse.json({ error: 'No prospects selected' }, { status: 400 });
     }
 
-    if (template === 'custom') {
-        if (!subject?.trim()) {
-            return NextResponse.json({ error: 'Subject is required for custom messages' }, { status: 400 });
-        }
-        if (!message?.trim()) {
-            return NextResponse.json({ error: 'Message is required for custom messages' }, { status: 400 });
-        }
+    if (!content?.subject?.trim() || !content?.headline?.trim()) {
+        return NextResponse.json({ error: 'Subject and headline are required' }, { status: 400 });
+    }
+
+    if (!content.bodyParagraphs?.some(p => p.trim())) {
+        return NextResponse.json({ error: 'Message body is required' }, { status: 400 });
     }
 
     const prospects = await getProspectsByIds(prospectIds);
@@ -58,20 +59,8 @@ export async function POST(request: NextRequest) {
         const batch = withEmail.slice(i, i + 10);
 
         await Promise.all(batch.map(async (prospect) => {
-            let emailData: { subject: string; html: string };
-
-            switch (template) {
-                case 'custom':
-                    emailData = getOutreachCustomTemplate(
-                        prospect.name,
-                        subject!.trim(),
-                        message!.trim(),
-                    );
-                    break;
-                case 'chair_rental':
-                default:
-                    emailData = getChairRentalTemplate(prospect.name, prospect.businessName);
-            }
+            const vars = mergeVarsFromProspect(prospect.name, prospect.businessName);
+            const emailData = renderOutreachEmail(content, vars);
 
             try {
                 const res = await fetch('https://api.resend.com/emails', {
@@ -107,11 +96,17 @@ export async function POST(request: NextRequest) {
         }
     }
 
+    const sampleVars = mergeVarsFromProspect(withEmail[0].name, withEmail[0].businessName);
+    const snapshot = htmlSnapshot || renderOutreachEmail(content, sampleVars).html;
+
     await logOutreachSend({
         sentBy: admin.user.id,
         sentByEmail: admin.user.email,
-        template,
-        subject: subject?.trim(),
+        template: content.templateId,
+        subject: content.subject.trim(),
+        campaignName: content.campaignName,
+        emailContent: content,
+        htmlSnapshot: snapshot,
         prospectIds,
         sent,
         failed,

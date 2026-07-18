@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Mail, Target, CheckCircle2, AlertCircle, Loader2, X, Radar, History, Star } from 'lucide-react';
+import { Search, Mail, Target, CheckCircle2, AlertCircle, Loader2, Radar, History, Star, ChevronDown, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { OutreachProspect, OutreachArea } from '@/lib/outreach-prospects';
 import { OUTREACH_AREA_LABELS } from '@/lib/outreach-prospects';
+import OutreachCampaignModal from '@/components/admin/OutreachCampaignModal';
+import type { OutreachEmailContent } from '@/lib/outreach-email-templates';
 
-type OutreachTemplate = 'chair_rental' | 'custom';
-type SendStatus = 'idle' | 'loading' | 'success' | 'error';
 type ImportStatus = 'idle' | 'loading' | 'success' | 'error';
 
 interface OutreachSendLog {
@@ -16,12 +15,14 @@ interface OutreachSendLog {
     sentByEmail: string | null;
     template: string;
     subject: string | null;
+    campaignName: string | null;
+    emailContent: OutreachEmailContent | null;
+    htmlSnapshot: string | null;
     prospectCount: number;
     sentCount: number;
     failedCount: number;
     createdAt: string;
 }
-
 const AREA_FILTERS: { key: OutreachArea; label: string }[] = [
     { key: 'all', label: 'All Areas' },
     { key: 'north_minneapolis', label: 'North MPLS' },
@@ -40,12 +41,7 @@ export default function OutreachPage() {
     const [areaFilter, setAreaFilter] = useState<OutreachArea>('all');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [showCampaign, setShowCampaign] = useState(false);
-    const [campaignTemplate, setCampaignTemplate] = useState<OutreachTemplate>('chair_rental');
-    const [campaignSubject, setCampaignSubject] = useState('');
-    const [campaignMessage, setCampaignMessage] = useState('');
-    const [sendStatus, setSendStatus] = useState<SendStatus>('idle');
-    const [campaignResult, setCampaignResult] = useState<{ sent: number; failed: number; errors?: string[] } | null>(null);
-    const [sendError, setSendError] = useState<string | null>(null);
+    const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
     const [apifyConfigured, setApifyConfigured] = useState(false);
     const [importStatus, setImportStatus] = useState<ImportStatus>('idle');
     const [importMessage, setImportMessage] = useState<string | null>(null);
@@ -182,52 +178,12 @@ export default function OutreachPage() {
 
     function openCampaign() {
         setShowCampaign(true);
-        setSendStatus('idle');
-        setCampaignResult(null);
-        setSendError(null);
     }
 
-    function closeCampaign() {
-        setShowCampaign(false);
-        setSendStatus('idle');
-        setCampaignResult(null);
-        setSendError(null);
-    }
-
-    async function sendCampaign() {
-        if (selectedIds.size === 0) return;
-        setSendStatus('loading');
-        setCampaignResult(null);
-        setSendError(null);
-
-        try {
-            const res = await fetch('/api/email/outreach', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    prospectIds: Array.from(selectedIds),
-                    template: campaignTemplate,
-                    subject: campaignSubject,
-                    message: campaignMessage,
-                }),
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                setSendStatus('error');
-                setSendError(data.error || 'Failed to send campaign');
-                return;
-            }
-
-            setCampaignResult({ sent: data.sent || 0, failed: data.failed || 0, errors: data.errors });
-            setSendStatus(data.failed > 0 && data.sent === 0 ? 'error' : 'success');
-            void fetchHistory();
-        } catch {
-            setSendStatus('error');
-            setSendError('Network error — could not reach the server');
-        }
-    }
+    const previewProspect = useMemo(() => {
+        const firstId = Array.from(selectedIds)[0];
+        return prospects.find(p => p.id === firstId) ?? filteredProspects[0] ?? null;
+    }, [selectedIds, prospects, filteredProspects]);
 
     return (
         <div className="admin-page">
@@ -524,11 +480,11 @@ export default function OutreachPage() {
                 </div>
             )}
 
-            {/* Recent send history */}
+            {/* Campaign history */}
             <div className="card-savron space-y-4">
                 <div className="flex items-center gap-2">
                     <History className="w-4 h-4 text-savron-silver/60" />
-                    <h2 className="text-sm uppercase tracking-widest text-white">Recent Campaigns</h2>
+                    <h2 className="text-sm uppercase tracking-widest text-white">Campaign History</h2>
                 </div>
                 {historyLoading ? (
                     <div className="flex items-center gap-2 text-xs text-savron-silver/60 uppercase tracking-widest">
@@ -537,162 +493,68 @@ export default function OutreachPage() {
                 ) : sendHistory.length === 0 ? (
                     <p className="text-xs text-savron-silver/60 uppercase tracking-widest">No outreach campaigns sent yet.</p>
                 ) : (
-                    <div className="space-y-2">
-                        {sendHistory.map(entry => (
-                            <div key={entry.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-3 border-b border-white/5 last:border-0">
-                                <div>
-                                    <p className="text-sm text-white capitalize">{entry.template.replace('_', ' ')}</p>
-                                    <p className="text-xs text-savron-silver/60 mt-0.5">
-                                        {new Date(entry.createdAt).toLocaleString()} · {entry.sentByEmail || 'admin'}
-                                    </p>
+                    <div className="space-y-1">
+                        {sendHistory.map(entry => {
+                            const expanded = expandedHistoryId === entry.id;
+                            return (
+                                <div key={entry.id} className="border border-white/5 rounded-savron overflow-hidden">
+                                    <button
+                                        type="button"
+                                        onClick={() => setExpandedHistoryId(expanded ? null : entry.id)}
+                                        className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-4 text-left hover:bg-white/[0.02] transition-colors"
+                                    >
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm text-white truncate">
+                                                {entry.campaignName || entry.subject || entry.template.replace('_', ' ')}
+                                            </p>
+                                            <p className="text-xs text-savron-silver/60 mt-0.5">
+                                                {new Date(entry.createdAt).toLocaleString()} · {entry.sentByEmail || 'admin'}
+                                                {entry.subject && entry.campaignName && (
+                                                    <span className="hidden sm:inline"> · {entry.subject}</span>
+                                                )}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-3 shrink-0">
+                                            <p className="text-xs uppercase tracking-widest text-savron-silver/70">
+                                                {entry.sentCount} sent · {entry.failedCount} failed · {entry.prospectCount} selected
+                                            </p>
+                                            <ChevronDown className={cn('w-4 h-4 text-savron-silver/50 transition-transform', expanded && 'rotate-180')} />
+                                        </div>
+                                    </button>
+                                    {expanded && entry.htmlSnapshot && (
+                                        <div className="border-t border-white/5 p-4 bg-black/30">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <Eye className="w-4 h-4 text-savron-silver/50" />
+                                                <p className="text-[10px] uppercase tracking-widest text-savron-silver/50">Sent email preview</p>
+                                            </div>
+                                            <iframe
+                                                title={`Campaign preview ${entry.id}`}
+                                                srcDoc={entry.htmlSnapshot}
+                                                className="w-full h-[420px] rounded-savron border border-white/10 bg-[#050505]"
+                                                sandbox=""
+                                            />
+                                        </div>
+                                    )}
+                                    {expanded && !entry.htmlSnapshot && (
+                                        <div className="border-t border-white/5 p-4 text-xs text-savron-silver/50">
+                                            No HTML snapshot stored for this campaign.
+                                        </div>
+                                    )}
                                 </div>
-                                <p className="text-xs uppercase tracking-widest text-savron-silver/70">
-                                    {entry.sentCount} sent · {entry.failedCount} failed · {entry.prospectCount} selected
-                                </p>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
 
-            {/* Campaign modal */}
-            <AnimatePresence>
-                {showCampaign && (
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-                        onClick={closeCampaign}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-                            className="bg-savron-grey border border-white/10 rounded-savron w-full max-w-lg p-6 space-y-5"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <p className="text-[10px] uppercase tracking-widest text-savron-silver/50 mb-1">Outreach Campaign</p>
-                                    <h2 className="text-lg text-white uppercase tracking-wider">Send to {selectedIds.size} Barber{selectedIds.size !== 1 ? 's' : ''}</h2>
-                                    <p className="text-xs text-savron-silver/60 mt-1">
-                                        From: info@savronmn.com · Reply-To: savronmn@gmail.com
-                                    </p>
-                                </div>
-                                <button onClick={closeCampaign} className="admin-icon-btn">
-                                    <X className="w-4 h-4" />
-                                </button>
-                            </div>
-
-                            {/* Template selector */}
-                            <div className="space-y-2">
-                                <label className="text-[10px] uppercase tracking-widest text-savron-silver/50">Template</label>
-                                <div className="flex gap-2">
-                                    {([
-                                        ['chair_rental', 'Chair Rental'],
-                                        ['custom', 'Custom Message'],
-                                    ] as [OutreachTemplate, string][]).map(([key, label]) => (
-                                        <button
-                                            key={key}
-                                            onClick={() => setCampaignTemplate(key)}
-                                            className={cn(
-                                                "flex-1 py-2.5 text-[10px] uppercase tracking-widest border rounded-savron transition-all",
-                                                campaignTemplate === key
-                                                    ? "bg-savron-green border-savron-green-light/20 text-white"
-                                                    : "border-white/10 text-savron-silver hover:border-white/20 hover:text-white",
-                                            )}
-                                        >
-                                            {label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {campaignTemplate === 'custom' && (
-                                <>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] uppercase tracking-widest text-savron-silver/50">Subject</label>
-                                        <input
-                                            type="text"
-                                            value={campaignSubject}
-                                            onChange={e => setCampaignSubject(e.target.value)}
-                                            placeholder="Email subject line..."
-                                            className="input-savron"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] uppercase tracking-widest text-savron-silver/50">Message</label>
-                                        <textarea
-                                            value={campaignMessage}
-                                            onChange={e => setCampaignMessage(e.target.value)}
-                                            placeholder="Write your outreach message..."
-                                            rows={5}
-                                            className="input-savron resize-none"
-                                        />
-                                    </div>
-                                </>
-                            )}
-
-                            {campaignTemplate === 'chair_rental' && (
-                                <div className="p-4 border border-white/10 rounded-savron bg-white/[0.02] text-xs text-savron-silver/70 leading-relaxed">
-                                    Sends the pre-built <strong className="text-white/80">Chair Rental Opportunity</strong> template introducing SAVRON&apos;s flexible rental model, booking support, and lounge environment.
-                                </div>
-                            )}
-
-                            {/* Status feedback */}
-                            {sendStatus === 'loading' && (
-                                <div className="flex items-center gap-3 p-4 border border-white/10 rounded-savron bg-white/[0.02]">
-                                    <Loader2 className="w-4 h-4 animate-spin text-accent-blue" />
-                                    <span className="text-xs uppercase tracking-widest text-savron-silver">Sending emails...</span>
-                                </div>
-                            )}
-
-                            {sendStatus === 'success' && campaignResult && (
-                                <div className="flex items-start gap-3 p-4 border border-savron-green/30 rounded-savron bg-savron-green/10">
-                                    <CheckCircle2 className="w-5 h-5 text-accent-blue shrink-0 mt-0.5" />
-                                    <div>
-                                        <p className="text-sm text-accent-blue font-medium">Campaign sent successfully</p>
-                                        <p className="text-xs text-savron-silver/70 mt-1">
-                                            {campaignResult.sent} email{campaignResult.sent !== 1 ? 's' : ''} delivered
-                                            {campaignResult.failed > 0 && ` · ${campaignResult.failed} failed`}
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {sendStatus === 'error' && (
-                                <div className="flex items-start gap-3 p-4 border border-red-500/30 rounded-savron bg-red-500/10">
-                                    <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-                                    <div>
-                                        <p className="text-sm text-red-300 font-medium">Campaign failed</p>
-                                        <p className="text-xs text-red-300/70 mt-1">
-                                            {sendError || (campaignResult ? `${campaignResult.failed} of ${campaignResult.sent + campaignResult.failed} failed` : 'Unknown error')}
-                                        </p>
-                                        {campaignResult?.errors && campaignResult.errors.length > 0 && (
-                                            <ul className="mt-2 space-y-1">
-                                                {campaignResult.errors.map((e, i) => (
-                                                    <li key={i} className="text-[10px] text-red-300/60 font-mono">{e}</li>
-                                                ))}
-                                            </ul>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            <button
-                                onClick={sendCampaign}
-                                disabled={
-                                    sendStatus === 'loading'
-                                    || (campaignTemplate === 'custom' && (!campaignSubject.trim() || !campaignMessage.trim()))
-                                }
-                                className="w-full py-3 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                                {sendStatus === 'loading'
-                                    ? <Loader2 className="w-4 h-4 animate-spin" />
-                                    : <><Mail className="w-4 h-4" /> Send Campaign</>
-                                }
-                            </button>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <OutreachCampaignModal
+                open={showCampaign}
+                selectedCount={selectedIds.size}
+                previewProspect={previewProspect}
+                prospectIds={Array.from(selectedIds)}
+                onClose={() => setShowCampaign(false)}
+                onSent={() => void fetchHistory()}
+            />
         </div>
     );
 }
