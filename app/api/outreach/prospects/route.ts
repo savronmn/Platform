@@ -2,8 +2,8 @@
 // POST /api/outreach/prospects — import barber prospects from Apify (admin only)
 
 import { NextResponse } from 'next/server';
-import { fetchBarberProspectsFromApify } from '@/lib/outreach-apify';
-import { ensureSeedProspects, listProspects, upsertApifyProspects } from '@/lib/outreach-store';
+import { runBarberOutreachScan } from '@/lib/outreach-enrichment';
+import { ensureSeedProspects, listProspects, upsertProspects } from '@/lib/outreach-store';
 import { requireAdmin } from '@/lib/staff-auth';
 
 export const dynamic = 'force-dynamic';
@@ -29,14 +29,16 @@ export async function POST() {
     }
 
     try {
-        const imported = await fetchBarberProspectsFromApify();
-        const result = await upsertApifyProspects(imported);
+        const scan = await runBarberOutreachScan({ enrichWebsites: true });
+        const result = await upsertProspects(scan.prospects);
         const prospects = await listProspects();
 
         return NextResponse.json({
             ...result,
+            discovered: scan.discovered,
+            matched: scan.matched,
             prospects,
-            message: `Imported ${result.imported} prospects (${result.withEmail} with email).`,
+            message: `Imported ${result.imported} prospects (${result.withEmail} with email, ${scan.matched} matched).`,
         });
     } catch (err) {
         const message = err instanceof Error ? err.message : 'Apify import failed';

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Mail, Target, CheckCircle2, AlertCircle, Loader2, X, RefreshCw, History } from 'lucide-react';
+import { Search, Mail, Target, CheckCircle2, AlertCircle, Loader2, X, Radar, History, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { OutreachProspect, OutreachArea } from '@/lib/outreach-prospects';
 import { OUTREACH_AREA_LABELS } from '@/lib/outreach-prospects';
@@ -51,6 +51,12 @@ export default function OutreachPage() {
     const [importMessage, setImportMessage] = useState<string | null>(null);
     const [sendHistory, setSendHistory] = useState<OutreachSendLog[]>([]);
     const [historyLoading, setHistoryLoading] = useState(true);
+    const [scanArea, setScanArea] = useState<OutreachArea>('all');
+    const [minYears, setMinYears] = useState('3');
+    const [minPrice, setMinPrice] = useState('25');
+    const [maxPrice, setMaxPrice] = useState('100');
+    const [minRating, setMinRating] = useState('4.0');
+    const [includeSavronBarbers, setIncludeSavronBarbers] = useState(true);
 
     useEffect(() => {
         void fetchProspects();
@@ -89,22 +95,54 @@ export default function OutreachPage() {
         setHistoryLoading(false);
     }
 
-    async function importFromApify() {
+    async function runBarberScan() {
+        if (!apifyConfigured) {
+            setImportStatus('error');
+            setImportMessage('Set APIFY_API_TOKEN in Vercel environment variables to run barber scans.');
+            return;
+        }
+
         setImportStatus('loading');
-        setImportMessage(null);
+        setImportMessage('Scanning Google Maps, websites, and reviews — this can take 2–5 minutes…');
+
         try {
-            const res = await fetch('/api/outreach/prospects', { method: 'POST' });
+            const res = await fetch('/api/outreach/scan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    area: scanArea,
+                    minYearsExperience: minYears ? Number(minYears) : undefined,
+                    minPriceDollars: minPrice ? Number(minPrice) : undefined,
+                    maxPriceDollars: maxPrice ? Number(maxPrice) : undefined,
+                    minRating: minRating ? Number(minRating) : undefined,
+                    includeSavronBarbers,
+                    enrichWebsites: true,
+                }),
+            });
             const data = await res.json();
             if (!res.ok) {
-                throw new Error(data.error || 'Apify import failed');
+                throw new Error(data.error || 'Barber scan failed');
             }
             setProspects(data.prospects ?? []);
             setImportStatus('success');
-            setImportMessage(data.message || `Imported ${data.imported ?? 0} prospects.`);
+            setImportMessage(data.message || `Scan found ${data.matched ?? 0} barbers.`);
         } catch (err) {
             setImportStatus('error');
-            setImportMessage(err instanceof Error ? err.message : 'Apify import failed');
+            setImportMessage(err instanceof Error ? err.message : 'Barber scan failed');
         }
+    }
+
+    function formatPrice(cents?: number | null) {
+        if (cents == null) return '—';
+        return `$${(cents / 100).toFixed(0)}`;
+    }
+
+    function formatPriceRange(p: OutreachProspect) {
+        if (p.priceMinCents == null && p.priceMaxCents == null) return '—';
+        if (p.priceMinCents != null && p.priceMaxCents != null && p.priceMinCents !== p.priceMaxCents) {
+            return `${formatPrice(p.priceMinCents)}–${formatPrice(p.priceMaxCents)}`;
+        }
+        return formatPrice(p.priceMinCents ?? p.priceMaxCents);
     }
 
     const filteredProspects = useMemo(() => {
@@ -198,32 +236,94 @@ export default function OutreachPage() {
                     <p className="admin-kicker">Prospecting</p>
                     <h1 className="admin-title">Outreach Control</h1>
                     <p className="admin-subtitle">
-                        Send cold emails to barbers offering SAVRON&apos;s chair rental model.
-                        Import real leads from Apify or use seed data when Apify is not configured.
+                        Scan the web for barber prospects by experience, pricing, and Google Maps reputation — then send chair rental outreach.
                     </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                {selectedIds.size > 0 && (
                     <button
-                        onClick={() => void importFromApify()}
-                        disabled={importStatus === 'loading' || !apifyConfigured}
-                        title={apifyConfigured ? 'Import barbers from Apify Google Maps' : 'Set APIFY_API_TOKEN to enable imports'}
-                        className="admin-action-btn flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={openCampaign}
+                        className="admin-action-btn flex items-center gap-2 shrink-0"
                     >
-                        {importStatus === 'loading'
-                            ? <Loader2 className="w-4 h-4 animate-spin" />
-                            : <RefreshCw className="w-4 h-4" />}
-                        Import Apify
+                        <Mail className="w-4 h-4" />
+                        Send Campaign ({selectedIds.size})
                     </button>
-                    {selectedIds.size > 0 && (
-                        <button
-                            onClick={openCampaign}
-                            className="admin-action-btn flex items-center gap-2"
-                        >
-                            <Mail className="w-4 h-4" />
-                            Send Campaign ({selectedIds.size})
-                        </button>
-                    )}
+                )}
+            </div>
+
+            {/* Barber scan panel */}
+            <div className="card-savron space-y-5 border-savron-green/20">
+                <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-savron bg-savron-green/10 border border-savron-green/20">
+                        <Radar className="w-5 h-5 text-accent-blue" />
+                    </div>
+                    <div className="flex-1">
+                        <h2 className="text-sm uppercase tracking-widest text-white">Barber Web Scan</h2>
+                        <p className="text-xs text-savron-silver/70 mt-1 leading-relaxed">
+                            Uses Apify to search Google Maps, scrape shop websites for prices &amp; experience, and pull review reputation.
+                            Includes SAVRON barbers already in your database.
+                        </p>
+                    </div>
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest text-savron-silver/50">Min years experience</label>
+                        <input type="number" min={0} max={40} value={minYears} onChange={e => setMinYears(e.target.value)} className="input-savron" placeholder="3" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest text-savron-silver/50">Min price ($)</label>
+                        <input type="number" min={0} value={minPrice} onChange={e => setMinPrice(e.target.value)} className="input-savron" placeholder="25" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest text-savron-silver/50">Max price ($)</label>
+                        <input type="number" min={0} value={maxPrice} onChange={e => setMaxPrice(e.target.value)} className="input-savron" placeholder="100" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest text-savron-silver/50">Min Google rating</label>
+                        <input type="number" min={0} max={5} step={0.1} value={minRating} onChange={e => setMinRating(e.target.value)} className="input-savron" placeholder="4.0" />
+                    </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div className="flex gap-1.5 flex-wrap flex-1">
+                        {AREA_FILTERS.map(({ key, label }) => (
+                            <button
+                                key={key}
+                                type="button"
+                                onClick={() => setScanArea(key)}
+                                className={cn(
+                                    'px-3 py-2 text-[10px] uppercase tracking-widest border rounded-savron transition-all',
+                                    scanArea === key
+                                        ? 'bg-savron-green border-savron-green-light/20 text-white'
+                                        : 'text-savron-silver border-white/10 hover:border-white/20 hover:text-white',
+                                )}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                    <label className="flex items-center gap-2 text-xs text-savron-silver/70 shrink-0 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={includeSavronBarbers}
+                            onChange={e => setIncludeSavronBarbers(e.target.checked)}
+                            className="admin-checkbox"
+                        />
+                        Include SAVRON barbers
+                    </label>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={() => void runBarberScan()}
+                    disabled={importStatus === 'loading'}
+                    className="w-full sm:w-auto px-8 py-3 text-xs uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                    {importStatus === 'loading'
+                        ? <><Loader2 className="w-4 h-4 animate-spin" /> Scanning barbers…</>
+                        : <><Radar className="w-4 h-4" /> Run Barber Scan</>
+                    }
+                </button>
             </div>
 
             {(importStatus === 'success' || importStatus === 'error') && importMessage && (
@@ -239,8 +339,8 @@ export default function OutreachPage() {
             )}
 
             {!apifyConfigured && (
-                <div className="card-savron p-4 text-xs text-savron-silver/70 border-white/10">
-                    Apify import is disabled until <code className="text-white/80">APIFY_API_TOKEN</code> is set in Vercel. Seed prospects are shown below for testing.
+                <div className="card-savron p-4 text-xs text-savron-silver/70 border-amber-500/20 bg-amber-500/5">
+                    Add <code className="text-white/80">APIFY_API_TOKEN</code> in Vercel to enable web scans. Seed / saved prospects are shown below until then.
                 </div>
             )}
 
@@ -327,6 +427,9 @@ export default function OutreachPage() {
                                 <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Name</th>
                                 <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Business</th>
                                 <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Area</th>
+                                <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Rating</th>
+                                <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Exp.</th>
+                                <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Price</th>
                                 <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Email</th>
                                 <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Source</th>
                             </tr>
@@ -344,12 +447,24 @@ export default function OutreachPage() {
                                     <td className="px-4 py-4" onClick={e => e.stopPropagation()}>
                                         <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)} className="admin-checkbox" />
                                     </td>
-                                    <td className="px-4 py-4 text-sm text-white">{p.name}</td>
+                                    <td className="px-4 py-4 text-sm text-white">
+                                        {p.name}
+                                        {p.isSavronBarber && (
+                                            <span className="ml-2 text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-full border border-savron-green/30 text-accent-blue">SAVRON</span>
+                                        )}
+                                    </td>
                                     <td className="px-4 py-4 text-sm text-savron-silver">{p.businessName}</td>
                                     <td className="px-4 py-4 text-xs text-savron-silver/70 uppercase tracking-wider">
                                         {OUTREACH_AREA_LABELS[p.area]}
                                     </td>
-                                    <td className="px-4 py-4 text-sm text-savron-silver/80">{p.email}</td>
+                                    <td className="px-4 py-4 text-sm text-savron-silver/80">
+                                        {p.rating != null ? (
+                                            <span className="inline-flex items-center gap-1"><Star className="w-3 h-3 text-amber-400 fill-amber-400" />{p.rating.toFixed(1)}{p.reviewCount != null && <span className="text-savron-silver/50">({p.reviewCount})</span>}</span>
+                                        ) : '—'}
+                                    </td>
+                                    <td className="px-4 py-4 text-sm text-savron-silver/80">{p.yearsExperience != null ? `${p.yearsExperience}y` : '—'}</td>
+                                    <td className="px-4 py-4 text-sm text-savron-silver/80">{formatPriceRange(p)}</td>
+                                    <td className="px-4 py-4 text-sm text-savron-silver/80">{p.email || '—'}</td>
                                     <td className="px-4 py-4">
                                         <span className="text-[10px] uppercase tracking-widest px-2 py-1 rounded-full border border-white/10 text-savron-silver/60">
                                             {p.source}
@@ -383,9 +498,17 @@ export default function OutreachPage() {
                                     className="admin-checkbox mt-1"
                                 />
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm text-white font-medium">{p.name}</p>
+                                    <p className="text-sm text-white font-medium">
+                                        {p.name}
+                                        {p.isSavronBarber && <span className="ml-2 text-[9px] uppercase tracking-widest text-accent-blue">SAVRON</span>}
+                                    </p>
                                     <p className="text-xs text-savron-silver mt-0.5">{p.businessName}</p>
-                                    <p className="text-xs text-savron-silver/60 mt-1">{p.email}</p>
+                                    <div className="flex flex-wrap items-center gap-2 mt-2 text-[10px] uppercase tracking-widest text-savron-silver/50">
+                                        {p.rating != null && <span>{p.rating.toFixed(1)}★</span>}
+                                        {p.yearsExperience != null && <span>{p.yearsExperience}y exp</span>}
+                                        {(p.priceMinCents != null || p.priceMaxCents != null) && <span>{formatPriceRange(p)}</span>}
+                                    </div>
+                                    <p className="text-xs text-savron-silver/60 mt-1">{p.email || 'No email'}</p>
                                     <div className="flex items-center gap-2 mt-2">
                                         <span className="text-[10px] uppercase tracking-widest text-savron-silver/50">
                                             {OUTREACH_AREA_LABELS[p.area]}

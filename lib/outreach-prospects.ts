@@ -10,7 +10,7 @@ export type OutreachArea =
     | 'st_paul'
     | 'suburbs';
 
-export type OutreachSource = 'seed' | 'apify' | 'apollo';
+export type OutreachSource = 'seed' | 'apify' | 'apollo' | 'savron';
 
 export interface OutreachProspect {
     id: string;
@@ -20,7 +20,28 @@ export interface OutreachProspect {
     area: Exclude<OutreachArea, 'all'>;
     phone?: string;
     instagram?: string;
+    website?: string;
+    googleMapsUrl?: string;
+    yearsExperience?: number | null;
+    priceMinCents?: number | null;
+    priceMaxCents?: number | null;
+    rating?: number | null;
+    reviewCount?: number | null;
+    reputationScore?: number | null;
+    isSavronBarber?: boolean;
+    barberId?: string | null;
+    enrichedAt?: string | null;
     source: OutreachSource;
+}
+
+export interface OutreachScanParams {
+    minYearsExperience?: number;
+    minPriceDollars?: number;
+    maxPriceDollars?: number;
+    minRating?: number;
+    area?: OutreachArea;
+    includeSavronBarbers?: boolean;
+    enrichWebsites?: boolean;
 }
 
 export const OUTREACH_AREA_LABELS: Record<Exclude<OutreachArea, 'all'>, string> = {
