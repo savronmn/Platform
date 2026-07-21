@@ -201,7 +201,9 @@ export default function AdminBarbersPage() {
     const [workingHours, setWorkingHours] = useState<WorkingHours>({});
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
     const [photoError, setPhotoError] = useState<string | null>(null);
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
     useEffect(() => {
         async function load() {
@@ -213,29 +215,46 @@ export default function AdminBarbersPage() {
     }, []);
 
     const buildServiceEdits = async (barber: Barber) => {
-        const { data: barberRows } = await supabase
-            .from('barber_service')
-            .select('service_id, price_cents, duration_minutes')
-            .eq('barber_id', barber.id);
+        const [{ data: catalog }, { data: barberRows }] = await Promise.all([
+            supabase
+                .from('services')
+                .select('id, name, price_cents, duration_minutes, sort_order')
+                .eq('active', true)
+                .order('sort_order', { ascending: true, nullsFirst: false })
+                .order('created_at'),
+            supabase
+                .from('barber_service')
+                .select('service_id, price_cents, duration_minutes')
+                .eq('barber_id', barber.id),
+        ]);
+
+        const menu = catalog?.length
+            ? catalog
+            : services.map((s) => ({
+                id: s.serviceUuid ?? String(s.id),
+                name: s.name,
+                price_cents: s.priceCents,
+                duration_minutes: s.durationMin,
+            }));
 
         const rowByServiceId = new Map(
             (barberRows ?? []).map((row) => [row.service_id as string, row]),
         );
 
-        return services.map((svc) => {
-            const existing = svc.serviceUuid ? rowByServiceId.get(svc.serviceUuid) : undefined;
+        return menu.map((svc) => {
+            const existing = rowByServiceId.get(svc.id);
             const enabled = existing
                 ? true
-                : (barber.services_offered ?? services.map((s) => s.name)).includes(svc.name);
+                : (barber.services_offered ?? menu.map((s) => s.name)).includes(svc.name);
 
             return {
-                serviceUuid: svc.serviceUuid ?? String(svc.id),
+                serviceUuid: svc.id,
                 name: svc.name,
                 enabled,
-                priceCents: existing?.price_cents ?? svc.priceCents,
-                durationMinutes: existing?.duration_minutes ?? svc.durationMin,
-                defaultPriceCents: svc.priceCents,
-                defaultDurationMinutes: svc.durationMin,
+                priceCents: existing?.price_cents ?? svc.price_cents,
+                durationMinutes: existing?.duration_minutes ?? svc.duration_minutes,
+                defaultPriceCents: svc.price_cents,
+                defaultDurationMinutes: svc.duration_minutes,
             };
         });
     };
@@ -311,6 +330,7 @@ export default function AdminBarbersPage() {
     const saveSettings = async () => {
         if (!settingsBarber) return;
         setSaving(true);
+        setSaveError(null);
         const handle = instagramInput.trim().replace(/^@/, '');
         const enabledServices = serviceEdits.filter((e) => e.enabled);
         const update = {
@@ -320,21 +340,45 @@ export default function AdminBarbersPage() {
             working_hours: workingHours,
         };
 
-        await supabase.from('barbers').update(update).eq('id', settingsBarber.id);
+        const { error: barberErr } = await supabase
+            .from('barbers')
+            .update(update)
+            .eq('id', settingsBarber.id);
 
-        await supabase.from('barber_service').delete().eq('barber_id', settingsBarber.id);
-        const inserts = enabledServices
-            .filter((e) => e.serviceUuid && !e.serviceUuid.match(/^\d+$/))
-            .map((e) => ({
-                barber_id: settingsBarber.id,
-                service_id: e.serviceUuid,
-                price_cents: e.priceCents,
-                duration_minutes: e.durationMinutes,
-                updated_at: new Date().toISOString(),
-            }));
-        if (inserts.length > 0) {
-            await supabase.from('barber_service').insert(inserts);
+        if (barberErr) {
+            setSaving(false);
+            setSaveError(barberErr.message);
+            return;
         }
+
+        const offerings = enabledServices.map((e) => ({
+            serviceId: e.serviceUuid,
+            priceCents: e.priceCents,
+            durationMinutes: e.durationMinutes,
+        }));
+
+        const { data: { session } } = await supabase.auth.getSession();
+        const servicesRes = await fetch('/api/barber-services', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(session?.access_token
+                    ? { Authorization: `Bearer ${session.access_token}` }
+                    : {}),
+            },
+            body: JSON.stringify({ barberId: settingsBarber.id, offerings }),
+        });
+
+        if (!servicesRes.ok) {
+            const body = await servicesRes.json().catch(() => ({}));
+            setSaving(false);
+            setSaveError((body as { error?: string }).error ?? 'Failed to save service pricing');
+            return;
+        }
+
+        const refreshedEdits = await buildServiceEdits({ ...settingsBarber, ...update });
+        setServiceEdits(refreshedEdits);
+        setServicesOffered(refreshedEdits.filter((e) => e.enabled).map((e) => e.name));
 
         setBarbers(prev => prev.map(b =>
             b.id === settingsBarber.id ? { ...b, ...update } : b
@@ -358,8 +402,33 @@ export default function AdminBarbersPage() {
     };
 
     const approveBarber = async (barber: Barber) => {
-        await supabase.from('barbers').update({ active: true }).eq('id', barber.id);
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch('/api/admin/barbers/approve', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(session?.access_token
+                    ? { Authorization: `Bearer ${session.access_token}` }
+                    : {}),
+            },
+            body: JSON.stringify({
+                barberId: barber.id,
+                origin: window.location.origin,
+            }),
+        });
+
+        if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            alert((body as { error?: string }).error ?? 'Failed to approve barber');
+            return;
+        }
+
+        const body = await res.json() as { barber?: Barber; email?: { success: boolean; error?: string } };
         setBarbers(prev => prev.map(b => b.id === barber.id ? { ...b, active: true } : b));
+
+        if (body.email && !body.email.success && body.email.error) {
+            console.warn('Welcome email failed:', body.email.error);
+        }
     };
 
     const copyBookingLink = (slug: string) => {
@@ -796,29 +865,48 @@ export default function AdminBarbersPage() {
                                                 className="hidden"
                                                 onChange={async (e) => {
                                                     const file = e.currentTarget.files?.[0];
-                                                    if (!file) return;
+                                                    if (!file || !settingsBarber) return;
                                                     setPhotoError(null);
+                                                    setUploadingPhoto(true);
                                                     try {
-                                                        const ext = file.name.split('.').pop();
-                                                        const path = `${settingsBarber.id}/profile/${Date.now()}.${ext}`;
-                                                        const { error: upErr } = await supabase.storage
-                                                            .from('barber-portfolios')
-                                                            .upload(path, file, { upsert: true, contentType: file.type });
-                                                        if (upErr) throw upErr;
-                                                        const { data: { publicUrl } } = supabase.storage.from('barber-portfolios').getPublicUrl(path);
-                                                        await supabase.from('barbers').update({ image_url: publicUrl }).eq('id', settingsBarber.id);
-                                                        setSettingsBarber(prev => prev ? { ...prev, image_url: publicUrl } : prev);
-                                                        setBarbers(prev => prev.map(b => b.id === settingsBarber.id ? { ...b, image_url: publicUrl } : b));
+                                                        const { data: { session } } = await supabase.auth.getSession();
+                                                        const formData = new FormData();
+                                                        formData.append('barberId', settingsBarber.id);
+                                                        formData.append('file', file);
+
+                                                        const res = await fetch('/api/admin/barber-photo', {
+                                                            method: 'POST',
+                                                            headers: session?.access_token
+                                                                ? { Authorization: `Bearer ${session.access_token}` }
+                                                                : {},
+                                                            body: formData,
+                                                        });
+
+                                                        const body = await res.json().catch(() => ({}));
+                                                        if (!res.ok) {
+                                                            throw new Error((body as { error?: string }).error ?? 'Upload failed');
+                                                        }
+
+                                                        const imageUrl = (body as { imageUrl: string }).imageUrl;
+                                                        setSettingsBarber(prev => prev ? { ...prev, image_url: imageUrl } : prev);
+                                                        setBarbers(prev => prev.map(b =>
+                                                            b.id === settingsBarber.id ? { ...b, image_url: imageUrl } : b
+                                                        ));
                                                     } catch (err) {
                                                         console.error('Photo upload failed:', err);
-                                                        setPhotoError('Photo upload failed. Please try a different image or check storage settings.');
+                                                        setPhotoError(err instanceof Error ? err.message : 'Photo upload failed.');
                                                         e.currentTarget.value = '';
+                                                    } finally {
+                                                        setUploadingPhoto(false);
                                                     }
                                                 }}
                                             />
-                                            <label htmlFor="photo-upload" className="admin-action-btn px-6 bg-savron-green/10 text-savron-green border border-savron-green/30 hover:bg-savron-green/20 rounded-savron cursor-pointer transition-all font-medium">
+                                            <label htmlFor="photo-upload" className={cn(
+                                                "admin-action-btn px-6 bg-savron-green/10 text-savron-green border border-savron-green/30 hover:bg-savron-green/20 rounded-savron cursor-pointer transition-all font-medium",
+                                                uploadingPhoto && "opacity-50 pointer-events-none",
+                                            )}>
                                                 <Upload className="w-4 h-4" />
-                                                {settingsBarber.image_url ? 'Change Photo' : 'Upload Photo'}
+                                                {uploadingPhoto ? 'Uploading…' : settingsBarber.image_url ? 'Change Photo' : 'Upload Photo'}
                                             </label>
                                             {photoError && (
                                                 <p className="text-red-400 text-[11px] text-center max-w-xs">{photoError}</p>
@@ -1117,7 +1205,10 @@ export default function AdminBarbersPage() {
                         </div>
 
                         {/* Save footer */}
-                        <div className="p-6 border-t border-white/5 shrink-0">
+                        <div className="p-6 border-t border-white/5 shrink-0 space-y-3">
+                            {saveError && (
+                                <p className="text-red-400 text-[11px] text-center">{saveError}</p>
+                            )}
                             <button
                                 onClick={saveSettings}
                                 disabled={saving}

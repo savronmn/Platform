@@ -1,28 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { saveBarberServices, type BarberServiceInput } from '@/lib/barber-services';
-
-async function assertAdmin(authHeader: string | null): Promise<boolean> {
-    if (!authHeader?.startsWith('Bearer ')) return false;
-    const token = authHeader.slice(7);
-
-    const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { global: { headers: { Authorization: `Bearer ${token}` } } },
-    );
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return false;
-
-    const { data: role } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('auth_id', user.id)
-        .maybeSingle();
-
-    return role?.role === 'admin';
-}
+import { assertAdminRequest } from '@/lib/admin-auth';
 
 /** GET /api/barber-services?barberId= — public read of a barber's service menu */
 export async function GET(request: NextRequest) {
@@ -56,7 +35,7 @@ export async function GET(request: NextRequest) {
 
 /** PUT /api/barber-services — admin-only save of barber service offerings */
 export async function PUT(request: NextRequest) {
-    const isAdmin = await assertAdmin(request.headers.get('authorization'));
+    const isAdmin = await assertAdminRequest(request.headers.get('authorization'));
     if (!isAdmin) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

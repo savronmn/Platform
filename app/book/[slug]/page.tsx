@@ -1,7 +1,7 @@
 "use client";
 
 import Link from 'next/link';
-import { useState, useEffect, useRef, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense, useMemo } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -36,6 +36,22 @@ function BarberBookingContent() {
 
     const [barber, setBarber] = useState<Barber | null>(null);
     const { services: barberServices, loading: loadingBarberServices } = useBarberServices(barber?.id);
+
+    const displayServices = useMemo(() => {
+        if (barberServices.length > 0) return barberServices;
+        return services
+            .filter((s) => !barber?.services_offered?.length || barber.services_offered.includes(s.name))
+            .filter((s) => s.serviceUuid)
+            .map((s) => ({
+                serviceId: s.serviceUuid!,
+                name: s.name,
+                priceCents: s.priceCents,
+                durationMinutes: s.durationMin,
+                price: s.price,
+                duration: s.duration,
+                description: s.description,
+            }));
+    }, [barberServices, services, barber?.services_offered]);
     const [loading, setLoading] = useState(true);
     const [step, setStep] = useState(1);
     const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
@@ -66,16 +82,16 @@ function BarberBookingContent() {
     }, [prefillEmail]);
 
     useEffect(() => {
-        if (preselectionApplied || !preselectedService || barberServices.length === 0) return;
+        if (preselectionApplied || !preselectedService || displayServices.length === 0) return;
         const match = resolveServiceFromParam(preselectedService, services);
         if (match) {
-            const offering = barberServices.find(
+            const offering = displayServices.find(
                 (s) => s.serviceId === match.serviceUuid || s.name === match.name,
             );
             if (offering) setSelectedServiceId(offering.serviceId);
         }
         setPreselectionApplied(true);
-    }, [preselectedService, services, barberServices, preselectionApplied]);
+    }, [preselectedService, services, displayServices, preselectionApplied]);
 
     useEffect(() => {
         if (selectedServiceId === null) setAddEyebrows(false);
@@ -142,7 +158,7 @@ function BarberBookingContent() {
     const isSlotBusy = (timeStr: string) => {
         if (isSlotInPast(selectedDate, timeStr, 5)) return true;
         if (loadingBusy || !busyLoaded || busyError) return true;
-        const offering = barberServices.find((s) => s.serviceId === selectedServiceId);
+        const offering = displayServices.find((s) => s.serviceId === selectedServiceId);
         const durationMin = offering?.durationMinutes ?? 45;
         return slotConflictsWithBusy(selectedDate, timeStr, durationMin, busySlots);
     };
@@ -165,7 +181,7 @@ function BarberBookingContent() {
         }
 
         setSubmitting(true);
-        const offering = barberServices.find((s) => s.serviceId === selectedServiceId);
+        const offering = displayServices.find((s) => s.serviceId === selectedServiceId);
         const totals = bookingTotals(
             offering?.priceCents ?? 0,
             offering?.durationMinutes ?? 45,
@@ -340,9 +356,9 @@ function BarberBookingContent() {
                                     <p className="text-savron-silver text-sm mb-4">Tap a service to continue.</p>
                                     {loadingBarberServices ? (
                                         <div className="py-8 text-center text-savron-silver/40 text-xs uppercase">Loading services…</div>
-                                    ) : barberServices.length === 0 ? (
+                                    ) : displayServices.length === 0 ? (
                                         <div className="py-8 text-center text-savron-silver/40 text-sm">No services available for this barber.</div>
-                                    ) : barberServices.map((service) => (
+                                    ) : displayServices.map((service) => (
                                         <button
                                             key={service.serviceId}
                                             type="button"
@@ -449,7 +465,7 @@ function BarberBookingContent() {
                                             <span className="text-white text-right max-w-[55%]">
                                                 {formatBookingServices(
                                                     barberServices.find((s) => s.serviceId === selectedServiceId)?.name
-                                                        ? [barberServices.find((s) => s.serviceId === selectedServiceId)!.name]
+                                                        ? [displayServices.find((s) => s.serviceId === selectedServiceId)!.name]
                                                         : [],
                                                     addEyebrows,
                                                 )}
@@ -467,8 +483,8 @@ function BarberBookingContent() {
                                             <span className="text-savron-silver font-mono font-bold">Total</span>
                                             <span className="text-savron-blue-light font-mono font-bold">
                                                 {bookingTotals(
-                                                    barberServices.find((s) => s.serviceId === selectedServiceId)?.priceCents ?? 0,
-                                                    barberServices.find((s) => s.serviceId === selectedServiceId)?.durationMinutes ?? 0,
+                                                    displayServices.find((s) => s.serviceId === selectedServiceId)?.priceCents ?? 0,
+                                                    displayServices.find((s) => s.serviceId === selectedServiceId)?.durationMinutes ?? 0,
                                                     addEyebrows,
                                                 ).price}
                                             </span>

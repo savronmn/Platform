@@ -91,14 +91,26 @@ export default function BarberProfilePage() {
         if (!file || !barber) return;
         setUploadingProfile(true);
         setError(null);
-        const url = await uploadFile(file, `${barber.id}/profile`);
-        if (url) {
-            const { error } = await supabase
-                .from('barbers')
-                .update({ image_url: url })
-                .eq('id', barber.id);
-            if (error) setError(error.message);
-            else setBarber({ ...barber, image_url: url });
+
+        const { data: { session } } = await supabase.auth.getSession();
+        const formData = new FormData();
+        formData.append('barberId', barber.id);
+        formData.append('file', file);
+
+        const res = await fetch('/api/barbers/upload-photo', {
+            method: 'POST',
+            headers: session?.access_token
+                ? { Authorization: `Bearer ${session.access_token}` }
+                : {},
+            body: formData,
+        });
+
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            setError((body as { error?: string }).error ?? 'Upload failed');
+        } else {
+            const imageUrl = (body as { imageUrl: string }).imageUrl;
+            setBarber({ ...barber, image_url: imageUrl });
         }
         setUploadingProfile(false);
     }
