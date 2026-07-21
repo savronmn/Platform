@@ -50,8 +50,6 @@ const Services = () => {
                 <div style={{ borderTop: "1px solid rgba(232,228,220,0.06)" }}>
                     {services.map((service, index) => {
                         const desc = service.description ?? '';
-                        const price = service.price;
-                        const duration = service.duration;
                         return (
                             <motion.div
                                 key={service.id}
@@ -77,10 +75,6 @@ const Services = () => {
                                         </div>
 
                                         <div className="service-row-meta">
-                                            <div className="service-row-price-block">
-                                                <p className="service-row-price">{price}</p>
-                                                <p className="service-row-duration">{duration}</p>
-                                            </div>
                                             <span className="service-row-cta" aria-hidden="true">
                                                 Book →
                                             </span>

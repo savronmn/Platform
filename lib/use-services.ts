@@ -5,6 +5,7 @@ import { SERVICES, type ServiceItem } from '@/lib/services-data';
 export type { ServiceItem };
 
 type DbService = {
+    id: string;
     name: string;
     duration_minutes: number;
     price_cents: number;
@@ -15,6 +16,7 @@ type DbService = {
 function mapDbServicesToItems(data: DbService[]): ServiceItem[] {
     return data.map((live, i) => ({
         id: i + 1,
+        serviceUuid: live.id,
         name: live.name,
         duration: `${live.duration_minutes} min`,
         durationMin: live.duration_minutes,
@@ -32,7 +34,7 @@ export function useServices(): ServiceItem[] {
     useEffect(() => {
         createClient()
             .from('services')
-            .select('name, duration_minutes, price_cents, color, description')
+            .select('id, name, duration_minutes, price_cents, color, description')
             .eq('active', true)
             .order('sort_order', { ascending: true, nullsFirst: false })
             .order('created_at')

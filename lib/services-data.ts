@@ -2,6 +2,7 @@
 // These hardcoded values are used as fallback / until the DB is seeded
 export type ServiceItem = {
     id: number;
+    serviceUuid?: string;
     name: string;
     duration: string;
     durationMin: number;

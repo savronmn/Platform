@@ -39,11 +39,31 @@ export async function POST(request: NextRequest) {
             .update({ services_offered: req.payload.services_offered })
             .eq('id', req.barber_id);
     } else if (req.type === 'price') {
-        // Payload shape: { service_id: string, price_cents: number }
-        applyResult = await supabaseAdmin
-            .from('services')
-            .update({ price_cents: req.payload.price_cents })
-            .eq('id', req.payload.service_id);
+        // Per-barber pricing: { service_id, price_cents, duration_minutes? }
+        const { service_id, price_cents, duration_minutes } = req.payload as {
+            service_id: string;
+            price_cents?: number;
+            duration_minutes?: number;
+        };
+        if (!service_id) {
+            return NextResponse.json({ error: 'Missing service_id in payload' }, { status: 400 });
+        }
+
+        const updates: { price_cents?: number; duration_minutes?: number } = {};
+        if (price_cents !== undefined) updates.price_cents = price_cents;
+        if (duration_minutes !== undefined) updates.duration_minutes = duration_minutes;
+
+        if (Object.keys(updates).length === 0) {
+            return NextResponse.json({ error: 'No price or duration in payload' }, { status: 400 });
+        }
+
+        try {
+            const { applyBarberServicePricing } = await import('@/lib/barber-services');
+            await applyBarberServicePricing(req.barber_id, service_id, updates);
+            applyResult = { error: null };
+        } catch (err) {
+            applyResult = { error: err };
+        }
     } else if (req.type === 'profile') {
         // Payload may include: bio, specialties, instagram_url, image_url, portfolio_images
         const updates: any = {};

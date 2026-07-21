@@ -7,6 +7,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Clock, Check, X, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useServices } from '@/lib/use-services';
+import { useBarberServices } from '@/lib/use-barber-services';
 
 type Barber = { id: string; name: string };
 type ChangeRequest = {
@@ -25,14 +27,16 @@ type RequestType = 'schedule' | 'price' | 'service' | 'profile';
 const TYPE_OPTIONS: { value: RequestType; label: string; helper: string }[] = [
     { value: 'schedule', label: 'Schedule', helper: 'Change your working hours' },
     { value: 'service', label: 'Service Menu', helper: 'Add or remove services you offer' },
-    { value: 'price', label: 'Price', helper: 'Propose a price update for a service' },
+    { value: 'price', label: 'Price & Duration', helper: 'Propose updated price or duration for a service' },
     { value: 'profile', label: 'Profile', helper: 'Update your bio, specialties, or socials' },
 ];
 
 export default function BarberRequestsPage() {
     const supabase = createClient();
     const router = useRouter();
+    const catalog = useServices();
     const [barber, setBarber] = useState<Barber | null>(null);
+    const { services: myServices } = useBarberServices(barber?.id);
     const [requests, setRequests] = useState<ChangeRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -41,6 +45,10 @@ export default function BarberRequestsPage() {
     const [reason, setReason] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const [priceServiceId, setPriceServiceId] = useState('');
+    const [priceDollars, setPriceDollars] = useState('');
+    const [durationMinutes, setDurationMinutes] = useState('');
 
     useEffect(() => {
         async function load() {
@@ -60,35 +68,14 @@ export default function BarberRequestsPage() {
         load();
     }, []);
 
-    async function submit() {
-        if (!barber) return;
-        let payload: any;
-        try {
-            payload = payloadText.trim() ? JSON.parse(payloadText) : {};
-        } catch {
-            setError('Proposed change must be valid JSON. Tip: copy a template from the helper.');
-            return;
+    useEffect(() => {
+        if (!priceServiceId || myServices.length === 0) return;
+        const current = myServices.find((s) => s.serviceId === priceServiceId);
+        if (current) {
+            setPriceDollars(String(Math.round(current.priceCents / 100)));
+            setDurationMinutes(String(current.durationMinutes));
         }
-
-        setSubmitting(true);
-        setError(null);
-        const { data, error } = await supabase.from('barber_change_requests').insert({
-            barber_id: barber.id,
-            type,
-            payload,
-            reason: reason.trim() || null,
-            status: 'pending',
-        }).select('*').single();
-
-        setSubmitting(false);
-        if (error) { setError(error.message); return; }
-        if (data) {
-            setRequests([data as ChangeRequest, ...requests]);
-            setShowForm(false);
-            setPayloadText('');
-            setReason('');
-        }
-    }
+    }, [priceServiceId, myServices]);
 
     function templateFor(t: RequestType) {
         switch (t) {
@@ -97,7 +84,7 @@ export default function BarberRequestsPage() {
             case 'service':
                 return JSON.stringify({ services_offered: ['Signature Cut', 'Haircut + Beard + Hot Towel Shave'] }, null, 2);
             case 'price':
-                return JSON.stringify({ service_id: 'paste-service-uuid-here', price_cents: 6000 }, null, 2);
+                return JSON.stringify({ service_id: 'paste-service-uuid-here', price_cents: 6000, duration_minutes: 45 }, null, 2);
             case 'profile':
                 return JSON.stringify({
                     bio: 'Updated bio...',
@@ -109,11 +96,77 @@ export default function BarberRequestsPage() {
         }
     }
 
+    function buildPayload(): Record<string, unknown> | null {
+        if (type === 'price') {
+            if (!priceServiceId) {
+                setError('Select a service');
+                return null;
+            }
+            const priceCents = Math.round(parseFloat(priceDollars || '0') * 100);
+            const mins = parseInt(durationMinutes || '0', 10);
+            if (!priceCents || !mins) {
+                setError('Enter a valid price and duration');
+                return null;
+            }
+            return {
+                service_id: priceServiceId,
+                price_cents: priceCents,
+                duration_minutes: mins,
+            };
+        }
+
+        try {
+            return payloadText.trim() ? JSON.parse(payloadText) : {};
+        } catch {
+            setError('Proposed change must be valid JSON.');
+            return null;
+        }
+    }
+
+    async function submit() {
+        if (!barber) return;
+        const payload = buildPayload();
+        if (!payload) return;
+
+        setSubmitting(true);
+        setError(null);
+        const { data, error: insertErr } = await supabase.from('barber_change_requests').insert({
+            barber_id: barber.id,
+            type,
+            payload,
+            reason: reason.trim() || null,
+            status: 'pending',
+        }).select('*').single();
+
+        setSubmitting(false);
+        if (insertErr) { setError(insertErr.message); return; }
+        if (data) {
+            setRequests([data as ChangeRequest, ...requests]);
+            setShowForm(false);
+            setPayloadText('');
+            setReason('');
+            setPriceServiceId('');
+            setPriceDollars('');
+            setDurationMinutes('');
+        }
+    }
+
     const statusBadge = (s: ChangeRequest['status']) => {
         if (s === 'pending') return <span className="badge-pending flex items-center gap-1"><Clock className="w-3 h-3" /> Pending</span>;
         if (s === 'approved') return <span className="badge-approved flex items-center gap-1"><Check className="w-3 h-3" /> Approved</span>;
         return <span className="badge-rejected flex items-center gap-1"><X className="w-3 h-3" /> Rejected</span>;
     };
+
+    const offeredServices = myServices.length > 0
+        ? myServices
+        : catalog.filter((s) => s.serviceUuid).map((s) => ({
+            serviceId: s.serviceUuid!,
+            name: s.name,
+            priceCents: s.priceCents,
+            durationMinutes: s.durationMin,
+            price: s.price,
+            duration: s.duration,
+        }));
 
     if (loading) {
         return (
@@ -130,7 +183,7 @@ export default function BarberRequestsPage() {
             <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
                     <h1 className="font-heading text-3xl uppercase tracking-widest text-white">Change Requests</h1>
-                    <p className="text-savron-silver text-sm mt-1">Submit a request. an admin will review and apply approved changes.</p>
+                    <p className="text-savron-silver text-sm mt-1">Submit a request. An admin will review and apply approved changes.</p>
                 </div>
                 <button
                     onClick={() => setShowForm(v => !v)}
@@ -158,7 +211,11 @@ export default function BarberRequestsPage() {
                                     <button
                                         key={opt.value}
                                         type="button"
-                                        onClick={() => { setType(opt.value); setPayloadText(templateFor(opt.value)); }}
+                                        onClick={() => {
+                                            setType(opt.value);
+                                            setPayloadText(templateFor(opt.value));
+                                            setError(null);
+                                        }}
                                         className={cn(
                                             "p-3 border rounded-savron text-left transition-all",
                                             type === opt.value
@@ -173,18 +230,59 @@ export default function BarberRequestsPage() {
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">
-                                Proposed Change (JSON)
-                            </label>
-                            <textarea
-                                value={payloadText}
-                                onChange={(e) => setPayloadText(e.target.value)}
-                                rows={8}
-                                placeholder={templateFor(type)}
-                                className="w-full bg-savron-black border border-white/10 text-white px-4 py-3 text-xs font-mono rounded-savron resize-none focus:border-savron-green/50 outline-none"
-                            />
-                        </div>
+                        {type === 'price' ? (
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">Service</label>
+                                    <select
+                                        value={priceServiceId}
+                                        onChange={(e) => setPriceServiceId(e.target.value)}
+                                        className="w-full bg-savron-black border border-white/10 text-white px-4 py-3 text-sm rounded-savron focus:border-savron-green/50 outline-none"
+                                    >
+                                        <option value="">Select a service…</option>
+                                        {offeredServices.map((s) => (
+                                            <option key={s.serviceId} value={s.serviceId}>{s.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">Proposed Price ($)</label>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            value={priceDollars}
+                                            onChange={(e) => setPriceDollars(e.target.value)}
+                                            className="input-savron"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">Proposed Duration (min)</label>
+                                        <input
+                                            type="number"
+                                            min={5}
+                                            step={5}
+                                            value={durationMinutes}
+                                            onChange={(e) => setDurationMinutes(e.target.value)}
+                                            className="input-savron"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div>
+                                <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">
+                                    Proposed Change (JSON)
+                                </label>
+                                <textarea
+                                    value={payloadText}
+                                    onChange={(e) => setPayloadText(e.target.value)}
+                                    rows={8}
+                                    placeholder={templateFor(type)}
+                                    className="w-full bg-savron-black border border-white/10 text-white px-4 py-3 text-xs font-mono rounded-savron resize-none focus:border-savron-green/50 outline-none"
+                                />
+                            </div>
+                        )}
 
                         <div>
                             <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">Reason (Optional)</label>

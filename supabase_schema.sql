@@ -48,5 +48,6 @@
 -- experience TEXT, license_status TEXT, video_url TEXT, status TEXT,
 -- notes TEXT, created_at TIMESTAMPTZ
 
--- barber_service (junction table)
--- barber_id UUID FK, service_id UUID FK → PK(barber_id, service_id)
+-- barber_service (junction table — per-barber price/duration)
+-- barber_id UUID FK, service_id UUID FK, price_cents INT, duration_minutes INT
+-- PK(barber_id, service_id)

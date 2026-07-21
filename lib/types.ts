@@ -62,6 +62,14 @@ export interface Service {
     created_at: string;
 }
 
+export interface BarberService {
+    barber_id: string;
+    service_id: string;
+    price_cents: number;
+    duration_minutes: number;
+    updated_at?: string;
+}
+
 export interface Applicant {
     id: string;
     name: string;

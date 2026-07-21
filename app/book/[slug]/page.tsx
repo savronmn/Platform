@@ -13,6 +13,7 @@ import Image from 'next/image';
 import type { Barber } from '@/lib/types';
 import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
 import { useServices } from '@/lib/use-services';
+import { useBarberServices } from '@/lib/use-barber-services';
 import { DatePicker } from '@/components/booking/DatePicker';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 import { createBookingRequest } from '@/lib/client-create-booking';
@@ -34,9 +35,10 @@ function BarberBookingContent() {
     const services = useServices();
 
     const [barber, setBarber] = useState<Barber | null>(null);
+    const { services: barberServices, loading: loadingBarberServices } = useBarberServices(barber?.id);
     const [loading, setLoading] = useState(true);
     const [step, setStep] = useState(1);
-    const [selectedService, setSelectedService] = useState<number | null>(null);
+    const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
     const [selectedDate, setSelectedDate] = useState<Date>(() => nextBookableDate());
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
     const [clientName, setClientName] = useState('');
@@ -64,20 +66,20 @@ function BarberBookingContent() {
     }, [prefillEmail]);
 
     useEffect(() => {
-        if (preselectionApplied || !preselectedService || services.length === 0) return;
+        if (preselectionApplied || !preselectedService || barberServices.length === 0) return;
         const match = resolveServiceFromParam(preselectedService, services);
         if (match) {
-            const barberOffers = !barber?.services_offered?.length || barber.services_offered.includes(match.name);
-            if (barberOffers) {
-                setSelectedService(match.id);
-            }
+            const offering = barberServices.find(
+                (s) => s.serviceId === match.serviceUuid || s.name === match.name,
+            );
+            if (offering) setSelectedServiceId(offering.serviceId);
         }
         setPreselectionApplied(true);
-    }, [preselectedService, services, barber, preselectionApplied]);
+    }, [preselectedService, services, barberServices, preselectionApplied]);
 
     useEffect(() => {
-        if (selectedService === null) setAddEyebrows(false);
-    }, [selectedService]);
+        if (selectedServiceId === null) setAddEyebrows(false);
+    }, [selectedServiceId]);
 
     useEffect(() => {
         if (skipStepScroll.current) {
@@ -140,8 +142,8 @@ function BarberBookingContent() {
     const isSlotBusy = (timeStr: string) => {
         if (isSlotInPast(selectedDate, timeStr, 5)) return true;
         if (loadingBusy || !busyLoaded || busyError) return true;
-        const service = services.find(s => s.id === selectedService);
-        const durationMin = service?.durationMin ?? 45;
+        const offering = barberServices.find((s) => s.serviceId === selectedServiceId);
+        const durationMin = offering?.durationMinutes ?? 45;
         return slotConflictsWithBusy(selectedDate, timeStr, durationMin, busySlots);
     };
 
@@ -163,15 +165,19 @@ function BarberBookingContent() {
         }
 
         setSubmitting(true);
-        const service = services.find(s => s.id === selectedService);
-        const totals = bookingTotals(service?.priceCents ?? 0, service?.durationMin ?? 45, addEyebrows);
+        const offering = barberServices.find((s) => s.serviceId === selectedServiceId);
+        const totals = bookingTotals(
+            offering?.priceCents ?? 0,
+            offering?.durationMinutes ?? 45,
+            addEyebrows,
+        );
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
         const result = await createBookingRequest({
             client_name: clientName,
             client_email: clientEmail,
             client_phone: clientPhone,
-            service: formatBookingServices(service?.name ? [service.name] : [], addEyebrows),
+            service: formatBookingServices(offering?.name ? [offering.name] : [], addEyebrows),
             barber_id: barber.id,
             barber_name: barber.name || '',
             date: dateStr,
@@ -196,7 +202,7 @@ function BarberBookingContent() {
 
     const resetBooking = () => {
         setStep(1);
-        setSelectedService(null);
+        setSelectedServiceId(null);
         setPreselectionApplied(true);
         setAddEyebrows(false);
         setSelectedDate(nextBookableDate());
@@ -332,21 +338,23 @@ function BarberBookingContent() {
                                 <motion.div key="service" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={STEP_TRANSITION} className="space-y-3">
                                     <h2 className="text-xl md:text-2xl font-heading text-white uppercase tracking-widest mb-2">Select Service</h2>
                                     <p className="text-savron-silver text-sm mb-4">Tap a service to continue.</p>
-                                    {services.filter(s =>
-                                        !barber.services_offered?.length || barber.services_offered.includes(s.name)
-                                    ).map(service => (
+                                    {loadingBarberServices ? (
+                                        <div className="py-8 text-center text-savron-silver/40 text-xs uppercase">Loading services…</div>
+                                    ) : barberServices.length === 0 ? (
+                                        <div className="py-8 text-center text-savron-silver/40 text-sm">No services available for this barber.</div>
+                                    ) : barberServices.map((service) => (
                                         <button
-                                            key={service.id}
+                                            key={service.serviceId}
                                             type="button"
                                             onMouseDown={(e) => e.preventDefault()}
                                             onClick={() => {
                                                 const scrollY = window.scrollY;
-                                                setSelectedService(service.id);
+                                                setSelectedServiceId(service.serviceId);
                                                 requestAnimationFrame(() => window.scrollTo({ top: scrollY, left: 0, behavior: 'instant' as ScrollBehavior }));
                                             }}
                                             className={cn(
                                                 "w-full p-4 border rounded-savron cursor-pointer transition-all duration-300 flex justify-between items-center min-h-[72px] touch-manipulation text-left",
-                                                selectedService === service.id ? "border-savron-green bg-savron-green/10" : "border-white/10 hover:border-white/30"
+                                                selectedServiceId === service.serviceId ? "border-savron-green bg-savron-green/10" : "border-white/10 hover:border-white/30"
                                             )}
                                         >
                                             <div>
@@ -360,7 +368,7 @@ function BarberBookingContent() {
                                             </div>
                                             <div className="flex items-center gap-3">
                                                 <span className="text-white font-mono text-sm">{service.price}</span>
-                                                {selectedService === service.id && <Check className="w-4 h-4 text-savron-blue-light" />}
+                                                {selectedServiceId === service.serviceId && <Check className="w-4 h-4 text-savron-blue-light" />}
                                             </div>
                                         </button>
                                     ))}
@@ -440,8 +448,8 @@ function BarberBookingContent() {
                                             <span className="text-savron-silver">Service</span>
                                             <span className="text-white text-right max-w-[55%]">
                                                 {formatBookingServices(
-                                                    services.find(s => s.id === selectedService)?.name
-                                                        ? [services.find(s => s.id === selectedService)!.name]
+                                                    barberServices.find((s) => s.serviceId === selectedServiceId)?.name
+                                                        ? [barberServices.find((s) => s.serviceId === selectedServiceId)!.name]
                                                         : [],
                                                     addEyebrows,
                                                 )}
@@ -459,8 +467,8 @@ function BarberBookingContent() {
                                             <span className="text-savron-silver font-mono font-bold">Total</span>
                                             <span className="text-savron-blue-light font-mono font-bold">
                                                 {bookingTotals(
-                                                    services.find(s => s.id === selectedService)?.priceCents ?? 0,
-                                                    services.find(s => s.id === selectedService)?.durationMin ?? 0,
+                                                    barberServices.find((s) => s.serviceId === selectedServiceId)?.priceCents ?? 0,
+                                                    barberServices.find((s) => s.serviceId === selectedServiceId)?.durationMinutes ?? 0,
                                                     addEyebrows,
                                                 ).price}
                                             </span>
@@ -509,7 +517,7 @@ function BarberBookingContent() {
                                 {step === 1 && (
                                     <EyebrowsAddon
                                         variant="footer"
-                                        visible={selectedService !== null}
+                                        visible={selectedServiceId !== null}
                                         checked={addEyebrows}
                                         onChange={setAddEyebrows}
                                     />
@@ -522,7 +530,7 @@ function BarberBookingContent() {
                                 ) : <div />}
                                 <div>
                                     {step === 1 && (
-                                        <Button onClick={() => setStep(2)} disabled={!selectedService}>
+                                        <Button onClick={() => setStep(2)} disabled={!selectedServiceId}>
                                             Next <ChevronRight className="w-4 h-4 ml-2" />
                                         </Button>
                                     )}

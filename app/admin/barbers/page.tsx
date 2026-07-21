@@ -69,6 +69,16 @@ const SETTINGS_TABS = [
 
 type SettingsTab = typeof SETTINGS_TABS[number]['key'];
 
+type BarberServiceEdit = {
+    serviceUuid: string;
+    name: string;
+    enabled: boolean;
+    priceCents: number;
+    durationMinutes: number;
+    defaultPriceCents: number;
+    defaultDurationMinutes: number;
+};
+
 function actionBtnClass(variant: 'default' | 'primary' | 'calendar' | 'danger' = 'default') {
     const base = 'admin-action-btn w-full rounded-savron transition-all font-medium';
     switch (variant) {
@@ -187,6 +197,7 @@ export default function AdminBarbersPage() {
     const [licenseInput, setLicenseInput] = useState('');
     const [instagramInput, setInstagramInput] = useState('');
     const [servicesOffered, setServicesOffered] = useState<string[]>([]);
+    const [serviceEdits, setServiceEdits] = useState<BarberServiceEdit[]>([]);
     const [workingHours, setWorkingHours] = useState<WorkingHours>({});
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
@@ -201,7 +212,35 @@ export default function AdminBarbersPage() {
         load();
     }, []);
 
-    const openSettings = (barber: Barber, tab: SettingsTab = 'profile') => {
+    const buildServiceEdits = async (barber: Barber) => {
+        const { data: barberRows } = await supabase
+            .from('barber_service')
+            .select('service_id, price_cents, duration_minutes')
+            .eq('barber_id', barber.id);
+
+        const rowByServiceId = new Map(
+            (barberRows ?? []).map((row) => [row.service_id as string, row]),
+        );
+
+        return services.map((svc) => {
+            const existing = svc.serviceUuid ? rowByServiceId.get(svc.serviceUuid) : undefined;
+            const enabled = existing
+                ? true
+                : (barber.services_offered ?? services.map((s) => s.name)).includes(svc.name);
+
+            return {
+                serviceUuid: svc.serviceUuid ?? String(svc.id),
+                name: svc.name,
+                enabled,
+                priceCents: existing?.price_cents ?? svc.priceCents,
+                durationMinutes: existing?.duration_minutes ?? svc.durationMin,
+                defaultPriceCents: svc.priceCents,
+                defaultDurationMinutes: svc.durationMin,
+            };
+        });
+    };
+
+    const openSettings = async (barber: Barber, tab: SettingsTab = 'profile') => {
         setSettingsBarber(barber);
         setActiveTab(tab);
         setPhotoError(null);
@@ -212,7 +251,9 @@ export default function AdminBarbersPage() {
             ? raw.split('instagram.com/').pop()?.replace(/^@/, '') ?? ''
             : raw.replace(/^@/, '');
         setInstagramInput(handle);
-        setServicesOffered(barber.services_offered ?? services.map(s => s.name));
+        const edits = await buildServiceEdits(barber);
+        setServiceEdits(edits);
+        setServicesOffered(edits.filter((e) => e.enabled).map((e) => e.name));
         // Parse working_hours — default to canonical shop hours if not set
         const wh: WorkingHours = barber.working_hours as WorkingHours ?? {};
         const defaults: WorkingHours = {};
@@ -225,10 +266,31 @@ export default function AdminBarbersPage() {
 
     const closeSettings = () => { setSettingsBarber(null); setSaved(false); setPhotoError(null); };
 
-    const toggleService = (name: string) =>
-        setServicesOffered(prev =>
-            prev.includes(name) ? prev.filter(s => s !== name) : [...prev, name]
+    const toggleService = (serviceUuid: string) => {
+        setServiceEdits((prev) => {
+            const next = prev.map((edit) =>
+                edit.serviceUuid === serviceUuid
+                    ? { ...edit, enabled: !edit.enabled }
+                    : edit,
+            );
+            setServicesOffered(next.filter((e) => e.enabled).map((e) => e.name));
+            return next;
+        });
+        setSaved(false);
+    };
+
+    const updateServiceField = (
+        serviceUuid: string,
+        field: 'priceCents' | 'durationMinutes',
+        value: number,
+    ) => {
+        setServiceEdits((prev) =>
+            prev.map((edit) =>
+                edit.serviceUuid === serviceUuid ? { ...edit, [field]: value } : edit,
+            ),
         );
+        setSaved(false);
+    };
 
     const toggleDay = (day: DayKey) => {
         setWorkingHours(prev => ({
@@ -250,13 +312,30 @@ export default function AdminBarbersPage() {
         if (!settingsBarber) return;
         setSaving(true);
         const handle = instagramInput.trim().replace(/^@/, '');
+        const enabledServices = serviceEdits.filter((e) => e.enabled);
         const update = {
             license_number: licenseInput.trim() || null,
             instagram_url: handle ? `https://www.instagram.com/${handle}` : null,
-            services_offered: servicesOffered.length > 0 ? servicesOffered : null,
+            services_offered: enabledServices.length > 0 ? enabledServices.map((e) => e.name) : null,
             working_hours: workingHours,
         };
+
         await supabase.from('barbers').update(update).eq('id', settingsBarber.id);
+
+        await supabase.from('barber_service').delete().eq('barber_id', settingsBarber.id);
+        const inserts = enabledServices
+            .filter((e) => e.serviceUuid && !e.serviceUuid.match(/^\d+$/))
+            .map((e) => ({
+                barber_id: settingsBarber.id,
+                service_id: e.serviceUuid,
+                price_cents: e.priceCents,
+                duration_minutes: e.durationMinutes,
+                updated_at: new Date().toISOString(),
+            }));
+        if (inserts.length > 0) {
+            await supabase.from('barber_service').insert(inserts);
+        }
+
         setBarbers(prev => prev.map(b =>
             b.id === settingsBarber.id ? { ...b, ...update } : b
         ));
@@ -825,33 +904,77 @@ export default function AdminBarbersPage() {
                                         <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-1 flex items-center gap-2">
                                             <Layers className="w-3.5 h-3.5" /> Services Offered
                                         </label>
-                                    <p className="text-savron-silver/70 text-xs mb-4">Only toggled services appear on this barber&apos;s booking page.</p>
-                                    <div className="space-y-2">
-                                        {services.map(svc => {
-                                            const on = servicesOffered.includes(svc.name);
-                                            return (
+                                    <p className="text-savron-silver/70 text-xs mb-4">
+                                        Toggle services and set this barber&apos;s price and duration for each.
+                                    </p>
+                                    <div className="space-y-3">
+                                        {serviceEdits.map((svc) => (
+                                            <div
+                                                key={svc.serviceUuid}
+                                                className={cn(
+                                                    "border rounded-savron transition-all",
+                                                    svc.enabled
+                                                        ? "bg-savron-green/5 border-savron-green/25"
+                                                        : "bg-savron-charcoal border-white/5",
+                                                )}
+                                            >
                                                 <button
-                                                    key={svc.id}
                                                     type="button"
-                                                    onClick={() => toggleService(svc.name)}
-                                                    className={cn(
-                                                        "w-full flex items-center justify-between px-4 py-3 border rounded-savron transition-all text-left",
-                                                        on
-                                                            ? "bg-savron-green/10 border-savron-green/30 text-white"
-                                                            : "bg-savron-charcoal border-white/5 text-savron-silver/50"
-                                                    )}
+                                                    onClick={() => toggleService(svc.serviceUuid)}
+                                                    className="w-full flex items-center justify-between px-4 py-3 text-left"
                                                 >
-                                                    <div>
-                                                        <p className="text-sm font-medium">{svc.name}</p>
-                                                        <p className="text-[10px] opacity-50 mt-0.5">{svc.duration} · {svc.price}</p>
-                                                    </div>
-                                                    {on
+                                                    <p className="text-sm font-medium text-white">{svc.name}</p>
+                                                    {svc.enabled
                                                         ? <ToggleRight className="w-5 h-5 text-savron-green shrink-0" />
-                                                        : <ToggleLeft  className="w-5 h-5 shrink-0" />
+                                                        : <ToggleLeft className="w-5 h-5 shrink-0 text-savron-silver/40" />
                                                     }
                                                 </button>
-                                            );
-                                        })}
+                                                {svc.enabled && (
+                                                    <div className="px-4 pb-4 grid grid-cols-2 gap-3 border-t border-white/5 pt-3">
+                                                        <div>
+                                                            <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-1.5">
+                                                                Price ($)
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                min={0}
+                                                                step={1}
+                                                                value={Math.round(svc.priceCents / 100)}
+                                                                onChange={(e) => updateServiceField(
+                                                                    svc.serviceUuid,
+                                                                    'priceCents',
+                                                                    Math.max(0, parseInt(e.target.value || '0', 10) * 100),
+                                                                )}
+                                                                className="w-full bg-savron-black border border-white/10 text-white px-3 py-2 text-sm rounded-savron focus:outline-none focus:border-savron-green/50"
+                                                            />
+                                                            <p className="text-[10px] text-savron-silver/40 mt-1">
+                                                                Shop default: ${svc.defaultPriceCents / 100}
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-1.5">
+                                                                Duration (min)
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                min={5}
+                                                                step={5}
+                                                                value={svc.durationMinutes}
+                                                                onChange={(e) => updateServiceField(
+                                                                    svc.serviceUuid,
+                                                                    'durationMinutes',
+                                                                    Math.max(5, parseInt(e.target.value || '0', 10)),
+                                                                )}
+                                                                className="w-full bg-savron-black border border-white/10 text-white px-3 py-2 text-sm rounded-savron focus:outline-none focus:border-savron-green/50"
+                                                            />
+                                                            <p className="text-[10px] text-savron-silver/40 mt-1">
+                                                                Shop default: {svc.defaultDurationMinutes} min
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             )}
