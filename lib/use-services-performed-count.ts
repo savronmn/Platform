@@ -3,13 +3,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 import {
+    chicagoTodayYmd,
+    countPerformedServices,
     formatServicesPerformedCount,
     servicesPerformedTotal,
     SERVICES_PERFORMED_BASE,
     SHOP_OPEN_DATE,
+    type ServicesPerformedBooking,
 } from '@/lib/services-performed';
 
-/** Live homepage stat: 7,000 baseline + completed bookings since shop opened, updates via Supabase realtime. */
+const BOOKING_SELECT = 'date, time, duration, status';
+
+/** Live homepage stat: 7,000 baseline + past non-cancelled bookings since shop opened. */
 export function useServicesPerformedCount(): {
     total: number;
     display: string;
@@ -20,14 +25,16 @@ export function useServicesPerformedCount(): {
 
     const load = useCallback(async () => {
         const supabase = createClient();
-        const { count, error } = await supabase
+        const today = chicagoTodayYmd();
+        const { data, error } = await supabase
             .from('bookings')
-            .select('*', { count: 'exact', head: true })
-            .eq('status', 'completed')
-            .gte('date', SHOP_OPEN_DATE);
+            .select(BOOKING_SELECT)
+            .gte('date', SHOP_OPEN_DATE)
+            .lte('date', today)
+            .in('status', ['confirmed', 'completed']);
 
-        if (!error && count != null) {
-            setTotal(servicesPerformedTotal(count));
+        if (!error && data) {
+            setTotal(servicesPerformedTotal(countPerformedServices(data as ServicesPerformedBooking[])));
         }
         setLoading(false);
     }, []);
@@ -45,7 +52,12 @@ export function useServicesPerformedCount(): {
             )
             .subscribe();
 
-        return () => { supabase.removeChannel(channel); };
+        const tick = setInterval(() => { load(); }, 60_000);
+
+        return () => {
+            clearInterval(tick);
+            supabase.removeChannel(channel);
+        };
     }, [load]);
 
     return {
