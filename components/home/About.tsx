@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import ShopSocialLinks from '@/components/layout/ShopSocialLinks';
+import { useServicesPerformedCount } from '@/lib/use-services-performed-count';
 
 const pillars = [
     { title: "Intentional.", body: "Every detail considered. Nothing left to chance." },
@@ -11,6 +12,14 @@ const pillars = [
 ];
 
 const About = () => {
+    const { display: servicesPerformed } = useServicesPerformedCount();
+
+    const stats = [
+        { value: servicesPerformed, label: "Services performed" },
+        { value: "1,000+", label: "Professional cuts" },
+        { value: "Walk-ins", label: "Welcome" },
+    ];
+
     return (
         <section
             id="about"
@@ -135,11 +144,7 @@ const About = () => {
                             borderTop: "1px solid rgba(232,228,220,0.08)",
                             flexWrap: "wrap",
                         }}>
-                            {[
-                                { value: "7,000+", label: "Services performed" },
-                                { value: "1,000+", label: "Professional cuts" },
-                                { value: "Walk-ins", label: "Welcome" },
-                            ].map(({ value, label }) => (
+                            {stats.map(({ value, label }) => (
                                 <div key={label}>
                                     <p style={{
                                         fontFamily: "var(--font-playfair), Georgia, serif",
