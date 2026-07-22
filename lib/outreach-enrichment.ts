@@ -1,17 +1,25 @@
 import { runApifyActorSync } from '@/lib/apify-client';
 import { enrichInstagramProfiles } from '@/lib/outreach-instagram';
 import {
+    buildContactPageUrls,
     classifyProspectType,
     extractEmailsFromText,
     extractInstagramHandle,
     isValidReachableEmail,
-    pickBestEmail,
+    normalizeWebsiteUrl,
+    pickBestEmailWithSource,
+    type EmailSource,
 } from '@/lib/outreach-lead-classifier';
 import type { OutreachArea, OutreachProspect, OutreachScanParams } from '@/lib/outreach-prospects';
 
 const MAPS_ACTOR = process.env.APIFY_BARBER_ACTOR_ID || 'compass~crawler-google-places';
 const WEBSITE_ACTOR = process.env.APIFY_WEBSITE_ACTOR_ID || 'apify~website-content-crawler';
 const REVIEWS_ACTOR = process.env.APIFY_REVIEWS_ACTOR_ID || 'compass~google-maps-reviews-scraper';
+
+const WEBSITE_ENRICH_LIMIT = Number(process.env.APIFY_WEBSITE_ENRICH_LIMIT || 100);
+const REVIEWS_ENRICH_LIMIT = Number(process.env.APIFY_REVIEWS_ENRICH_LIMIT || 50);
+const INSTAGRAM_ENRICH_LIMIT = Number(process.env.APIFY_INSTAGRAM_ENRICH_LIMIT || 100);
+const WEBSITE_BATCH_SIZE = 25;
 
 /** Search for independent barbers — not barbershop businesses. */
 const AREA_SEARCH: Record<Exclude<OutreachArea, 'all'>, string[]> = {
@@ -46,6 +54,12 @@ const AREA_SEARCH: Record<Exclude<OutreachArea, 'all'>, string[]> = {
 
 const ALL_SEARCH = Object.values(AREA_SEARCH).flat();
 
+interface ApifyContactDetails {
+    emails?: string[];
+    phones?: string[];
+    instagrams?: string[];
+}
+
 interface ApifyPlaceRow {
     placeId?: string;
     title?: string;
@@ -59,9 +73,12 @@ interface ApifyPlaceRow {
     website?: string;
     email?: string;
     emails?: string[];
+    emailsFromWebsite?: string[];
     url?: string;
     instagram?: string;
+    instagrams?: string[];
     facebooks?: string[];
+    contactDetails?: ApifyContactDetails;
     totalScore?: number;
     reviewsCount?: number;
     price?: string;
@@ -99,13 +116,20 @@ function slugify(value: string): string {
 
 function parseYearsExperience(text: string): number | null {
     const patterns = [
-        /(\d{1,2})\+?\s*years?\s*(?:of\s*)?(?:experience|exp)/i,
-        /(?:experience|exp)[:\s]+(\d{1,2})\+?\s*years?/i,
-        /(\d{1,2})\+?\s*yrs?\s*(?:in\s*(?:the\s*)?(?:industry|business))?/i,
+        /(\d{1,2})\+?\s*years?\s*(?:of\s*)?(?:experience|exp|barbering|cutting)/i,
+        /(?:experience|exp|barbering)[:\s]+(\d{1,2})\+?\s*years?/i,
+        /(\d{1,2})\+?\s*yrs?\s*(?:in\s*(?:the\s*)?(?:industry|business|barbering))?/i,
+        /since\s+(19|20)\d{2}/i,
     ];
     for (const pattern of patterns) {
         const match = text.match(pattern);
         if (match) {
+            if (match[0].toLowerCase().startsWith('since')) {
+                const year = parseInt(match[0].replace(/\D/g, ''), 10);
+                if (year >= 1970 && year <= new Date().getFullYear()) {
+                    return Math.max(0, new Date().getFullYear() - year);
+                }
+            }
             const years = parseInt(match[1], 10);
             if (years >= 0 && years <= 50) return years;
         }
@@ -169,10 +193,27 @@ function resolveDisplayName(rawTitle: string, categoryName?: string): { name: st
     };
 }
 
-function pickEmailFromRow(row: ApifyPlaceRow, extraText = ''): string {
-    const fromRow = pickBestEmail(row.email, ...(row.emails ?? []));
-    if (fromRow) return fromRow;
-    return extractEmailsFromText(extraText)[0] ?? '';
+function collectEmailsFromPlaceRow(row: ApifyPlaceRow): string[] {
+    return [
+        row.email,
+        ...(row.emails ?? []),
+        ...(row.emailsFromWebsite ?? []),
+        ...(row.contactDetails?.emails ?? []),
+    ].filter(Boolean) as string[];
+}
+
+function resolveInstagramFromRow(row: ApifyPlaceRow): string | undefined {
+    const candidates = [
+        row.instagram,
+        ...(row.instagrams ?? []),
+        ...(row.contactDetails?.instagrams ?? []),
+    ].filter(Boolean) as string[];
+
+    for (const candidate of candidates) {
+        const handle = extractInstagramHandle(candidate);
+        if (handle) return handle.startsWith('@') ? handle : `@${handle}`;
+    }
+    return undefined;
 }
 
 export function mapApifyPlaceToProspect(row: ApifyPlaceRow, index: number): OutreachProspect | null {
@@ -183,16 +224,21 @@ export function mapApifyPlaceToProspect(row: ApifyPlaceRow, index: number): Outr
     const address = [row.address, row.street, row.city, row.state].filter(Boolean).join(', ');
     const externalId = row.placeId || row.url || `${slugify(rawTitle)}-${index}`;
     const levelPrices = priceLevelToCents(row.price);
-    const instagram = extractInstagramHandle(row.instagram) ?? row.instagram ?? undefined;
+    const mapEmails = collectEmailsFromPlaceRow(row);
+    const emailPick = pickBestEmailWithSource(
+        name,
+        mapEmails.map(email => ({ email, source: 'maps' as EmailSource })),
+    );
 
     return {
         id: `apify-${externalId}`,
         name,
-        email: pickEmailFromRow(row),
+        email: emailPick.email,
+        emailSource: emailPick.source,
         businessName,
         area: inferArea(address, row.city),
         phone: row.phone || row.phoneUnformatted,
-        instagram: instagram ? (instagram.startsWith('@') ? instagram : `@${instagram}`) : undefined,
+        instagram: resolveInstagramFromRow(row),
         website: row.website,
         googleMapsUrl: row.url,
         rating: row.totalScore ?? null,
@@ -203,6 +249,10 @@ export function mapApifyPlaceToProspect(row: ApifyPlaceRow, index: number): Outr
         prospectType,
         source: 'apify',
         isSavronBarber: false,
+        enrichmentData: {
+            mapsEmails: mapEmails,
+            instagramCandidates: row.instagrams ?? row.contactDetails?.instagrams ?? [],
+        },
     };
 }
 
@@ -217,45 +267,82 @@ async function discoverPlaces(params: OutreachScanParams): Promise<ApifyPlaceRow
         skipClosedPlaces: true,
         scrapePlaceDetailPage: true,
         scrapeReviewsPersonalData: false,
+        scrapeContacts: true,
+        scrapeSocialMediaProfiles: {
+            instagrams: true,
+            facebooks: false,
+            youtubes: false,
+            tiktoks: false,
+            twitters: false,
+        },
     }, { timeoutSec: 300 });
 }
 
-async function enrichWebsites(prospects: OutreachProspect[], limit = 15): Promise<Map<string, string>> {
-    const urls = prospects
-        .filter(p => p.website?.startsWith('http'))
-        .slice(0, limit)
-        .map(p => p.website!);
-
+async function crawlWebsiteBatch(urls: string[]): Promise<Map<string, string>> {
     if (urls.length === 0) return new Map();
 
-    try {
-        const rows = await runApifyActorSync<WebsiteCrawlRow>(WEBSITE_ACTOR, {
-            startUrls: urls.map(url => ({ url })),
-            maxCrawlPages: 1,
-            maxCrawlDepth: 0,
-        }, { timeoutSec: 180 });
+    const rows = await runApifyActorSync<WebsiteCrawlRow>(WEBSITE_ACTOR, {
+        startUrls: urls.map(url => ({ url })),
+        maxCrawlPages: Math.min(urls.length, 50),
+        maxCrawlDepth: 1,
+        maxRequestsPerCrawl: urls.length,
+    }, { timeoutSec: 180 });
 
-        const textByUrl = new Map<string, string>();
-        for (const row of rows) {
-            if (!row.url) continue;
-            const text = row.text || row.markdown || '';
-            textByUrl.set(row.url.replace(/\/$/, ''), text);
-        }
-        return textByUrl;
-    } catch (err) {
-        console.warn('[outreach-enrichment] website crawl skipped:', err);
-        return new Map();
+    const textByUrl = new Map<string, string>();
+    for (const row of rows) {
+        if (!row.url) continue;
+        const text = row.text || row.markdown || '';
+        const key = normalizeWebsiteUrl(row.url);
+        const existing = textByUrl.get(key) ?? '';
+        textByUrl.set(key, `${existing}\n${text}`.trim());
     }
+    return textByUrl;
+}
+
+async function enrichWebsites(prospects: OutreachProspect[], limit = WEBSITE_ENRICH_LIMIT): Promise<Map<string, string>> {
+    const withWebsites = prospects.filter(p => p.website?.startsWith('http')).slice(0, limit);
+    if (withWebsites.length === 0) return new Map();
+
+    const allUrls = Array.from(new Set(
+        withWebsites.flatMap(p => buildContactPageUrls(p.website!)),
+    ));
+
+    const merged = new Map<string, string>();
+
+    for (let i = 0; i < allUrls.length; i += WEBSITE_BATCH_SIZE) {
+        const batch = allUrls.slice(i, i + WEBSITE_BATCH_SIZE);
+        try {
+            const batchResult = await crawlWebsiteBatch(batch);
+            for (const [key, text] of Array.from(batchResult.entries())) {
+                const existing = merged.get(key) ?? '';
+                merged.set(key, `${existing}\n${text}`.trim());
+            }
+        } catch (err) {
+            console.warn('[outreach-enrichment] website crawl batch skipped:', err);
+        }
+    }
+
+    // Map back to prospect website keys
+    const byProspectKey = new Map<string, string>();
+    for (const prospect of withWebsites) {
+        const keys = buildContactPageUrls(prospect.website!).map(normalizeWebsiteUrl);
+        const combined = keys.map(k => merged.get(k) ?? '').filter(Boolean).join('\n');
+        if (combined) {
+            byProspectKey.set(normalizeWebsiteUrl(prospect.website!), combined);
+        }
+    }
+
+    return byProspectKey;
 }
 
 async function fetchExtraReviews(placeIds: string[]): Promise<Map<string, ReviewRow[]>> {
-    const ids = placeIds.filter(Boolean).slice(0, 10);
+    const ids = placeIds.filter(Boolean).slice(0, REVIEWS_ENRICH_LIMIT);
     if (ids.length === 0) return new Map();
 
     try {
         const rows = await runApifyActorSync<ReviewRow>(REVIEWS_ACTOR, {
             placeIds: ids,
-            maxReviews: 5,
+            maxReviews: 8,
             reviewsSort: 'newest',
         }, { timeoutSec: 120 });
 
@@ -273,20 +360,34 @@ async function fetchExtraReviews(placeIds: string[]): Promise<Map<string, Review
     }
 }
 
-function applyTextEnrichment(prospect: OutreachProspect, text: string): OutreachProspect {
+function applyTextEnrichment(
+    prospect: OutreachProspect,
+    text: string,
+    source: EmailSource,
+): OutreachProspect {
     const years = parseYearsExperience(text);
     const prices = parsePriceRangeCents(text);
     const emails = extractEmailsFromText(text);
     const instagramFromText = text.match(/instagram\.com\/([a-zA-Z0-9._]+)/i)?.[1];
+    const emailPick = pickBestEmailWithSource(prospect.name, [
+        { email: prospect.email, source: prospect.emailSource },
+        ...emails.map(email => ({ email, source })),
+    ]);
 
     return {
         ...prospect,
-        email: pickBestEmail(prospect.email, ...emails),
+        email: emailPick.email,
+        emailSource: emailPick.source ?? prospect.emailSource,
         instagram: prospect.instagram ?? (instagramFromText ? `@${instagramFromText}` : undefined),
         yearsExperience: years ?? prospect.yearsExperience ?? null,
         priceMinCents: prices.min ?? prospect.priceMinCents ?? null,
         priceMaxCents: prices.max ?? prospect.priceMaxCents ?? null,
         enrichedAt: new Date().toISOString(),
+        enrichmentData: {
+            ...prospect.enrichmentData,
+            [`${source}TextLength`]: text.length,
+            [`${source}EmailsFound`]: emails,
+        },
     };
 }
 
@@ -295,7 +396,7 @@ async function enrichFromInstagram(prospects: OutreachProspect[]): Promise<Outre
         .map(p => extractInstagramHandle(p.instagram))
         .filter(Boolean) as string[];
 
-    const profiles = await enrichInstagramProfiles(handles);
+    const profiles = await enrichInstagramProfiles(handles, INSTAGRAM_ENRICH_LIMIT);
     if (profiles.size === 0) return prospects;
 
     return prospects.map(p => {
@@ -307,15 +408,25 @@ async function enrichFromInstagram(prospects: OutreachProspect[]): Promise<Outre
 
         const displayName = profile.fullName?.trim();
         const isPerson = displayName ? classifyProspectType(displayName) === 'individual' : p.prospectType === 'individual';
+        const emailPick = pickBestEmailWithSource(isPerson && displayName ? displayName : p.name, [
+            { email: p.email, source: p.emailSource },
+            { email: profile.email, source: 'instagram' },
+        ]);
 
         return {
             ...p,
             name: isPerson && displayName ? displayName : p.name,
             businessName: isPerson && displayName ? displayName : p.businessName,
-            email: pickBestEmail(p.email, profile.email),
+            email: emailPick.email,
+            emailSource: emailPick.source ?? p.emailSource,
             phone: p.phone ?? profile.phone,
             prospectType: isPerson ? 'individual' : (p.prospectType ?? 'shop'),
             enrichedAt: new Date().toISOString(),
+            enrichmentData: {
+                ...p.enrichmentData,
+                instagramFollowers: profile.followersCount,
+                instagramBio: profile.biography?.slice(0, 500),
+            },
         };
     });
 }
@@ -327,7 +438,8 @@ function matchesFilters(prospect: OutreachProspect, params: OutreachScanParams):
 
     if (params.minRating != null && (prospect.rating ?? 0) < params.minRating) return false;
 
-    if (params.minYearsExperience != null && prospect.yearsExperience != null) {
+    if (params.minYearsExperience != null) {
+        if (prospect.yearsExperience == null) return false;
         if (prospect.yearsExperience < params.minYearsExperience) return false;
     }
 
@@ -346,6 +458,7 @@ export async function runBarberOutreachScan(params: OutreachScanParams = {}): Pr
     discovered: number;
     enriched: number;
     matched: number;
+    withEmail: number;
     shopsSkipped: number;
     prospects: OutreachProspect[];
 }> {
@@ -377,9 +490,8 @@ export async function runBarberOutreachScan(params: OutreachScanParams = {}): Pr
         const websiteText = await enrichWebsites(prospects);
         prospects = prospects.map(p => {
             if (!p.website) return p;
-            const normalized = p.website.replace(/\/$/, '');
-            const text = websiteText.get(normalized);
-            return text ? applyTextEnrichment(p, text) : p;
+            const text = websiteText.get(normalizeWebsiteUrl(p.website));
+            return text ? applyTextEnrichment(p, text, 'website') : p;
         });
 
         const reviewsByPlace = await fetchExtraReviews(placeIds);
@@ -388,7 +500,7 @@ export async function runBarberOutreachScan(params: OutreachScanParams = {}): Pr
             const reviews = reviewsByPlace.get(placeId);
             if (!reviews?.length) return p;
             const reviewText = reviews.map(r => r.text ?? '').join(' ');
-            return applyTextEnrichment(p, reviewText);
+            return applyTextEnrichment(p, reviewText, 'reviews');
         });
     }
 
@@ -401,12 +513,14 @@ export async function runBarberOutreachScan(params: OutreachScanParams = {}): Pr
     }));
 
     const matched = prospects.filter(p => matchesFilters(p, params));
+    const withEmail = prospects.filter(p => isValidReachableEmail(p.email)).length;
 
     return {
         discovered: prospects.length,
         enriched: prospects.filter(p => p.enrichedAt).length,
         matched: matched.length,
+        withEmail,
         shopsSkipped,
-        prospects: matched,
+        prospects,
     };
 }
