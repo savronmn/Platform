@@ -9,7 +9,7 @@ import {
     startOfWeek, endOfWeek, eachDayOfInterval,
     isToday, isSunday,
 } from 'date-fns';
-import { RefreshCw, ExternalLink, ArrowLeft, Link2 } from 'lucide-react';
+import { RefreshCw, ExternalLink, ArrowLeft, Link2, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Barber, Booking } from '@/lib/types';
 import { serviceBlockStyle } from '@/lib/services-data';
@@ -21,6 +21,7 @@ import CalendarNavBar from '@/components/calendar/CalendarNavBar';
 import CalendarScrollArea from '@/components/calendar/CalendarScrollArea';
 import { useServices } from '@/lib/use-services';
 import { filterGoogleBusyAgainstBookings } from '@/lib/calendar-dedup';
+import { barberPortalLoginUrl } from '@/lib/barber-portal-urls';
 import Link from 'next/link';
 
 type CalView = 'day' | 'week';
@@ -47,6 +48,7 @@ export default function AdminBarberCalendarPage() {
     const [syncing, setSyncing] = useState(false);
     const [repairing, setRepairing] = useState(false);
     const [repairMessage, setRepairMessage] = useState<string | null>(null);
+    const [copiedLoginLink, setCopiedLoginLink] = useState(false);
 
     useEffect(() => {
         async function load() {
@@ -121,6 +123,13 @@ export default function AdminBarberCalendarPage() {
             setRepairMessage('Repair request failed');
         }
         setRepairing(false);
+    };
+
+    const copyLoginLink = () => {
+        if (!barber) return;
+        navigator.clipboard.writeText(barberPortalLoginUrl(barber.slug, window.location.origin));
+        setCopiedLoginLink(true);
+        setTimeout(() => setCopiedLoginLink(false), 2000);
     };
 
     const weekDays = useMemo(() => {
@@ -222,6 +231,17 @@ export default function AdminBarberCalendarPage() {
                     </div>
                 </div>
                 <div className="flex gap-2 items-center flex-wrap">
+                    <button
+                        type="button"
+                        onClick={copyLoginLink}
+                        className="flex items-center gap-2 px-3 py-2 border border-white/10 rounded-savron text-[10px] uppercase tracking-widest text-savron-silver hover:text-white hover:border-white/25 transition-all"
+                        title="Copy portal login link — barber signs in here to connect Google Calendar"
+                    >
+                        {copiedLoginLink
+                            ? <Check className="w-3.5 h-3.5 text-savron-green" />
+                            : <Copy className="w-3.5 h-3.5" />}
+                        {copiedLoginLink ? 'Copied!' : 'Copy Login Link'}
+                    </button>
                     <button
                         onClick={fetchGoogleBusy}
                         disabled={syncing || repairing}
