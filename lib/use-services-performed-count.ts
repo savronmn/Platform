@@ -6,11 +6,16 @@ import {
     formatServicesPerformedCount,
     servicesPerformedTotal,
     SERVICES_PERFORMED_BASE,
+    SHOP_OPEN_DATE,
 } from '@/lib/services-performed';
 
-/** Live homepage stat: 7,000 baseline + completed bookings, updates via Supabase realtime. */
-export function useServicesPerformedCount(): { display: string; loading: boolean } {
-    const [display, setDisplay] = useState(formatServicesPerformedCount(SERVICES_PERFORMED_BASE));
+/** Live homepage stat: 7,000 baseline + completed bookings since shop opened, updates via Supabase realtime. */
+export function useServicesPerformedCount(): {
+    total: number;
+    display: string;
+    loading: boolean;
+} {
+    const [total, setTotal] = useState(SERVICES_PERFORMED_BASE);
     const [loading, setLoading] = useState(true);
 
     const load = useCallback(async () => {
@@ -18,10 +23,11 @@ export function useServicesPerformedCount(): { display: string; loading: boolean
         const { count, error } = await supabase
             .from('bookings')
             .select('*', { count: 'exact', head: true })
-            .eq('status', 'completed');
+            .eq('status', 'completed')
+            .gte('date', SHOP_OPEN_DATE);
 
         if (!error && count != null) {
-            setDisplay(formatServicesPerformedCount(servicesPerformedTotal(count)));
+            setTotal(servicesPerformedTotal(count));
         }
         setLoading(false);
     }, []);
@@ -42,5 +48,9 @@ export function useServicesPerformedCount(): { display: string; loading: boolean
         return () => { supabase.removeChannel(channel); };
     }, [load]);
 
-    return { display, loading };
+    return {
+        total,
+        display: formatServicesPerformedCount(total),
+        loading,
+    };
 }

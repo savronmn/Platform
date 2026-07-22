@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import ShopSocialLinks from '@/components/layout/ShopSocialLinks';
+import AnimatedServicesCount from '@/components/home/AnimatedServicesCount';
 import { useServicesPerformedCount } from '@/lib/use-services-performed-count';
 
 const pillars = [
@@ -12,10 +13,15 @@ const pillars = [
 ];
 
 const About = () => {
-    const { display: servicesPerformed } = useServicesPerformedCount();
+    const { total: servicesPerformedTotal, loading: servicesLoading } = useServicesPerformedCount();
 
     const stats = [
-        { value: servicesPerformed, label: "Services performed" },
+        {
+            value: (
+                <AnimatedServicesCount value={servicesPerformedTotal} loading={servicesLoading} />
+            ),
+            label: "Services performed",
+        },
         { value: "1,000+", label: "Professional cuts" },
         { value: "Walk-ins", label: "Welcome" },
     ];
