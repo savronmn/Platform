@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
-import { Search, Mail, Target, CheckCircle2, AlertCircle, Loader2, Radar, History, Star, ChevronDown, Eye, Trash2, User } from 'lucide-react';
+import { Search, Mail, Target, CheckCircle2, AlertCircle, Loader2, Radar, History, Star, ChevronDown, Eye, Trash2, User, ExternalLink, MailCheck, Sparkles, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { OutreachProspect, OutreachArea } from '@/lib/outreach-prospects';
+import { qualityTier } from '@/lib/outreach-lead-classifier';
+import type { OutreachProspect, OutreachArea, EmailSource } from '@/lib/outreach-prospects';
 import { OUTREACH_AREA_LABELS } from '@/lib/outreach-prospects';
 import OutreachCampaignModal from '@/components/admin/OutreachCampaignModal';
 import type { OutreachEmailContent } from '@/lib/outreach-email-templates';
@@ -33,6 +34,60 @@ const AREA_FILTERS: { key: OutreachArea; label: string }[] = [
     { key: 'suburbs', label: 'Suburbs' },
 ];
 
+interface ScanStats {
+    discovered: number;
+    withEmail: number;
+    matched: number;
+    shopsSkipped: number;
+}
+
+const EMAIL_SOURCE_LABELS: Record<EmailSource, string> = {
+    maps: 'Maps',
+    website: 'Website',
+    instagram: 'Instagram',
+    reviews: 'Reviews',
+    manual: 'Manual',
+    savron: 'SAVRON',
+};
+
+function QualityBadge({ prospect }: { prospect: OutreachProspect }) {
+    const tier = qualityTier(prospect);
+    if (tier === 'great') {
+        return (
+            <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
+                <Sparkles className="w-3 h-3" /> Great
+            </span>
+        );
+    }
+    if (tier === 'good') {
+        return (
+            <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-200">
+                Good
+            </span>
+        );
+    }
+    return (
+        <span className="text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-full border border-white/10 text-savron-silver/40">
+            New
+        </span>
+    );
+}
+
+function EmailSourceBadge({ source }: { source?: EmailSource }) {
+    if (!source) return null;
+    return (
+        <span className="text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-full border border-accent-blue/20 text-accent-blue/80">
+            via {EMAIL_SOURCE_LABELS[source]}
+        </span>
+    );
+}
+
+function instagramUrl(handle?: string) {
+    if (!handle) return null;
+    const clean = handle.replace(/^@/, '');
+    return `https://instagram.com/${clean}`;
+}
+
 export default function OutreachPage() {
     const [prospects, setProspects] = useState<OutreachProspect[]>([]);
     const [loading, setLoading] = useState(true);
@@ -55,6 +110,9 @@ export default function OutreachPage() {
     const [includeSavronBarbers, setIncludeSavronBarbers] = useState(true);
     const [purgeShopsOnScan, setPurgeShopsOnScan] = useState(true);
     const [purging, setPurging] = useState(false);
+    const [emailOnlyFilter, setEmailOnlyFilter] = useState(false);
+    const [readyOnlyFilter, setReadyOnlyFilter] = useState(false);
+    const [lastScanStats, setLastScanStats] = useState<ScanStats | null>(null);
 
     useEffect(() => {
         void fetchProspects();
@@ -124,6 +182,12 @@ export default function OutreachPage() {
                 throw new Error(data.error || 'Barber scan failed');
             }
             setProspects(data.prospects ?? []);
+            setLastScanStats({
+                discovered: data.discovered ?? 0,
+                withEmail: data.withEmail ?? data.savedWithEmail ?? 0,
+                matched: data.matched ?? 0,
+                shopsSkipped: data.shopsSkipped ?? 0,
+            });
             setImportStatus('success');
             setImportMessage(data.message || `Scan found ${data.matched ?? 0} barbers.`);
         } catch (err) {
@@ -173,17 +237,34 @@ export default function OutreachPage() {
         if (areaFilter !== 'all') {
             result = result.filter(p => p.area === areaFilter);
         }
+        if (emailOnlyFilter) {
+            result = result.filter(hasReachableEmail);
+        }
+        if (readyOnlyFilter) {
+            result = result.filter(p => hasReachableEmail(p) && qualityTier(p) !== 'unknown');
+        }
         if (search) {
             const s = search.toLowerCase();
             result = result.filter(p =>
                 p.name.toLowerCase().includes(s) ||
                 p.email.toLowerCase().includes(s) ||
                 p.businessName.toLowerCase().includes(s) ||
-                p.area.toLowerCase().includes(s),
+                p.area.toLowerCase().includes(s) ||
+                (p.instagram?.toLowerCase().includes(s) ?? false),
             );
         }
         return result;
-    }, [prospects, areaFilter, search]);
+    }, [prospects, areaFilter, search, emailOnlyFilter, readyOnlyFilter]);
+
+    const pipelineStats = useMemo(() => {
+        const withEmail = prospects.filter(hasReachableEmail).length;
+        const rated = prospects.filter(p => p.rating != null);
+        const avgRating = rated.length
+            ? rated.reduce((sum, p) => sum + (p.rating ?? 0), 0) / rated.length
+            : null;
+        const ready = prospects.filter(p => hasReachableEmail(p) && qualityTier(p) !== 'unknown').length;
+        return { total: prospects.length, withEmail, avgRating, ready };
+    }, [prospects]);
 
     const selectedProspects = useMemo(
         () => prospects.filter(p => selectedIds.has(p.id)),
@@ -211,6 +292,10 @@ export default function OutreachPage() {
         } else {
             setSelectedIds(new Set(filteredProspects.map(p => p.id)));
         }
+    }
+
+    function selectAllWithEmail() {
+        setSelectedIds(new Set(filteredProspects.filter(hasReachableEmail).map(p => p.id)));
     }
 
     function openCampaign() {
@@ -252,8 +337,8 @@ export default function OutreachPage() {
                     <div className="flex-1">
                         <h2 className="text-sm uppercase tracking-widest text-white">Barber Web Scan</h2>
                         <p className="text-xs text-savron-silver/70 mt-1 leading-relaxed">
-                            Uses Apify to find independent barbers on Google Maps and Instagram, scrape websites for contact info, and pull review reputation.
-                            Barbershop businesses are filtered out automatically.
+                            Apify scans Google Maps with contact scraping enabled, crawls websites and Instagram bios for emails,
+                            and pulls ratings plus years-of-experience from page text. Barbershops are filtered out automatically.
                         </p>
                     </div>
                 </div>
@@ -349,7 +434,40 @@ export default function OutreachPage() {
                     {importStatus === 'success'
                         ? <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
                         : <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />}
-                    <p>{importMessage}</p>
+                    <div className="space-y-2">
+                        <p>{importMessage}</p>
+                        {importStatus === 'success' && lastScanStats && (
+                            <div className="flex flex-wrap gap-3 text-[10px] uppercase tracking-widest text-accent-blue/80">
+                                <span>{lastScanStats.discovered} discovered</span>
+                                <span>{lastScanStats.withEmail} with email</span>
+                                <span>{lastScanStats.matched} match filters</span>
+                                <span>{lastScanStats.shopsSkipped} shops skipped</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Pipeline stats */}
+            {!loading && !fetchError && prospects.length > 0 && (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="card-savron p-4 border-white/5">
+                        <p className="text-[10px] uppercase tracking-widest text-savron-silver/50">Total barbers</p>
+                        <p className="text-2xl text-white mt-1">{pipelineStats.total}</p>
+                    </div>
+                    <div className="card-savron p-4 border-accent-blue/20 bg-accent-blue/5">
+                        <p className="text-[10px] uppercase tracking-widest text-savron-silver/50 flex items-center gap-1"><MailCheck className="w-3 h-3" /> With email</p>
+                        <p className="text-2xl text-accent-blue mt-1">{pipelineStats.withEmail}</p>
+                    </div>
+                    <div className="card-savron p-4 border-amber-500/20 bg-amber-500/5">
+                        <p className="text-[10px] uppercase tracking-widest text-savron-silver/50 flex items-center gap-1"><Star className="w-3 h-3" /> Avg rating</p>
+                        <p className="text-2xl text-amber-200 mt-1">{pipelineStats.avgRating != null ? pipelineStats.avgRating.toFixed(1) : '—'}</p>
+                    </div>
+                    <div className="card-savron p-4 border-emerald-500/20 bg-emerald-500/5">
+                        <p className="text-[10px] uppercase tracking-widest text-savron-silver/50 flex items-center gap-1"><Sparkles className="w-3 h-3" /> Ready to email</p>
+                        <p className="text-2xl text-emerald-300 mt-1">{pipelineStats.ready}</p>
+                        <p className="text-[9px] text-savron-silver/50 mt-1 uppercase tracking-widest">Email + rated</p>
+                    </div>
                 </div>
             )}
 
@@ -360,44 +478,76 @@ export default function OutreachPage() {
             )}
 
             {/* Filters */}
-            <div className="card-savron flex flex-col sm:flex-row gap-4">
-                <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-savron-silver/50" />
-                    <input
-                        type="text"
-                        placeholder="SEARCH BARBER PROSPECTS..."
-                        value={search}
-                        onChange={(e) => { setSearch(e.target.value); setSelectedIds(new Set()); }}
-                        className="input-savron pl-12"
-                    />
+            <div className="card-savron space-y-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-savron-silver/50" />
+                        <input
+                            type="text"
+                            placeholder="Search name, email, Instagram..."
+                            value={search}
+                            onChange={(e) => { setSearch(e.target.value); setSelectedIds(new Set()); }}
+                            className="input-savron pl-12"
+                        />
+                    </div>
+                    <div className="flex gap-1.5 flex-wrap">
+                        {AREA_FILTERS.map(({ key, label }) => (
+                            <button
+                                key={key}
+                                onClick={() => { setAreaFilter(key); setSelectedIds(new Set()); }}
+                                className={cn(
+                                    "px-3 py-2 text-[10px] uppercase tracking-widest border rounded-savron transition-all",
+                                    areaFilter === key
+                                        ? "bg-savron-green border border-savron-green-light/20 text-white"
+                                        : "text-savron-silver border-white/10 hover:border-white/20 hover:text-white",
+                                )}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
-                <div className="flex gap-1.5 flex-wrap">
-                    {AREA_FILTERS.map(({ key, label }) => (
-                        <button
-                            key={key}
-                            onClick={() => { setAreaFilter(key); setSelectedIds(new Set()); }}
-                            className={cn(
-                                "px-3 py-2 text-[10px] uppercase tracking-widest border rounded-savron transition-all",
-                                areaFilter === key
-                                    ? "bg-savron-green border border-savron-green-light/20 text-white"
-                                    : "text-savron-silver border-white/10 hover:border-white/20 hover:text-white",
-                            )}
-                        >
-                            {label}
-                        </button>
-                    ))}
+                <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-white/5">
+                    <span className="text-[10px] uppercase tracking-widest text-savron-silver/50 flex items-center gap-1"><Filter className="w-3 h-3" /> Quick filters</span>
+                    <button
+                        type="button"
+                        onClick={() => setEmailOnlyFilter(v => !v)}
+                        className={cn(
+                            'px-3 py-1.5 text-[10px] uppercase tracking-widest border rounded-savron transition-all',
+                            emailOnlyFilter ? 'bg-accent-blue/20 border-accent-blue/30 text-accent-blue' : 'border-white/10 text-savron-silver hover:text-white',
+                        )}
+                    >
+                        Has email
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setReadyOnlyFilter(v => !v)}
+                        className={cn(
+                            'px-3 py-1.5 text-[10px] uppercase tracking-widest border rounded-savron transition-all',
+                            readyOnlyFilter ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300' : 'border-white/10 text-savron-silver hover:text-white',
+                        )}
+                    >
+                        Ready to contact
+                    </button>
+                    <button
+                        type="button"
+                        onClick={selectAllWithEmail}
+                        className="px-3 py-1.5 text-[10px] uppercase tracking-widest border border-white/10 rounded-savron text-savron-silver hover:text-white hover:border-white/20 transition-all"
+                    >
+                        Select all with email
+                    </button>
                 </div>
             </div>
 
             {/* Stats bar */}
-            <div className="flex items-center gap-4 text-[10px] uppercase tracking-widest text-savron-silver/60">
+            <div className="flex flex-wrap items-center gap-4 text-[10px] uppercase tracking-widest text-savron-silver/60">
                 <span className="flex items-center gap-1.5">
                     <Target className="w-3 h-3" />
-                    {filteredProspects.length} prospect{filteredProspects.length !== 1 ? 's' : ''}
+                    {filteredProspects.length} showing · {pipelineStats.withEmail} total with email
                 </span>
                 {selectedIds.size > 0 && (
                     <span className="text-accent-blue">
-                        {selectedIds.size} selected · {selectedWithEmail} with email
+                        {selectedIds.size} selected · {selectedWithEmail} reachable
                     </span>
                 )}
             </div>
@@ -442,13 +592,13 @@ export default function OutreachPage() {
                                     <input type="checkbox" checked={allSelected} onChange={selectAllFiltered} className="admin-checkbox" />
                                 </th>
                                 <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Name</th>
-                                <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Business</th>
+                                <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Quality</th>
                                 <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Area</th>
                                 <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Rating</th>
                                 <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Exp.</th>
                                 <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Price</th>
                                 <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Email</th>
-                                <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Source</th>
+                                <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-savron-silver/50 font-normal">Links</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -465,17 +615,24 @@ export default function OutreachPage() {
                                         <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)} className="admin-checkbox" />
                                     </td>
                                     <td className="px-4 py-4 text-sm text-white">
-                                        <span className="inline-flex items-center gap-1.5">
-                                            {p.name}
-                                            {p.prospectType === 'individual' && (
-                                                <User className="w-3 h-3 text-accent-blue" aria-label="Individual barber" />
+                                        <div className="space-y-1">
+                                            <span className="inline-flex items-center gap-1.5">
+                                                {p.name}
+                                                {p.prospectType === 'individual' && (
+                                                    <User className="w-3 h-3 text-accent-blue" aria-label="Individual barber" />
+                                                )}
+                                            </span>
+                                            {p.businessName !== p.name && (
+                                                <p className="text-xs text-savron-silver/60">{p.businessName}</p>
                                             )}
-                                        </span>
-                                        {p.isSavronBarber && (
-                                            <span className="ml-2 text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-full border border-savron-green/30 text-accent-blue">SAVRON</span>
-                                        )}
+                                            {p.isSavronBarber && (
+                                                <span className="inline-block text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-full border border-savron-green/30 text-accent-blue">SAVRON</span>
+                                            )}
+                                        </div>
                                     </td>
-                                    <td className="px-4 py-4 text-sm text-savron-silver">{p.businessName}</td>
+                                    <td className="px-4 py-4">
+                                        <QualityBadge prospect={p} />
+                                    </td>
                                     <td className="px-4 py-4 text-xs text-savron-silver/70 uppercase tracking-wider">
                                         {OUTREACH_AREA_LABELS[p.area]}
                                     </td>
@@ -488,15 +645,48 @@ export default function OutreachPage() {
                                     <td className="px-4 py-4 text-sm text-savron-silver/80">{formatPriceRange(p)}</td>
                                     <td className="px-4 py-4 text-sm">
                                         {hasReachableEmail(p) ? (
-                                            <span className="text-savron-silver/80">{p.email}</span>
+                                            <div className="space-y-1">
+                                                <span className="text-savron-silver/80 break-all">{p.email}</span>
+                                                <EmailSourceBadge source={p.emailSource} />
+                                            </div>
                                         ) : (
                                             <span className="text-amber-400/80 text-xs uppercase tracking-wider">No email</span>
                                         )}
                                     </td>
-                                    <td className="px-4 py-4">
-                                        <span className="text-[10px] uppercase tracking-widest px-2 py-1 rounded-full border border-white/10 text-savron-silver/60">
-                                            {p.source}
-                                        </span>
+                                    <td className="px-4 py-4" onClick={e => e.stopPropagation()}>
+                                        <div className="flex items-center gap-2">
+                                            {p.instagram && (
+                                                <a
+                                                    href={instagramUrl(p.instagram) ?? '#'}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-accent-blue hover:text-white transition-colors"
+                                                    title="Instagram"
+                                                >
+                                                    <ExternalLink className="w-4 h-4" />
+                                                </a>
+                                            )}
+                                            {p.website && (
+                                                <a
+                                                    href={p.website}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-savron-silver/60 hover:text-white transition-colors text-[10px] uppercase tracking-widest"
+                                                >
+                                                    Web
+                                                </a>
+                                            )}
+                                            {p.googleMapsUrl && (
+                                                <a
+                                                    href={p.googleMapsUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-savron-silver/60 hover:text-white transition-colors text-[10px] uppercase tracking-widest"
+                                                >
+                                                    Maps
+                                                </a>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -526,24 +716,41 @@ export default function OutreachPage() {
                                     className="admin-checkbox mt-1"
                                 />
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm text-white font-medium">
-                                        {p.name}
-                                        {p.isSavronBarber && <span className="ml-2 text-[9px] uppercase tracking-widest text-accent-blue">SAVRON</span>}
-                                    </p>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <p className="text-sm text-white font-medium">{p.name}</p>
+                                        <QualityBadge prospect={p} />
+                                        {p.isSavronBarber && <span className="text-[9px] uppercase tracking-widest text-accent-blue">SAVRON</span>}
+                                    </div>
                                     <p className="text-xs text-savron-silver mt-0.5">{p.businessName}</p>
                                     <div className="flex flex-wrap items-center gap-2 mt-2 text-[10px] uppercase tracking-widest text-savron-silver/50">
-                                        {p.rating != null && <span>{p.rating.toFixed(1)}★</span>}
+                                        {p.rating != null && <span>{p.rating.toFixed(1)}★ ({p.reviewCount ?? 0})</span>}
                                         {p.yearsExperience != null && <span>{p.yearsExperience}y exp</span>}
                                         {(p.priceMinCents != null || p.priceMaxCents != null) && <span>{formatPriceRange(p)}</span>}
                                     </div>
-                                    <p className="text-xs text-savron-silver/60 mt-1">{p.email || 'No email'}</p>
-                                    <div className="flex items-center gap-2 mt-2">
+                                    <div className="mt-2 space-y-1">
+                                        {hasReachableEmail(p) ? (
+                                            <>
+                                                <p className="text-xs text-savron-silver/80 break-all">{p.email}</p>
+                                                <EmailSourceBadge source={p.emailSource} />
+                                            </>
+                                        ) : (
+                                            <p className="text-xs text-amber-400/80 uppercase tracking-wider">No email</p>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2 mt-2">
                                         <span className="text-[10px] uppercase tracking-widest text-savron-silver/50">
                                             {OUTREACH_AREA_LABELS[p.area]}
                                         </span>
-                                        <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full border border-white/10 text-savron-silver/50">
-                                            {p.source}
-                                        </span>
+                                        {p.instagram && (
+                                            <a href={instagramUrl(p.instagram) ?? '#'} target="_blank" rel="noopener noreferrer" className="text-[10px] uppercase tracking-widest text-accent-blue" onClick={e => e.stopPropagation()}>
+                                                IG
+                                            </a>
+                                        )}
+                                        {p.website && (
+                                            <a href={p.website} target="_blank" rel="noopener noreferrer" className="text-[10px] uppercase tracking-widest text-savron-silver/60" onClick={e => e.stopPropagation()}>
+                                                Web
+                                            </a>
+                                        )}
                                     </div>
                                 </div>
                             </div>

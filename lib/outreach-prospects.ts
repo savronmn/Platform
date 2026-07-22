@@ -1,6 +1,10 @@
 // Outreach prospect types and seed data.
 // Replace `SEED_PROSPECTS` with Apify/Apollo imports via /api/outreach/prospects in the future.
 
+import type { EmailSource } from '@/lib/outreach-lead-classifier';
+
+export type { EmailSource };
+
 export type OutreachArea =
     | 'all'
     | 'north_minneapolis'
@@ -32,6 +36,8 @@ export interface OutreachProspect {
     prospectType?: ProspectType;
     isSavronBarber?: boolean;
     barberId?: string | null;
+    emailSource?: EmailSource;
+    enrichmentData?: Record<string, unknown> | null;
     enrichedAt?: string | null;
     source: OutreachSource;
 }

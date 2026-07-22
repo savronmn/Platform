@@ -50,13 +50,14 @@ export async function POST(request: NextRequest) {
             discovered: scan.discovered,
             enriched: scan.enriched,
             matched: scan.matched,
+            withEmail: scan.withEmail,
             shopsSkipped: scan.shopsSkipped,
             imported: saveResult.imported,
-            withEmail: saveResult.withEmail,
+            savedWithEmail: saveResult.withEmail,
             purged,
             savronSynced,
             prospects,
-            message: `Scan complete: ${scan.matched} individual barbers matched (${scan.shopsSkipped} barbershops skipped, ${saveResult.withEmail} with email).`,
+            message: `Scan complete: ${scan.discovered} barbers found, ${scan.withEmail} with email (${scan.matched} match filters, ${scan.shopsSkipped} shops skipped).`,
         });
     } catch (err) {
         const message = err instanceof Error ? err.message : 'Barber scan failed';

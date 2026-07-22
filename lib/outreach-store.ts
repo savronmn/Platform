@@ -25,6 +25,8 @@ interface OutreachProspectRow {
     barber_id: string | null;
     is_savron_barber: boolean;
     enriched_at: string | null;
+    enrichment_data: Record<string, unknown> | null;
+    email_source: string | null;
     source: string;
 }
 
@@ -66,6 +68,8 @@ function rowToProspect(row: OutreachProspectRow): OutreachProspect {
         isSavronBarber: row.is_savron_barber,
         barberId: row.barber_id,
         enrichedAt: row.enriched_at,
+        emailSource: (row.email_source as OutreachProspect['emailSource']) ?? undefined,
+        enrichmentData: row.enrichment_data ?? undefined,
         source: row.source as OutreachProspect['source'],
     };
 }
@@ -91,6 +95,8 @@ function prospectToRow(prospect: OutreachProspect): Omit<OutreachProspectRow, 'i
         barber_id: prospect.barberId ?? null,
         is_savron_barber: prospect.isSavronBarber ?? false,
         enriched_at: prospect.enrichedAt ?? null,
+        enrichment_data: prospect.enrichmentData ?? null,
+        email_source: prospect.emailSource ?? null,
         source: prospect.source,
     };
 }
@@ -254,6 +260,7 @@ export async function syncSavronBarbersToProspects(): Promise<number> {
         is_savron_barber: true,
         prospect_type: 'individual',
         source: 'savron',
+        email_source: 'savron',
         years_experience: b.bio ? parseBioYears(b.bio) : null,
         updated_at: new Date().toISOString(),
     }));
