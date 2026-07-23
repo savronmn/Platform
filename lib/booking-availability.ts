@@ -17,6 +17,7 @@ import {
     resolveBookingDurationMins,
     type ServiceDurationEntry,
 } from '@/lib/booking-duration';
+import { isBarberAvailableAtTime } from '@/lib/barber-working-hours';
 import { slotConflictsWithBusy } from '@/lib/time-helpers';
 
 const getAdmin = () => createClient(
@@ -244,7 +245,7 @@ export class SlotUnavailableError extends Error {
     }
 }
 
-/** Throws SlotUnavailableError when the barber slot overlaps DB or Google Calendar busy time. */
+/** Throws SlotUnavailableError when outside working hours or overlapping busy time. */
 export async function assertBarberSlotAvailable(
     barberId: string,
     date: string,
@@ -253,7 +254,12 @@ export async function assertBarberSlotAvailable(
     options: { excludeBookingId?: string } = {},
 ): Promise<void> {
     const durationMin = parseDurationMins(duration);
-    const { busy } = await getBarberAvailability(barberId, date, options);
+    const { busy, workingHours } = await getBarberAvailability(barberId, date, options);
+
+    if (!isBarberAvailableAtTime(workingHours, date, time, durationMin)) {
+        throw new SlotUnavailableError('This barber is not available at that time.');
+    }
+
     if (!slotIsAvailable(bookingSlotDate(date), time, durationMin, busy)) {
         throw new SlotUnavailableError();
     }

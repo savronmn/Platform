@@ -14,7 +14,8 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Barber, Booking } from '@/lib/types';
-import { HOST_TIME_SLOTS, serviceBlockStyle, getShopScheduleForDate, formatScheduleRange } from '@/lib/services-data';
+import { getBarberSlotsForDate, isBarberAvailableAtTime, isBarberOffOnDate } from '@/lib/barber-working-hours';
+import { serviceBlockStyle, getShopScheduleForDate, formatScheduleRange } from '@/lib/services-data';
 import {
     timeToMins, formatTimeCompact, formatTimeRange, parseDurationMins, itemsInHour,
     CALENDAR_HOUR_HEIGHT_PX, minsToTime12, getCalendarHourStarts,
@@ -362,6 +363,13 @@ function HostDashboardInner() {
         setQuickError(null);
         const dateStr = format(quickFormDate, 'yyyy-MM-dd');
 
+        const barberForSlot = barbers.find(b => b.id === quickForm.barberId);
+        if (!isBarberAvailableAtTime(barberForSlot?.working_hours ?? null, dateStr, quickForm.time, quickAddDurationMins)) {
+            setQuickError('This barber is not available at that time.');
+            setQuickSubmitting(false);
+            return;
+        }
+
         try {
             const busyRes = await fetch(`/api/calendar/busy?barberId=${quickForm.barberId}&date=${dateStr}`);
             if (busyRes.ok) {
@@ -493,15 +501,24 @@ function HostDashboardInner() {
             return rangesOverlapMins(slotMins, durationMins, timeToMins(e.time), externalDurationMins(e));
         });
 
-    // Quick-Add slot availability. excludes past, booked (all active statuses), and GCal-occupied slots
+    const quickAddBarber = barbers.find(b => b.id === quickForm.barberId);
+    const quickAddBarberOff = quickForm.barberId
+        ? isBarberOffOnDate(quickAddBarber?.working_hours ?? null, quickFormDate)
+        : false;
+
+    // Quick-Add slot availability. respects barber working_hours, then excludes past/booked/GCal slots
     const allTimeSlotsWithStatus = useMemo(() => {
         const dateStr = format(quickFormDate, 'yyyy-MM-dd');
         const todayStr = format(new Date(), 'yyyy-MM-dd');
         const isViewingToday = dateStr === todayStr;
         const now = new Date();
         const nowMins = now.getHours() * 60 + now.getMinutes();
+        const barber = barbers.find(b => b.id === quickForm.barberId);
+        const baseSlots = quickForm.barberId
+            ? getBarberSlotsForDate(barber?.working_hours ?? null, dateStr)
+            : [];
 
-        return HOST_TIME_SLOTS.map(slot => {
+        return baseSlots.map(slot => {
             const slotMins = timeToMins(slot);
             if (isViewingToday && slotMins <= nowMins) return { slot, status: 'past' as const };
             if (quickForm.barberId) {
@@ -512,7 +529,7 @@ function HostDashboardInner() {
             }
             return { slot, status: 'available' as const };
         });
-    }, [quickFormDate, quickForm.barberId, quickForm.service, quickAddDurationMins, scheduleBookings, deduplicatedExternal]);
+    }, [quickFormDate, quickForm.barberId, quickForm.service, quickAddDurationMins, scheduleBookings, deduplicatedExternal, barbers]);
 
     const availableTimeSlots = allTimeSlotsWithStatus
         .filter(s => s.status === 'available')
@@ -1704,8 +1721,10 @@ function HostDashboardInner() {
                                     <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">Time *</label>
                                     {!quickForm.barberId ? (
                                         <p className="text-savron-silver/40 text-xs uppercase tracking-widest py-3">Select a barber first.</p>
+                                    ) : quickAddBarberOff ? (
+                                        <p className="text-yellow-400 text-xs uppercase tracking-widest py-3">Barber off this day.</p>
                                     ) : availableTimeSlots.length === 0 ? (
-                                        <p className="text-yellow-400 text-xs uppercase tracking-widest py-3">No available slots. barber is fully booked.</p>
+                                        <p className="text-yellow-400 text-xs uppercase tracking-widest py-3">No available slots. Barber is fully booked.</p>
                                     ) : (
                                         <select
                                             value={quickForm.time}

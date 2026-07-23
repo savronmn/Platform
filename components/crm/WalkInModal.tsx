@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useServices } from '@/lib/use-services';
-import { generateTimeSlots } from '@/lib/services-data';
+import { getBarberSlotsForDate } from '@/lib/barber-working-hours';
 import type { Barber } from '@/lib/types';
 import { triggerPostBooking } from '@/lib/confirm-booking';
 import { createBookingRequest } from '@/lib/client-create-booking';
@@ -90,17 +90,12 @@ export default function WalkInModal({ open, onClose, onBooked }: WalkInModalProp
         return () => { cancelled = true; };
     }, [open, form.barberId, form.date]);
 
-    const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
-
-    const workingHoursSlots = (() => {
-        const barber = barbers.find(b => b.id === form.barberId);
-        if (!barber?.working_hours || !form.date) return [];
-        const dayIndex = new Date(`${form.date}T12:00:00`).getDay();
-        const dayKey = DAY_KEYS[dayIndex];
-        const daySchedule = (barber.working_hours as Record<string, { open: string; close: string } | null>)[dayKey];
-        if (!daySchedule) return [];
-        return generateTimeSlots(daySchedule.open, daySchedule.close);
-    })();
+    const workingHoursSlots = form.barberId && form.date
+        ? getBarberSlotsForDate(
+            barbers.find(b => b.id === form.barberId)?.working_hours ?? null,
+            form.date,
+        )
+        : [];
 
     const isSlotUnavailable = (timeStr: string) => {
         if (isSlotInPast(selectedDate, timeStr, 0)) return true;

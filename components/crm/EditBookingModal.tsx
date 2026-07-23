@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useServices } from '@/lib/use-services';
-import { TIME_SLOTS, generateTimeSlots } from '@/lib/services-data';
+import { TIME_SLOTS } from '@/lib/services-data';
+import { getBarberSlotsForDate } from '@/lib/barber-working-hours';
 import type { Barber, Booking } from '@/lib/types';
 import { triggerPostEditBooking } from '@/lib/confirm-booking';
 import { updateBookingRequest } from '@/lib/client-update-booking';
@@ -17,8 +18,6 @@ interface EditBookingModalProps {
     onClose: () => void;
     onSaved: (updated: Booking) => void;
 }
-
-const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
 export default function EditBookingModal({ booking, barbers, onClose, onSaved }: EditBookingModalProps) {
     const services = useServices();
@@ -103,15 +102,12 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
         return () => { cancelled = true; };
     }, [form.barberId, form.date, booking?.id]);
 
-    const workingHoursSlots = (() => {
-        const barber = barbers.find(b => b.id === form.barberId);
-        if (!barber?.working_hours || !form.date) return TIME_SLOTS;
-        const dayIndex = new Date(`${form.date}T12:00:00`).getDay();
-        const dayKey = DAY_KEYS[dayIndex];
-        const daySchedule = (barber.working_hours as Record<string, { open: string; close: string } | null>)[dayKey];
-        if (!daySchedule) return [];
-        return generateTimeSlots(daySchedule.open, daySchedule.close);
-    })();
+    const workingHoursSlots = form.barberId && form.date
+        ? getBarberSlotsForDate(
+            barbers.find(b => b.id === form.barberId)?.working_hours ?? null,
+            form.date,
+        )
+        : TIME_SLOTS;
 
     const isCurrentSlot = (timeStr: string) =>
         !!booking
