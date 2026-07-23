@@ -1,18 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { Resend } from 'resend';
-import { buildMembershipEmail } from '@/lib/email-templates';
 import { syncWalletsAfterCheckin } from '@/lib/wallet-checkin';
 import { requireStaff } from '@/lib/staff-auth';
+import { sendMembershipPassEmail } from '@/lib/send-membership-pass';
 import {
-    ensureWalletAuthToken,
-    generateApplePassBuffer,
-    isAppleWalletConfigured,
-} from '@/lib/apple-wallet';
-import {
-    buildGoogleObjectId,
-    buildGoogleSaveUrl,
-    createGooglePassObject,
     isGoogleWalletConfigured,
     updateGoogleWalletPass,
 } from '@/lib/google-wallet';
@@ -22,89 +13,6 @@ function getSupabaseAdmin() {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
-}
-
-async function resendFullPass(subscriber: {
-    id: string;
-    pass_serial_number: string;
-    name: string;
-    email: string;
-    visit_count: number;
-    wallet_auth_token?: string | null;
-    google_pass_object_id?: string | null;
-}): Promise<void> {
-    const resend = new Resend(process.env.RESEND_API_KEY!);
-    const supabase = getSupabaseAdmin();
-    const authToken = await ensureWalletAuthToken(subscriber.id, subscriber.wallet_auth_token);
-
-    let googleObjectId = subscriber.google_pass_object_id ?? null;
-    let googleSaveUrl: string | null = null;
-
-    if (isGoogleWalletConfigured()) {
-        if (!googleObjectId) {
-            const newObjectId = buildGoogleObjectId();
-            if (newObjectId) {
-                const created = await createGooglePassObject(
-                    newObjectId,
-                    subscriber.name,
-                    subscriber.email,
-                    subscriber.visit_count,
-                );
-                if (created) {
-                    googleObjectId = newObjectId;
-                    await supabase
-                        .from('email_subscribers')
-                        .update({ google_pass_object_id: newObjectId })
-                        .eq('id', subscriber.id);
-                }
-            }
-        } else {
-            await updateGoogleWalletPass(
-                googleObjectId,
-                subscriber.name,
-                subscriber.email,
-                subscriber.visit_count,
-            );
-        }
-
-        if (googleObjectId) {
-            try {
-                googleSaveUrl = buildGoogleSaveUrl(
-                    googleObjectId,
-                    subscriber.name,
-                    subscriber.email,
-                    subscriber.visit_count,
-                );
-            } catch (err) {
-                console.error('[GWallet] JWT sign failed on resend:', err);
-            }
-        }
-    }
-
-    const applePassBuffer = isAppleWalletConfigured()
-        ? generateApplePassBuffer(subscriber, authToken)
-        : null;
-
-    type ResendAttachment = { filename: string; content: string; content_type: string };
-    const attachments: ResendAttachment[] = [];
-    if (applePassBuffer) {
-        attachments.push({
-            filename: `${subscriber.name.replace(/\s+/g, '_')}_savron_pass.pkpass`,
-            content: applePassBuffer.toString('base64'),
-            content_type: 'application/vnd.apple.pkpass',
-        });
-    }
-
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://savronmn.com';
-    const downloadUrl = `${baseUrl}/api/wallet/download-pass?serial=${subscriber.pass_serial_number}`;
-
-    await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'noreply@savronmn.com',
-        to: subscriber.email,
-        subject: 'SAVRON — Your Membership Pass',
-        html: buildMembershipEmail(subscriber.name, downloadUrl, googleSaveUrl),
-        attachments: attachments as ResendAttachment[],
-    });
 }
 
 export async function POST(req: NextRequest) {
@@ -205,7 +113,7 @@ export async function POST(req: NextRequest) {
 
         if (action === 'send_updated_pass') {
             try {
-                await resendFullPass(subscriber);
+                await sendMembershipPassEmail(subscriber);
             } catch (err) {
                 console.error('Pass resend failed:', err);
                 return NextResponse.json({ error: 'Failed to resend pass' }, { status: 500 });

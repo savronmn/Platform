@@ -94,8 +94,16 @@ export function getSpecialOfferTemplate(clientName: string, offerText: string): 
     };
 }
 
-export function buildMembershipEmail(name: string, downloadUrl: string, googleSaveUrl?: string | null): string {
+export function buildMembershipEmail(
+    name: string,
+    downloadUrl: string,
+    googleSaveUrl?: string | null,
+    customMessage?: string | null,
+): string {
     const firstName = name.split(' ')[0];
+    const bodyMessage = customMessage?.trim()
+        ? customMessage.trim().replace(/\n/g, '<br>')
+        : 'Your SAVRON membership pass has been issued. Save it to your wallet &mdash; it tracks your visits every time you check in.';
     const googleWalletBlock = googleSaveUrl ? `
             <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 0 20px;">
               <tr>
@@ -134,7 +142,7 @@ export function buildMembershipEmail(name: string, downloadUrl: string, googleSa
           <td class="ew" style="padding:36px 32px;background-color:#121212 !important;">
             <p style="margin:0 0 6px;color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:3px;text-transform:uppercase;">Access Confirmed</p>
             <h1 style="margin:0 0 20px;color:#ffffff;font-size:22px;letter-spacing:2px;text-transform:uppercase;font-weight:700;">${firstName}, your pass is ready.</h1>
-            <p style="margin:0 0 28px;color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7;">Your SAVRON membership pass has been issued. Save it to your wallet &mdash; it tracks your visits every time you check in.</p>
+            <p style="margin:0 0 28px;color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7;">${bodyMessage}</p>
             <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" class="es" style="background-color:#0a0a0a !important;border:1px solid rgba(255,255,255,0.1);margin-bottom:28px;">
               <tr>
                 <td style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.06);background-color:#0a0a0a !important;">

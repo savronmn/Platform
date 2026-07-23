@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
-import { Mail, Send, Users, CheckCircle2, AlertCircle, Search, History, RefreshCw, ChevronDown } from 'lucide-react';
+import { Mail, Send, Users, CheckCircle2, AlertCircle, Search, History, RefreshCw, ChevronDown, Wallet, Clock, CalendarClock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -57,6 +57,9 @@ export default function CommunicationsPage() {
     const [subject, setSubject] = useState('');
     const [content, setContent] = useState('');
     const [targetGroup, setTargetGroup] = useState<'all' | 'clients' | 'subscribers'>('all');
+    const [includeMembershipPass, setIncludeMembershipPass] = useState(false);
+    const [sendTiming, setSendTiming] = useState<'now' | 'scheduled'>('now');
+    const [scheduledAt, setScheduledAt] = useState('');
     
     const [clients, setClients] = useState<Recipient[]>([]);
     const [subscribers, setSubscribers] = useState<Recipient[]>([]);
@@ -174,10 +177,43 @@ export default function CommunicationsPage() {
         });
     }
 
+    const subscriberEmailSet = useMemo(
+        () => new Set(subscribers.map(s => s.email.toLowerCase())),
+        [subscribers],
+    );
+
+    const passEligibleRecipients = useMemo(
+        () => selectedRecipients.filter(r => subscriberEmailSet.has(r.email.toLowerCase())),
+        [selectedRecipients, subscriberEmailSet],
+    );
+
+    const defaultPassSubject = 'SAVRON — Your Membership Pass';
+    const [successDetail, setSuccessDetail] = useState<string | null>(null);
+
+    const sendCount = includeMembershipPass ? passEligibleRecipients.length : selectedRecipients.length;
+
     async function handleSend(e: React.FormEvent) {
         e.preventDefault();
-        if (selectedRecipients.length === 0) {
+
+        if (includeMembershipPass) {
+            if (passEligibleRecipients.length === 0) {
+                setErrorMsg('Select at least one ePass subscriber. CRM-only clients cannot receive wallet passes.');
+                setStatus('error');
+                return;
+            }
+            if (sendTiming === 'scheduled' && !scheduledAt) {
+                setErrorMsg('Choose a date and time for the scheduled send.');
+                setStatus('error');
+                return;
+            }
+        } else if (selectedRecipients.length === 0) {
             setErrorMsg('Select at least one recipient.');
+            setStatus('error');
+            return;
+        }
+
+        if (!includeMembershipPass && !content.trim()) {
+            setErrorMsg('Email content is required for Brevo campaigns.');
             setStatus('error');
             return;
         }
@@ -185,9 +221,42 @@ export default function CommunicationsPage() {
         setSending(true);
         setStatus('idle');
         setErrorMsg('');
+        setSuccessDetail(null);
 
         try {
-            // Basic HTML wrapper for the email content
+            if (includeMembershipPass) {
+                const payload: Record<string, unknown> = {
+                    subscriberEmails: passEligibleRecipients.map(r => r.email),
+                    subject: subject.trim() || defaultPassSubject,
+                    message: content.trim(),
+                };
+                if (sendTiming === 'scheduled') {
+                    payload.sendAt = new Date(scheduledAt).toISOString();
+                }
+
+                const res = await fetch('/api/wallet/send-passes-bulk', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    setStatus('success');
+                    setSuccessDetail(data.message || 'Membership pass send completed.');
+                    if (!data.scheduled) {
+                        setSubject('');
+                        setContent('');
+                        setScheduledAt('');
+                        void fetchHistory();
+                    }
+                } else {
+                    setStatus('error');
+                    setErrorMsg(data.error || 'Failed to send membership passes');
+                }
+                return;
+            }
+
             const htmlContent = `
                 <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
                     <div style="text-align: center; padding: 20px 0;">
@@ -208,14 +277,15 @@ export default function CommunicationsPage() {
                 body: JSON.stringify({
                     subject,
                     htmlContent,
-                    recipients: selectedRecipients
-                })
+                    recipients: selectedRecipients,
+                }),
             });
 
             const data = await res.json();
-            
+
             if (res.ok && data.success) {
                 setStatus('success');
+                setSuccessDetail('Campaign sent successfully via Brevo!');
                 setSubject('');
                 setContent('');
                 void fetchHistory();
@@ -223,7 +293,7 @@ export default function CommunicationsPage() {
                 setStatus('error');
                 setErrorMsg(data.error || 'Failed to send campaign');
             }
-        } catch (err) {
+        } catch {
             setStatus('error');
             setErrorMsg('Network error. Please try again later.');
         } finally {
@@ -246,14 +316,21 @@ export default function CommunicationsPage() {
                     <p className="admin-kicker">Campaigns</p>
                     <h1 className="admin-title">Communications</h1>
                     <p className="admin-subtitle">
-                        Send mass emails to clients and subscribers via Brevo
+                        Send mass emails via Brevo, or bulk-send ePass membership passes with Apple/Google Wallet download links.
                     </p>
                 </div>
-                <div className="flex items-center gap-2 px-5 py-3 bg-white/5 border border-white/10 rounded-savron">
-                    <Users size={14} className="text-savron-silver" />
-                    <span className="text-[10px] uppercase tracking-widest text-white">
-                        {selectedRecipients.length} of {activeRecipients.length} Selected
-                    </span>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                    <div className="flex items-center gap-2 px-5 py-3 bg-white/5 border border-white/10 rounded-savron">
+                        <Users size={14} className="text-savron-silver" />
+                        <span className="text-[10px] uppercase tracking-widest text-white">
+                            {sendCount} Selected{includeMembershipPass ? ' (ePass)' : ''}
+                        </span>
+                    </div>
+                    {includeMembershipPass && selectedRecipients.length > passEligibleRecipients.length && (
+                        <span className="text-[10px] uppercase tracking-widest text-amber-300/80 px-3 py-2 border border-amber-500/20 rounded-savron bg-amber-500/5">
+                            {selectedRecipients.length - passEligibleRecipients.length} CRM-only skipped
+                        </span>
+                    )}
                 </div>
             </div>
 
@@ -268,7 +345,9 @@ export default function CommunicationsPage() {
                                     className="bg-savron-blue/10 border border-savron-blue/20 text-accent-blue p-4 rounded-savron flex items-center gap-3"
                                 >
                                     <CheckCircle2 size={16} />
-                                    <span className="text-xs uppercase tracking-widest">Campaign sent successfully via Brevo!</span>
+                                    <span className="text-xs uppercase tracking-widest">
+                                        {successDetail || (includeMembershipPass ? 'Membership pass send completed!' : 'Campaign sent successfully via Brevo!')}
+                                    </span>
                                 </motion.div>
                             )}
                             {status === 'error' && (
@@ -307,6 +386,79 @@ export default function CommunicationsPage() {
                             </div>
                         </div>
 
+                        <label className="flex items-start gap-3 p-4 rounded-savron border border-accent-blue/20 bg-accent-blue/5 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={includeMembershipPass}
+                                onChange={e => {
+                                    setIncludeMembershipPass(e.target.checked);
+                                    if (e.target.checked && !subject.trim()) {
+                                        setSubject(defaultPassSubject);
+                                    }
+                                }}
+                                className="admin-checkbox mt-1"
+                            />
+                            <div className="space-y-1">
+                                <span className="flex items-center gap-2 text-sm text-white">
+                                    <Wallet className="w-4 h-4 text-accent-blue" />
+                                    Include ePass membership (Apple &amp; Google Wallet)
+                                </span>
+                                <p className="text-xs text-savron-silver/70 leading-relaxed">
+                                    Sends the full membership pass email via Resend with .pkpass attachment and wallet buttons.
+                                    Only E-Pass subscribers receive passes — CRM-only clients are skipped automatically.
+                                </p>
+                            </div>
+                        </label>
+
+                        {includeMembershipPass && (
+                            <div className="space-y-4 p-4 rounded-savron border border-white/10 bg-white/[0.02]">
+                                <div>
+                                    <label className="block text-[10px] uppercase tracking-[0.2em] text-white/50 mb-2 ml-1">When to send</label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setSendTiming('now')}
+                                            className={cn(
+                                                'py-3 px-3 text-[10px] uppercase tracking-widest border rounded-savron transition-all flex items-center justify-center gap-2',
+                                                sendTiming === 'now'
+                                                    ? 'bg-savron-green text-white border-savron-green-light/20'
+                                                    : 'text-savron-silver border-white/10 hover:border-white/20 hover:text-white bg-white/5',
+                                            )}
+                                        >
+                                            <Send className="w-3.5 h-3.5" /> Send now
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSendTiming('scheduled')}
+                                            className={cn(
+                                                'py-3 px-3 text-[10px] uppercase tracking-widest border rounded-savron transition-all flex items-center justify-center gap-2',
+                                                sendTiming === 'scheduled'
+                                                    ? 'bg-savron-green text-white border-savron-green-light/20'
+                                                    : 'text-savron-silver border-white/10 hover:border-white/20 hover:text-white bg-white/5',
+                                            )}
+                                        >
+                                            <CalendarClock className="w-3.5 h-3.5" /> Schedule
+                                        </button>
+                                    </div>
+                                </div>
+                                {sendTiming === 'scheduled' && (
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-white/50 mb-2 ml-1">Scheduled date &amp; time</label>
+                                        <input
+                                            type="datetime-local"
+                                            value={scheduledAt}
+                                            onChange={e => setScheduledAt(e.target.value)}
+                                            className="input-savron"
+                                            required={sendTiming === 'scheduled'}
+                                        />
+                                        <p className="text-[10px] text-savron-silver/50 mt-2 uppercase tracking-widest flex items-center gap-1">
+                                            <Clock className="w-3 h-3" /> Passes send automatically within 5 minutes of this time
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         <div>
                             <label className="block text-[10px] uppercase tracking-[0.2em] text-white/50 mb-2 ml-1">Subject Line</label>
                             <input 
@@ -315,29 +467,39 @@ export default function CommunicationsPage() {
                                 value={subject}
                                 onChange={e => setSubject(e.target.value)}
                                 className="input-savron"
-                                placeholder="E.g. Special Holiday Offer from SAVRON"
+                                placeholder={includeMembershipPass ? defaultPassSubject : 'E.g. Special Holiday Offer from SAVRON'}
                             />
                         </div>
 
                         <div>
-                            <label className="block text-[10px] uppercase tracking-[0.2em] text-white/50 mb-2 ml-1">Email Content (Plain text supports paragraphs)</label>
+                            <label className="block text-[10px] uppercase tracking-[0.2em] text-white/50 mb-2 ml-1">
+                                {includeMembershipPass ? 'Custom message in pass email (optional)' : 'Email Content (Plain text supports paragraphs)'}
+                            </label>
                             <textarea 
-                                required 
+                                required={!includeMembershipPass}
                                 value={content}
                                 onChange={e => setContent(e.target.value)}
                                 rows={10}
                                 className="input-savron resize-none"
-                                placeholder="Type your message here..."
+                                placeholder={includeMembershipPass
+                                    ? 'Optional note shown above the wallet buttons. Leave blank for the default pass message.'
+                                    : 'Type your message here...'}
                             />
                         </div>
 
                         <button 
                             type="submit" 
-                            disabled={sending || !subject || !content || selectedRecipients.length === 0}
+                            disabled={sending || !subject || sendCount === 0 || (!includeMembershipPass && !content)}
                             className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-savron-green text-white border border-savron-green-light/20 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-savron-green-light transition-all rounded-savron disabled:opacity-50"
                         >
-                            {sending ? 'Sending Campaign...' : `Send to ${selectedRecipients.length} Recipient${selectedRecipients.length !== 1 ? 's' : ''}`}
-                            {!sending && <Send size={14} />}
+                            {sending
+                                ? (includeMembershipPass ? 'Processing pass send...' : 'Sending Campaign...')
+                                : includeMembershipPass
+                                    ? sendTiming === 'scheduled'
+                                        ? `Schedule Pass for ${sendCount} Member${sendCount !== 1 ? 's' : ''}`
+                                        : `Send Pass to ${sendCount} Member${sendCount !== 1 ? 's' : ''}`
+                                    : `Send to ${sendCount} Recipient${sendCount !== 1 ? 's' : ''}`}
+                            {!sending && (includeMembershipPass ? <Wallet size={14} /> : <Send size={14} />)}
                         </button>
                     </form>
                 </div>
@@ -351,6 +513,7 @@ export default function CommunicationsPage() {
                             </div>
                             <span className="text-[10px] uppercase tracking-widest text-savron-silver">
                                 {selectedRecipients.length}/{activeRecipients.length}
+                                {includeMembershipPass && ` · ${passEligibleRecipients.length} ePass`}
                             </span>
                         </div>
 
@@ -402,7 +565,15 @@ export default function CommunicationsPage() {
                                                     className="admin-checkbox mt-0.5 shrink-0"
                                                 />
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="text-white text-sm truncate">{recipient.name || 'No name'}</p>
+                                                    <p className="text-white text-sm truncate flex items-center gap-2">
+                                                        {recipient.name || 'No name'}
+                                                        {includeMembershipPass && subscriberEmailSet.has(key) && (
+                                                            <span className="text-[9px] uppercase tracking-widest text-accent-blue shrink-0">ePass</span>
+                                                        )}
+                                                        {includeMembershipPass && !subscriberEmailSet.has(key) && (
+                                                            <span className="text-[9px] uppercase tracking-widest text-amber-400/70 shrink-0">CRM only</span>
+                                                        )}
+                                                    </p>
                                                     <p className="text-savron-silver text-xs truncate">{recipient.email}</p>
                                                 </div>
                                             </label>
@@ -419,11 +590,16 @@ export default function CommunicationsPage() {
                     <div className="card-savron">
                         <div className="flex items-center gap-3 mb-4">
                             <Mail className="text-savron-silver w-4 h-4" />
-                            <h3 className="text-xs uppercase tracking-widest text-white">Brevo Integration</h3>
+                            <h3 className="text-xs uppercase tracking-widest text-white">
+                                {includeMembershipPass ? 'ePass Delivery' : 'Brevo Integration'}
+                            </h3>
                         </div>
                         <p className="text-sm text-savron-silver/70 font-light leading-relaxed">
-                            Emails are routed through the official Brevo API. This ensures high deliverability and protects your domain reputation.
+                            {includeMembershipPass
+                                ? 'Membership passes send through Resend with Apple Wallet (.pkpass) and Google Wallet save links. Scheduled sends run every 5 minutes via cron.'
+                                : 'Emails are routed through the official Brevo API. This ensures high deliverability and protects your domain reputation.'}
                         </p>
+                        {!includeMembershipPass && (
                         <ul className="mt-4 space-y-2">
                             <li className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs font-light border-b border-white/5 pb-2 min-w-0">
                                 <span className="text-savron-silver shrink-0">Sender Email:</span>
@@ -434,6 +610,19 @@ export default function CommunicationsPage() {
                                 <span className="text-white truncate">SAVRON Barbershop</span>
                             </li>
                         </ul>
+                        )}
+                        {includeMembershipPass && (
+                        <ul className="mt-4 space-y-2">
+                            <li className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs font-light border-b border-white/5 pb-2 min-w-0">
+                                <span className="text-savron-silver shrink-0">Provider:</span>
+                                <span className="text-white truncate">Resend</span>
+                            </li>
+                            <li className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs font-light border-b border-white/5 pb-2 min-w-0">
+                                <span className="text-savron-silver shrink-0">Includes:</span>
+                                <span className="text-white truncate">Apple .pkpass + Google Wallet</span>
+                            </li>
+                        </ul>
+                        )}
                     </div>
                 </div>
             </div>
