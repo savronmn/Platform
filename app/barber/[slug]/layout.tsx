@@ -6,8 +6,15 @@ import Image from 'next/image';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
-import { Calendar, LogOut, Link2, Menu, X, ArrowLeft } from 'lucide-react';
+import { Calendar, LogOut, Link2, Menu, X, ArrowLeft, UserCircle, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+type NavItem = {
+    label: string;
+    href: string;
+    icon: typeof Calendar;
+    external?: boolean;
+};
 
 export default function BarberSlugLayout({ children }: { children: React.ReactNode }) {
     const params = useParams();
@@ -29,13 +36,63 @@ export default function BarberSlugLayout({ children }: { children: React.ReactNo
         router.refresh();
     };
 
-    const navItems = [
+    const navItems: NavItem[] = [
         { label: 'My Calendar', href: `/barber/${slug}/calendar`, icon: Calendar },
+        { label: 'My Profile', href: `/barber/${slug}/profile`, icon: UserCircle },
+        { label: 'Request Change', href: `/barber/${slug}/requests`, icon: Send },
+        { label: 'My Page', href: `/barber/${slug}/share`, icon: Link2 },
     ];
+
+    const bookingPageItem: NavItem = {
+        label: 'Booking Page',
+        href: `/book/${slug}`,
+        icon: Link2,
+        external: true,
+    };
+
+    const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+
+    const renderNavLink = (item: NavItem, onNavigate?: () => void) => {
+        const active = !item.external && isActive(item.href);
+        const className = cn(
+            "flex items-center gap-3 px-3 py-3 rounded-savron text-sm uppercase tracking-wider transition-all",
+            active
+                ? "bg-savron-green border border-savron-green-light/20 text-white"
+                : "text-savron-silver hover:text-white hover:bg-white/5 border border-transparent",
+        );
+
+        if (item.external) {
+            return (
+                <a
+                    key={item.href}
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={onNavigate}
+                    className={className}
+                >
+                    <item.icon className="w-4 h-4" />
+                    {item.label}
+                </a>
+            );
+        }
+
+        return (
+            <Link
+                key={item.href}
+                href={item.href}
+                onClick={onNavigate}
+                className={className}
+            >
+                <item.icon className="w-4 h-4" />
+                {item.label}
+            </Link>
+        );
+    };
 
     return (
         <div className="min-h-screen bg-savron-black flex flex-col lg:flex-row">
-            <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-savron-grey border-b border-white/5 flex items-center justify-between px-6 z-30">
+            <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-savron-grey border-b border-white/5 flex items-center justify-between px-4 sm:px-6 z-30 pt-[env(safe-area-inset-top)]">
                 <Link href={`/barber/${slug}/calendar`} className="relative w-24 h-6 block">
                     <Image src="/logo.png" alt="SAVRON" fill className="object-contain object-left" priority />
                 </Link>
@@ -53,37 +110,12 @@ export default function BarberSlugLayout({ children }: { children: React.ReactNo
                     <Link href={`/barber/${slug}/calendar`} className="relative w-28 h-7 block">
                         <Image src="/logo.png" alt="SAVRON" fill className="object-contain object-left" priority />
                     </Link>
-                    <p className="text-savron-silver/50 text-[10px] uppercase tracking-widest mt-2">Barber Calendar</p>
+                    <p className="text-savron-silver/50 text-[10px] uppercase tracking-widest mt-2">Barber Portal</p>
                 </div>
 
                 <nav className="flex-1 py-6 px-3 space-y-1">
-                    {navItems.map(item => {
-                        const isActive = pathname === item.href;
-                        return (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                className={cn(
-                                    "flex items-center gap-3 px-3 py-3 rounded-savron text-sm uppercase tracking-wider transition-all",
-                                    isActive
-                                        ? "bg-savron-green border border-savron-green-light/20 text-white"
-                                        : "text-savron-silver hover:text-white hover:bg-white/5 border border-transparent",
-                                )}
-                            >
-                                <item.icon className="w-4 h-4" />
-                                {item.label}
-                            </Link>
-                        );
-                    })}
-                    <a
-                        href={`/book/${slug}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 px-3 py-3 rounded-savron text-sm uppercase tracking-wider text-savron-silver hover:text-white hover:bg-white/5 border border-transparent transition-all"
-                    >
-                        <Link2 className="w-4 h-4" />
-                        Booking Page
-                    </a>
+                    {navItems.map(item => renderNavLink(item))}
+                    {renderNavLink(bookingPageItem)}
                 </nav>
 
                 <div className="p-3 border-t border-white/5">
@@ -114,33 +146,22 @@ export default function BarberSlugLayout({ children }: { children: React.ReactNo
                             animate={{ x: 0 }}
                             exit={{ x: '-100%' }}
                             transition={{ type: 'tween', duration: 0.25 }}
-                            className="lg:hidden fixed top-0 left-0 bottom-0 w-64 bg-savron-grey border-r border-white/5 z-50 flex flex-col"
+                            className="lg:hidden fixed top-0 left-0 bottom-0 w-64 bg-savron-grey border-r border-white/5 z-50 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
                         >
                             <div className="p-6 border-b border-white/5 flex items-center justify-between">
-                                <Link href={`/barber/${slug}/calendar`} onClick={() => setIsDrawerOpen(false)} className="relative w-24 h-6 block">
-                                    <Image src="/logo.png" alt="SAVRON" fill className="object-contain object-left" />
-                                </Link>
-                                <button onClick={() => setIsDrawerOpen(false)} className="p-2 text-savron-silver hover:text-white">
+                                <div>
+                                    <Link href={`/barber/${slug}/calendar`} onClick={() => setIsDrawerOpen(false)} className="relative w-24 h-6 block">
+                                        <Image src="/logo.png" alt="SAVRON" fill className="object-contain object-left" />
+                                    </Link>
+                                    <p className="text-savron-silver/50 text-[9px] uppercase tracking-widest mt-1">Barber Portal</p>
+                                </div>
+                                <button onClick={() => setIsDrawerOpen(false)} className="p-2 text-savron-silver hover:text-white" aria-label="Close Menu">
                                     <X className="w-4 h-4" />
                                 </button>
                             </div>
-                            <nav className="flex-1 py-6 px-3 space-y-1">
-                                {navItems.map(item => (
-                                    <Link
-                                        key={item.href}
-                                        href={item.href}
-                                        onClick={() => setIsDrawerOpen(false)}
-                                        className={cn(
-                                            "flex items-center gap-3 px-3 py-3 rounded-savron text-sm uppercase tracking-wider transition-all",
-                                            pathname === item.href
-                                                ? "bg-savron-green border border-savron-green-light/20 text-white"
-                                                : "text-savron-silver hover:text-white hover:bg-white/5",
-                                        )}
-                                    >
-                                        <item.icon className="w-4 h-4" />
-                                        {item.label}
-                                    </Link>
-                                ))}
+                            <nav className="flex-1 min-h-0 py-6 px-3 space-y-1 overflow-y-auto overscroll-contain" data-lenis-prevent>
+                                {navItems.map(item => renderNavLink(item, () => setIsDrawerOpen(false)))}
+                                {renderNavLink(bookingPageItem, () => setIsDrawerOpen(false))}
                             </nav>
                             <div className="p-3 border-t border-white/5">
                                 {!isAdminManage && (
@@ -158,7 +179,7 @@ export default function BarberSlugLayout({ children }: { children: React.ReactNo
                 )}
             </AnimatePresence>
 
-            <main className="flex-1 lg:ml-56 pt-20 lg:pt-8 p-4 sm:p-6 lg:p-8">
+            <main className="flex-1 lg:ml-56 pt-[calc(5rem+env(safe-area-inset-top))] lg:pt-8 p-4 sm:p-6 lg:p-8 pb-[calc(1rem+env(safe-area-inset-bottom))]">
                 <div className="w-full max-w-6xl mx-auto space-y-4">
                     {isAdminManage && (
                         <div className="rounded-savron border border-savron-green/20 bg-savron-green/10 px-4 py-3 flex items-start gap-3">

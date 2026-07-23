@@ -186,13 +186,13 @@ export default function EditBookingModal({ booking, barbers, onClose, onSaved }:
         <AnimatePresence>
             {booking && (
                 <motion.div
-                    className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+                    className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4"
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
                 >
                     <motion.div
-                        className="w-full max-w-md bg-savron-grey border border-white/10 rounded-xl shadow-2xl overflow-hidden"
-                        initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                        className="w-full max-w-md bg-savron-grey border border-white/10 rounded-t-2xl sm:rounded-xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col pb-[env(safe-area-inset-bottom)]"
+                        initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 24, opacity: 0 }}
                         transition={{ type: 'spring', stiffness: 320, damping: 28 }}
                     >
                         {/* Header */}

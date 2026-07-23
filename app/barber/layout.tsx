@@ -1,31 +1,41 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
-import { Calendar, LayoutDashboard, LogOut, Link2, UserCircle, Send, Menu, X } from 'lucide-react';
+import {
+    barberPortalCalendarUrl,
+    barberPortalProfileUrl,
+    barberPortalRequestsUrl,
+    barberPortalShareUrl,
+} from '@/lib/barber-portal-urls';
+import { Calendar, LogOut, Link2, UserCircle, Send, Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const navItems = [
-    { label: 'My Schedule', href: '/barber', icon: LayoutDashboard },
-    { label: 'Calendar', href: '/barber/calendar', icon: Calendar },
-    { label: 'My Profile', href: '/barber/profile', icon: UserCircle },
-    { label: 'Request Change', href: '/barber/requests', icon: Send },
-    { label: 'My Page', href: '/barber/share', icon: Link2 },
-];
 
 export default function BarberLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
     const supabase = createClient();
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+    const [barberSlug, setBarberSlug] = useState<string | null>(null);
 
     const slugMatch = pathname.match(/^\/barber\/([^/]+)(?:\/|$)/);
     const reservedBarberSegments = new Set(['login', 'register', 'calendar', 'profile', 'share', 'requests']);
     const isSlugPortal = !!slugMatch && !reservedBarberSegments.has(slugMatch[1]);
+
+    useEffect(() => {
+        if (isSlugPortal) return;
+        async function loadSlug() {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            const { data } = await supabase.from('barbers').select('slug').eq('auth_id', user.id).maybeSingle();
+            if (data?.slug) setBarberSlug(data.slug);
+        }
+        loadSlug();
+    }, [isSlugPortal, supabase]);
 
     if (pathname === '/barber/login' || isSlugPortal) {
         return <>{children}</>;
@@ -33,19 +43,32 @@ export default function BarberLayout({ children }: { children: React.ReactNode }
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
-        router.push('/barber/login');
+        router.push(barberSlug ? `/barber/${barberSlug}/login` : '/barber/login');
         router.refresh();
     };
 
+    const navItems = barberSlug
+        ? [
+            { label: 'My Calendar', href: barberPortalCalendarUrl(barberSlug), icon: Calendar },
+            { label: 'My Profile', href: barberPortalProfileUrl(barberSlug), icon: UserCircle },
+            { label: 'Request Change', href: barberPortalRequestsUrl(barberSlug), icon: Send },
+            { label: 'My Page', href: barberPortalShareUrl(barberSlug), icon: Link2 },
+        ]
+        : [
+            { label: 'My Calendar', href: '/barber/calendar', icon: Calendar },
+            { label: 'My Profile', href: '/barber/profile', icon: UserCircle },
+            { label: 'Request Change', href: '/barber/requests', icon: Send },
+            { label: 'My Page', href: '/barber/share', icon: Link2 },
+        ];
+
     return (
         <div className="min-h-screen bg-savron-black flex flex-col lg:flex-row">
-            {/* Mobile Top Header */}
-            <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-savron-grey border-b border-white/5 flex items-center justify-between px-6 z-30">
-                <Link href="/barber" className="relative w-24 h-6 block">
+            <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-savron-grey border-b border-white/5 flex items-center justify-between px-4 sm:px-6 z-30 pt-[env(safe-area-inset-top)]">
+                <Link href={barberSlug ? barberPortalCalendarUrl(barberSlug) : '/barber'} className="relative w-24 h-6 block">
                     <Image src="/logo.png" alt="SAVRON" fill className="object-contain object-left" priority />
                 </Link>
                 <div className="flex items-center gap-3">
-                    <span className="text-savron-silver/50 text-[9px] uppercase tracking-widest font-medium">Barber OS</span>
+                    <span className="text-savron-silver/50 text-[9px] uppercase tracking-widest font-medium hidden xs:inline">Barber Portal</span>
                     <button
                         onClick={() => setIsDrawerOpen(true)}
                         className="p-2 text-savron-silver hover:text-white transition-colors focus:outline-none"
@@ -56,13 +79,12 @@ export default function BarberLayout({ children }: { children: React.ReactNode }
                 </div>
             </header>
 
-            {/* Desktop Sidebar */}
             <aside className="hidden lg:flex w-64 bg-savron-grey border-r border-white/5 flex-col fixed h-full z-40">
                 <div className="p-6 border-b border-white/5">
-                    <Link href="/barber" className="relative w-28 h-7 block">
+                    <Link href={barberSlug ? barberPortalCalendarUrl(barberSlug) : '/barber'} className="relative w-28 h-7 block">
                         <Image src="/logo.png" alt="SAVRON" fill className="object-contain object-left" priority />
                     </Link>
-                    <p className="text-savron-silver/50 text-[10px] uppercase tracking-widest mt-2">Barber Dashboard</p>
+                    <p className="text-savron-silver/50 text-[10px] uppercase tracking-widest mt-2">Barber Portal</p>
                 </div>
 
                 <nav className="flex-1 py-6 px-3 space-y-1">
@@ -97,7 +119,6 @@ export default function BarberLayout({ children }: { children: React.ReactNode }
                 </div>
             </aside>
 
-            {/* Mobile Drawer Sidebar */}
             <AnimatePresence>
                 {isDrawerOpen && (
                     <>
@@ -113,14 +134,14 @@ export default function BarberLayout({ children }: { children: React.ReactNode }
                             animate={{ x: 0 }}
                             exit={{ x: '-100%' }}
                             transition={{ type: 'tween', duration: 0.25 }}
-                            className="lg:hidden fixed top-0 left-0 bottom-0 w-64 bg-savron-grey border-r border-white/5 z-50 flex flex-col"
+                            className="lg:hidden fixed top-0 left-0 bottom-0 w-64 bg-savron-grey border-r border-white/5 z-50 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
                         >
                             <div className="p-6 border-b border-white/5 flex items-center justify-between">
                                 <div>
-                                    <Link href="/barber" onClick={() => setIsDrawerOpen(false)} className="relative w-24 h-6 block">
+                                    <Link href={barberSlug ? barberPortalCalendarUrl(barberSlug) : '/barber'} onClick={() => setIsDrawerOpen(false)} className="relative w-24 h-6 block">
                                         <Image src="/logo.png" alt="SAVRON" fill className="object-contain object-left" />
                                     </Link>
-                                    <p className="text-savron-silver/50 text-[9px] uppercase tracking-widest mt-1">Barber Dashboard</p>
+                                    <p className="text-savron-silver/50 text-[9px] uppercase tracking-widest mt-1">Barber Portal</p>
                                 </div>
                                 <button
                                     onClick={() => setIsDrawerOpen(false)}
@@ -170,8 +191,7 @@ export default function BarberLayout({ children }: { children: React.ReactNode }
                 )}
             </AnimatePresence>
 
-            {/* Main Content */}
-            <main className="flex-1 lg:ml-64 pt-20 lg:pt-8 p-4 sm:p-6 lg:p-8">
+            <main className="flex-1 lg:ml-64 pt-[calc(5rem+env(safe-area-inset-top))] lg:pt-8 p-4 sm:p-6 lg:p-8 pb-[calc(1rem+env(safe-area-inset-bottom))]">
                 <div className="w-full max-w-5xl mx-auto">
                     {children}
                 </div>
@@ -179,4 +199,3 @@ export default function BarberLayout({ children }: { children: React.ReactNode }
         </div>
     );
 }
-
