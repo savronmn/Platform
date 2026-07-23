@@ -156,6 +156,34 @@ export function parseInstagramFromBio(bio: string): { email?: string; phone?: st
 }
 
 /** Normalize URLs for matching crawled content back to prospect websites. */
+export function ensureHttpUrl(url: string): string {
+    const trimmed = url.trim();
+    if (!trimmed) return trimmed;
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed.replace(/^\/\//, '')}`;
+}
+
+export function isCrawlableWebsite(url?: string | null): boolean {
+    if (!url?.trim()) return false;
+    try {
+        const parsed = new URL(ensureHttpUrl(url.trim()));
+        const host = parsed.hostname.toLowerCase();
+        if (!host.includes('.')) return false;
+        // Skip social-only link shorteners with no crawlable contact pages
+        return !['facebook.com', 'fb.com', 'tiktok.com'].some(blocked => host === blocked || host.endsWith(`.${blocked}`));
+    } catch {
+        return false;
+    }
+}
+
+export function websiteHostKey(url: string): string {
+    try {
+        return new URL(ensureHttpUrl(url)).hostname.replace(/^www\./i, '').toLowerCase();
+    } catch {
+        return normalizeWebsiteUrl(url).split('/')[0];
+    }
+}
+
 export function normalizeWebsiteUrl(url: string): string {
     try {
         const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
@@ -168,15 +196,16 @@ export function normalizeWebsiteUrl(url: string): string {
 }
 
 export function buildContactPageUrls(website: string): string[] {
-    if (!website.startsWith('http')) return [];
-    const base = website.replace(/\/$/, '');
+    const base = ensureHttpUrl(website).replace(/\/$/, '');
     return Array.from(new Set([
         base,
         `${base}/contact`,
         `${base}/contact-us`,
         `${base}/about`,
+        `${base}/about-us`,
         `${base}/book`,
         `${base}/booking`,
+        `${base}/appointments`,
     ]));
 }
 

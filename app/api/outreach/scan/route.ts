@@ -56,8 +56,9 @@ export async function POST(request: NextRequest) {
             savedWithEmail: saveResult.withEmail,
             purged,
             savronSynced,
+            diagnostics: scan.diagnostics,
             prospects,
-            message: `Scan complete: ${scan.discovered} barbers found, ${scan.withEmail} with email (${scan.matched} match filters, ${scan.shopsSkipped} shops skipped).`,
+            message: `Scan complete: ${scan.discovered} barbers found, ${scan.withEmail} with email (${scan.diagnostics.websiteTextFound} websites scraped, ${scan.diagnostics.instagramProfilesScraped} IG profiles).`,
         });
     } catch (err) {
         const message = err instanceof Error ? err.message : 'Barber scan failed';

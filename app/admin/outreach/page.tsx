@@ -39,6 +39,9 @@ interface ScanStats {
     withEmail: number;
     matched: number;
     shopsSkipped: number;
+    websiteTextFound?: number;
+    instagramProfilesScraped?: number;
+    withInstagramHandle?: number;
 }
 
 const EMAIL_SOURCE_LABELS: Record<EmailSource, string> = {
@@ -187,6 +190,9 @@ export default function OutreachPage() {
                 withEmail: data.withEmail ?? data.savedWithEmail ?? 0,
                 matched: data.matched ?? 0,
                 shopsSkipped: data.shopsSkipped ?? 0,
+                websiteTextFound: data.diagnostics?.websiteTextFound,
+                instagramProfilesScraped: data.diagnostics?.instagramProfilesScraped,
+                withInstagramHandle: data.diagnostics?.withInstagramHandle,
             });
             setImportStatus('success');
             setImportMessage(data.message || `Scan found ${data.matched ?? 0} barbers.`);
@@ -440,8 +446,10 @@ export default function OutreachPage() {
                             <div className="flex flex-wrap gap-3 text-[10px] uppercase tracking-widest text-accent-blue/80">
                                 <span>{lastScanStats.discovered} discovered</span>
                                 <span>{lastScanStats.withEmail} with email</span>
+                                <span>{lastScanStats.websiteTextFound ?? 0} websites scraped</span>
+                                <span>{lastScanStats.instagramProfilesScraped ?? 0} IG profiles</span>
+                                <span>{lastScanStats.withInstagramHandle ?? 0} IG handles</span>
                                 <span>{lastScanStats.matched} match filters</span>
-                                <span>{lastScanStats.shopsSkipped} shops skipped</span>
                             </div>
                         )}
                     </div>
