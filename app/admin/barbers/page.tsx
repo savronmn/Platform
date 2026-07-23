@@ -19,6 +19,7 @@ import {
     barberBookingPageUrl,
     barberPortalLoginUrl,
 } from '@/lib/barber-portal-urls';
+import { buildBarberSlug } from '@/lib/barber-slug';
 import BarberApplicationsPanel from '@/components/admin/BarberApplicationsPanel';
 
 // ─── Schedule types ────────────────────────────────────────────────────────────
@@ -194,6 +195,8 @@ export default function AdminBarbersPage() {
     // Settings panel
     const [settingsBarber, setSettingsBarber] = useState<Barber | null>(null);
     const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
+    const [nameInput, setNameInput] = useState('');
+    const [slugInput, setSlugInput] = useState('');
     const [licenseInput, setLicenseInput] = useState('');
     const [instagramInput, setInstagramInput] = useState('');
     const [servicesOffered, setServicesOffered] = useState<string[]>([]);
@@ -271,6 +274,8 @@ export default function AdminBarbersPage() {
         setSettingsBarber(barber);
         setActiveTab(tab);
         setPhotoError(null);
+        setNameInput(barber.name);
+        setSlugInput(barber.slug);
         setLicenseInput(barber.license_number ?? '');
         // Extract handle from full URL or bare handle
         const raw = barber.instagram_url ?? '';
@@ -339,9 +344,39 @@ export default function AdminBarbersPage() {
         if (!settingsBarber) return;
         setSaving(true);
         setSaveError(null);
+
+        const trimmedName = nameInput.trim();
+        const trimmedSlug = buildBarberSlug(slugInput.trim() || nameInput);
+
+        if (!trimmedName) {
+            setSaving(false);
+            setSaveError('Barber name is required.');
+            return;
+        }
+        if (!trimmedSlug) {
+            setSaving(false);
+            setSaveError('Booking slug is required.');
+            return;
+        }
+
+        const { data: slugConflict } = await supabase
+            .from('barbers')
+            .select('id')
+            .eq('slug', trimmedSlug)
+            .neq('id', settingsBarber.id)
+            .maybeSingle();
+
+        if (slugConflict) {
+            setSaving(false);
+            setSaveError(`The slug "${trimmedSlug}" is already used by another barber.`);
+            return;
+        }
+
         const handle = instagramInput.trim().replace(/^@/, '');
         const enabledServices = serviceEdits.filter((e) => e.enabled);
         const update = {
+            name: trimmedName,
+            slug: trimmedSlug,
             license_number: licenseInput.trim() || null,
             instagram_url: handle ? `https://www.instagram.com/${handle}` : null,
             services_offered: enabledServices.length > 0 ? enabledServices.map((e) => e.name) : null,
@@ -357,6 +392,19 @@ export default function AdminBarbersPage() {
             setSaving(false);
             setSaveError(barberErr.message);
             return;
+        }
+
+        if (trimmedName !== settingsBarber.name) {
+            const { error: bookingNameErr } = await supabase
+                .from('bookings')
+                .update({ barber_name: trimmedName })
+                .eq('barber_id', settingsBarber.id);
+
+            if (bookingNameErr) {
+                setSaving(false);
+                setSaveError(`Name saved, but booking history update failed: ${bookingNameErr.message}`);
+                return;
+            }
         }
 
         const offerings = enabledServices.map((e) => ({
@@ -392,6 +440,8 @@ export default function AdminBarbersPage() {
             b.id === settingsBarber.id ? { ...b, ...update } : b
         ));
         setSettingsBarber(prev => prev ? { ...prev, ...update } : prev);
+        setNameInput(trimmedName);
+        setSlugInput(trimmedSlug);
         setSaving(false);
         setSaved(true);
     };
@@ -814,7 +864,7 @@ export default function AdminBarbersPage() {
                                 </div>
                                 <div>
                                     <p className="text-[10px] uppercase tracking-[0.3em] text-savron-silver/50 mb-0.5">Barber Settings</p>
-                                    <h2 className="font-heading text-lg text-white uppercase tracking-wider">{settingsBarber.name}</h2>
+                                    <h2 className="font-heading text-lg text-white uppercase tracking-wider">{nameInput.trim() || settingsBarber.name}</h2>
                                 </div>
                             </div>
                             <button onClick={closeSettings} className="text-savron-silver hover:text-white transition-colors">
@@ -946,6 +996,56 @@ export default function AdminBarbersPage() {
                                         </div>
                                     )}
 
+                                    {/* Display name */}
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-3 flex items-center gap-2">
+                                            <User className="w-3.5 h-3.5" /> Display Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={nameInput}
+                                            onChange={(e) => {
+                                                setNameInput(e.target.value);
+                                                setSaved(false);
+                                            }}
+                                            placeholder="Barber name"
+                                            className="w-full bg-savron-charcoal border border-white/10 text-white placeholder-white/25 px-4 py-3 text-sm focus:outline-none focus:border-savron-green/50 transition-all rounded-savron"
+                                        />
+                                    </div>
+
+                                    {/* Booking slug */}
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-3 flex items-center gap-2">
+                                            <LinkIcon className="w-3.5 h-3.5" /> Booking Slug
+                                        </label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={slugInput}
+                                                onChange={(e) => {
+                                                    setSlugInput(e.target.value);
+                                                    setSaved(false);
+                                                }}
+                                                placeholder="kris"
+                                                className="flex-1 bg-savron-charcoal border border-white/10 text-white placeholder-white/25 px-4 py-3 text-sm focus:outline-none focus:border-savron-green/50 transition-all rounded-savron font-mono"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSlugInput(buildBarberSlug(nameInput));
+                                                    setSaved(false);
+                                                }}
+                                                className="admin-action-btn px-3 shrink-0 border border-white/10 text-savron-silver hover:text-white rounded-savron text-[10px] uppercase tracking-widest"
+                                                title="Generate slug from display name"
+                                            >
+                                                Sync
+                                            </button>
+                                        </div>
+                                        <p className="text-savron-silver/45 text-[11px] mt-2 break-all">
+                                            Booking page: {barberBookingPageUrl(buildBarberSlug(slugInput || nameInput), typeof window !== 'undefined' ? window.location.origin : 'https://savronmn.com')}
+                                        </p>
+                                    </div>
+
                                     {/* License number */}
                                     <div>
                                         <label className="block text-[10px] uppercase tracking-[0.2em] text-savron-silver/50 mb-3 flex items-center gap-2">
@@ -954,7 +1054,7 @@ export default function AdminBarbersPage() {
                                         <input
                                             type="text"
                                             value={licenseInput}
-                                            onChange={e => setLicenseInput(e.target.value)}
+                                            onChange={e => { setLicenseInput(e.target.value); setSaved(false); }}
                                             placeholder="License number (e.g. MN-12345)"
                                             className="w-full bg-savron-charcoal border border-white/10 text-white placeholder-white/25 px-4 py-3 text-sm focus:outline-none focus:border-savron-green/50 transition-all rounded-savron"
                                         />
