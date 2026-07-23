@@ -131,7 +131,7 @@ export default function BarberLayout({ children }: { children: React.ReactNode }
                                 </button>
                             </div>
 
-                            <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
+                            <nav className="flex-1 min-h-0 py-6 px-3 space-y-1 overflow-y-auto overscroll-contain" data-lenis-prevent>
                                 {navItems.map(item => {
                                     const isActive = pathname === item.href;
                                     return (

@@ -214,6 +214,14 @@ export default function AdminBarbersPage() {
         load();
     }, []);
 
+    useEffect(() => {
+        if (!settingsBarber) return;
+        document.documentElement.classList.add('lenis-stopped');
+        return () => {
+            document.documentElement.classList.remove('lenis-stopped');
+        };
+    }, [settingsBarber]);
+
     const buildServiceEdits = async (barber: Barber) => {
         const [{ data: catalog }, { data: barberRows }] = await Promise.all([
             supabase
@@ -833,7 +841,11 @@ export default function AdminBarbersPage() {
                             ))}
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                        <div
+                            className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-8"
+                            data-lenis-prevent
+                            style={{ WebkitOverflowScrolling: 'touch' }}
+                        >
 
                             {/* ── PROFILE TAB ──────────────────────────────────── */}
                             {activeTab === 'profile' && (

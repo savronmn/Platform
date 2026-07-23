@@ -173,7 +173,9 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                                     <X className="w-4 h-4" />
                                 </button>
                             </div>
-                            <NavContent onClose={() => setIsDrawerOpen(false)} />
+                            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain" data-lenis-prevent>
+                                <NavContent onClose={() => setIsDrawerOpen(false)} />
+                            </div>
                         </motion.aside>
                     </>
                 )}
