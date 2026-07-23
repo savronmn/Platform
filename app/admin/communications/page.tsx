@@ -213,7 +213,7 @@ export default function CommunicationsPage() {
         }
 
         if (!includeMembershipPass && !content.trim()) {
-            setErrorMsg('Email content is required for Brevo campaigns.');
+            setErrorMsg('Email content is required.');
             setStatus('error');
             return;
         }
@@ -285,7 +285,8 @@ export default function CommunicationsPage() {
 
             if (res.ok && data.success) {
                 setStatus('success');
-                setSuccessDetail('Campaign sent successfully via Brevo!');
+                const failedNote = data.failed ? ` (${data.failed} failed)` : '';
+                setSuccessDetail(`Campaign sent to ${data.sent} recipient${data.sent !== 1 ? 's' : ''}${failedNote}.`);
                 setSubject('');
                 setContent('');
                 void fetchHistory();
@@ -316,7 +317,7 @@ export default function CommunicationsPage() {
                     <p className="admin-kicker">Campaigns</p>
                     <h1 className="admin-title">Communications</h1>
                     <p className="admin-subtitle">
-                        Send mass emails via Brevo, or bulk-send ePass membership passes with Apple/Google Wallet download links.
+                        Send mass emails to clients and subscribers, or bulk-send ePass membership passes with Apple/Google Wallet download links.
                     </p>
                 </div>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
@@ -346,7 +347,7 @@ export default function CommunicationsPage() {
                                 >
                                     <CheckCircle2 size={16} />
                                     <span className="text-xs uppercase tracking-widest">
-                                        {successDetail || (includeMembershipPass ? 'Membership pass send completed!' : 'Campaign sent successfully via Brevo!')}
+                                        {successDetail || (includeMembershipPass ? 'Membership pass send completed!' : 'Campaign sent successfully!')}
                                     </span>
                                 </motion.div>
                             )}
@@ -591,23 +592,23 @@ export default function CommunicationsPage() {
                         <div className="flex items-center gap-3 mb-4">
                             <Mail className="text-savron-silver w-4 h-4" />
                             <h3 className="text-xs uppercase tracking-widest text-white">
-                                {includeMembershipPass ? 'ePass Delivery' : 'Brevo Integration'}
+                                {includeMembershipPass ? 'ePass Delivery' : 'Email Delivery'}
                             </h3>
                         </div>
                         <p className="text-sm text-savron-silver/70 font-light leading-relaxed">
                             {includeMembershipPass
                                 ? 'Membership passes send through Resend with Apple Wallet (.pkpass) and Google Wallet save links. Scheduled sends run every 5 minutes via cron.'
-                                : 'Emails are routed through the official Brevo API. This ensures high deliverability and protects your domain reputation.'}
+                                : 'Campaign emails send through Resend to each selected recipient individually. Works for CRM clients, ePass subscribers, or both.'}
                         </p>
                         {!includeMembershipPass && (
                         <ul className="mt-4 space-y-2">
                             <li className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs font-light border-b border-white/5 pb-2 min-w-0">
-                                <span className="text-savron-silver shrink-0">Sender Email:</span>
-                                <span className="text-white truncate">info@savronmn.com</span>
+                                <span className="text-savron-silver shrink-0">Provider:</span>
+                                <span className="text-white truncate">Resend</span>
                             </li>
                             <li className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs font-light border-b border-white/5 pb-2 min-w-0">
-                                <span className="text-savron-silver shrink-0">Sender Name:</span>
-                                <span className="text-white truncate">SAVRON Barbershop</span>
+                                <span className="text-savron-silver shrink-0">Sender:</span>
+                                <span className="text-white truncate">bookings@savronmn.com</span>
                             </li>
                         </ul>
                         )}
