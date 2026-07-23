@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireStaff } from '@/lib/staff-auth';
 import { sendMembershipPassesBulk } from '@/lib/send-membership-pass';
+import { processMembershipPassSendQueue } from '@/lib/process-membership-pass-send-queue';
 
 function getSupabaseAdmin() {
     return createClient(
@@ -76,6 +77,13 @@ export async function POST(request: NextRequest) {
         if (error) {
             console.error('[wallet/send-passes-bulk] queue insert failed:', error);
             return NextResponse.json({ error: 'Failed to schedule pass send' }, { status: 500 });
+        }
+
+        // Process immediately if the scheduled time has already passed (or is due now).
+        try {
+            await processMembershipPassSendQueue();
+        } catch (queueErr) {
+            console.error('[wallet/send-passes-bulk] queue processing failed:', queueErr);
         }
 
         return NextResponse.json({
