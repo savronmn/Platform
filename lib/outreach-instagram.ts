@@ -1,8 +1,13 @@
 import { runApifyActorSync } from '@/lib/apify-client';
-import { extractInstagramHandle, parseInstagramFromBio, pickBestEmail } from '@/lib/outreach-lead-classifier';
+import { extractEmailsFromText, extractInstagramHandle, parseInstagramFromBio, pickBestEmail } from '@/lib/outreach-lead-classifier';
 
 const INSTAGRAM_ACTOR = process.env.APIFY_INSTAGRAM_ACTOR_ID || 'apify~instagram-profile-scraper';
 const BATCH_SIZE = 25;
+
+interface InstagramExternalLink {
+    url?: string;
+    title?: string;
+}
 
 interface InstagramProfileRow {
     username?: string;
@@ -12,6 +17,7 @@ interface InstagramProfileRow {
     email?: string;
     publicEmail?: string;
     externalUrl?: string;
+    externalUrls?: InstagramExternalLink[];
     followersCount?: number;
 }
 
@@ -22,6 +28,24 @@ export interface InstagramEnrichment {
     phone?: string;
     biography?: string;
     followersCount?: number;
+    externalUrl?: string;
+}
+
+function collectProfileEmails(row: InstagramProfileRow): string[] {
+    const bio = row.biography ?? '';
+    const fromBio = parseInstagramFromBio(bio);
+    const linkText = (row.externalUrls ?? [])
+        .map(link => link.url ?? '')
+        .join(' ');
+
+    return [
+        row.businessEmail,
+        row.email,
+        row.publicEmail,
+        fromBio.email,
+        ...extractEmailsFromText(bio),
+        ...extractEmailsFromText(linkText),
+    ].filter(Boolean) as string[];
 }
 
 async function scrapeInstagramBatch(usernames: string[]): Promise<InstagramProfileRow[]> {
@@ -49,7 +73,7 @@ export async function enrichInstagramProfiles(handles: string[], limit = 100): P
                 if (!row.username) continue;
                 const bio = row.biography ?? '';
                 const fromBio = parseInstagramFromBio(bio);
-                const email = pickBestEmail(row.fullName, row.businessEmail, row.email, row.publicEmail, fromBio.email);
+                const email = pickBestEmail(row.fullName, ...collectProfileEmails(row));
 
                 result.set(row.username.toLowerCase(), {
                     username: row.username,
@@ -58,12 +82,13 @@ export async function enrichInstagramProfiles(handles: string[], limit = 100): P
                     phone: fromBio.phone,
                     biography: bio,
                     followersCount: row.followersCount,
+                    externalUrl: row.externalUrl ?? row.externalUrls?.[0]?.url,
                 });
             }
         }
         return result;
     } catch (err) {
-        console.warn('[outreach-instagram] profile scrape skipped:', err);
+        console.error('[outreach-instagram] profile scrape failed:', err);
         return result;
     }
 }

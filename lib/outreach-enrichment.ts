@@ -3,11 +3,13 @@ import { enrichInstagramProfiles } from '@/lib/outreach-instagram';
 import {
     buildContactPageUrls,
     classifyProspectType,
+    ensureHttpUrl,
     extractEmailsFromText,
     extractInstagramHandle,
+    isCrawlableWebsite,
     isValidReachableEmail,
-    normalizeWebsiteUrl,
     pickBestEmailWithSource,
+    websiteHostKey,
     type EmailSource,
 } from '@/lib/outreach-lead-classifier';
 import type { OutreachArea, OutreachProspect, OutreachScanParams } from '@/lib/outreach-prospects';
@@ -52,7 +54,55 @@ const AREA_SEARCH: Record<Exclude<OutreachArea, 'all'>, string[]> = {
     ],
 };
 
-const ALL_SEARCH = Object.values(AREA_SEARCH).flat();
+const ALL_SEARCH = [
+    'independent barber minneapolis mn',
+    'mobile barber minneapolis mn',
+    'freelance barber twin cities mn',
+    'barber stylist minneapolis st paul',
+];
+
+export interface OutreachEnrichmentDiagnostics {
+    withWebsite: number;
+    websitesCrawled: number;
+    websiteTextFound: number;
+    withInstagramHandle: number;
+    instagramProfilesScraped: number;
+    emailBySource: Partial<Record<EmailSource, number>>;
+}
+
+function countEmailsBySource(prospects: OutreachProspect[]): Partial<Record<EmailSource, number>> {
+    const counts: Partial<Record<EmailSource, number>> = {};
+    for (const p of prospects) {
+        if (!isValidReachableEmail(p.email) || !p.emailSource) continue;
+        counts[p.emailSource] = (counts[p.emailSource] ?? 0) + 1;
+    }
+    return counts;
+}
+
+function normalizeProspectWebsite(prospect: OutreachProspect): OutreachProspect {
+    if (!prospect.website || !isCrawlableWebsite(prospect.website)) return prospect;
+    return { ...prospect, website: ensureHttpUrl(prospect.website) };
+}
+
+function discoverInstagramFromProspect(prospect: OutreachProspect): string | undefined {
+    if (prospect.instagram) return prospect.instagram;
+
+    const candidates: string[] = [];
+    const igFromData = prospect.enrichmentData?.instagramCandidates;
+    if (Array.isArray(igFromData)) {
+        candidates.push(...igFromData.filter((v): v is string => typeof v === 'string'));
+    }
+
+    if (prospect.website && /instagram\.com/i.test(prospect.website)) {
+        candidates.push(prospect.website);
+    }
+
+    for (const candidate of candidates) {
+        const handle = extractInstagramHandle(candidate);
+        if (handle) return handle.startsWith('@') ? handle : `@${handle}`;
+    }
+    return undefined;
+}
 
 interface ApifyContactDetails {
     emails?: string[];
@@ -239,8 +289,9 @@ export function mapApifyPlaceToProspect(row: ApifyPlaceRow, index: number): Outr
         area: inferArea(address, row.city),
         phone: row.phone || row.phoneUnformatted,
         instagram: resolveInstagramFromRow(row),
-        website: row.website,
+        website: row.website ? ensureHttpUrl(row.website) : undefined,
         googleMapsUrl: row.url,
+        googlePlaceId: row.placeId,
         rating: row.totalScore ?? null,
         reviewCount: row.reviewsCount ?? null,
         priceMinCents: levelPrices.min,
@@ -262,6 +313,7 @@ async function discoverPlaces(params: OutreachScanParams): Promise<ApifyPlaceRow
 
     return runApifyActorSync<ApifyPlaceRow>(MAPS_ACTOR, {
         searchStringsArray: searchStrings,
+        locationQuery: 'Minneapolis, Minnesota, USA',
         maxCrawledPlacesPerSearch: maxPerSearch,
         language: 'en',
         skipClosedPlaces: true,
@@ -275,64 +327,87 @@ async function discoverPlaces(params: OutreachScanParams): Promise<ApifyPlaceRow
             tiktoks: false,
             twitters: false,
         },
-    }, { timeoutSec: 300 });
+    }, { timeoutSec: 240 });
 }
 
 async function crawlWebsiteBatch(urls: string[]): Promise<Map<string, string>> {
     if (urls.length === 0) return new Map();
 
     const rows = await runApifyActorSync<WebsiteCrawlRow>(WEBSITE_ACTOR, {
-        startUrls: urls.map(url => ({ url })),
-        maxCrawlPages: Math.min(urls.length, 50),
-        maxCrawlDepth: 1,
-        maxRequestsPerCrawl: urls.length,
+        startUrls: urls.map(url => ({ url: ensureHttpUrl(url) })),
+        maxCrawlPages: urls.length,
+        maxCrawlDepth: 0,
+        crawlerType: 'playwright:firefox',
+        htmlTransformer: 'readableTextIfPossible',
+        saveMarkdown: true,
     }, { timeoutSec: 180 });
 
-    const textByUrl = new Map<string, string>();
+    const textByHost = new Map<string, string>();
     for (const row of rows) {
         if (!row.url) continue;
         const text = row.text || row.markdown || '';
-        const key = normalizeWebsiteUrl(row.url);
-        const existing = textByUrl.get(key) ?? '';
-        textByUrl.set(key, `${existing}\n${text}`.trim());
+        if (!text.trim()) continue;
+        const host = websiteHostKey(row.url);
+        const existing = textByHost.get(host) ?? '';
+        textByHost.set(host, `${existing}\n${text}`.trim());
     }
-    return textByUrl;
+    return textByHost;
 }
 
-async function enrichWebsites(prospects: OutreachProspect[], limit = WEBSITE_ENRICH_LIMIT): Promise<Map<string, string>> {
-    const withWebsites = prospects.filter(p => p.website?.startsWith('http')).slice(0, limit);
-    if (withWebsites.length === 0) return new Map();
+async function enrichWebsites(prospects: OutreachProspect[], limit = WEBSITE_ENRICH_LIMIT): Promise<{
+    textByHost: Map<string, string>;
+    crawledHosts: number;
+    textFoundHosts: number;
+}> {
+    const withWebsites = prospects
+        .map(normalizeProspectWebsite)
+        .filter(p => p.website && isCrawlableWebsite(p.website))
+        .slice(0, limit);
 
-    const allUrls = Array.from(new Set(
-        withWebsites.flatMap(p => buildContactPageUrls(p.website!)),
-    ));
+    if (withWebsites.length === 0) {
+        return { textByHost: new Map(), crawledHosts: 0, textFoundHosts: 0 };
+    }
 
     const merged = new Map<string, string>();
+    const hostsAttempted = new Set<string>();
 
-    for (let i = 0; i < allUrls.length; i += WEBSITE_BATCH_SIZE) {
-        const batch = allUrls.slice(i, i + WEBSITE_BATCH_SIZE);
+    for (let i = 0; i < withWebsites.length; i += WEBSITE_BATCH_SIZE) {
+        const batch = withWebsites.slice(i, i + WEBSITE_BATCH_SIZE);
+        const batchUrls = Array.from(new Set(
+            batch.flatMap(p => buildContactPageUrls(p.website!)),
+        ));
+
+        for (const url of batchUrls) {
+            hostsAttempted.add(websiteHostKey(url));
+        }
+
         try {
-            const batchResult = await crawlWebsiteBatch(batch);
-            for (const [key, text] of Array.from(batchResult.entries())) {
-                const existing = merged.get(key) ?? '';
-                merged.set(key, `${existing}\n${text}`.trim());
+            const batchResult = await crawlWebsiteBatch(batchUrls);
+            for (const [host, text] of Array.from(batchResult.entries())) {
+                const existing = merged.get(host) ?? '';
+                merged.set(host, `${existing}\n${text}`.trim());
             }
         } catch (err) {
-            console.warn('[outreach-enrichment] website crawl batch skipped:', err);
+            console.error('[outreach-enrichment] website crawl batch failed:', err);
         }
     }
 
-    // Map back to prospect website keys
-    const byProspectKey = new Map<string, string>();
+    let textFoundHosts = 0;
+    const byProspectHost = new Map<string, string>();
     for (const prospect of withWebsites) {
-        const keys = buildContactPageUrls(prospect.website!).map(normalizeWebsiteUrl);
-        const combined = keys.map(k => merged.get(k) ?? '').filter(Boolean).join('\n');
-        if (combined) {
-            byProspectKey.set(normalizeWebsiteUrl(prospect.website!), combined);
+        const host = websiteHostKey(prospect.website!);
+        const text = merged.get(host) ?? '';
+        if (text) {
+            textFoundHosts++;
+            byProspectHost.set(host, text);
         }
     }
 
-    return byProspectKey;
+    return {
+        textByHost: byProspectHost,
+        crawledHosts: hostsAttempted.size,
+        textFoundHosts,
+    };
 }
 
 async function fetchExtraReviews(placeIds: string[]): Promise<Map<string, ReviewRow[]>> {
@@ -391,15 +466,25 @@ function applyTextEnrichment(
     };
 }
 
-async function enrichFromInstagram(prospects: OutreachProspect[]): Promise<OutreachProspect[]> {
-    const handles = prospects
+async function enrichFromInstagram(prospects: OutreachProspect[]): Promise<{
+    prospects: OutreachProspect[];
+    profilesScraped: number;
+}> {
+    const prospectsWithHandles = prospects.map(p => {
+        const handle = discoverInstagramFromProspect(p);
+        return handle ? { ...p, instagram: handle } : p;
+    });
+
+    const handles = prospectsWithHandles
         .map(p => extractInstagramHandle(p.instagram))
         .filter(Boolean) as string[];
 
     const profiles = await enrichInstagramProfiles(handles, INSTAGRAM_ENRICH_LIMIT);
-    if (profiles.size === 0) return prospects;
+    if (profiles.size === 0) {
+        return { prospects: prospectsWithHandles, profilesScraped: 0 };
+    }
 
-    return prospects.map(p => {
+    const enriched = prospectsWithHandles.map(p => {
         const handle = extractInstagramHandle(p.instagram);
         if (!handle) return p;
 
@@ -426,9 +511,12 @@ async function enrichFromInstagram(prospects: OutreachProspect[]): Promise<Outre
                 ...p.enrichmentData,
                 instagramFollowers: profile.followersCount,
                 instagramBio: profile.biography?.slice(0, 500),
+                instagramExternalUrl: profile.externalUrl,
             },
         };
     });
+
+    return { prospects: enriched, profilesScraped: profiles.size };
 }
 
 function matchesFilters(prospect: OutreachProspect, params: OutreachScanParams): boolean {
@@ -461,6 +549,7 @@ export async function runBarberOutreachScan(params: OutreachScanParams = {}): Pr
     withEmail: number;
     shopsSkipped: number;
     prospects: OutreachProspect[];
+    diagnostics: OutreachEnrichmentDiagnostics;
 }> {
     const places = await discoverPlaces(params);
     const seen = new Set<string>();
@@ -482,29 +571,37 @@ export async function runBarberOutreachScan(params: OutreachScanParams = {}): Pr
         prospects.push(prospect);
     });
 
-    const placeIds = prospects
-        .map(p => p.id.replace(/^apify-/, ''))
-        .filter(id => id.length > 10);
+    let websiteStats = { crawledHosts: 0, textFoundHosts: 0 };
 
     if (params.enrichWebsites !== false) {
-        const websiteText = await enrichWebsites(prospects);
+        const websiteResult = await enrichWebsites(prospects);
+        websiteStats = {
+            crawledHosts: websiteResult.crawledHosts,
+            textFoundHosts: websiteResult.textFoundHosts,
+        };
+
         prospects = prospects.map(p => {
-            if (!p.website) return p;
-            const text = websiteText.get(normalizeWebsiteUrl(p.website));
+            if (!p.website || !isCrawlableWebsite(p.website)) return p;
+            const text = websiteResult.textByHost.get(websiteHostKey(p.website));
             return text ? applyTextEnrichment(p, text, 'website') : p;
         });
 
+        const placeIds = prospects
+            .map(p => p.googlePlaceId)
+            .filter((id): id is string => Boolean(id));
+
         const reviewsByPlace = await fetchExtraReviews(placeIds);
         prospects = prospects.map(p => {
-            const placeId = p.id.replace(/^apify-/, '');
-            const reviews = reviewsByPlace.get(placeId);
+            if (!p.googlePlaceId) return p;
+            const reviews = reviewsByPlace.get(p.googlePlaceId);
             if (!reviews?.length) return p;
             const reviewText = reviews.map(r => r.text ?? '').join(' ');
             return applyTextEnrichment(p, reviewText, 'reviews');
         });
     }
 
-    prospects = await enrichFromInstagram(prospects);
+    const instagramResult = await enrichFromInstagram(prospects);
+    prospects = instagramResult.prospects;
 
     prospects = prospects.map(p => ({
         ...p,
@@ -514,6 +611,8 @@ export async function runBarberOutreachScan(params: OutreachScanParams = {}): Pr
 
     const matched = prospects.filter(p => matchesFilters(p, params));
     const withEmail = prospects.filter(p => isValidReachableEmail(p.email)).length;
+    const withWebsite = prospects.filter(p => p.website && isCrawlableWebsite(p.website)).length;
+    const withInstagramHandle = prospects.filter(p => extractInstagramHandle(p.instagram)).length;
 
     return {
         discovered: prospects.length,
@@ -522,5 +621,13 @@ export async function runBarberOutreachScan(params: OutreachScanParams = {}): Pr
         withEmail,
         shopsSkipped,
         prospects,
+        diagnostics: {
+            withWebsite,
+            websitesCrawled: websiteStats.crawledHosts,
+            websiteTextFound: websiteStats.textFoundHosts,
+            withInstagramHandle,
+            instagramProfilesScraped: instagramResult.profilesScraped,
+            emailBySource: countEmailsBySource(prospects),
+        },
     };
 }

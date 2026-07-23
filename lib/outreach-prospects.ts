@@ -27,6 +27,7 @@ export interface OutreachProspect {
     instagram?: string;
     website?: string;
     googleMapsUrl?: string;
+    googlePlaceId?: string;
     yearsExperience?: number | null;
     priceMinCents?: number | null;
     priceMaxCents?: number | null;
