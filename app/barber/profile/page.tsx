@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useBarberPortalRoute } from '@/lib/use-barber-portal-route';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase';
 import { motion } from 'framer-motion';
@@ -24,6 +25,7 @@ const PORTFOLIO_BUCKET = 'barber-portfolios';
 export default function BarberProfilePage() {
     const supabase = createClient();
     const router = useRouter();
+    const { loginUrl } = useBarberPortalRoute('profile');
     const [barber, setBarber] = useState<Barber | null>(null);
     const [loading, setLoading] = useState(true);
     const [uploadingProfile, setUploadingProfile] = useState(false);
@@ -49,7 +51,7 @@ export default function BarberProfilePage() {
         async function load() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.user) {
-                router.push('/barber/login');
+                router.push(loginUrl);
                 return;
             }
 
@@ -244,8 +246,8 @@ export default function BarberProfilePage() {
                     <h2 className="font-heading uppercase tracking-widest text-white text-sm">Instagram</h2>
                     <p className="text-savron-silver/50 text-xs mt-1">Shown on your public booking page.</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <div className="relative flex-1">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="relative flex-1 min-w-0">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-savron-silver/40 text-sm select-none">@</span>
                         <input
                             type="text"
@@ -258,7 +260,7 @@ export default function BarberProfilePage() {
                     <button
                         onClick={handleSaveInstagram}
                         disabled={savingInstagram}
-                        className="px-5 py-3 text-[11px] uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 hover:bg-savron-green-light rounded-savron transition-all disabled:opacity-50"
+                        className="w-full sm:w-auto px-5 py-3 text-[11px] uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 hover:bg-savron-green-light rounded-savron transition-all disabled:opacity-50"
                     >
                         {savingInstagram ? 'Saving...' : 'Save'}
                     </button>

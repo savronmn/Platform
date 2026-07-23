@@ -6,6 +6,18 @@ export function barberPortalCalendarUrl(slug: string, origin = ''): string {
     return `${origin}/barber/${slug}/calendar`;
 }
 
+export function barberPortalProfileUrl(slug: string, origin = ''): string {
+    return `${origin}/barber/${slug}/profile`;
+}
+
+export function barberPortalRequestsUrl(slug: string, origin = ''): string {
+    return `${origin}/barber/${slug}/requests`;
+}
+
+export function barberPortalShareUrl(slug: string, origin = ''): string {
+    return `${origin}/barber/${slug}/share`;
+}
+
 export function barberBookingPageUrl(slug: string, origin = ''): string {
     return `${origin}/book/${slug}`;
 }

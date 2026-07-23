@@ -24,7 +24,9 @@ import { dedupeExternalEventsAgainstBookings, mergeCalendarMetaMaps } from '@/li
 import type { BookingCalendarMeta } from '@/lib/calendar-dedup';
 import TimelineDayGrid, { bookingToTimelineEvent, isoRangeToTimelineEvent, type TimelineEvent } from '@/components/calendar/TimelineDayGrid';
 import CalendarNavBar from '@/components/calendar/CalendarNavBar';
+import CalendarScrollArea from '@/components/calendar/CalendarScrollArea';
 import EditBookingModal from '@/components/crm/EditBookingModal';
+import { HOST_CALENDAR_HOUR_HEIGHT_PX } from '@/lib/calendar-timeline';
 import { useServices } from '@/lib/use-services';
 import { triggerCancelBooking } from '@/lib/confirm-booking';
 import Image from 'next/image';
@@ -421,12 +423,12 @@ export default function BarberSlugCalendarPage() {
 
             {/* Next appointment highlight */}
             {nextAppointment && (
-                <div className="px-4 py-3 border border-savron-blue-light/25 bg-savron-blue/10 rounded-savron flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                        <Clock className="w-4 h-4 text-savron-blue-light" />
-                        <div>
+                <div className="px-4 py-3 border border-savron-blue-light/25 bg-savron-blue/10 rounded-savron flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <Clock className="w-4 h-4 text-savron-blue-light shrink-0" />
+                        <div className="min-w-0">
                             <p className="text-[10px] uppercase tracking-widest text-savron-blue-light">Next appointment</p>
-                            <p className="text-white text-sm font-medium">
+                            <p className="text-white text-sm font-medium truncate">
                                 {nextAppointment.client_name || 'Walk-in'} · {nextAppointment.service}
                             </p>
                             <p className="text-savron-silver text-xs">{nextAppointment.date} at {nextAppointment.time}</p>
@@ -434,7 +436,7 @@ export default function BarberSlugCalendarPage() {
                     </div>
                     <button
                         onClick={() => { setListTab('calendar'); setSelectedDate(new Date(`${nextAppointment.date}T12:00:00`)); setSelectedBooking(nextAppointment); }}
-                        className="text-[10px] uppercase tracking-widest text-savron-blue-light hover:text-white transition-colors"
+                        className="text-[10px] uppercase tracking-widest text-savron-blue-light hover:text-white transition-colors self-start sm:self-auto shrink-0"
                     >
                         View
                     </button>
@@ -511,13 +513,15 @@ export default function BarberSlugCalendarPage() {
                     )}
 
                     {view === 'day' && (
-                        <div className="overflow-auto border border-white/5 rounded-savron">
+                        <CalendarScrollArea maxHeightClass="max-h-[min(70vh,820px)]">
                             <TimelineDayGrid
+                                fitViewport
+                                hourHeightPx={HOST_CALENDAR_HOUR_HEIGHT_PX}
                                 columns={[{
                                     id: barber.id,
                                     header: <p className="text-white text-xs font-heading uppercase tracking-widest">{format(selectedDate, 'EEEE, MMM d')}</p>,
                                 }]}
-                                columnWidth="flex-1 min-w-0 sm:min-w-[320px]"
+                                columnWidth="flex-1 min-w-0"
                                 getEventsForColumn={() => dayTimelineEvents}
                                 renderColumnBackground={() => {
                                     if (!daySchedule || isDayOff) return null;
@@ -583,12 +587,14 @@ export default function BarberSlugCalendarPage() {
                                     );
                                 }}
                             />
-                        </div>
+                        </CalendarScrollArea>
                     )}
 
                     {view === 'week' && (
-                        <div className="overflow-auto border border-white/5 rounded-savron">
+                        <CalendarScrollArea maxHeightClass="max-h-[min(70vh,820px)]" gestureOrientation="horizontal">
                             <TimelineDayGrid
+                                fitViewport
+                                hourHeightPx={HOST_CALENDAR_HOUR_HEIGHT_PX}
                                 columns={weekDays.filter(d => !isSunday(d)).map(day => {
                                     const dateStr = format(day, 'yyyy-MM-dd');
                                     const sched = getScheduleForDate(day);
@@ -615,7 +621,7 @@ export default function BarberSlugCalendarPage() {
                                         ),
                                     };
                                 })}
-                                columnWidth="min-w-[140px] sm:min-w-[200px] md:min-w-[220px]"
+                                columnWidth="min-w-0"
                                 getEventsForColumn={timelineEventsForDate}
                                 renderEvent={(event) => {
                                     const item = weekTimelineMap.get(event.id);
@@ -659,7 +665,7 @@ export default function BarberSlugCalendarPage() {
                                     );
                                 }}
                             />
-                        </div>
+                        </CalendarScrollArea>
                     )}
                 </>
             )}
@@ -685,9 +691,9 @@ export default function BarberSlugCalendarPage() {
 
             {/* Booking detail panel */}
             {selectedBooking && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedBooking(null)}>
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedBooking(null)}>
                     <div
-                        className="bg-savron-grey border border-white/10 rounded-savron p-6 w-full max-w-md space-y-4"
+                        className="bg-savron-grey border border-white/10 rounded-t-2xl sm:rounded-savron p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="flex items-start justify-between gap-3">
@@ -753,9 +759,9 @@ export default function BarberSlugCalendarPage() {
 
             {/* External Google Calendar detail panel */}
             {selectedExternal && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedExternal(null)}>
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedExternal(null)}>
                     <div
-                        className="bg-savron-grey border border-white/10 rounded-savron p-6 w-full max-w-md space-y-4"
+                        className="bg-savron-grey border border-white/10 rounded-t-2xl sm:rounded-savron p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="flex items-start justify-between gap-3">

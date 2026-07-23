@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
+import { useBarberPortalRoute } from '@/lib/use-barber-portal-route';
 import { motion } from 'framer-motion';
 import { Copy, Check, ExternalLink, QrCode, Link2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -10,6 +12,8 @@ import type { Barber } from '@/lib/types';
 
 export default function BarberSharePage() {
     const supabase = createClient();
+    const router = useRouter();
+    const { loginUrl } = useBarberPortalRoute('share');
     const [barber, setBarber] = useState<Barber | null>(null);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
@@ -17,7 +21,10 @@ export default function BarberSharePage() {
     useEffect(() => {
         async function load() {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
+            if (!user) {
+                router.push(loginUrl);
+                return;
+            }
             const { data } = await supabase
                 .from('barbers')
                 .select('*')

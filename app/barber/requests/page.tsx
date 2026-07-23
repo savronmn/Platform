@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useBarberPortalRoute } from '@/lib/use-barber-portal-route';
 import { createClient } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Clock, Check, X, ChevronDown } from 'lucide-react';
@@ -34,6 +35,7 @@ const TYPE_OPTIONS: { value: RequestType; label: string; helper: string }[] = [
 export default function BarberRequestsPage() {
     const supabase = createClient();
     const router = useRouter();
+    const { loginUrl } = useBarberPortalRoute('requests');
     const catalog = useServices();
     const [barber, setBarber] = useState<Barber | null>(null);
     const { services: myServices } = useBarberServices(barber?.id);
@@ -53,7 +55,7 @@ export default function BarberRequestsPage() {
     useEffect(() => {
         async function load() {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) { router.push('/barber/login'); return; }
+            if (!user) { router.push(loginUrl); return; }
             const { data: b } = await supabase.from('barbers').select('id, name').eq('auth_id', user.id).single();
             if (!b) { setLoading(false); return; }
             setBarber(b as Barber);
@@ -187,7 +189,7 @@ export default function BarberRequestsPage() {
                 </div>
                 <button
                     onClick={() => setShowForm(v => !v)}
-                    className="px-5 py-3 text-[11px] uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 hover:bg-savron-green-light rounded-savron transition-all flex items-center gap-2"
+                    className="w-full sm:w-auto px-5 py-3 text-[11px] uppercase tracking-widest bg-savron-green text-white border border-savron-green-light/20 hover:bg-savron-green-light rounded-savron transition-all flex items-center justify-center gap-2"
                 >
                     <Send className="w-3.5 h-3.5" />
                     {showForm ? 'Cancel' : 'New Request'}
@@ -245,7 +247,7 @@ export default function BarberRequestsPage() {
                                         ))}
                                     </select>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-[10px] uppercase tracking-widest text-savron-silver/50 mb-2">Proposed Price ($)</label>
                                         <input
@@ -300,7 +302,7 @@ export default function BarberRequestsPage() {
                         <button
                             onClick={submit}
                             disabled={submitting}
-                            className="px-6 py-3 bg-savron-green/90 text-white text-[11px] uppercase tracking-widest rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50 flex items-center gap-2"
+                            className="w-full sm:w-auto px-6 py-3 bg-savron-green/90 text-white text-[11px] uppercase tracking-widest rounded-savron hover:bg-savron-green-light transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             <Send className="w-3.5 h-3.5" /> {submitting ? 'Submitting...' : 'Submit Request'}
                         </button>
@@ -317,9 +319,9 @@ export default function BarberRequestsPage() {
                 <div className="space-y-3">
                     {requests.map(r => (
                         <details key={r.id} className="bg-savron-grey border border-white/5 rounded-savron group">
-                            <summary className="px-5 py-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-white/[0.02] transition-colors list-none">
+                            <summary className="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 cursor-pointer hover:bg-white/[0.02] transition-colors list-none">
                                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                                    <ChevronDown className="w-4 h-4 text-savron-silver/70 transition-transform group-open:rotate-180" />
+                                    <ChevronDown className="w-4 h-4 text-savron-silver/70 shrink-0 transition-transform group-open:rotate-180" />
                                     <div className="flex-1 min-w-0">
                                         <p className="text-white text-sm">
                                             {TYPE_OPTIONS.find(o => o.value === r.type)?.label} change
@@ -327,7 +329,7 @@ export default function BarberRequestsPage() {
                                         <p className="text-savron-silver/50 text-[11px] mt-0.5">{format(new Date(r.created_at), 'MMM d, h:mm a')}</p>
                                     </div>
                                 </div>
-                                {statusBadge(r.status)}
+                                <div className="shrink-0 pl-7 sm:pl-0">{statusBadge(r.status)}</div>
                             </summary>
                             <div className="px-5 pb-5 space-y-3 border-t border-white/5">
                                 <div>
