@@ -21,6 +21,7 @@ import { isSlotInPast, nextBookableDate, slotConflictsWithBusy } from '@/lib/tim
 import BarberPortfolioGallery from '@/components/booking/BarberPortfolioGallery';
 import { bookingTotals, formatBookingServices, resolveServiceFromParam } from '@/lib/booking-utils';
 import { EyebrowsAddon } from '@/components/booking/EyebrowsAddon';
+import { useBookingStepUrl } from '@/lib/use-booking-step-url';
 
 const STEP_TRANSITION = { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as const };
 
@@ -70,8 +71,23 @@ function BarberBookingContent() {
     const [busyError, setBusyError] = useState<string | null>(null);
     const [preselectionApplied, setPreselectionApplied] = useState(false);
     const [addEyebrows, setAddEyebrows] = useState(false);
+    const [confirmedBookingId, setConfirmedBookingId] = useState<string | null>(null);
     const flowRef = useRef<HTMLDivElement>(null);
     const skipStepScroll = useRef(true);
+
+    const selectedOffering = displayServices.find((s) => s.serviceId === selectedServiceId);
+    const serviceUrlParam = preselectedService ?? selectedOffering?.name ?? null;
+
+    const { goToStep } = useBookingStepUrl({
+        flow: 'barber',
+        step,
+        setStep,
+        barberSlug: slug,
+        serviceParam: serviceUrlParam,
+        selectedDate: step >= 2 ? format(selectedDate, 'yyyy-MM-dd') : null,
+        selectedTime: step >= 2 ? selectedTime : null,
+        bookingId: confirmedBookingId,
+    });
 
     useEffect(() => {
         if (prefillName) setClientName(prefillName);
@@ -213,11 +229,13 @@ function BarberBookingContent() {
         triggerPostBooking(result.id);
 
         setSubmitting(false);
-        setStep(4);
+        setConfirmedBookingId(result.id);
+        goToStep(4, { bookingId: result.id });
     };
 
     const resetBooking = () => {
-        setStep(1);
+        setConfirmedBookingId(null);
+        goToStep(1);
         setSelectedServiceId(null);
         setPreselectionApplied(true);
         setAddEyebrows(false);
@@ -540,18 +558,18 @@ function BarberBookingContent() {
                                 )}
                                 <div className="flex justify-between pt-6">
                                 {step > 1 ? (
-                                    <Button variant="ghost" onClick={() => setStep(step - 1)} className="flex gap-2">
+                                    <Button variant="ghost" onClick={() => goToStep(step - 1)} className="flex gap-2">
                                         <ChevronLeft className="w-4 h-4" /> Back
                                     </Button>
                                 ) : <div />}
                                 <div>
                                     {step === 1 && (
-                                        <Button onClick={() => setStep(2)} disabled={!selectedServiceId}>
+                                        <Button onClick={() => goToStep(2)} disabled={!selectedServiceId}>
                                             Next <ChevronRight className="w-4 h-4 ml-2" />
                                         </Button>
                                     )}
                                     {step === 2 && (
-                                        <Button onClick={() => setStep(3)} disabled={!selectedTime || loadingBusy || !busyLoaded || !!busyError}>
+                                        <Button onClick={() => goToStep(3)} disabled={!selectedTime || loadingBusy || !busyLoaded || !!busyError}>
                                             Next <ChevronRight className="w-4 h-4 ml-2" />
                                         </Button>
                                     )}

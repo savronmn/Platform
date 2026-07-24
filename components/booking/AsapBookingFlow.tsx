@@ -17,6 +17,7 @@ import { createBookingRequest } from '@/lib/client-create-booking';
 import { isSlotInPast, nextBookableDate, slotConflictsWithBusy } from '@/lib/time-helpers';
 import { barberOffersService, bookingTotals, findDefaultBookingBarber, formatBookingServices, resolveServiceFromParam } from '@/lib/booking-utils';
 import { EyebrowsAddon } from './EyebrowsAddon';
+import { useBookingStepUrl } from '@/lib/use-booking-step-url';
 
 const STEP_TRANSITION = { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as const };
 
@@ -50,11 +51,26 @@ export default function AsapBookingFlow({
     const [allBarbers, setAllBarbers] = useState<Barber[]>([]);
     const [preselectionApplied, setPreselectionApplied] = useState(false);
     const [addEyebrows, setAddEyebrows] = useState(false);
+    const [confirmedBookingId, setConfirmedBookingId] = useState<string | null>(null);
     const flowRef = useRef<HTMLDivElement>(null);
     const skipStepScroll = useRef(true);
 
     const skipServiceStep = Boolean(preselectedServiceName && selectedService !== null && preselectionApplied);
     const totalSteps = skipServiceStep ? 2 : 3;
+
+    const selectedSvc = services.find(s => s.id === selectedService);
+    const serviceUrlParam = preselectedServiceName ?? selectedSvc?.name ?? null;
+
+    const { goToStep } = useBookingStepUrl({
+        flow: 'asap',
+        step,
+        setStep,
+        skipServiceStep,
+        serviceParam: serviceUrlParam,
+        selectedDate: step >= 1 ? format(selectedDate, 'yyyy-MM-dd') : null,
+        selectedTime: selectedTime,
+        bookingId: confirmedBookingId,
+    });
 
     useEffect(() => {
         if (prefillName) setClientName(prefillName);
@@ -137,7 +153,6 @@ export default function AsapBookingFlow({
 
     const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
-    const selectedSvc = services.find(s => s.id === selectedService);
     const durationMin = selectedSvc?.durationMin ?? 45;
 
     const defaultBarber = findDefaultBookingBarber(allBarbers);
@@ -280,7 +295,8 @@ export default function AsapBookingFlow({
         triggerPostBooking(result.id);
 
         setSubmitting(false);
-        setStep(4);
+        setConfirmedBookingId(result.id);
+        goToStep(4, { bookingId: result.id });
     };
 
     return (
@@ -503,7 +519,9 @@ export default function AsapBookingFlow({
                         </p>
                         <p className="text-xs text-savron-silver/50 uppercase tracking-widest">Check your email for details</p>
                         <Button variant="outline" onClick={() => {
-                            setStep(1); setSelectedTime(null); setSelectedService(null);
+                            setConfirmedBookingId(null);
+                            goToStep(1);
+                            setSelectedTime(null); setSelectedService(null);
                             setPreselectionApplied(true);
                             setAddEyebrows(false);
                             setSelectedDate(nextBookableDate()); setClientName(''); setClientEmail(''); setClientPhone(''); setClientMessage('');
@@ -528,18 +546,18 @@ export default function AsapBookingFlow({
                     )}
                     <div className="flex justify-between pt-6 md:pt-8 px-0">
                     {step > 1 ? (
-                        <Button variant="ghost" onClick={() => setStep(step - 1)} className="flex gap-2">
+                        <Button variant="ghost" onClick={() => goToStep(step - 1)} className="flex gap-2">
                             <ChevronLeft className="w-4 h-4" /> Back
                         </Button>
                     ) : <div />}
                     <div>
                         {step === 1 && (
-                            <Button onClick={() => setStep(2)} disabled={!selectedTime || loadingBusy || !busyLoaded || !!busyError || (skipServiceStep && !selectedService)}>
+                            <Button onClick={() => goToStep(2)} disabled={!selectedTime || loadingBusy || !busyLoaded || !!busyError || (skipServiceStep && !selectedService)}>
                                 Next <ChevronRight className="w-4 h-4 ml-2" />
                             </Button>
                         )}
                         {step === 2 && !skipServiceStep && (
-                            <Button onClick={() => setStep(3)} disabled={!selectedService}>
+                            <Button onClick={() => goToStep(3)} disabled={!selectedService}>
                                 Next <ChevronRight className="w-4 h-4 ml-2" />
                             </Button>
                         )}

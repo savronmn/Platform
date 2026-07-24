@@ -45,22 +45,24 @@ export function serviceNamesForIds(services: ServiceItem[], ids: number[]): stri
 }
 
 export function buildBookingUrl(serviceNameOrId?: string | number): string {
-    if (serviceNameOrId === undefined || serviceNameOrId === '') return '/booking';
-    return `/booking?service=${encodeURIComponent(String(serviceNameOrId))}`;
+    const params = new URLSearchParams({ step: 'barber' });
+    if (serviceNameOrId !== undefined && serviceNameOrId !== '') {
+        params.set('service', String(serviceNameOrId));
+    }
+    return `/booking?${params.toString()}`;
 }
 
 /** Link to a barber's public booking page, optionally with a pre-selected service or pre-filled member details. */
 export function buildBarberPageUrl(
     slug: string,
-    options?: { serviceName?: string; name?: string; email?: string },
+    options?: { serviceName?: string; name?: string; email?: string; step?: string },
 ): string {
     const base = `/book/${encodeURIComponent(slug)}`;
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ step: options?.step ?? 'service' });
     if (options?.serviceName) params.set('service', options.serviceName);
     if (options?.name) params.set('name', options.name);
     if (options?.email) params.set('email', options.email);
-    const query = params.toString();
-    return query ? `${base}?${query}` : base;
+    return `${base}?${params.toString()}`;
 }
 
 /** Build the service label stored on bookings, with optional eyebrows add-on. */

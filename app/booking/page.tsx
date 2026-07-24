@@ -1,12 +1,26 @@
 "use client";
 
-import { Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { Suspense, useEffect } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import BarberChooser from '@/components/booking/BarberChooser';
+import { bookingStepPath, buildBookingStepQuery } from '@/lib/booking-step-urls';
+import { gtagEvent } from '@/lib/gtag';
 
 function BookingPageContent() {
+    const router = useRouter();
+    const pathname = usePathname();
     const searchParams = useSearchParams();
     const preselectedService = searchParams.get('service');
+
+    useEffect(() => {
+        if (searchParams.get('step') === 'barber') return;
+        const query = buildBookingStepQuery(searchParams, { step: 'barber' });
+        router.replace(bookingStepPath(pathname, query), { scroll: false });
+    }, [pathname, router, searchParams]);
+
+    useEffect(() => {
+        gtagEvent('booking_step_view', { step: 'barber', flow: 'barber' });
+    }, []);
 
     return (
         <main className="min-h-screen bg-savron-black pt-20 pb-12">

@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import AsapBookingFlow from '@/components/booking/AsapBookingFlow';
@@ -33,11 +34,17 @@ export default function InlineBookingSection({
                 </p>
             </div>
 
-            <AsapBookingFlow
-                preselectedServiceName={preselectedServiceName}
-                prefillName={prefillName}
-                prefillEmail={prefillEmail}
-            />
+            <Suspense fallback={
+                <div className="bg-savron-grey p-8 rounded-savron border border-white/5 flex items-center justify-center min-h-[200px]">
+                    <div className="w-5 h-5 border-2 border-savron-green/30 border-t-savron-green rounded-full animate-spin" />
+                </div>
+            }>
+                <AsapBookingFlow
+                    preselectedServiceName={preselectedServiceName}
+                    prefillName={prefillName}
+                    prefillEmail={prefillEmail}
+                />
+            </Suspense>
 
             {/*
               ── Barber chooser step (disabled — restore when ready) ──
